@@ -7,6 +7,22 @@ Duvet can then report on every requirement,
 where it is honored in source,
 as well as how that source is tested.
 
+## Test
+```
+cargo test
+```
+
+## Build
+
+If there are any changes to the JS
+it will also need to be built.
+In the `www` directory run `make build`
+
+## Install
+```
+cargo +stable install --force --path .
+````
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
