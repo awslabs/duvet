@@ -1,11 +1,11 @@
-## My Project
+## Duvet
 
-TODO: Fill this README out!
-
-Be sure to:
-
-* Change the title in this README
-* Edit your repository description on GitHub
+A code quality tool to help bound correctness.
+By starting from a specification Duvet extracts every RFC 2119 requirement.
+Duvet can then use this information to report on a code base.
+Duvet can then report on every requirement,
+where it is honored in source,
+as well as how that source is tested.
 
 ## Security
 
