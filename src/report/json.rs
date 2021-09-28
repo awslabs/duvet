@@ -488,8 +488,8 @@ impl RefStatus {
         field!(todo);
         field!(exception);
         field!(test);
-        field!(citation);
         field!(implication);
+        field!(citation);
         field!(spec);
 
         let _ = mask;
