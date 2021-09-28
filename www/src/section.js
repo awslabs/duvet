@@ -74,6 +74,12 @@ const useStyles = makeStyles((theme) => ({
   warning: {
     borderBottom: `2px solid ${theme.palette.warning.main}`,
   },
+  missingCitation: {
+    borderBottom: `2px solid ${theme.palette.warning.main}`,
+  },
+  missingTest: {
+    borderBottom: `2px solid ${theme.palette.warning.main}`,
+  },
   ok: {
     borderBottom: `2px solid ${theme.palette.success.main}`,
   },
@@ -132,8 +138,10 @@ function Quote({ reference }) {
       statusClass = "ok";
     } else if (status.implication) {
       statusClass = "ok";
-    } else if (status.citation || status.test) {
-      statusClass = "warning";
+    } else if (status.citation) {
+      statusClass = "missingCitation";
+    } else if (status.test) {
+      statusClass = "missingTest";
     } else {
       statusClass = "error";
     }
@@ -228,7 +236,6 @@ function Annotations({ reference: { annotations, status }, expanded }) {
       />
       <AnnotationRef
         title="Implications"
-        alt={showMissing && "Missing!"}
         refs={refs.IMPLICATION}
       />
       <AnnotationRef
