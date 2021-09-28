@@ -48,7 +48,9 @@ input.annotations.forEach((anno, id) => {
   if (status) {
     status.related = (status.related || []).map((id) => input.annotations[id]);
     Object.assign(anno, status);
-    anno.isComplete = anno.spec === anno.citation && anno.spec === anno.test;
+    debugger;
+    anno.isComplete = (anno.spec === anno.citation && anno.spec === anno.test)
+      || anno.spec === anno.implication;
     anno.isOk = anno.isComplete || anno.exception === anno.spec;
   }
 
@@ -75,18 +77,21 @@ class Stats {
     this.complete = 0;
     this.incomplete = 0;
     this.citations = 0;
+    this.implications = 0;
     this.tests = 0;
     this.exceptions = 0;
     this.todos = 0;
   }
 
   onRequirement(requirement) {
+    debugger;
     this.total += 1;
 
     if (requirement.incomplete) this.incomplete += 1;
     else if (requirement.isOk) this.complete += 1;
 
     if (requirement.citation) this.citations += 1;
+    if (requirement.implication) this.implications += 1;
     if (requirement.test) this.tests += 1;
     if (requirement.exception) this.exceptions += 1;
     if (requirement.todo) this.todos += 1;

@@ -241,7 +241,7 @@ function StatsRow({ title, stats, ...props }) {
     <TableRow {...props}>
       <TableCell component="th">{title}</TableCell>
       <TableCell align="right">{stats.total}</TableCell>
-      {["complete", "citations", "tests", "exceptions", "implications", "todos"].map((name) => (
+      {["complete", "citations", "tests", "implications", "exceptions", "implications", "todos"].map((name) => (
         <TableCell key={name} align="right">
           <Tooltip title={stats.percent(name)}>
             <span>{stats[name]}</span>
