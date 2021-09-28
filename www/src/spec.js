@@ -222,8 +222,10 @@ export function Stats({ spec: { stats } }) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {LEVELS.filter((level) => stats[level].total).map((level) => (
-            <StatsRow key={level} title={level} stats={stats[level]} />
+          {LEVELS
+            .filter((level) => stats[level].total)
+            .map((level) => (
+              <StatsRow key={level} title={level} stats={stats[level]} />
           ))}
           <StatsRow
             className={classes.totals}
@@ -241,7 +243,7 @@ function StatsRow({ title, stats, ...props }) {
     <TableRow {...props}>
       <TableCell component="th">{title}</TableCell>
       <TableCell align="right">{stats.total}</TableCell>
-      {["complete", "citations", "tests", "implications", "exceptions", "implications", "todos"].map((name) => (
+      {["complete", "citations", "implications", "tests", "exceptions", "todos"].map((name) => (
         <TableCell key={name} align="right">
           <Tooltip title={stats.percent(name)}>
             <span>{stats[name]}</span>
