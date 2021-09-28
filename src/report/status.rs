@@ -104,6 +104,11 @@ impl SpecReport {
             self.spec_offsets.remove(offset);
         }
 
+        // implications automatically mark the section as complete
+        for offset in self.implication_offsets.iter() {
+            self.spec_offsets.remove(offset);
+        }
+
         // an offset needs to be both cited and tested to be complete
         for offset in self.citation_offsets.union(&self.test_offsets) {
             self.spec_offsets.remove(offset);
