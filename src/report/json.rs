@@ -485,6 +485,7 @@ impl RefStatus {
             };
         }
 
+        // Order is important
         field!(todo);
         field!(exception);
         field!(test);
