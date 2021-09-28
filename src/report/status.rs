@@ -65,6 +65,7 @@ pub struct Spec {
     pub spec: usize,
     pub incomplete: usize,
     pub citation: usize,
+    pub implication: usize,
     pub test: usize,
     pub exception: usize,
     pub todo: usize,
@@ -75,6 +76,7 @@ pub struct Spec {
 pub struct SpecReport {
     spec_offsets: IntervalSet<usize>,
     citation_offsets: IntervalSet<usize>,
+    implication_offsets: IntervalSet<usize>,
     test_offsets: IntervalSet<usize>,
     exception_offsets: IntervalSet<usize>,
     todo_offsets: IntervalSet<usize>,
@@ -86,6 +88,7 @@ impl SpecReport {
         match reference.annotation.anno {
             AnnotationType::Spec => &mut self.spec_offsets,
             AnnotationType::Citation => &mut self.citation_offsets,
+            AnnotationType::Implication => &mut self.implication_offsets,
             AnnotationType::Test => &mut self.test_offsets,
             AnnotationType::Exception => &mut self.exception_offsets,
             AnnotationType::Todo => &mut self.todo_offsets,
@@ -110,6 +113,7 @@ impl SpecReport {
             spec,
             incomplete: self.spec_offsets.len(),
             citation: self.citation_offsets.len(),
+            implication: self.implication_offsets.len(),
             test: self.test_offsets.len(),
             exception: self.exception_offsets.len(),
             todo: self.todo_offsets.len(),

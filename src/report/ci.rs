@@ -38,6 +38,11 @@ pub fn enforce_source(report: &TargetReport) -> Result<(), anyhow::Error> {
                 tested_lines.insert(line);
                 cited_lines.insert(line);
             }
+            AnnotationType::Implication => {
+                // mark implication as fully covered
+                tested_lines.insert(line);
+                cited_lines.insert(line);
+            }
             AnnotationType::Spec | AnnotationType::Todo => {}
         }
     }

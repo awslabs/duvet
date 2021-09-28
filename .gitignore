@@ -2,3 +2,4 @@
 /.idea
 /Cargo.lock
 /target
+/.history

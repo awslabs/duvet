@@ -123,6 +123,11 @@ pub fn report_source<Output: Write>(
                 citation!(1);
                 test!(0);
             }
+            AnnotationType::Implication => {
+                // mark implications as fully covered
+                citation!(1);
+                test!(1);
+            }
             AnnotationType::Exception => {
                 // mark exceptions as fully covered
                 citation!(1);

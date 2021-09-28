@@ -215,6 +215,7 @@ export function Stats({ spec: { stats } }) {
             <TableCell align="right">Total</TableCell>
             <TableCell align="right">Complete</TableCell>
             <TableCell align="right">Citations</TableCell>
+            <TableCell align="right">Implications</TableCell>
             <TableCell align="right">Tests</TableCell>
             <TableCell align="right">Exceptions</TableCell>
             <TableCell align="right">TODOs</TableCell>
@@ -240,7 +241,7 @@ function StatsRow({ title, stats, ...props }) {
     <TableRow {...props}>
       <TableCell component="th">{title}</TableCell>
       <TableCell align="right">{stats.total}</TableCell>
-      {["complete", "citations", "tests", "exceptions", "todos"].map((name) => (
+      {["complete", "citations", "tests", "exceptions", "implications", "todos"].map((name) => (
         <TableCell key={name} align="right">
           <Tooltip title={stats.percent(name)}>
             <span>{stats[name]}</span>
