@@ -71,11 +71,8 @@ const useStyles = makeStyles((theme) => ({
   error: {
     borderBottom: `2px solid ${theme.palette.error.main}`,
   },
-  warning: {
-    borderBottom: `2px solid ${theme.palette.warning.main}`,
-  },
   missingCitation: {
-    borderBottom: `2px solid ${theme.palette.warning.main}`,
+    borderBottom: `2px solid ${theme.palette.secondary.main}`,
   },
   missingTest: {
     borderBottom: `2px solid ${theme.palette.warning.main}`,
