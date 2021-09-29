@@ -48,7 +48,6 @@ input.annotations.forEach((anno, id) => {
   if (status) {
     status.related = (status.related || []).map((id) => input.annotations[id]);
     Object.assign(anno, status);
-    debugger;
     anno.isComplete = (anno.spec === anno.citation && anno.spec === anno.test)
       || anno.spec === anno.implication;
     anno.isOk = anno.isComplete || anno.exception === anno.spec;
@@ -84,7 +83,6 @@ class Stats {
   }
 
   onRequirement(requirement) {
-    debugger;
     this.total += 1;
 
     if (requirement.incomplete) this.incomplete += 1;
