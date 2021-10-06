@@ -136,9 +136,9 @@ function Quote({ reference }) {
     } else if (status.implication) {
       statusClass = "ok";
     } else if (status.citation) {
-      statusClass = "missingCitation";
-    } else if (status.test) {
       statusClass = "missingTest";
+    } else if (status.test) {
+      statusClass = "missingCitation";
     } else {
       statusClass = "error";
     }
