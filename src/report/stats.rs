@@ -38,6 +38,7 @@ pub struct AnnotationStatistics {
     pub tests: Stat,
     pub exceptions: Stat,
     pub todos: Stat,
+    pub implications: Stat,
 }
 
 impl AnnotationStatistics {
@@ -56,6 +57,9 @@ impl AnnotationStatistics {
             }
             AnnotationType::Todo => {
                 self.todos.record(reference);
+            }
+            AnnotationType::Implication => {
+                self.implications.record(reference);
             }
             AnnotationType::Spec => {
                 // do nothing, it's just a reference

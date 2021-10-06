@@ -197,7 +197,8 @@ pub fn report_writer<Output: Write>(
                                 }
                                 status!(spec);
                                 status!(incomplete);
-                                status!(citation);
+                                status!(citation); 
+                                status!(implication);
                                 status!(test);
                                 status!(exception);
                                 status!(todo);
@@ -238,6 +239,7 @@ pub fn report_writer<Output: Write>(
 
                             status!(spec);
                             status!(citation);
+                            status!(implication);
                             status!(test);
                             status!(exception);
                             status!(todo);
@@ -432,6 +434,7 @@ impl Comma {
 struct RefStatus {
     spec: bool,
     citation: bool,
+    implication: bool,
     test: bool,
     exception: bool,
     todo: bool,
@@ -443,18 +446,21 @@ impl RefStatus {
         for level in AnnotationLevel::LEVELS.iter().copied() {
             for spec in [false, true].iter().copied() {
                 for citation in [false, true].iter().copied() {
-                    for test in [false, true].iter().copied() {
-                        for exception in [false, true].iter().copied() {
-                            for todo in [false, true].iter().copied() {
-                                let status = Self {
-                                    spec,
-                                    citation,
-                                    test,
-                                    exception,
-                                    todo,
-                                    level,
-                                };
-                                f(status)?;
+                    for implication in [false, true].iter().copied() {
+                        for test in [false, true].iter().copied() {
+                            for exception in [false, true].iter().copied() {
+                                for todo in [false, true].iter().copied() {
+                                    let status = Self {
+                                        spec,
+                                        citation,
+                                        implication,
+                                        test,
+                                        exception,
+                                        todo,
+                                        level,
+                                    };
+                                    f(status)?;
+                                }
                             }
                         }
                     }
@@ -479,9 +485,11 @@ impl RefStatus {
             };
         }
 
+        // Order is important
         field!(todo);
         field!(exception);
         field!(test);
+        field!(implication);
         field!(citation);
         field!(spec);
 
@@ -503,6 +511,7 @@ impl RefStatus {
         match r.annotation.anno {
             AnnotationType::Spec => self.spec = true,
             AnnotationType::Citation => self.citation = true,
+            AnnotationType::Implication => self.implication = true,
             AnnotationType::Test => self.test = true,
             AnnotationType::Exception => self.exception = true,
             AnnotationType::Todo => self.todo = true,

@@ -139,6 +139,7 @@ pub enum AnnotationType {
     Citation,
     Exception,
     Todo,
+    Implication,
 }
 
 impl Default for AnnotationType {
@@ -155,6 +156,7 @@ impl fmt::Display for AnnotationType {
             Self::Citation => "CITATION",
             Self::Exception => "EXCEPTION",
             Self::Todo => "TODO",
+            Self::Implication => "IMPLICATION"
         })
     }
 }
@@ -169,6 +171,7 @@ impl FromStr for AnnotationType {
             "CITATION" | "citation" => Ok(Self::Citation),
             "EXCEPTION" | "exception" => Ok(Self::Exception),
             "TODO" | "todo" => Ok(Self::Todo),
+            "IMPLICATION" | "implication" => Ok(Self::Implication),
             _ => Err(anyhow!(format!("Invalid annotation type {:?}", v))),
         }
     }

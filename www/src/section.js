@@ -71,8 +71,11 @@ const useStyles = makeStyles((theme) => ({
   error: {
     borderBottom: `2px solid ${theme.palette.error.main}`,
   },
-  warning: {
-    borderBottom: `2px solid ${theme.palette.warning.main}`,
+  missingCitation: {
+    borderBottom: `2px solid ${theme.palette.warning.dark}`,
+  },
+  missingTest: {
+    borderBottom: `2px solid ${theme.palette.warning.light}`,
   },
   ok: {
     borderBottom: `2px solid ${theme.palette.success.main}`,
@@ -130,8 +133,12 @@ function Quote({ reference }) {
   if (status.spec) {
     if (status.citation && status.test) {
       statusClass = "ok";
-    } else if (status.citation || status.test) {
-      statusClass = "warning";
+    } else if (status.implication) {
+      statusClass = "ok";
+    } else if (status.citation) {
+      statusClass = "missingTest";
+    } else if (status.test) {
+      statusClass = "missingCitation";
     } else {
       statusClass = "error";
     }
@@ -169,6 +176,7 @@ function Quote({ reference }) {
 function Annotations({ reference: { annotations, status }, expanded }) {
   const refs = {
     CITATION: [],
+    IMPLICATION: [],
     SPEC: [],
     TEST: [],
     EXCEPTION: [],
@@ -222,6 +230,10 @@ function Annotations({ reference: { annotations, status }, expanded }) {
         title="Tests"
         alt={showMissing && "Missing!"}
         refs={refs.TEST}
+      />
+      <AnnotationRef
+        title="Implications"
+        refs={refs.IMPLICATION}
       />
       <AnnotationRef
         title="Exceptions"
@@ -346,6 +358,7 @@ function Comment({ annotation }) {
         <ButtonGroup size="small" color="primary" variant="contained">
           {[
             { label: "Citation", type: "citation" },
+            { label: "Implication", type: "implication" },
             { label: "Test", type: "test" },
             { label: "Exception", type: "exception" },
             { label: "TODO", type: "TODO" },
