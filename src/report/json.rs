@@ -529,7 +529,6 @@ impl From<RefStatus> for usize {
 fn status_id_test() {
     let mut count = 0;
     let _ = RefStatus::for_each::<_, ()>(|s| {
-        println!("Info: {}, {}", s.id(), count);
         dbg!((count, s));
         assert_eq!(s.id(), count);
         count += 1;
