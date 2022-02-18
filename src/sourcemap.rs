@@ -130,16 +130,22 @@ mod tests {
     fn lines_iter_with_trailing_newline() {
         let content = "line 1\nline 2";
         let mut lines_iter = LinesIter::new(&content);
-        assert_eq!(lines_iter.next(), Some(Str {
-            value: "line 1",
-            pos: 0,
-            line: 1,
-        }));
-        assert_eq!(lines_iter.next(), Some(Str {
-            value: "line 2",
-            pos: 7,
-            line: 2,
-        }));
+        assert_eq!(
+            lines_iter.next(),
+            Some(Str {
+                value: "line 1",
+                pos: 0,
+                line: 1,
+            })
+        );
+        assert_eq!(
+            lines_iter.next(),
+            Some(Str {
+                value: "line 2",
+                pos: 7,
+                line: 2,
+            })
+        );
         assert_eq!(lines_iter.next(), None);
     }
 
@@ -147,16 +153,22 @@ mod tests {
     fn lines_iter_without_trailing_newline() {
         let content = "line 1\nline 2";
         let mut lines_iter = LinesIter::new(&content);
-        assert_eq!(lines_iter.next(), Some(Str {
-            value: "line 1",
-            pos: 0,
-            line: 1,
-        }));
-        assert_eq!(lines_iter.next(), Some(Str {
-            value: "line 2",
-            pos: 7,
-            line: 2,
-        }));
+        assert_eq!(
+            lines_iter.next(),
+            Some(Str {
+                value: "line 1",
+                pos: 0,
+                line: 1,
+            })
+        );
+        assert_eq!(
+            lines_iter.next(),
+            Some(Str {
+                value: "line 2",
+                pos: 7,
+                line: 2,
+            })
+        );
         assert_eq!(lines_iter.next(), None);
     }
 }
