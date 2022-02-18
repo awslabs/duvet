@@ -33,7 +33,10 @@ impl<'a> Iterator for LinesIter<'a> {
             return None;
         }
 
-        let rel_offset = content.find('\n').unwrap_or_else(|| content.len());
+        let (rel_offset, found_newline) = match content.find('\n') {
+            Some(offset) => (offset, true),
+            None => (content.len(), false),
+        };
 
         let value = Str {
             value: content[..rel_offset].trim_end_matches('\r'),
@@ -41,7 +44,10 @@ impl<'a> Iterator for LinesIter<'a> {
             line: self.line,
         };
 
-        self.offset += rel_offset + 1; // trim \n
+        self.offset += rel_offset;
+        if found_newline {
+            self.offset += 1; // trim \n
+        }
         self.line += 1;
         Some(value)
     }
@@ -113,5 +119,44 @@ impl<'a> Deref for Str<'a> {
 
     fn deref(&self) -> &str {
         self.value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lines_iter_with_trailing_newline() {
+        let content = "line 1\nline 2";
+        let mut lines_iter = LinesIter::new(&content);
+        assert_eq!(lines_iter.next(), Some(Str {
+            value: "line 1",
+            pos: 0,
+            line: 1,
+        }));
+        assert_eq!(lines_iter.next(), Some(Str {
+            value: "line 2",
+            pos: 7,
+            line: 2,
+        }));
+        assert_eq!(lines_iter.next(), None);
+    }
+
+    #[test]
+    fn lines_iter_without_trailing_newline() {
+        let content = "line 1\nline 2";
+        let mut lines_iter = LinesIter::new(&content);
+        assert_eq!(lines_iter.next(), Some(Str {
+            value: "line 1",
+            pos: 0,
+            line: 1,
+        }));
+        assert_eq!(lines_iter.next(), Some(Str {
+            value: "line 2",
+            pos: 7,
+            line: 2,
+        }));
+        assert_eq!(lines_iter.next(), None);
     }
 }
