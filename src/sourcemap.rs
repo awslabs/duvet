@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn lines_iter_with_trailing_newline() {
-        let content = "line 1\nline 2";
+        let content = "line 1\nline 2\n";
         let mut lines_iter = LinesIter::new(&content);
         assert_eq!(
             lines_iter.next(),
