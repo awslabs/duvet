@@ -33,37 +33,34 @@ impl<'a> Iterator for LinesIter<'a> {
             return None;
         }
 
-        let (rel_offset, found_newline) = match content.find('\n') {
-            Some(offset) => (offset, true),
-            None => (content.len(), false),
+        let pos = self.offset;
+
+        let rel_offset = if let Some(next_newline) = content.find('\n') {
+            self.offset += next_newline + 1; // trim \n
+            next_newline
+        } else {
+            // consume the remaining characters
+            let len = content.len();
+            self.offset += len;
+            len
         };
 
         let value = Str {
             value: content[..rel_offset].trim_end_matches('\r'),
-            pos: self.offset,
+            pos,
             line: self.line,
         };
 
-        self.offset += rel_offset;
-        if found_newline {
-            self.offset += 1; // trim \n
-        }
         self.line += 1;
         Some(value)
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Str<'a> {
     pub value: &'a str,
     pub pos: usize,
     pub line: usize,
-}
-
-impl<'a> fmt::Debug for Str<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.value.fmt(f)
-    }
 }
 
 impl<'a> fmt::Display for Str<'a> {
@@ -125,50 +122,20 @@ impl<'a> Deref for Str<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use insta::assert_debug_snapshot;
 
     #[test]
     fn lines_iter_with_trailing_newline() {
-        let content = "line 1\nline 2\n";
-        let mut lines_iter = LinesIter::new(&content);
-        assert_eq!(
-            lines_iter.next(),
-            Some(Str {
-                value: "line 1",
-                pos: 0,
-                line: 1,
-            })
-        );
-        assert_eq!(
-            lines_iter.next(),
-            Some(Str {
-                value: "line 2",
-                pos: 7,
-                line: 2,
-            })
-        );
-        assert_eq!(lines_iter.next(), None);
+        assert_debug_snapshot!(LinesIter::new("line 1\nline 2\n").collect::<Vec<_>>());
     }
 
     #[test]
     fn lines_iter_without_trailing_newline() {
-        let content = "line 1\nline 2";
-        let mut lines_iter = LinesIter::new(&content);
-        assert_eq!(
-            lines_iter.next(),
-            Some(Str {
-                value: "line 1",
-                pos: 0,
-                line: 1,
-            })
-        );
-        assert_eq!(
-            lines_iter.next(),
-            Some(Str {
-                value: "line 2",
-                pos: 7,
-                line: 2,
-            })
-        );
-        assert_eq!(lines_iter.next(), None);
+        assert_debug_snapshot!(LinesIter::new("line 1\nline 2").collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn lines_iter_cr_newline() {
+        assert_debug_snapshot!(LinesIter::new("line 1\r\nline 2\r\n").collect::<Vec<_>>());
     }
 }
