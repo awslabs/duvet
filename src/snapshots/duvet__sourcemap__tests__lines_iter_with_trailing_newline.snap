@@ -1,0 +1,17 @@
+---
+source: src/sourcemap.rs
+expression: "LinesIter::new(\"line 1\\nline 2\\n\").collect::<Vec<_>>()"
+
+---
+[
+    Str {
+        value: "line 1",
+        pos: 0,
+        line: 1,
+    },
+    Str {
+        value: "line 2",
+        pos: 7,
+        line: 2,
+    },
+]
