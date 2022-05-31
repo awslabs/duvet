@@ -1,6 +1,7 @@
 """Public data structures for Duvet"""
-from attrs import define
 from enum import Enum
+
+from attrs import define
 
 
 class AnnotationType(Enum):
@@ -21,14 +22,15 @@ class AnnotationLevel(Enum):
 
 @define
 class Annotation:
-    """ An annotation class is what we parsed from the src/test code files
-        :param str target: Location of the section (Foreign Key)
-        :param AnnotationType type: An enumeration type of annotation
-        :param str content: A string of the exact requirement words
-        :param int start_line: Number of the start line
-        :param int end_line: Number of the end line
-        :param str location: A string of the location
-        """
+    """An annotation class is what we parsed from the src/test code files
+    :param str target: Location of the section (Foreign Key)
+    :param AnnotationType type: An enumeration type of annotation
+    :param str content: A string of the exact requirement words
+    :param int start_line: Number of the start line
+    :param int end_line: Number of the end line
+    :param str location: A string of the location
+    """
+
     target: str
     type: AnnotationType
     content: str

@@ -2,8 +2,9 @@ from src.duvet.structures import Annotation, AnnotationLevel, AnnotationType
 
 
 def test_annotation():
-    test_anno = Annotation("test_target.md#target", AnnotationType.CITATION, "content", 1, 2,
-                          "test_target#target$content", "code.py")
+    test_anno = Annotation(
+        "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
+    )
     assert test_anno.target == "test_target.md#target"
     assert test_anno.type == AnnotationType.CITATION
     assert test_anno.content == "content"
