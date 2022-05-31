@@ -1,0 +1,12 @@
+[BASIC]
+# Allow function names up to 50 characters
+function-rgx = [a-z_][a-z0-9_]{2,50}$
+
+[DESIGN]
+max-args = 10
+
+[FORMAT]
+max-line-length = 120
+
+[REPORTS]
+msg-template = {path}:{line}: [{msg_id}({symbol}), {obj}] {msg}

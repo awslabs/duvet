@@ -1,0 +1,18 @@
+[MESSAGES CONTROL]
+# Disabling messages that we either don't care about for tests or are necessary to break for tests.
+disable =
+    invalid-name,  # naming in tests often need to violate many common rules
+    missing-docstring,  # we don't write docstrings for tests
+    wrong-import-position,  # pylint does not identify unknown modules as non-standard-library
+    import-error,  # because the examples are not actually in a module, sys.path is patched to find tests and test utils
+    duplicate-code,  # unit tests for similar things tend to be similar
+    redefined-outer-name,  # raises false positives with fixtures
+
+[DESIGN]
+max-args = 10
+
+[FORMAT]
+max-line-length = 120
+
+[REPORTS]
+msg-template = {path}:{line}: [{msg_id}({symbol}), {obj}] {msg}

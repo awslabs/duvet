@@ -1,0 +1,41 @@
+# Vim swap files
+*~
+*.swp
+*.swo
+
+# OS Artifacts
+.DS_Store
+
+# Build Artifacts
+build
+dist
+docs/build
+/doc/generated/*
+/target
+
+# Bytecode Artifacts
+*.pyc
+*.pyo
+.cache*
+__pycache__
+*.egg-info
+
+# Coverage.py
+.coverage*
+
+# MyPy
+.mypy_cache
+
+# PyEnv
+.python-version
+
+# PyTest
+.pytest_cache
+
+# PyCharm
+.idea/
+venv/
+/.history
+
+# Tox
+.tox
