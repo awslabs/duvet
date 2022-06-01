@@ -1,5 +1,11 @@
-from src.duvet.structures import Annotation, AnnotationLevel, AnnotationType
+# Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""Unit test suite for duvet.structures"""
+import pytest
+from duvet.identifiers import RequirementLevel, AnnotationType
+from duvet.structures import Annotation
 
+pytestmark = [pytest.mark.unit, pytest.mark.local]
 
 def test_annotation():
     test_anno = Annotation(

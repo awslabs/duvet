@@ -1,34 +1,23 @@
+# Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 """Public data structures for Duvet"""
-from enum import Enum
+
+from duvet.identifiers import AnnotationType, RequirementLevel
 
 from attrs import define
 
 
-class AnnotationType(Enum):
-    CITATION = 1
-    TEST = 2
-    UNTESTABLE = 3
-    DEVIATION = 4
-    EXCEPTION = 5
-    IMPLICATION = 6
-    TODO = 7
-
-
-class AnnotationLevel(Enum):
-    MUST = 1
-    SHOULD = 2
-    MAY = 3
-
-
 @define
 class Annotation:
-    """An annotation class is what we parsed from the src/test code files
+    """Annotations are references to a text from a section in a specification,
+    written as comment in the source code and test code.
     :param str target: Location of the section (Foreign Key)
     :param AnnotationType type: An enumeration type of annotation
     :param str content: A string of the exact requirement words
-    :param int start_line: Number of the start line
-    :param int end_line: Number of the end line
-    :param str location: A string of the location
+    :param int start_line: Number of the start line of the annotation
+    :param int end_line: Number of the end line of the annotation
+    :param str location: Path to implementation file containing the annotation
     """
 
     target: str
