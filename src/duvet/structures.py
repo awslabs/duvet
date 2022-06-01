@@ -1,11 +1,9 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-
 """Public data structures for Duvet"""
+from attrs import define
 
 from duvet.identifiers import AnnotationType, RequirementLevel
-
-from attrs import define
 
 
 @define

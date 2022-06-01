@@ -1,16 +1,15 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Duvet data structures for defining implementation-specific characteristics."""
+"""Unique identifiers used by duvet-python."""
 from enum import Enum
 
-"""Unique identifiers used by duvet-python."""
 __all__ = ("__version__",)
 __version__ = "0.0.1"
 
 
 class AnnotationType(Enum):
-    """definition of type of annotation.
-    """
+    """definition of type of annotation."""
+
     CITATION = 1
     TEST = 2
     UNTESTABLE = 3
@@ -21,8 +20,8 @@ class AnnotationType(Enum):
 
 
 class RequirementLevel(Enum):
-    """Static definition of level of requirement.
-    """
+    """Static definition of level of requirement."""
+
     MUST = 1
     SHOULD = 2
     MAY = 3

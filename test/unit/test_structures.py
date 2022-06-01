@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit test suite for duvet.structures"""
 import pytest
-from duvet.identifiers import RequirementLevel, AnnotationType
+
+from duvet.identifiers import AnnotationType, RequirementLevel
 from duvet.structures import Annotation
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
+
 
 def test_annotation():
     test_anno = Annotation(
