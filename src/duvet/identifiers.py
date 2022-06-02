@@ -37,6 +37,11 @@ class RequirementStatus(Enum):
     NOT_STARTED = 5
 
 
-implemented_type = ["citation", "untestable", "deviation", "implication"]
-attested_type = ["test", "untestable", "implication"]
-omitted_type = ["exception"]
+implemented_type = [
+    AnnotationType.CITATION,
+    AnnotationType.UNTESTABLE,
+    AnnotationType.DEVIATION,
+    AnnotationType.IMPLICATION,
+]
+attested_type = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
+omitted_type = [AnnotationType.EXCEPTION]

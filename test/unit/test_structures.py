@@ -28,10 +28,6 @@ def test_requirement():
     )
     test_req = Requirement(
         RequirementLevel.MUST,
-        RequirementStatus.NOT_STARTED,
-        False,
-        False,
-        False,
         "content",
         "test_target#target$content",
         {"test_target#target$content": test_anno},
@@ -56,10 +52,6 @@ def test_add_annotation():
     )
     test_req = Requirement(
         RequirementLevel.MUST,
-        RequirementStatus.NOT_STARTED,
-        False,
-        False,
-        False,
         "content",
         "test_target#target$content",
         {"test_target#target$content": citation_anno},
@@ -78,10 +70,6 @@ def test_add_excepted_annotation():
     )
     test_req = Requirement(
         RequirementLevel.MUST,
-        RequirementStatus.NOT_STARTED,
-        False,
-        False,
-        False,
         "content",
         "test_target#target$content",
         {},

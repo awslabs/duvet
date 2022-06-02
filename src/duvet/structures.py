@@ -56,10 +56,10 @@ class Requirement:
     """
 
     requirement_level: RequirementLevel
-    status: RequirementStatus = field(default=RequirementStatus.NOT_STARTED)
-    implemented: bool = False
-    attested: bool = False
-    omitted: bool = False
+    status: RequirementStatus = field(init=False, default=RequirementStatus.NOT_STARTED)
+    implemented: bool = field(init=False, default=False)
+    attested: bool = field(init=False, default=False)
+    omitted: bool = field(init=False, default=False)
     content: str = ""
     id: str = ""
     matched_annotations: dict = {}
@@ -117,25 +117,22 @@ class Requirement:
         * exception
 
         """
-        # implemented_type = ["citation", "untestable", "deviation", "implication"]
-        # attested_type = ["test", "untestable", "implication"]
-        # omitted_type = ["exception"]
         for anno in self.matched_annotations.values():
-            if anno.type.name.lower() in implemented_type:
+            if anno.type in implemented_type:
                 self.implemented = True
-            if anno.type.name.lower() in attested_type:
+            if anno.type in attested_type:
                 self.attested = True
-            if anno.type.name.lower() in omitted_type:
+            if anno.type in omitted_type:
                 self.omitted = True
 
     def add_annotation(self, anno):
         """There MUST be a method to add annotations."""
         new_dict = {anno.id: anno}
         self.matched_annotations.update(new_dict)
-        if anno.type.name.lower() in implemented_type:
+        if anno.type in implemented_type:
             self.implemented = True
-        if anno.type.name.lower() in attested_type:
+        if anno.type in attested_type:
             self.attested = True
-        if anno.type.name.lower() in omitted_type:
+        if anno.type in omitted_type:
             self.omitted = True
         self.set_status()
