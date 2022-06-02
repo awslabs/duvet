@@ -26,13 +26,8 @@ def test_requirement():
     test_anno = Annotation(
         "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
     )
-    test_req = Requirement(
-        RequirementLevel.MUST,
-        "content",
-        "test_target#target$content",
-        {"test_target#target$content": test_anno},
-    )
-
+    test_req = Requirement(RequirementLevel.MUST, "content", "test_target#target$content")
+    test_req.add_annotation(test_anno)
     assert test_req.requirement_level == RequirementLevel.MUST
     assert test_req.status == RequirementStatus.MISSING_TEST
     assert test_req.content == "content"
@@ -50,12 +45,8 @@ def test_add_annotation():
     test_anno = Annotation(
         "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target#target$content", "code.py"
     )
-    test_req = Requirement(
-        RequirementLevel.MUST,
-        "content",
-        "test_target#target$content",
-        {"test_target#target$content": citation_anno},
-    )
+    test_req = Requirement(RequirementLevel.MUST, "content", "test_target#target$content")
+    test_req.add_annotation(citation_anno)
     assert test_req.implemented
     assert not test_req.attested
     assert not test_req.omitted
@@ -72,7 +63,6 @@ def test_add_excepted_annotation():
         RequirementLevel.MUST,
         "content",
         "test_target#target$content",
-        {},
     )
     assert not test_req.omitted
     test_req.add_annotation(exception_anno)

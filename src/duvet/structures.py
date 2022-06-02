@@ -62,7 +62,7 @@ class Requirement:
     omitted: bool = field(init=False, default=False)
     content: str = ""
     id: str = ""
-    matched_annotations: dict = {}
+    matched_annotations: dict = field(init=False, default={})
 
     def __attrs_post_init__(self):
         """There MUST be a method that sets the status based on the labels.
@@ -76,7 +76,6 @@ class Requirement:
         """
         self.set_labels()
         self.set_status()
-        print("called")
 
     def set_status(self):
         """There MUST be a method that sets the status based on the labels."""
