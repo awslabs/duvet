@@ -35,3 +35,8 @@ class RequirementStatus(Enum):
     EXCEPTION = 3
     MISSING_IMPLEMENTATION = 4
     NOT_STARTED = 5
+
+
+implemented_type = ["citation", "untestable", "deviation", "implication"]
+attested_type = ["test", "untestable", "implication"]
+omitted_type = ["exception"]

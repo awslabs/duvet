@@ -3,11 +3,14 @@
 """Public data structures for Duvet"""
 from attrs import define, field
 
-from duvet.identifiers import AnnotationType, RequirementLevel, RequirementStatus
-
-implemented_type = ["citation", "untestable", "deviation", "implication"]
-attested_type = ["test", "untestable", "implication"]
-omitted_type = ["exception"]
+from duvet.identifiers import (
+    AnnotationType,
+    RequirementLevel,
+    RequirementStatus,
+    attested_type,
+    implemented_type,
+    omitted_type,
+)
 
 
 @define
