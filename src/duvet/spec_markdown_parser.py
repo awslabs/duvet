@@ -29,7 +29,7 @@ specification_state = ""
 class Specification:
     title: str
     url: str
-    sections: dict  # hashmap equivalent in python
+    sections: dict # hashmap equivalent in python
 
 
 @define
@@ -41,17 +41,6 @@ class Section:
     end_line: int
     is_section: bool
     requirements: dict = field(init=False, default={})
-
-
-
-@define
-class Requirement:
-    requirement_level: RequirementLevel
-    implemented: bool
-    attested: bool
-    omitted: bool
-    content: str
-    id: str
 
 
 curr_line = 0
@@ -107,16 +96,6 @@ while curr_line < len(lines):
     curr_line += 1
 
 
-# states = ["specification", "section"]
-# @define
-# class StateMachine:
-#     def get_connection(self):
-
-
-# Implemented = {"citation", "untestable", "deviation", "implication"}
-# Attested = {"test", "untestable", "implication"}
-# Ommitted = {"exception"}
-
 
 def extract_requirements(section: Section, lines: list):
     section_curr_line = section.start_line
@@ -128,7 +107,7 @@ def extract_requirements(section: Section, lines: list):
             # print(section_line)
             if "MUST MUST NOT" in section_line:
                 # if '.' in section_line or '!' in section_line:
-                curr_requirement = Requirement(RequirementLevel.MUST, False, False, False, section_line,
+                curr_requirement = Requirement(RequirementLevel.MUST, section_line,
                                                section.full_title + "$" + section_line)
                 print(curr_requirement)
                 reqs[curr_requirement.id] = curr_requirement
@@ -137,7 +116,7 @@ def extract_requirements(section: Section, lines: list):
 
             elif "MUST NOT" in section_line:
                 # if '.' in section_line or '!' in section_line:
-                curr_requirement = Requirement(RequirementLevel.MUST, False, False, False, section_line,
+                curr_requirement = Requirement(RequirementLevel.MUST,  section_line,
                                                section.full_title + "$" + section_line)
                 # section.requirements[curr_requirement.id] = curr_requirement
                 reqs[curr_requirement.id] = curr_requirement
@@ -145,13 +124,13 @@ def extract_requirements(section: Section, lines: list):
             elif "MUST" in section_line:
                 # print(section_line)
                 # if '.' in section_line or '!' in section_line:
-                curr_requirement = Requirement(RequirementLevel.MUST, False, False, False, section_line,
+                curr_requirement = Requirement(RequirementLevel.MUST, section_line,
                                                section.full_title + "$" + section_line)
                 reqs[curr_requirement.id] = curr_requirement
             elif "SHOULD SHOULD NOT" in section_line:
                 # if '.' in section_line or '!' in section_line:
                 temp = section.full_title + "$" + section_line
-                curr_requirement = Requirement(RequirementLevel.SHOULD, False, False, False, section_line,temp)
+                curr_requirement = Requirement(RequirementLevel.SHOULD,  section_line,temp)
                 reqs[curr_requirement.id] = curr_requirement
                 # print(curr_requirement)
         section_curr_line += 1
