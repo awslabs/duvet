@@ -34,9 +34,40 @@ class TestMarkdownHeader:
         "line, level, title",
         [(key, value[0], value[1]) for key, value in HEADER_POSITIVE_CASES.items()]
     )
-    def test_header_from_line(self, line: str, level: int, title: str):
-        expected = MarkdownHeader(level, title, line)
-        actual = MarkdownHeader.header_from_line(line)
+    def test_from_line(self, line: str, level: int, title: str):
+        expected = MarkdownHeader(level, title)
+        actual = MarkdownHeader.from_line(line)
         assert actual.level == expected.level
         assert actual.title == expected.title
-        assert actual.content == expected.content
+
+    @pytest.mark.parametrize(
+        "parent, child",
+        [(MarkdownHeader.from_line("# Duvet Specification"),
+          MarkdownHeader.from_line("## Overview"))]
+    )
+    def test_add_child_positive(self, parent: MarkdownHeader, child: MarkdownHeader):
+        parent.add_child(child)
+        assert len(parent.childHeaders) == 1
+        assert parent.childHeaders[0] == child
+        assert child.parentHeader == parent
+
+    @pytest.mark.parametrize(
+        "parent, child",
+        [(MarkdownHeader.from_line("## Overview"),
+          MarkdownHeader.from_line("# Duvet Specification"))]
+    )
+    def test_add_child_negative(self, parent: MarkdownHeader, child: MarkdownHeader):
+        with pytest.raises(AssertionError):
+            parent.add_child(child)
+
+    @pytest.mark.parametrize(
+        "parent, child, expected",
+        [(MarkdownHeader.from_line("# Parent Title"),
+          MarkdownHeader.from_line("## Odd.Name.But.We.Will.Allow.It"),
+          "Parent-Title.Odd_Name_But_We_Will_Allow_It")]
+    )
+    def test_get_url(self, parent: MarkdownHeader, child: MarkdownHeader, expected: str):
+        parent.add_child(child)
+        assert child.get_url() == expected
+
+    # TODO: test_from_match
