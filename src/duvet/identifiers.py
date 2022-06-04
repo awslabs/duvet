@@ -47,3 +47,4 @@ attested_type = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.
 omitted_type = [AnnotationType.EXCEPTION]
 
 spec_github_url = "https://github.com/awslabs/duvet"
+branch_or_commit = "master"

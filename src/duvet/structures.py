@@ -8,6 +8,7 @@ from duvet.identifiers import (
     RequirementLevel,
     RequirementStatus,
     attested_type,
+    branch_or_commit,
     implemented_type,
     omitted_type,
     spec_github_url,
@@ -156,6 +157,7 @@ class Section:
     :param  bool has_requirements: a flag marked true when the length of the requirements field larger than 0, other wise it is false
 
     """
+
     title: str = ""
     id: str = ""
     start_line: int = -1
@@ -170,5 +172,5 @@ class Section:
 
     def to_github_url(self, spec_dir):
         h = self.id.split(".")
-        target_title = h[len(h) - 1]
-        return spec_github_url + spec_dir + "#" + target_title
+        target_title = spec_dir + "#" + h[len(h) - 1]
+        return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
