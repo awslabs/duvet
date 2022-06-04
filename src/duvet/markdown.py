@@ -37,20 +37,9 @@ class MarkdownHeader:
     @staticmethod
     def header_from_line(line: str):
         """Generate a Markdown Header from a line."""
-
-        def get_hash_split_ind(_line: str):
-            """Determine where the #s stop and the title begins."""
-            # In the first MAX_HEADER_LEVELS characters of the line,
-            # search, starting from the right, for a #.
-            # Return that index plus 1.
-            # Content to the left of this are all #.
-            # Content to the right should be the title.
-            return _line[0 : min(len(_line), MAX_HEADER_LEVELS)].rfind("#") + 1
-
-        # An alternative way would be to split on leftmost white space
-        # and the level is just the length of [0]...
-        hash_split_ind = get_hash_split_ind(line)
-        return MarkdownHeader(level=hash_split_ind, title=line[hash_split_ind + 1 :].strip(), content=line)
+        assert MarkdownHeader.is_header(line)
+        hashes, title = line.split(maxsplit=1)
+        return MarkdownHeader(level=len(hashes), title=title.strip(), content=line)
 
 
 @define
