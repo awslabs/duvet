@@ -4,7 +4,7 @@
 import pytest
 
 from duvet.identifiers import AnnotationType, RequirementLevel, RequirementStatus
-from duvet.structures import Annotation, Requirement
+from duvet.structures import Annotation, Requirement, Section
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -67,3 +67,21 @@ def test_add_excepted_annotation():
     assert not test_req.omitted
     test_req.add_annotation(exception_anno)
     assert test_req.omitted
+
+
+def test_section():
+    test_req = Requirement(
+        RequirementLevel.MUST,
+        "content",
+        "test_target#target$content",
+    )
+    test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
+    assert test_sec.title == "A Section Title"
+    assert test_sec.id == "h1.h2.h3.a-section-title"
+    assert (
+        test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
+        == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
+    )
+    assert not test_sec.has_requirements
+    test_sec.add_requirement(test_req)
+    assert test_sec.has_requirements

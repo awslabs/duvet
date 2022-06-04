@@ -139,3 +139,40 @@ class Requirement:
         if anno.type in omitted_type:
             self.omitted = True
         self.set_status()
+
+
+@define
+class Section:
+    """
+    The specification section shows the specific specification text and how this links to annotation.
+    It MUST show all text from the section. It MUST highlight the text for every requirement.
+    It MUST highlight the text that matches any annotation.
+    Any highlighted text MUST have a mouse over that shows its annotation information.
+    Clicking on any highlighted text MUST bring up a popup that shows
+
+
+    :param  str id: a unique identifier of the section, for mark down documents it would be h1.h2.h3.h4 (Primary Key)
+    :param  str title: the name of the title which we can target here using GitHub hyper link
+    :param  int start_line: the line number of the start of the section
+    :param  int end_line: the line number of the end of the section
+    :param  dict requirements: a hashmap of requirements extracted from the section
+    :param  bool has_requirements: a flag marked true when the length of the requirements field larger than 0, other wise it is false
+
+    """
+
+    title: str = ""
+    id: str = ""
+    start_line: int = -1
+    end_line: int = -1
+    has_requirements: bool = field(init=False, default=False)
+    requirements: dict = field(init=False, default={})
+
+    def add_requirement(self, requirement):
+        new_dict = {requirement.id: requirement}
+        self.has_requirements = True
+        self.requirements.update(new_dict)
+
+    def to_github_url(self, spec_dir, spec_github_url, branch_or_commit="master"):
+        h = self.id.split(".")
+        target_title = spec_dir + "#" + h[len(h) - 1]
+        return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
