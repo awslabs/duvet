@@ -142,7 +142,9 @@ class Requirement:
 class Section:
     """
     The specification section shows the specific specification text and how this links to annotation.
-    It MUST show all text from the section. It MUST highlight the text for every requirement. It MUST highlight the text that matches any annotation. Any highlighted text MUST have a mouse over that shows its annotation information.
+    It MUST show all text from the section. It MUST highlight the text for every requirement.
+    It MUST highlight the text that matches any annotation.
+    Any highlighted text MUST have a mouse over that shows its annotation information.
     Clicking on any highlighted text MUST bring up a popup that shows
 
 
