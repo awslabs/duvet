@@ -8,7 +8,6 @@ from duvet.identifiers import (
     RequirementLevel,
     RequirementStatus,
     attested_type,
-    branch_or_commit,
     implemented_type,
     omitted_type,
     spec_github_url,
