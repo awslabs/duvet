@@ -10,6 +10,7 @@ from duvet.identifiers import (
     attested_type,
     implemented_type,
     omitted_type,
+    spec_github_url,
 )
 
 
@@ -153,18 +154,19 @@ class Section:
     :param  bool has_requirements: a flag marked true when the length of the requirements field larger than 0, other wise it is false
 
     """
-    title: str = field(init=False, default="")
+    title: str = ""
     id: str = ""
     start_line: int = -1
     end_line: int = -1
     has_requirements: bool = field(init=False, default=False)
     requirements: dict = field(init=False, default={})
 
-    def __attrs_post_init__(self):
-        h = self.id.split(".")
-        self.title = h[len(h) - 1]
-
     def add_requirement(self, requirement):
         new_dict = {requirement.id: requirement}
         self.has_requirements = True
         self.requirements.update(new_dict)
+
+    def to_github_url(self, spec_dir):
+        h = self.id.split(".")
+        target_title = h[len(h) - 1]
+        return spec_github_url + spec_dir + "#" + target_title
