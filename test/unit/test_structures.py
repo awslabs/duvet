@@ -79,7 +79,7 @@ def test_section():
     assert test_sec.title == "A Section Title"
     assert test_sec.id == "h1.h2.h3.a-section-title"
     assert (
-        test_sec.to_github_url("spec/spec.md")
+        test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
         == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
     )
     assert not test_sec.has_requirements
