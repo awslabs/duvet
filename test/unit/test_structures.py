@@ -4,7 +4,7 @@
 import pytest
 
 from duvet.identifiers import AnnotationType, RequirementLevel, RequirementStatus
-from duvet.structures import Annotation, Requirement, Section
+from duvet.structures import Annotation, Requirement, Section, Specification
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -85,3 +85,13 @@ def test_section():
     assert not test_sec.has_requirements
     test_sec.add_requirement(test_req)
     assert test_sec.has_requirements
+
+
+def test_specification():
+    test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
+    test_spec = Specification("A Specification Title", "spec/spec.md")
+    test_spec.add_section(test_sec)
+    assert (
+        test_spec.to_github_url("https://github.com/awslabs/duvet")
+        == "https://github.com/awslabs/duvet/blob/master/spec/spec.md"
+    )

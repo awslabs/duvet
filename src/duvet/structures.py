@@ -176,3 +176,27 @@ class Section:
         h = self.id.split(".")
         target_title = spec_dir + "#" + h[len(h) - 1]
         return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
+
+
+@define
+class Specification:
+    """
+    A specification is a document, like this, that defines correct behavior. This behavior is defined in regular human language.
+    A specification class is what we parsed from the specification document. Each specification contains multiple sections
+
+    :param str title: a string of the title of the specification
+    :param str spec_dir: a hash map of sections with the section.id as the key and the section object as its value
+    :param str location: a relative path to the specification file (Primary Key)
+
+    """
+
+    title: str = ""
+    spec_dir: str = ""
+    sections: dict = field(init=False, default={})  # hashmap equivalent in python
+
+    def to_github_url(self, spec_github_url, branch_or_commit="master") -> str:
+        return "/".join([spec_github_url, "blob", branch_or_commit, self.spec_dir])
+
+    def add_section(self, section):
+        new_dict = {section.id: section}
+        self.sections.update(new_dict)
