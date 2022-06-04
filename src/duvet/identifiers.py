@@ -45,4 +45,3 @@ implemented_type = [
 ]
 attested_type = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
 omitted_type = [AnnotationType.EXCEPTION]
-
