@@ -10,7 +10,6 @@ from duvet.identifiers import (
     attested_type,
     implemented_type,
     omitted_type,
-    spec_github_url,
 )
 
 
