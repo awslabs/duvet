@@ -3,7 +3,6 @@
 """Unique identifiers used by duvet-python."""
 from enum import Enum
 
-__all__ = ("__version__",)
 __version__ = "0.0.1"
 
 

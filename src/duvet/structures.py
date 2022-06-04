@@ -1,6 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Public data structures for Duvet"""
+"""Public data structures for Duvet."""
 from attrs import define, field
 
 from duvet.identifiers import (
@@ -15,8 +15,8 @@ from duvet.identifiers import (
 
 @define
 class Annotation:
-    """Annotations are references to a text from a section in a specification,
-    written as comment in the source code and test code.
+    """Annotations are references to a text from a section in a specification.
+
     :param str target: Location of the section (Foreign Key)
     :param AnnotationType type: An enumeration type of annotation
     :param str content: A string of the exact requirement words
@@ -38,6 +38,7 @@ class Annotation:
 class Requirement:
     """
     Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.
+
     A requirement MAY contain multiple RFC 2119 keywords. A requirement MUST be terminated by one of the following
 
     * period (.)
@@ -96,7 +97,8 @@ class Requirement:
 
         Implemented
 
-        A specification requirement MUST be labeled implemented if there exists at least one matching annotation of type:
+        A specification requirement MUST be labeled implemented
+        if there exists at least one matching annotation of type:
 
         * citation
         * untestable
@@ -105,14 +107,16 @@ class Requirement:
 
         Attested
 
-        A specification requirement MUST be labeled attested if there exists at least one matching annotation of type
+        A specification requirement MUST be labeled attested
+         if there exists at least one matching annotation of type
 
         * test
         * untestable
         * implication
 
         Omitted
-        A specification requirement MUST be labeled omitted and MUST only be labeled omitted if there exists a matching annotation of type
+        A specification requirement MUST be labeled omitted and
+        MUST only be labeled omitted if there exists a matching annotation of type
         * exception
 
         """
