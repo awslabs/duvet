@@ -1,9 +1,11 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Unit test suite for duvet.markdown."""
+from typing import TypeVar
+
 import pytest
 
-from duvet.markdown import MAX_HEADER_LEVELS, MarkdownHeader
+from duvet.markdown import MAX_HEADER_LEVELS, MarkdownHeader, MarkdownSpecification
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -21,6 +23,9 @@ HEADER_NEGATIVE_CASES = [
     "#\v",
     "".join(["#" for i in range(0, MAX_HEADER_LEVELS)]),
 ]
+
+# I am so lazy...
+MHT = TypeVar("MHT", bound="MarkdownHeader")
 
 
 class TestMarkdownHeader:
@@ -58,6 +63,40 @@ class TestMarkdownHeader:
             parent.add_child(child)
 
     @pytest.mark.parametrize(
+        "parent, child, sibling",
+        [
+            (
+                MarkdownHeader.from_line("# Duvet Specification"),
+                MarkdownHeader.from_line("## Overview"),
+                MarkdownHeader.from_line("## Editing"),
+            )
+        ],
+    )
+    def test_add_sibling_positive(self, parent: MHT, child: MHT, sibling: MHT):
+        parent.childHeaders = []  # There is a weird thing where pytest is reloading parent from earlier
+        parent.add_child(child)
+        child.add_sibling(sibling)
+        print([child.title for child in parent.childHeaders])
+        assert len(parent.childHeaders) == 2
+        assert child.parentHeader == parent
+        assert sibling.parentHeader == parent
+
+    @pytest.mark.parametrize(
+        "parent, child, sibling",
+        [
+            (
+                MarkdownHeader.from_line("# Duvet Specification"),
+                MarkdownHeader.from_line("## Overview"),
+                MarkdownHeader.from_line("# Editing"),
+            )
+        ],
+    )
+    def test_add_sibling_negative(self, parent: MHT, child: MHT, sibling: MHT):
+        parent.add_child(child)
+        with pytest.raises(AssertionError):
+            child.add_sibling(sibling)
+
+    @pytest.mark.parametrize(
         "parent, child, expected",
         [
             (
@@ -72,3 +111,13 @@ class TestMarkdownHeader:
         assert child.get_url() == expected
 
     # TODO: test_from_match
+
+
+class TestMarkdownSpecification:
+    @pytest.mark.parametrize("filename", ["markdown.md", "another/markdown.md"])
+    def test_is_markdown_positive(self, filename):
+        assert MarkdownSpecification.is_markdown(filename) is True
+
+    @pytest.mark.parametrize("filename", ["not_markdown.rts", "another/markdown.txt"])
+    def test_is_markdown_negative(self, filename):
+        assert MarkdownSpecification.is_markdown(filename) is False
