@@ -168,7 +168,7 @@ class Section:
         self.has_requirements = True
         self.requirements.update(new_dict)
 
-    def to_github_url(self, spec_dir):
+    def to_github_url(self, spec_dir, spec_github_url, branch_or_commit="master"):
         h = self.id.split(".")
         target_title = spec_dir + "#" + h[len(h) - 1]
         return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
