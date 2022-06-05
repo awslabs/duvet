@@ -9,13 +9,6 @@ from duvet.structures import Annotation, Report, Requirement, Section, Specifica
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
 
-@pytest.fixture(autouse=True)
-def run_around_tests():
-    # A test function will be run at this point
-    yield
-    # Code that will run after your test, for example:
-
-
 def test_annotation():
     test_anno = Annotation(
         "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
