@@ -9,4 +9,5 @@ import duvet
 @pytest.mark.xfail(strict=True)
 @pytest.mark.integ
 def test_write_tests():
+    assert bool(duvet.__version__)  # hack to meet flake8 F401
     assert False
