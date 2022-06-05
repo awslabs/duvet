@@ -1,10 +1,12 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Public data structures for Duvet."""
-import warnings
+import logging
 
 import attr
 from attrs import define, field
+
+_LOGGER = logging.getLogger(__name__)
 
 from duvet.identifiers import (
     AnnotationType,
@@ -39,8 +41,7 @@ class Annotation:
 
 @define
 class Requirement:
-    """
-    Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.
+    """Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.
 
     A requirement MAY contain multiple RFC 2119 keywords. A requirement MUST be terminated by one of the following
 
@@ -145,13 +146,11 @@ class Requirement:
 
 @define
 class Section:
-    """
-    The specification section shows the specific specification text and how this links to annotation.
+    """The specification section shows the specific specification text and how this links to annotation.
     It MUST show all text from the section. It MUST highlight the text for every requirement.
     It MUST highlight the text that matches any annotation.
     Any highlighted text MUST have a mouse over that shows its annotation information.
     Clicking on any highlighted text MUST bring up a popup that shows
-
 
     :param  str id: a unique identifier of the section, for mark down documents it would be h1.h2.h3.h4 (Primary Key)
     :param  str title: the name of the title which we can target here using GitHub hyper link
@@ -180,7 +179,7 @@ class Section:
 
     def add_annotation(self, anno: Annotation) -> bool:
         if anno.id not in self.requirements.keys():
-            print(anno.id + " not Found in " + self.id)
+            _LOGGER.warning(f"{anno.id} not Found in {self.id}")
             return False
         else:
             return self.requirements[anno.id].add_annotation(anno)
@@ -188,8 +187,7 @@ class Section:
 
 @define
 class Specification:
-    """
-    A specification is a document, like this, that defines correct behavior. This behavior is defined in regular human language.
+    """A specification is a document, like this, that defines correct behavior. This behavior is defined in regular human language.
     A specification class is what we parsed from the specification document. Each specification contains multiple sections
 
     :param str title: a string of the title of the specification
@@ -211,7 +209,7 @@ class Specification:
     def add_annotation(self, annotation: Annotation) -> bool:
         sec_id = annotation.target.split("#")[1]
         if sec_id not in self.sections.keys():
-            print(annotation.target + " not found in specification")
+            _LOGGER.warning(f"{annotation.target} not found in {self.spec_dir}")
             return False
         else:
             return self.sections[sec_id].add_annotation(annotation)
@@ -242,7 +240,7 @@ class Report:
     def add_annotation(self, annotation: Annotation) -> bool:
         spec_id = annotation.target.split("#")[0]
         if spec_id not in self.specifications.keys():
-            print(spec_id + " not found in report")
+            _LOGGER.warning(f"{spec_id} not found in report")
             return False
         else:
             return self.specifications[spec_id].add_annotation(annotation)

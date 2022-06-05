@@ -97,7 +97,7 @@ def test_specification():
     )
 
 
-def test_report():
+def test_report_add_annotation():
     test_rep = Report()
     # Verify the initialization of the report pass_fail
     assert not test_rep.pass_fail
