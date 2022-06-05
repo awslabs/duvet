@@ -218,9 +218,8 @@ class Specification:
 
 @define
 class Report:
-    """
-
-    Duvet's report shows how your project conforms to specifications.
+    """Duvet's report shows how your project conforms to specifications.
+    
     This lets you bound the correctness of your project.
     As you annotate the code in your project Duvet's report creates links between the implementation,
     the specification, and attestations.
