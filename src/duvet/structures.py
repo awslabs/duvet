@@ -192,14 +192,14 @@ class Specification:
     A specification class is what we parsed from the specification document. Each specification contains multiple sections
 
     :param str title: a string of the title of the specification
-    :param str spec_dir: a hash map of sections with the section.id as the key and the section object as its value
-    :param str location: a relative path to the specification file (Primary Key)
+    :param str spec_dir: a relative path to the specification file (Primary Key)
+    :param dict sections: a hash map of sections with the section.id as the key and the section object as its value
 
     """
 
     title: str = ""
     spec_dir: str = ""
-    sections: dict = field(init=False, default={})  # hashmap equivalent in python
+    sections: dict = field(init=False, default=attr.Factory(dict))  # hashmap equivalent in python
 
     def to_github_url(self, spec_github_url, branch_or_commit="master") -> str:
         return "/".join([spec_github_url, "blob", branch_or_commit, self.spec_dir])
@@ -219,7 +219,7 @@ class Specification:
 @define
 class Report:
     """Duvet's report shows how your project conforms to specifications.
-    
+
     This lets you bound the correctness of your project.
     As you annotate the code in your project Duvet's report creates links between the implementation,
     the specification, and attestations.
