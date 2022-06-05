@@ -99,6 +99,7 @@ def test_specification():
 
 def test_report():
     test_rep = Report()
+    # Verify the initialization of the report pass_fail
     assert not test_rep.pass_fail
     test_sec = Section("target", "target", 1, 3)
     test_spec = Specification("target", "test_target.md")
@@ -109,6 +110,7 @@ def test_report():
         "test_target.md#target$content",
     )
     test_sec.add_requirement(test_req)
+    # Verify that the add_specification is correct
     test_rep.add_specification(test_spec)
     assert test_spec in test_rep.specifications.values()
     citation_anno = Annotation(
@@ -117,6 +119,7 @@ def test_report():
     test_anno = Annotation(
         "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "code.py"
     )
+    # Verify that the call chain is correct by checking against the requirement status
     test_rep.add_annotation(citation_anno)
     assert test_req.implemented
     assert not test_req.attested
