@@ -1,6 +1,7 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Public data structures for Duvet."""
+import attr
 from attrs import define, field
 
 from duvet.identifiers import (
@@ -63,7 +64,7 @@ class Requirement:
     omitted: bool = field(init=False, default=False)
     content: str = ""
     id: str = ""
-    matched_annotations: dict = field(init=False, default={})
+    matched_annotations: dict = field(init=False, default=attr.Factory(dict))
 
     def __attrs_post_init__(self):
         """There MUST be a method that sets the status based on the labels.
@@ -165,9 +166,9 @@ class Section:
     start_line: int = -1
     end_line: int = -1
     has_requirements: bool = field(init=False, default=False)
-    requirements: dict = field(init=False, default={})
+    requirements: dict = field(init=False, default=attr.Factory(dict))
 
-    def add_requirement(self, requirement):
+    def add_requirement(self, requirement: Requirement):
         new_dict = {requirement.id: requirement}
         self.has_requirements = True
         self.requirements.update(new_dict)
@@ -176,6 +177,12 @@ class Section:
         h = self.id.split(".")
         target_title = spec_dir + "#" + h[len(h) - 1]
         return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
+
+    def add_annotation(self, anno: Annotation):
+        if anno.id not in self.requirements.keys():
+            print(anno.id + " not Found in " + self.id)
+        else:
+            self.requirements[anno.id].add_annotation(anno)
 
 
 @define
@@ -197,6 +204,44 @@ class Specification:
     def to_github_url(self, spec_github_url, branch_or_commit="master") -> str:
         return "/".join([spec_github_url, "blob", branch_or_commit, self.spec_dir])
 
-    def add_section(self, section):
+    def add_section(self, section: Section):
         new_dict = {section.id: section}
         self.sections.update(new_dict)
+
+    def add_annotation(self, annotation: Annotation):
+        sec_id = annotation.target.split("#")[1]
+        if sec_id not in self.sections.keys():
+            print(annotation.target + " not found in specification")
+        else:
+            self.sections[sec_id].add_annotation(annotation)
+
+
+@define
+class Report:
+    """
+
+    Duvet's report shows how your project conforms to specifications.
+    This lets you bound the correctness of your project.
+    As you annotate the code in your project Duvet's report creates links between the implementation,
+    the specification, and attestations.
+
+    Duvet’s report aids customers in annotating their code.
+
+    :param bool pass_fail: a string of
+    :param dict specifications
+
+    """
+
+    pass_fail: bool = field(init=False, default=False)
+    specifications: dict = field(init=False, default=attr.Factory(dict))
+
+    def add_specification(self, specification: Specification):
+        new_dict = {specification.spec_dir: specification}
+        self.specifications.update(new_dict)
+
+    def add_annotation(self, annotation: Annotation):
+        spec_id = annotation.target.split("#")[0]
+        if spec_id not in self.specifications.keys():
+            print(spec_id + " not found in report")
+        else:
+            self.specifications[spec_id].add_annotation(annotation)
