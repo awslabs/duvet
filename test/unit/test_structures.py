@@ -4,7 +4,7 @@
 import pytest
 
 from duvet.identifiers import AnnotationType, RequirementLevel, RequirementStatus
-from duvet.structures import Annotation, Requirement, Section, Specification
+from duvet.structures import Annotation, Report, Requirement, Section, Specification
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -40,12 +40,12 @@ def test_requirement():
 
 def test_add_annotation():
     citation_anno = Annotation(
-        "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
+        "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target.md#target$content", "code.py"
     )
     test_anno = Annotation(
-        "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target#target$content", "code.py"
+        "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "code.py"
     )
-    test_req = Requirement(RequirementLevel.MUST, "content", "test_target#target$content")
+    test_req = Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content")
     test_req.add_annotation(citation_anno)
     assert test_req.implemented
     assert not test_req.attested
@@ -95,3 +95,35 @@ def test_specification():
         test_spec.to_github_url("https://github.com/awslabs/duvet")
         == "https://github.com/awslabs/duvet/blob/master/spec/spec.md"
     )
+
+
+def test_report_add_annotation():
+    test_rep = Report()
+    # Verify the initialization of the report pass_fail
+    assert not test_rep.pass_fail
+    test_sec = Section("target", "target", 1, 3)
+    test_spec = Specification("target", "test_target.md")
+    test_spec.add_section(test_sec)
+    test_req = Requirement(
+        RequirementLevel.MUST,
+        "content",
+        "test_target.md#target$content",
+    )
+    test_sec.add_requirement(test_req)
+    # Verify that the add_specification is correct
+    test_rep.add_specification(test_spec)
+    assert test_spec in test_rep.specifications.values()
+    citation_anno = Annotation(
+        "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target.md#target$content", "code.py"
+    )
+    test_anno = Annotation(
+        "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "code.py"
+    )
+    # Verify that the call chain is correct by checking against the requirement status
+    test_rep.add_annotation(citation_anno)
+    assert test_req.implemented
+    assert not test_req.attested
+    assert not test_req.omitted
+    test_rep.add_annotation(test_anno)
+    assert test_req.implemented
+    assert test_req.attested
