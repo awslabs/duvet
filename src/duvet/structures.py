@@ -1,6 +1,8 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Public data structures for Duvet."""
+import warnings
+
 import attr
 from attrs import define, field
 
@@ -74,7 +76,6 @@ class Requirement:
         * Exception - The requirement MUST only have the label Omitted
         * Missing Implementation - The requirement MUST only have the label Attested
         * Not started - The requirement MUST only have no labels at all.
-
         """
         self.set_labels()
         self.set_status()
@@ -119,7 +120,6 @@ class Requirement:
         A specification requirement MUST be labeled omitted and
         MUST only be labeled omitted if there exists a matching annotation of type
         * exception
-
         """
         for anno in self.matched_annotations.values():
             if anno.type in implemented_type:
@@ -129,7 +129,7 @@ class Requirement:
             if anno.type in omitted_type:
                 self.omitted = True
 
-    def add_annotation(self, anno):
+    def add_annotation(self, anno) -> bool:
         """There MUST be a method to add annotations."""
         new_dict = {anno.id: anno}
         self.matched_annotations.update(new_dict)
@@ -140,6 +140,7 @@ class Requirement:
         if anno.type in omitted_type:
             self.omitted = True
         self.set_status()
+        return True
 
 
 @define
@@ -158,7 +159,6 @@ class Section:
     :param  int end_line: the line number of the end of the section
     :param  dict requirements: a hashmap of requirements extracted from the section
     :param  bool has_requirements: a flag marked true when the length of the requirements field larger than 0, other wise it is false
-
     """
 
     title: str = ""
@@ -178,11 +178,12 @@ class Section:
         target_title = spec_dir + "#" + h[len(h) - 1]
         return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
 
-    def add_annotation(self, anno: Annotation):
+    def add_annotation(self, anno: Annotation) -> bool:
         if anno.id not in self.requirements.keys():
             print(anno.id + " not Found in " + self.id)
+            return False
         else:
-            self.requirements[anno.id].add_annotation(anno)
+            return self.requirements[anno.id].add_annotation(anno)
 
 
 @define
@@ -194,7 +195,6 @@ class Specification:
     :param str title: a string of the title of the specification
     :param str spec_dir: a relative path to the specification file (Primary Key)
     :param dict sections: a hash map of sections with the section.id as the key and the section object as its value
-
     """
 
     title: str = ""
@@ -208,12 +208,13 @@ class Specification:
         new_dict = {section.id: section}
         self.sections.update(new_dict)
 
-    def add_annotation(self, annotation: Annotation):
+    def add_annotation(self, annotation: Annotation) -> bool:
         sec_id = annotation.target.split("#")[1]
         if sec_id not in self.sections.keys():
             print(annotation.target + " not found in specification")
+            return False
         else:
-            self.sections[sec_id].add_annotation(annotation)
+            return self.sections[sec_id].add_annotation(annotation)
 
 
 @define
@@ -226,9 +227,9 @@ class Report:
 
     Duvet’s report aids customers in annotating their code.
 
-    :param bool pass_fail: a string of
-    :param dict specifications
-
+    :param bool pass_fail: A flag of pass of fail of this run, True for pass and False for fair
+    :param dict specifications: a hashmap of specifications with specification directory as a key and
+    specification object as a value
     """
 
     pass_fail: bool = field(init=False, default=False)
@@ -238,9 +239,10 @@ class Report:
         new_dict = {specification.spec_dir: specification}
         self.specifications.update(new_dict)
 
-    def add_annotation(self, annotation: Annotation):
+    def add_annotation(self, annotation: Annotation) -> bool:
         spec_id = annotation.target.split("#")[0]
         if spec_id not in self.specifications.keys():
             print(spec_id + " not found in report")
+            return False
         else:
-            self.specifications[spec_id].add_annotation(annotation)
+            return self.specifications[spec_id].add_annotation(annotation)
