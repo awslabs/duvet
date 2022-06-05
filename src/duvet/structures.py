@@ -227,7 +227,7 @@ class Report:
 
     Duvet’s report aids customers in annotating their code.
 
-    :param bool pass_fail: A flag of pass of fail of this run, True for pass and False for fair
+    :param bool pass_fail: A flag of pass or fail of this run, True for pass and False for fail
     :param dict specifications: a hashmap of specifications with specification directory as a key and
     specification object as a value
     """
