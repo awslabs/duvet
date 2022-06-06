@@ -4,7 +4,6 @@
 import io
 import os
 import re
-
 from setuptools import find_packages, setup
 
 VERSION_RE = re.compile(r"""__version__ = ['"]([0-9.]+)['"]""")
@@ -32,7 +31,7 @@ def get_requirements():
         req = req.strip()
         if not req:
             continue
-        elif req.startswith("#"):
+        if req.startswith("#"):
             continue
         elif "+" in req:
             dependencies.append(req)
