@@ -33,7 +33,7 @@ def get_requirements():
             continue
         if req.startswith("#"):
             continue
-        elif "+" in req:
+        if "+" in req:
             dependencies.append(req)
         else:
             requirements.append(req)

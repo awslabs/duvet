@@ -6,8 +6,6 @@ import logging
 import attr
 from attrs import define, field
 
-_LOGGER = logging.getLogger(__name__)
-
 from duvet.identifiers import (
     AnnotationType,
     RequirementLevel,
@@ -17,7 +15,10 @@ from duvet.identifiers import (
     omitted_type,
 )
 
+_LOGGER = logging.getLogger(__name__)
 
+
+# noinspection PyUnresolvedReferences
 @define
 class Annotation:
     """Annotations are references to a text from a section in a specification.
@@ -35,10 +36,11 @@ class Annotation:
     content: str
     start_line: int
     end_line: int
-    id: str
+    uri: str
     location: str
 
 
+# noinspection PyUnresolvedReferences
 @define
 class Requirement:
     """Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.
@@ -56,8 +58,8 @@ class Requirement:
     :param bool omitted: A label with requirement marked true when there is exception for this requirement
     :param bool attested: A label with requirement marked true when there is annotation considered attested
     :param str content: Content of the requirement parsed from specification
-    :param str id: A combination of the section id and content (Primary Key)(Foreign Key)
-    :param dict matched_annotations: A hashtable of annotations matched with the requirement content and section id
+    :param str uri: A combination of the section uri and content (Primary Key)(Foreign Key)
+    :param dict matched_annotations: A hashtable of annotations matched with the requirement content and section uri
     """
 
     requirement_level: RequirementLevel
@@ -66,7 +68,7 @@ class Requirement:
     attested: bool = field(init=False, default=False)
     omitted: bool = field(init=False, default=False)
     content: str = ""
-    id: str = ""
+    uri: str = ""
     matched_annotations: dict = field(init=False, default=attr.Factory(dict))
 
     def __attrs_post_init__(self):
@@ -132,7 +134,7 @@ class Requirement:
 
     def add_annotation(self, anno) -> bool:
         """There MUST be a method to add annotations."""
-        new_dict = {anno.id: anno}
+        new_dict = {anno.uri: anno}
         self.matched_annotations.update(new_dict)
         if anno.type in implemented_type:
             self.implemented = True
@@ -144,55 +146,63 @@ class Requirement:
         return True
 
 
+# noinspection PyUnresolvedReferences
 @define
 class Section:
     """The specification section shows the specific specification text and how this links to annotation.
+
     It MUST show all text from the section. It MUST highlight the text for every requirement.
     It MUST highlight the text that matches any annotation.
     Any highlighted text MUST have a mouse over that shows its annotation information.
     Clicking on any highlighted text MUST bring up a popup that shows
 
-    :param  str id: a unique identifier of the section, for mark down documents it would be h1.h2.h3.h4 (Primary Key)
+    :param  str uri: a unique identifier of the section, for mark down documents it would be h1.h2.h3.h4 (Primary Key)
     :param  str title: the name of the title which we can target here using GitHub hyper link
     :param  int start_line: the line number of the start of the section
     :param  int end_line: the line number of the end of the section
     :param  dict requirements: a hashmap of requirements extracted from the section
-    :param  bool has_requirements: a flag marked true when the length of the requirements field larger than 0, other wise it is false
+    :param  bool has_requirements: a flag marked true when the length of the requirements field larger than 0
     """
 
     title: str = ""
-    id: str = ""
+    uri: str = ""
     start_line: int = -1
     end_line: int = -1
     has_requirements: bool = field(init=False, default=False)
     requirements: dict = field(init=False, default=attr.Factory(dict))
 
     def add_requirement(self, requirement: Requirement):
-        new_dict = {requirement.id: requirement}
+        """Add requirement to Section."""
+        new_dict = {requirement.uri: requirement}
         self.has_requirements = True
         self.requirements.update(new_dict)
 
     def to_github_url(self, spec_dir, spec_github_url, branch_or_commit="master"):
-        h = self.id.split(".")
-        target_title = spec_dir + "#" + h[len(h) - 1]
+        """URL for Section on GitHub."""
+        header = self.uri.split(".")
+        target_title = spec_dir + "#" + header[len(header) - 1]
         return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
 
     def add_annotation(self, anno: Annotation) -> bool:
-        if anno.id not in self.requirements.keys():
-            _LOGGER.warning(f"{anno.id} not Found in {self.id}")
+        """Add annotation to Section."""
+        if anno.uri not in self.requirements.keys():
+            _LOGGER.warning("%s not Found in %s", anno.uri, self.uri)
             return False
         else:
-            return self.requirements[anno.id].add_annotation(anno)
+            return self.requirements[anno.uri].add_annotation(anno)  # pylint: disable=E1136
 
 
+# noinspection PyUnresolvedReferences
 @define
 class Specification:
-    """A specification is a document, like this, that defines correct behavior. This behavior is defined in regular human language.
-    A specification class is what we parsed from the specification document. Each specification contains multiple sections
+    """A specification is a document that defines correct behavior.
+
+    A specification class is what we parsed from the specification document.
+    Each specification contains multiple sections.
 
     :param str title: a string of the title of the specification
     :param str spec_dir: a relative path to the specification file (Primary Key)
-    :param dict sections: a hash map of sections with the section.id as the key and the section object as its value
+    :param dict sections: a hash map of sections with the section.uri as the key and the section object as its value
     """
 
     title: str = ""
@@ -200,21 +210,25 @@ class Specification:
     sections: dict = field(init=False, default=attr.Factory(dict))  # hashmap equivalent in python
 
     def to_github_url(self, spec_github_url, branch_or_commit="master") -> str:
+        """URL for Specification on GitHub."""
         return "/".join([spec_github_url, "blob", branch_or_commit, self.spec_dir])
 
     def add_section(self, section: Section):
-        new_dict = {section.id: section}
+        """Add Section to Specification."""
+        new_dict = {section.uri: section}
         self.sections.update(new_dict)
 
     def add_annotation(self, annotation: Annotation) -> bool:
+        """Add Annotation to Specification."""
         sec_id = annotation.target.split("#")[1]
         if sec_id not in self.sections.keys():
-            _LOGGER.warning(f"{annotation.target} not found in {self.spec_dir}")
+            _LOGGER.warning("%s not found in %s", annotation.target, self.spec_dir)
             return False
         else:
-            return self.sections[sec_id].add_annotation(annotation)
+            return self.sections[sec_id].add_annotation(annotation)  # pylint: disable=E1136
 
 
+# noinspection PyUnresolvedReferences
 @define
 class Report:
     """Duvet's report shows how your project conforms to specifications.
@@ -234,13 +248,15 @@ class Report:
     specifications: dict = field(init=False, default=attr.Factory(dict))
 
     def add_specification(self, specification: Specification):
+        """Add Specification to Report."""
         new_dict = {specification.spec_dir: specification}
         self.specifications.update(new_dict)
 
     def add_annotation(self, annotation: Annotation) -> bool:
+        """Add Annotation to Report."""
         spec_id = annotation.target.split("#")[0]
         if spec_id not in self.specifications.keys():
-            _LOGGER.warning(f"{spec_id} not found in report")
+            _LOGGER.warning("%s not found in report", spec_id)
             return False
         else:
-            return self.specifications[spec_id].add_annotation(annotation)
+            return self.specifications[spec_id].add_annotation(annotation)  # pylint: disable=E1136
