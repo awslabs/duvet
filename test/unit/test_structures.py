@@ -18,7 +18,7 @@ def test_annotation():
     assert test_anno.content == "content"
     assert test_anno.start_line == 1
     assert test_anno.end_line == 2
-    assert test_anno.id == "test_target#target$content"
+    assert test_anno.uri == "test_target#target$content"
     assert test_anno.location == "code.py"
 
 
@@ -34,7 +34,7 @@ def test_requirement():
     assert test_req.implemented
     assert not test_req.attested
     assert not test_req.omitted
-    assert test_req.id == "test_target#target$content"
+    assert test_req.uri == "test_target#target$content"
     assert test_req.matched_annotations["test_target#target$content"] == test_anno  # pylint: disable=E1136
 
 
@@ -77,7 +77,7 @@ def test_section():
     )
     test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
     assert test_sec.title == "A Section Title"
-    assert test_sec.id == "h1.h2.h3.a-section-title"
+    assert test_sec.uri == "h1.h2.h3.a-section-title"
     assert (
         test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
         == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
