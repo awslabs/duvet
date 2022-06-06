@@ -15,7 +15,7 @@ class ListRequirements:
     Facilitates creating a list of requirement objects in sections.
 
     :param str list_parent: The sentence right above the list
-    :param list list_elements: The word or sentence with a clear sign of ordered or unordered listRe
+    :param list list_elements: The word or sentence with a clear sign of ordered or unordered list
     """
 
     list_parent: str
