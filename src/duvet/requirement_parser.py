@@ -6,11 +6,11 @@ from attrs import define, field
 from duvet.identifiers import RequirementLevel
 from duvet.structures import Requirement, Section
 
-LIST_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)|(?:[a-z]\.)) )(.+))"
+MARKDOWN_LIST_ENTRY_REGEX = r"(^(?: )*(?:(?:(?:\-|\+|\*)|(?:(?:\d)+\.)) )(?:.+))"
 # Match A List identifier
-IS_LIST_REGEX = re.compile(LIST_REGEX)
+IS_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX)
 # Match All List identifiers
-ALL_LIST_REGEX = re.compile(LIST_REGEX, re.MULTILINE)
+ALL_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX, re.MULTILINE)
 
 
 @define
