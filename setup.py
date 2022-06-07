@@ -4,7 +4,6 @@
 import io
 import os
 import re
-
 from setuptools import find_packages, setup
 
 VERSION_RE = re.compile(r"""__version__ = ['"]([0-9.]+)['"]""")
