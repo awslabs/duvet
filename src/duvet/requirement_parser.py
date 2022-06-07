@@ -3,14 +3,8 @@ import re
 import attr
 from attrs import define, field
 
-from duvet.identifiers import RequirementLevel
+from duvet.identifiers import *
 from duvet.structures import Requirement, Section
-
-MARKDOWN_LIST_ENTRY_REGEX = r"(^(?: )*(?:(?:(?:\-|\+|\*)|(?:(?:\d)+\.)) )(?:.+))"
-# Match A List identifier
-IS_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX)
-# Match All List identifiers
-ALL_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX, re.MULTILINE)
 
 
 @define
@@ -30,7 +24,7 @@ class ListRequirements:
         self.list_elements.append(elem)
 
 
-def extract_list_requirements(lines: list, start_line: int, end_line: int) -> ListRequirements:
+def extract_list_requirements(lines: list, start_line: int, end_line: int, list_regex) -> ListRequirements:
     """Take a List of lines in the specification.
 
     Creates a list of elements in string.
@@ -40,9 +34,15 @@ def extract_list_requirements(lines: list, start_line: int, end_line: int) -> Li
     if not lines[start_line].startswith("\n"):
         list_parent = lines[start_line].strip()
         curr_line = start_line + 1
+        curr_list_content = ""
         while curr_line <= end_line:
-            if re.match(ALL_LIST_REGEX, lines[curr_line]):
-                list_elements.append(lines[curr_line].strip())
+            if re.match(list_regex, lines[curr_line]):
+                curr_list_content = lines[curr_line].strip()
+                list_elements.append(curr_list_content)
+            elif curr_list_content != "" and len(list_elements) != 0:
+                curr_list_content = " ".join([curr_list_content, lines[curr_line].strip()])
+                list_elements.pop()
+                list_elements.append(curr_list_content)
             curr_line += 1
 
     list_req = ListRequirements(list_parent)
