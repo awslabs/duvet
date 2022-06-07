@@ -52,6 +52,7 @@ def extract_list_requirements(lines: list, start_line: int, end_line: int, list_
                 curr_list_content = lines[curr_line].strip()
                 list_elements.append(curr_list_content)
             elif curr_list_content != "" and len(list_elements) != 0:
+                # handle multi-line entries
                 curr_list_content = " ".join([curr_list_content, lines[curr_line].strip()])
                 list_elements.pop()
                 list_elements.append(curr_list_content)
