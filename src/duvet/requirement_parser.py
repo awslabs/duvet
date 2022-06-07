@@ -6,6 +6,18 @@ from attrs import define, field
 from duvet.identifiers import *
 from duvet.structures import Requirement, Section
 
+MARKDOWN_LIST_MEMBER_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))"
+# Match A List identifier
+IS_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX)
+# Match All List identifiers
+ALL_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX, re.MULTILINE)
+
+RFC_LIST_MEMBER_REGEX = r"(^(?:(\s)*((?:(\-|\*))|(?:(\d)+\.)|(?:[a-z]+\.)) ))"
+# Match A List identifier
+RFC_LIST_ENTRY_REGEX = re.compile(RFC_LIST_MEMBER_REGEX)
+# Match All List identifiers
+ALL_RFC_LIST_ENTRY_REGEX = re.compile(RFC_LIST_MEMBER_REGEX, re.MULTILINE)
+
 
 @define
 class ListRequirements:
@@ -24,7 +36,7 @@ class ListRequirements:
         self.list_elements.append(elem)
 
 
-def extract_list_requirements(lines: list, start_line: int, end_line: int, list_regex) -> ListRequirements:
+def extract_list_requirements(lines: list, start_line: int, end_line: int, list_regex: re.Pattern) -> ListRequirements:
     """Take a List of lines in the specification.
 
     Creates a list of elements in string.
@@ -57,32 +69,29 @@ def create_requirements_from_list(section: Section, list_req: ListRequirements) 
 
     Creates Requirement Object within that section
     """
+
+    def _create_requirement(
+        level: RequirementLevel, _section_line: str, _list_entry: str, _section: Section
+    ) -> Requirement:
+        """Take a RequirementList element and Section.
+
+        Creates Requirement Object within that section
+        """
+        return Requirement(
+            level, " ".join([_section_line, _list_entry]), _section.uri + "$" + " ".join([_section_line, _list_entry])
+        )
+
     section_line = list_req.list_parent
     requirement_list = []
     if "MUST" in section_line:
         for child in list_req.list_elements:
-            curr_requirement = Requirement(
-                RequirementLevel.MUST,
-                " ".join([section_line, child]),
-                section.uri + "$" + " ".join([section_line, child]),
-            )
-            requirement_list.append(curr_requirement)
+            requirement_list.append(_create_requirement(RequirementLevel.MUST, section_line, child, section))
     elif "SHOULD" in section_line:
         for child in list_req.list_elements:
-            curr_requirement = Requirement(
-                RequirementLevel.SHOULD,
-                " ".join([section_line, child]),
-                section.uri + "$" + " ".join([section_line, child]),
-            )
-            requirement_list.append(curr_requirement)
+            requirement_list.append(_create_requirement(RequirementLevel.SHOULD, section_line, child, section))
     elif "MAY" in section_line:
         for child in list_req.list_elements:
-            curr_requirement = Requirement(
-                RequirementLevel.SHOULD,
-                " ".join([section_line, child]),
-                section.uri + "$" + " ".join([section_line, child]),
-            )
-            requirement_list.append(curr_requirement)
+            requirement_list.append(_create_requirement(RequirementLevel.MUST, section_line, child, section))
     else:
         return False
 

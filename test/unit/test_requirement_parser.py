@@ -6,7 +6,7 @@ from duvet.structures import *
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
-TEST_STR = (
+TEST_VALID_MARKDOWN_LIST = (
     "A requirement MUST be terminated by one of the following\n"
     "\n"
     "* period (.)\n"
@@ -21,7 +21,6 @@ TEST_STR = (
     "\n"
 )
 
-TEST_INVALID_STR = ()
 
 TEST_RFC_STR = (
     "We MUST strive for consistency within:\n"
@@ -41,7 +40,7 @@ TEST_INVALID_STR = "A requirement MUST be terminated by one of the following\n" 
 
 
 def test_extract_valid_md_list():
-    lines = TEST_STR.splitlines()
+    lines = TEST_VALID_MARKDOWN_LIST.splitlines()
     temp_list_req = extract_list_requirements(lines, 0, 8, ALL_MARKDOWN_LIST_ENTRY_REGEX)
     assert temp_list_req.list_parent == "A requirement MUST be terminated by one of the following"
     # Verify the extract_list function by checking the number of children it extracts
@@ -72,7 +71,7 @@ def test_extract_rfc_list():
 
 
 def test_create_requirement_from_list():
-    lines = TEST_STR.splitlines()
+    lines = TEST_VALID_MARKDOWN_LIST.splitlines()
     temp_list_req = extract_list_requirements(lines, 0, 8, ALL_MARKDOWN_LIST_ENTRY_REGEX)
     test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
     assert test_sec.title == "A Section Title"
