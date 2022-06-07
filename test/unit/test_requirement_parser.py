@@ -39,10 +39,7 @@ TEST_RFC_STR = (
     "+ plus\n"
 )
 
-# pylint: disable=W1404
-TEST_INVALID_STR = (
-    "A requirement MUST be terminated by one of the following\n" "\n" "a. table\n" "1.) " "something" "\n"
-)
+TEST_INVALID_STR = 'A requirement MUST be terminated by one of the following\n\na. table\n1.) something\n'
 
 
 def test_extract_valid_md_list():
