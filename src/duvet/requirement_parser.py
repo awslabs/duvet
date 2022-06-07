@@ -6,12 +6,17 @@ from attrs import define, field
 from duvet.identifiers import RequirementLevel
 from duvet.structures import Requirement, Section
 
-list_regex = re.compile("(\*|\-|(\w\.))(\s).+")
+LIST_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)|(?:[a-z]\.)) )(.+))"
+# Match A List identifier
+IS_LIST_REGEX = re.compile(LIST_REGEX)
+# Match All List identifiers
+ALL_LIST_REGEX = re.compile(LIST_REGEX, re.MULTILINE)
 
 
 @define
 class ListRequirements:
     """Represent a List of Requirements in the specification.
+
     Facilitates creating a list of requirement objects in sections.
 
     :param str list_parent: The sentence right above the list
@@ -27,6 +32,7 @@ class ListRequirements:
 
 def extract_list_requirements(lines: list, start_line: int, end_line: int) -> ListRequirements:
     """Take a List of lines in the specification.
+
     Creates a list of elements in string.
     """
     list_elements = []
@@ -35,11 +41,10 @@ def extract_list_requirements(lines: list, start_line: int, end_line: int) -> Li
         list_parent = lines[start_line].strip()
         curr_line = start_line + 1
         while curr_line <= end_line:
-            if re.match(list_regex, lines[curr_line]):
+            if re.match(ALL_LIST_REGEX, lines[curr_line]):
                 list_elements.append(lines[curr_line].strip())
             curr_line += 1
 
-    # return {"list_elements": list_elements, "list_parent": list_parent}
     list_req = ListRequirements(list_parent)
     for elem in list_elements:
         list_req.add_list_element(elem)
@@ -49,6 +54,7 @@ def extract_list_requirements(lines: list, start_line: int, end_line: int) -> Li
 
 def create_requirements_from_list(section: Section, list_req: ListRequirements) -> bool:
     """Take a RequirementList and Section.
+
     Creates Requirement Object within that section
     """
     section_line = list_req.list_parent
