@@ -79,11 +79,8 @@ def test_create_requirement_from_list():
     test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
     assert test_sec.title == "A Section Title"
     assert test_sec.uri == "h1.h2.h3.a-section-title"
-    assert (
-            test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
-            == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
-    )
-
+    temp_str = test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
+    assert temp_str == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
     assert not test_sec.has_requirements
     assert create_requirements_from_list(test_sec, temp_list_req)
     assert test_sec.has_requirements
