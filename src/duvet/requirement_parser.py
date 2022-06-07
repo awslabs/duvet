@@ -1,9 +1,12 @@
+# Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""Requirement Parser used by duvet-python."""
 import re
 
 import attr
 from attrs import define, field
 
-from duvet.identifiers import *
+from duvet.identifiers import RequirementLevel
 from duvet.structures import Requirement, Section
 
 MARKDOWN_LIST_MEMBER_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))"
@@ -33,6 +36,7 @@ class ListRequirements:
     list_elements: list = field(init=False, default=attr.Factory(list))
 
     def add_list_element(self, elem: str):
+        """Add a list element to the ListRequirement."""
         self.list_elements.append(elem)
 
 

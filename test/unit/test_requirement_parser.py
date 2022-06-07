@@ -1,8 +1,12 @@
 import pytest
 
-from duvet.identifiers import *
-from duvet.requirement_parser import *
-from duvet.structures import *
+from duvet.requirement_parser import (
+    ALL_MARKDOWN_LIST_ENTRY_REGEX,
+    ALL_RFC_LIST_ENTRY_REGEX,
+    create_requirements_from_list,
+    extract_list_requirements,
+)
+from duvet.structures import Section
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -20,7 +24,6 @@ TEST_VALID_MARKDOWN_LIST = (
     # "1.) something"
     "\n"
 )
-
 
 TEST_RFC_STR = (
     "We MUST strive for consistency within:\n"
@@ -80,6 +83,7 @@ def test_create_requirement_from_list():
         test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
         == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
     )
+
     assert not test_sec.has_requirements
     assert create_requirements_from_list(test_sec, temp_list_req)
     assert test_sec.has_requirements
