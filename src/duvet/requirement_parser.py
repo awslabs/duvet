@@ -10,14 +10,10 @@ from duvet.identifiers import RequirementLevel
 from duvet.structures import Requirement, Section
 
 MARKDOWN_LIST_MEMBER_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))"
-# Match A List identifier
-IS_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX)
 # Match All List identifiers
 ALL_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX, re.MULTILINE)
 
 RFC_LIST_MEMBER_REGEX = r"(^(?:(\s)*((?:(\-|\*))|(?:(\d)+\.)|(?:[a-z]+\.)) ))"
-# Match A List identifier
-RFC_LIST_ENTRY_REGEX = re.compile(RFC_LIST_MEMBER_REGEX)
 # Match All List identifiers
 ALL_RFC_LIST_ENTRY_REGEX = re.compile(RFC_LIST_MEMBER_REGEX, re.MULTILINE)
 

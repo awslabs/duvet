@@ -26,17 +26,17 @@ TEST_VALID_MARKDOWN_LIST = (
 )
 
 TEST_RFC_STR = (
-    "We MUST strive for consistency within:\n"
+    "We MUST strive for consistency within:\n"  # Valid RFC list
     "\n"
-    "      a. the document,\n"
+    "      a. the document,\n"  # Valid RFC list
     "\n"
-    "      *  a cluster of documents [CLUSTER], and\n"
+    "      *  a cluster of documents [CLUSTER], and\n"  # Valid RFC list
     "\n"
-    "      -  the series of RFCs on the subject matter.\n"
+    "      -  the series of RFCs on the subject matter.\n"  # Valid RFC list
     "\n"
-    "+  plus\n"
-    "1.) something\n"
-    "+ plus\n"
+    "+  plus\n"  # Invalid RFC list
+    "1.) something\n"  # Invalid RFC list
+    "+ plus\n"  # Invalid RFC list
 )
 
 TEST_INVALID_STR = 'A requirement MUST be terminated by one of the following\n\na. table\n1.) something\n'
@@ -80,8 +80,8 @@ def test_create_requirement_from_list():
     assert test_sec.title == "A Section Title"
     assert test_sec.uri == "h1.h2.h3.a-section-title"
     assert (
-        test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
-        == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
+            test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
+            == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
     )
 
     assert not test_sec.has_requirements
