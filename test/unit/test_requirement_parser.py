@@ -1,10 +1,13 @@
+import re
+
 import pytest
 
 from duvet.requirement_parser import (
     ALL_MARKDOWN_LIST_ENTRY_REGEX,
     ALL_RFC_LIST_ENTRY_REGEX,
     create_requirements_from_list,
-    extract_list_requirements,
+    extract_list_requirements, FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX,
+    ListRequirements
 )
 from duvet.structures import Section
 
@@ -40,6 +43,21 @@ TEST_RFC_STR = (
 )
 
 TEST_INVALID_STR = 'A requirement MUST be terminated by one of the following\n\na. table\n1.) something\n'
+
+TEST_VALID_WRAPPED_MARKDOWN_LIST = (
+    "A requirement MUST be terminated by one of the following\n"
+    "\n"
+    "* period (.)\n"
+    "* exclamation point (!)\n"
+    "*  plus\n"
+    "1. list\n"
+    "something\n"
+    # "a. table\n"
+    "12. double digit\n"
+    "something\n"
+    # "1.) something"
+    "\n"
+)
 
 
 def test_extract_valid_md_list():
@@ -89,3 +107,18 @@ def test_create_requirement_from_list():
     assert test_sec.has_requirements
     # Verify the extract_list function by checking the number of requirements it adds to section
     assert len(test_sec.requirements.keys()) == 5
+
+
+VALID_LIST_LINES = """This is a MUST requirement has lists
+* valid 1
+* valid 2
+* valid 3
+This is something after valid 3
+
+This is a sentence after the list"""
+
+
+def test_search():
+    req = ListRequirements.from_line(VALID_LIST_LINES)
+    assert req.list_parent == "This is a MUST requirement has lists"
+    assert req.list_elements == ['valid 1', 'valid 2', 'valid 3 This is something after valid 3']

@@ -16,6 +16,30 @@ ALL_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX, re.MULTIL
 RFC_LIST_MEMBER_REGEX = r"(^(?:(\s)*((?:(\-|\*))|(?:(\d)+\.)|(?:[a-z]+\.)) ))"
 # Match All List identifiers
 ALL_RFC_LIST_ENTRY_REGEX = re.compile(RFC_LIST_MEMBER_REGEX, re.MULTILINE)
+# Match common List identifiers
+# INVALID_LIST_MEMBER_REGEX = r"^(?:(\s)*((?:(\+))|(?:(\()*(\d)+(\))+\.)|(?:(\()*[a-z]+(\))+\.)) )"
+
+END_OF_LIST = r"\n\n"
+FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))(.*?)", re.MULTILINE)
+
+
+@define
+class Span:
+    """The start and end indexes of sub-string in a block."""
+
+    start: int = field(init=True)
+    end: int = field(init=True)
+
+    def __attrs_post_init__(self):
+        """Validate that start is before end."""
+        assert self.start < self.end, f"Start must be less than end. {self.start} !< {self.end}"
+
+    @classmethod
+    def from_match(cls, match: re.Match):
+        """Span from re.Match."""
+        start, end = match.span()
+        # noinspection PyArgumentList
+        return cls(start, end)
 
 
 @define
@@ -27,9 +51,29 @@ class ListRequirements:
     :param str list_parent: The sentence right above the list
     :param list list_elements: The word or sentence with a clear sign of ordered or unordered list
     """
-
     list_parent: str
     list_elements: list = field(init=False, default=attr.Factory(list))
+
+    @classmethod
+    def from_line(cls, quotes: str):
+        # Find the end of the list using the "\n\n".
+        end_of_list = re.search(re.compile(r'[\r\n]{2}', re.MULTILINE), quotes).span()[1]
+        # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
+        first_list_identifier = re.search(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes).span()
+        start_of_list = first_list_identifier[0]
+        cls.list_parent = quotes[0:start_of_list].strip("\n").replace("\n"," ")
+        matched_span = []
+        prev = first_list_identifier[1]
+        for match in re.finditer(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes):
+            if prev < match.span()[0]:
+                temp = quotes[prev:match.span()[0]].strip("\n").replace("\n"," ")
+                prev = match.span()[1]
+                matched_span.append(temp)
+        # last element of th list
+        matched_span.append(quotes[match.span()[1]:end_of_list].strip("\n").replace("\n"," "))
+        cls.list_elements = matched_span
+        return cls
+
 
     def add_list_element(self, elem: str):
         """Add a list element to the ListRequirement."""
@@ -72,7 +116,7 @@ def create_requirements_from_list(section: Section, list_req: ListRequirements) 
     """
 
     def _create_requirement(
-        level: RequirementLevel, _section_line: str, _list_entry: str, _section: Section
+            level: RequirementLevel, _section_line: str, _list_entry: str, _section: Section
     ) -> Requirement:
         """Take a RequirementList element and Section.
 
