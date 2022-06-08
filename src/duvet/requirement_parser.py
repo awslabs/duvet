@@ -51,29 +51,31 @@ class ListRequirements:
     :param str list_parent: The sentence right above the list
     :param list list_elements: The word or sentence with a clear sign of ordered or unordered list
     """
+
     list_parent: str
     list_elements: list = field(init=False, default=attr.Factory(list))
 
     @classmethod
     def from_line(cls, quotes: str):
+        """Create list requirements from a chunk of string."""
+
         # Find the end of the list using the "\n\n".
-        end_of_list = re.search(re.compile(r'[\r\n]{2}', re.MULTILINE), quotes).span()[1]
+        end_of_list = re.search(re.compile(r"[\r\n]{2}", re.MULTILINE), quotes).span()[1]
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
         first_list_identifier = re.search(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes).span()
         start_of_list = first_list_identifier[0]
-        cls.list_parent = quotes[0:start_of_list].strip("\n").replace("\n"," ")
+        cls.list_parent = quotes[0:start_of_list].strip("\n").replace("\n", " ")
         matched_span = []
         prev = first_list_identifier[1]
         for match in re.finditer(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes):
             if prev < match.span()[0]:
-                temp = quotes[prev:match.span()[0]].strip("\n").replace("\n"," ")
+                temp = quotes[prev : match.span()[0]].strip("\n").replace("\n", " ")
                 prev = match.span()[1]
                 matched_span.append(temp)
         # last element of th list
-        matched_span.append(quotes[match.span()[1]:end_of_list].strip("\n").replace("\n"," "))
+        matched_span.append(quotes[prev:end_of_list].strip("\n").replace("\n", " "))
         cls.list_elements = matched_span
         return cls
-
 
     def add_list_element(self, elem: str):
         """Add a list element to the ListRequirement."""
@@ -116,7 +118,7 @@ def create_requirements_from_list(section: Section, list_req: ListRequirements) 
     """
 
     def _create_requirement(
-            level: RequirementLevel, _section_line: str, _list_entry: str, _section: Section
+        level: RequirementLevel, _section_line: str, _list_entry: str, _section: Section
     ) -> Requirement:
         """Take a RequirementList element and Section.
 
