@@ -26,7 +26,10 @@ TEST_VALID_MARKDOWN_LIST = (
 )
 
 TEST_RFC_STR = (
-    "We MUST strive for consistency within:\n"  # Valid RFC list
+    "We MUST strive for consistency within:\n"  # Valid RFC List Parent
+    "+  plus\n"  # Invalid RFC list
+    "1.) something\n"  # Invalid RFC list
+    "+ plus\n"  # Invalid RFC list
     "\n"
     "      a. the document,\n"  # Valid RFC list
     "\n"
@@ -34,9 +37,6 @@ TEST_RFC_STR = (
     "\n"
     "      -  the series of RFCs on the subject matter.\n"  # Valid RFC list
     "\n"
-    "+  plus\n"  # Invalid RFC list
-    "1.) something\n"  # Invalid RFC list
-    "+ plus\n"  # Invalid RFC list
 )
 
 TEST_INVALID_STR = 'A requirement MUST be terminated by one of the following\n\na. table\n1.) something\n'
@@ -71,6 +71,9 @@ def test_extract_rfc_list():
     assert temp_list_req.list_parent == "We MUST strive for consistency within:"
     # Verify the extract_list function by checking the number of children it extracts
     assert len(temp_list_req.list_elements) == 3
+    assert temp_list_req.list_elements == ['a. the document, ',
+                                           '*  a cluster of documents [CLUSTER], and ',
+                                           '-  the series of RFCs on the subject matter. ']
 
 
 def test_create_requirement_from_list():
