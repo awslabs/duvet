@@ -1,4 +1,27 @@
+[//]: # "Copyright Amazon.com Inc. or its affiliates. All Rights Reserved."
+[//]: # "SPDX-License-Identifier: CC-BY-SA-4.0"
+
 # Duvet specification
+
+## Version
+
+0.2.0
+
+### Changelog
+
+- 0.2.0
+
+- Initial record
+
+- 0.1.0
+
+  - "Specless" Rust Implementation
+
+## Overview
+
+This document introduces and describes Duvet.
+
+Any implementation of Duvet MUST follow this specification.
 
 ## Introduction
 
@@ -19,6 +42,16 @@ Are there annotations in your source that do not exist in your specification?
 Does every cited requirement from your specification have a test?
 This report can either be a pass/fail for CI or an interactive report for development and code review.
 
+### Conventions used in this document
+
+The keywords
+"MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL"
+in this document are to be interpreted as described in [RFC2119](https://tools.ietf.org/html/rfc2119).
+
+# Structures
+
+This following sections describe the common Duvet structures and their behavior.
+
 ## Specification
 
 A specification is a document, like this, that defines correct behavior.
@@ -28,7 +61,7 @@ This behavior is defined in regular human language.
 
 The top level header for requirements is the name of a section.
 The name of the sections MUST NOT be nested.
-A requirements section MUST be the top level containing header.
+A requirements' section MUST be the top level containing header.
 A header MUST NOT itself be a requirement.
 
 A section MUST be indexable by combining different levels of naming.
@@ -86,16 +119,7 @@ The main distinction between this legacy and regular requirement identification
 is that there is no sugar for lists or tables.
 For a given a specification Duvet MUST use one way to identify requirements.
 
-### Formats
-
-Duvet MUST be able to parse specifications formatted as:
-
-- markdown
-- ietf
-
-#### Toml
-
-Duvet SHOULD be able to parse requirements formatted as Toml files.
+#### Requirements to TOML
 
 Duvet SHOULD be able to record parsed requirements into Toml Files.
 
@@ -264,6 +288,10 @@ The Requirement Statuses MUST be:
 - Missing Implementation - The requirement MUST only have the label `Attested`
 - Not started - The requirement MUST NOT have any labels
 - Missing Reason - The requirement MUST have the label `Unexcused`
+- Duvet Error - The requirements matching labels MUST be invalid.
+
+[//]: # "TODO: Should `Duvet Error` trigger a warning/exception?"
+[//]: # "TODO: Should `Duvet Error` cause a Fail?"
 
 ### Pass/Fail
 
@@ -323,3 +351,104 @@ The table MUST have a column for:
 - Requirement key word - key word defined in rfc2119
 - Status
 - Text - The requirement text
+
+# Behaviors
+
+Duvet MUST support a [CI Behavior](#ci-behavior).
+
+Duvet SHOULD support a [Requirement to TOML Behavior](#record-requirements-as-toml-behavior).
+
+[//]: # "TODO: Define all of behaviors input and output in one place"
+[//]: # "TODO: Describe how Duvet should handle exceptions"
+
+## CI Behavior
+
+The following sections describe
+how Duvet parses specifications and implementations
+to generate a report and a pass/fail status appropriate
+for continuous integration (CI) usage.
+
+Implementations of Duvet MUST implement this behavior.
+
+This MUST be the default execution of Duvet.
+
+This behavior MUST accept arguments or a configuration file.
+
+### Parse Specifications
+
+Duvet MUST parse one or more specifications written as IETF style RFC or Markdown.
+
+Duvet MUST accept one or more file patterns that describe the paths to the specifications files.
+
+Duvet MUST parse as a [specification](#specification) any files ending in `.txt` discovered on this file pattern as an IETF RFC.
+
+Duvet MUST parse as a [specification](#specification) any files ending in `.md` discovered on this file pattern as a Markdown.
+
+#### Specifications as TOML
+
+In addition to parsing Markdown and RFC (`.txt`) files as specifications,
+Duvet SHOULD accept one or more file patterns that describe the paths to `.toml` files.
+
+Duvet SHOULD interpret each directory containing one or more TOML files as a [specification](#specification).
+
+See [Sections as TOML](#sections-as-toml).
+
+### Extract Sections
+
+Duvet MUST extract [sections](#section) from specifications.
+
+#### Sections as TOML
+
+If Duvet has interpreted TOML directories as specifications,
+Duvet SHOULD interpret each TOML file in a directory
+as a [section](#section) of that directories' specification.
+
+See [Requirements from TOML](#requirements-from-toml).
+
+### Extract Requirements.
+
+Duvet MUST extract [Requirements](#requirement) from [Sections](#section).
+
+#### Requirements from TOML
+
+If Duvet has interpreted TOML files as a [section](#section),
+for every entry in the TOML file,
+Duvet SHOULD extract a [requirement](#requirement).
+
+### Parse Implementation
+
+Duvet MUST accept one or more file patterns that describe the paths to the implementation files.
+
+Each file pattern MAY be associated with an annotation identifier tuple.
+
+Otherwise, the default annotation identifiers MUST be used.
+
+For every file found via a file pattern,
+Duvet MUST extract [annotations](#annotation) form that file.
+
+Duvet MUST attempt to match these [annotations](#annotation) to [requirements](#requirement)
+as described in [Matching](#matching).
+
+Even if a match is not found,
+Duvet MUST record every [annotation](#annotation).
+
+### Generate Report
+
+Duvet MUST analyze every [requirement](#requirement) extracted,
+generating and validating matching labels as described in [Matching Labels](#matching-labels).
+
+Then, Duvet MUST determine every [requirement's](#requirement) [Status](#status).
+
+Duvet MUST generate an HTML report as described in [report](#report).
+
+### Pass or Fail
+
+Duvet MUST Pass or Fail as described in [Pass/Fail](#Pass/Fail).
+
+## Record Requirements as TOML Behavior
+
+Duvet SHOULD support requirement to Toml extraction as a separate utility that MAY be invoked outside normal execution.
+
+See Requirements from TOML, Sections as TOML, and Specifications as TOML.
+
+[//]: # "TODO: Flesh this out"
