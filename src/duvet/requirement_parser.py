@@ -14,13 +14,15 @@ MARKDOWN_LIST_MEMBER_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))"
 ALL_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX, re.MULTILINE)
 
 RFC_LIST_MEMBER_REGEX = r"(^(?:(\s)*((?:(\-|\*))|(?:(\d)+\.)|(?:[a-z]+\.)) ))"
-# Match All List identifiers
+# Match All List identifier
 ALL_RFC_LIST_ENTRY_REGEX = re.compile(RFC_LIST_MEMBER_REGEX, re.MULTILINE)
 # Match common List identifiers
 # INVALID_LIST_MEMBER_REGEX = r"^(?:(\s)*((?:(\+))|(?:(\()*(\d)+(\))+\.)|(?:(\()*[a-z]+(\))+\.)) )"
 
 END_OF_LIST = r"\n\n"
 FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))(.*?)", re.MULTILINE)
+
+SENTENCE_DIVIDER = [". ", "! ", ".\n", "!\n"]
 
 
 @define
@@ -64,7 +66,8 @@ class ListRequirements:
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
         first_list_identifier = re.search(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes).span()
         start_of_list = first_list_identifier[0]
-        cls.list_parent = quotes[0:start_of_list].strip("\n").replace("\n", " ")
+        list_parent = quotes[0:start_of_list].strip("\n").replace("\n", " ")
+        new_list_requirements = cls(list_parent)
         matched_span = []
         prev = first_list_identifier[1]
         for match in re.finditer(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes):
@@ -74,12 +77,19 @@ class ListRequirements:
                 matched_span.append(temp)
         # last element of th list
         matched_span.append(quotes[prev:end_of_list].strip("\n").replace("\n", " "))
-        cls.list_elements = matched_span
-        return cls
+        new_list_requirements.list_elements = matched_span
+        return new_list_requirements
 
     def add_list_element(self, elem: str):
         """Add a list element to the ListRequirement."""
         self.list_elements.append(elem)
+
+    def to_string_list(self) -> list:
+        """Convert a ListRequirements Object to a list of string."""
+        result = []
+        for elem in self.list_elements:
+            result.append(" ".join([self.list_parent, elem]))
+        return result
 
 
 def extract_list_requirements(lines: list, start_line: int, end_line: int, list_regex: re.Pattern) -> ListRequirements:
@@ -155,10 +165,19 @@ def extract_inline_requirements(quotes: str) -> list:
     """Take a chunk of string in section.
 
     Create a list of sentences containing RFC2019 keywords.
+
+    The following assumptions are made about the structure of the In line requirements:
+    1. Each period will be followed by a space, each ! will be followed by a space.
+    2. There is no question mark nor ... in the specification chunk trying to parse
+    3. There is no list or table within the requirement sTring we want to parse
+    4. Section string is not included in the string chunk.
     """
     requirement_candidates = []
     requirement_spans = []
     requirement_strings = []
+    # We don't want to take care of list in this function.
+    # We will help get the first sentence of the list and
+    # get rid of it.
     for match in re.finditer(REQUIREMENT_IDENTIFIER_REGEX, quotes):
         requirement_candidates.append(match.span())
     for candidate in requirement_candidates:
@@ -181,5 +200,48 @@ def extract_inline_requirements(quotes: str) -> list:
             if temp_span not in requirement_spans:
                 requirement_spans.append(temp_span)
     for req in requirement_spans:
-        requirement_strings.append(quotes[req[0] : req[1]])
+        requirement_strings.append(quotes[req[0] : req[1]].strip("\n").replace("\n", " "))
     return requirement_strings
+
+
+def extract_requirements(quotes: str) -> list:
+    """Take a chunk of string in section.
+
+    Create a list of sentences containing RFC2019 keywords.
+    The following assumptions are made about the structure of the In line requirements:
+    1. Section string is not included in the string chunk.
+    2. There is no list or table within the requirement sring we want to parse
+    3. There is no e.g. or ? to break the parser.
+
+    TODO: During these extractions we lost all the location information of the requirements.
+    TODO: Which would be needed in the report. For now I am gonna ignore it.
+    """
+    temp_match = re.search(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes)
+    result = []
+    temp = []
+    if temp_match is not None:
+        left = temp_match.span()[0]
+        right = temp_match.span()[1]
+        left_bound_checked = False
+        right_bound_checked = False
+        while left > 0:
+            left = left - 1
+            if quotes[left : left + 2] in [". ", "! ", ".\n", "!\n"]:
+                left_bound_checked = True
+                break
+        while right < len(quotes) - 1:
+            right = right + 1
+            if quotes[right : right + 2] in ["\n\n"]:
+                right_bound_checked = True
+                break
+        if left_bound_checked and right_bound_checked:
+            # Call the function to take care of the lis of requirements
+            req_in_list = ListRequirements.from_line(quotes[left + 2 : right + 1])
+            # print(req_in_list.to_string_list())
+            temp.extend(req_in_list.to_string_list())
+        result.extend(extract_inline_requirements(quotes[0 : left + 2]))
+        result.extend(temp)
+        result.extend(extract_requirements(quotes[right + 2 : len(quotes) - 1]))
+        return result
+    else:
+        return extract_inline_requirements(quotes)
