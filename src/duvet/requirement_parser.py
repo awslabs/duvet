@@ -154,7 +154,8 @@ REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
 def extract_inline_requirements(quotes: str) -> list:
     """Take a chunk of string in section.
 
-    Create a list of sentences containing RFC2019 keywords."""
+    Create a list of sentences containing RFC2019 keywords.
+    """
     requirement_candidates = []
     requirement_spans = []
     requirement_strings = []
