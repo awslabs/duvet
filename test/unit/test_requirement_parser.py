@@ -5,6 +5,7 @@ from duvet.requirement_parser import (
     ALL_RFC_LIST_ENTRY_REGEX,
     ListRequirements,
     create_requirements_from_list,
+    extract_inline_requirements,
     extract_list_requirements,
 )
 from duvet.structures import Section
@@ -122,3 +123,21 @@ def test_search():
     req = ListRequirements.from_line(VALID_LIST_LINES)
     assert req.list_parent == "This is a MUST requirement has lists"
     assert req.list_elements == ["valid 1", "valid 2", "valid 3 This is something after valid 3"]
+
+
+TEST_REQUIREMENT_STR = (
+    "The specification section shows the specific specification text and how this links to annotation.\n"
+    "It MUST show all text from the section. It MUST highlight the text for every requirement. It MUST hig"
+    "hlight the text that matches any annotation. Any highlighted text MUST have a mouse ove"
+    "r that shows its annotation information.\n"
+    "Clicking on any highlighted text MUST bring up a popup that shows"
+)
+
+
+def test_extract_inline_requirements():
+    assert extract_inline_requirements(TEST_REQUIREMENT_STR) == [
+        "It MUST show all text from the section.",
+        "It MUST highlight the text for every requirement.",
+        "It MUST highlight the text that matches any annotation.",
+        "Any highlighted text MUST have a mouse over that shows its annotation " "information.",
+    ]

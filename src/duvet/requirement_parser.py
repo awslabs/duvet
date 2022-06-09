@@ -146,3 +146,37 @@ def create_requirements_from_list(section: Section, list_req: ListRequirements) 
         section.add_requirement(req)
 
     return True
+
+
+REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
+
+
+def extract_inline_requirements(quotes: str) -> list:
+    """This function take a chunk of string in section and return list of sentences containing RFC2019 keywords."""
+    requirement_candidates = []
+    requirement_spans = []
+    requirement_strings = []
+    for match in re.finditer(REQUIREMENT_IDENTIFIER_REGEX, quotes):
+        requirement_candidates.append(match.span())
+    for candidate in requirement_candidates:
+        left = candidate[0]
+        right = candidate[1]
+        left_bound_checked = False
+        right_bound_checked = False
+        while left > 0:
+            left = left - 1
+            if quotes[left : left + 2] in [". ", "! ", ".\n", "!\n"]:
+                left_bound_checked = True
+                break
+        while right < len(quotes) - 1:
+            right = right + 1
+            if quotes[right : right + 2] in [". ", "! ", ".\n", "!\n"]:
+                right_bound_checked = True
+                break
+        if left_bound_checked and right_bound_checked:
+            temp_span = (left + 2, right + 1)
+            if temp_span not in requirement_spans:
+                requirement_spans.append(temp_span)
+    for req in requirement_spans:
+        requirement_strings.append(quotes[req[0] : req[1]])
+    return requirement_strings
