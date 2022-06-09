@@ -139,5 +139,5 @@ def test_extract_inline_requirements():
         "It MUST show all text from the section.",
         "It MUST highlight the text for every requirement.",
         "It MUST highlight the text that matches any annotation.",
-        "Any highlighted text MUST have a mouse over that shows its annotation " "information.",
+        "Any highlighted text MUST have a mouse over that shows its annotation information.",
     ]
