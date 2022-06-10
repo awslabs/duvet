@@ -18,11 +18,18 @@ RFC_LIST_MEMBER_REGEX = r"(^(?:(\s)*((?:(\-|\*))|(?:(\d)+\.)|(?:[a-z]+\.)) ))"
 ALL_RFC_LIST_ENTRY_REGEX = re.compile(RFC_LIST_MEMBER_REGEX, re.MULTILINE)
 # Match common List identifiers
 # INVALID_LIST_MEMBER_REGEX = r"^(?:(\s)*((?:(\+))|(?:(\()*(\d)+(\))+\.)|(?:(\()*[a-z]+(\))+\.)) )"
-
+REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
 END_OF_LIST = r"\n\n"
 FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))(.*?)", re.MULTILINE)
-
-SENTENCE_DIVIDER = [". ", "! ", ".\n", "!\n"]
+# Common sentence dividers
+SENTENCE_DIVIDER = [". ", "! ", ".\n", "!\n", "? ", "?\n"]
+# Common sentence dividers would mix up words
+ALPHABETS = r"([A-Za-z])"
+PREFIXES = r"(Mr|St|Mrs|Ms|Dr)[.]"
+SUFFIXES = r"(Inc|Ltd|Jr|Sr|Co)"
+STARTERS = r"(Mr|Mrs|Ms|Dr|He\s|She\s|It\s|They\s|Their\s|Our\s|We\s|But\s|However\s|That\s|This\s|Wherever)"
+ACRONYMS = r"([A-Z][.][A-Z][.](?:[A-Z][.])?)"
+WEBSITES = r"[.](com|net|org|io|gov)"
 
 
 @define
@@ -62,7 +69,7 @@ class ListRequirements:
         """Create list requirements from a chunk of string."""
 
         # Find the end of the list using the "\n\n".
-        end_of_list = re.search(re.compile(r"[\r\n]{2}", re.MULTILINE), quotes).span()[1]
+        end_of_list = quotes.rfind("\n\n") + 2
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
         first_list_identifier = re.search(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes).span()
         start_of_list = first_list_identifier[0]
@@ -158,51 +165,6 @@ def create_requirements_from_list(section: Section, list_req: ListRequirements) 
     return True
 
 
-REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
-
-
-def extract_inline_requirements(quotes: str) -> list:  # pylint: disable too-many-locals
-    """Take a chunk of string in section.
-
-    Create a list of sentences containing RFC2019 keywords.
-
-    The following assumptions are made about the structure of the In line requirements:
-    1. Each period will be followed by a space, each ! will be followed by a space.
-    2. There is no question mark nor ... in the specification chunk trying to parse
-    3. There is no list or table within the requirement sTring we want to parse
-    4. Section string is not included in the string chunk.
-    """
-    requirement_candidates = []
-    requirement_strings = []
-    # We don't want to take care of list in this function.
-    # We will help get the first sentence of the list and
-    # get rid of it.
-    for match in re.finditer(REQUIREMENT_IDENTIFIER_REGEX, quotes):
-        requirement_candidates.append(match.span())
-    for candidate in requirement_candidates:
-        left = candidate[0]
-        right = candidate[1]
-        sentence_left = 0
-        sentence_right = len(quotes) - 1
-        left_bound_checked = False
-        right_bound_checked = False
-        for end_sentence_punc in SENTENCE_DIVIDER:
-            left_punc = quotes[:left].rfind(end_sentence_punc)
-            if left_punc != -1:
-                left_bound_checked = True
-                sentence_left = max(sentence_left, left_punc)
-        for end_sentence_punc in SENTENCE_DIVIDER:
-            right_punc = quotes[right:].find(end_sentence_punc)
-            if right_punc != -1:
-                right_bound_checked = True
-                sentence_right = min(sentence_right, right + right_punc)
-        if left_bound_checked and right_bound_checked:
-            req = quotes[sentence_left + 2 : sentence_right + 1].strip("\n").replace("\n", " ")
-            if req not in requirement_strings:
-                requirement_strings.append(req)
-    return requirement_strings
-
-
 def extract_requirements(quotes: str) -> list:
     """Take a chunk of string in section.
 
@@ -247,3 +209,73 @@ def extract_requirements(quotes: str) -> list:
         return result
     else:
         return extract_inline_requirements(quotes)
+
+
+def extract_inline_requirements(quotes: str) -> list:  # pylint: disable too-many-locals
+    """Take a chunk of string in section.
+
+    Create a list of sentences containing RFC2019 keywords.
+
+    The following assumptions are made about the structure of the In line requirements:
+    1. Each period will be followed by a space, each ! will be followed by a space.
+    2. There is no question mark nor ... in the specification chunk trying to parse
+    3. There is no list or table within the requirement sTring we want to parse
+    4. Section string is not included in the string chunk.
+    """
+    quotes = preprocess_inline_requirements(quotes)
+    requirement_candidates = []
+    requirement_strings = []
+    for match in re.finditer(REQUIREMENT_IDENTIFIER_REGEX, quotes):
+        requirement_candidates.append(match.span())
+    for candidate in requirement_candidates:
+        left = candidate[0]
+        right = candidate[1]
+        sentence_left = 0
+        sentence_right = len(quotes) - 1
+        left_bound_checked = False
+        right_bound_checked = False
+        left_punc = quotes[:left].rfind("<stop>")
+        if left_punc != -1:
+            sentence_left = left_punc
+            left_bound_checked = True
+        right_punc = quotes[right:].find("<stop>")
+        if right_punc != -1:
+            right_bound_checked = True
+            sentence_right = right + right_punc
+        if left_bound_checked and right_bound_checked:
+            req = quotes[sentence_left:sentence_right].strip("\n").replace("\n", " ").replace("<stop>", "").strip()
+            if req not in requirement_strings and req.endswith((".", "!")):
+                requirement_strings.append(req)
+    return requirement_strings
+
+
+def preprocess_inline_requirements(text: str) -> str:
+    """Take a chunk of inline requirement string and return a labeled string."""
+    text = "<stop> " + text + "  <stop>"
+    text = text.replace("\n", " ")
+    text = re.sub(PREFIXES, "\\1<prd>", text)
+    text = re.sub(WEBSITES, "<prd>\\1", text)
+    if "Ph.D" in text:
+        text = text.replace("Ph.D.", "Ph<prd>D<prd>")
+    text = re.sub(r"\s" + ALPHABETS + "[.] ", " \\1<prd> ", text)
+    text = re.sub(ACRONYMS + " " + STARTERS, "\\1<stop> \\2", text)
+    text = re.sub(ALPHABETS + "[.]" + ALPHABETS + "[.]" + ALPHABETS + "[.]", "\\1<prd>\\2<prd>\\3<prd>", text)
+    text = re.sub(ALPHABETS + "[.]" + ALPHABETS + "[.]", "\\1<prd>\\2<prd>", text)
+    text = re.sub(" " + SUFFIXES + "[.] " + STARTERS, " \\1<stop> \\2", text)
+    text = re.sub(" " + SUFFIXES + "[.]", " \\1<prd>", text)
+    text = re.sub(" " + ALPHABETS + "[.]", " \\1<prd>", text)
+    if "”" in text:
+        text = text.replace(".”", "”.")
+    if '"' in text:
+        text = text.replace('."', '".')
+    if "!" in text:
+        text = text.replace('!"', '"!')
+    if "?" in text:
+        text = text.replace('?"', '"?')
+    text = text.replace(". ", ". <stop>")
+    text = text.replace("? ", "? <stop>")
+    text = text.replace("! ", "! <stop>")
+    text = text.replace(".\n", ".\n<stop>")
+    text = text.replace("?\n", "?\n<stop>")
+    text = text.replace("!\n", "!\n<stop>").replace("<prd>", ".")
+    return text
