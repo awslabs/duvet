@@ -161,7 +161,7 @@ def create_requirements_from_list(section: Section, list_req: ListRequirements) 
 REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
 
 
-def extract_inline_requirements(quotes: str) -> list:
+def extract_inline_requirements(quotes: str) -> list:  # pylint: disable too-many-locals
     """Take a chunk of string in section.
 
     Create a list of sentences containing RFC2019 keywords.
@@ -173,7 +173,6 @@ def extract_inline_requirements(quotes: str) -> list:
     4. Section string is not included in the string chunk.
     """
     requirement_candidates = []
-    requirement_spans = []
     requirement_strings = []
     # We don't want to take care of list in this function.
     # We will help get the first sentence of the list and
@@ -183,24 +182,24 @@ def extract_inline_requirements(quotes: str) -> list:
     for candidate in requirement_candidates:
         left = candidate[0]
         right = candidate[1]
+        sentence_left = 0
+        sentence_right = len(quotes) - 1
         left_bound_checked = False
         right_bound_checked = False
-        while left > 0:
-            left = left - 1
-            if quotes[left : left + 2] in [". ", "! ", ".\n", "!\n"]:
+        for end_sentence_punc in SENTENCE_DIVIDER:
+            left_punc = quotes[:left].rfind(end_sentence_punc)
+            if left_punc != -1:
                 left_bound_checked = True
-                break
-        while right < len(quotes) - 1:
-            right = right + 1
-            if quotes[right : right + 2] in [". ", "! ", ".\n", "!\n"]:
+                sentence_left = max(sentence_left, left_punc)
+        for end_sentence_punc in SENTENCE_DIVIDER:
+            right_punc = quotes[right:].find(end_sentence_punc)
+            if right_punc != -1:
                 right_bound_checked = True
-                break
+                sentence_right = min(sentence_right, right + right_punc)
         if left_bound_checked and right_bound_checked:
-            temp_span = (left + 2, right + 1)
-            if temp_span not in requirement_spans:
-                requirement_spans.append(temp_span)
-    for req in requirement_spans:
-        requirement_strings.append(quotes[req[0] : req[1]].strip("\n").replace("\n", " "))
+            req = quotes[sentence_left + 2 : sentence_right + 1].strip("\n").replace("\n", " ")
+            if req not in requirement_strings:
+                requirement_strings.append(req)
     return requirement_strings
 
 
@@ -214,7 +213,10 @@ def extract_requirements(quotes: str) -> list:
     3. There is no e.g. or ? to break the parser.
 
     TODO: During these extractions we lost all the location information of the requirements.
-    TODO: Which would be needed in the report. For now I am gonna ignore it.
+    Which would be needed in the report. For now I am gonna ignore it.
+
+    list block is considered as a block of string. It starts with a sentence, followed by ordered
+    or unordered lists. It end with two nextline signs
     """
     temp_match = re.search(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes)
     result = []
@@ -222,26 +224,26 @@ def extract_requirements(quotes: str) -> list:
     if temp_match is not None:
         left = temp_match.span()[0]
         right = temp_match.span()[1]
+        list_block_left = 0
+        list_block_right = len(quotes) - 1
         left_bound_checked = False
         right_bound_checked = False
-        while left > 0:
-            left = left - 1
-            if quotes[left : left + 2] in [". ", "! ", ".\n", "!\n"]:
+        for end_sentence_punc in SENTENCE_DIVIDER:
+            left_punc = quotes[:left].rfind(end_sentence_punc)
+            if left_punc != -1:
                 left_bound_checked = True
-                break
-        while right < len(quotes) - 1:
-            right = right + 1
-            if quotes[right : right + 2] in ["\n\n"]:
-                right_bound_checked = True
-                break
+                list_block_left = max(list_block_left, left_punc)
+        right_punc = quotes[right:].find("\n\n")
+        if right_punc != -1:
+            right_bound_checked = True
+            list_block_right = right + right_punc
         if left_bound_checked and right_bound_checked:
             # Call the function to take care of the lis of requirements
-            req_in_list = ListRequirements.from_line(quotes[left + 2 : right + 1])
-            # print(req_in_list.to_string_list())
+            req_in_list = ListRequirements.from_line(quotes[list_block_left + 2 : list_block_right + 2])
             temp.extend(req_in_list.to_string_list())
-        result.extend(extract_inline_requirements(quotes[0 : left + 2]))
+        result.extend(extract_inline_requirements(quotes[: list_block_left + 2]))
         result.extend(temp)
-        result.extend(extract_requirements(quotes[right + 2 : len(quotes) - 1]))
+        result.extend(extract_requirements(quotes[list_block_right + 2 :]))
         return result
     else:
         return extract_inline_requirements(quotes)
