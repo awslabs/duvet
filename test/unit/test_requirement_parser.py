@@ -202,18 +202,18 @@ def test_extract_requirements_with_lists_wrapped():
     assert extract_requirements(TEST_REQUIREMENT_STR_WITH_LIST) == [
         "A requirement MAY contain multiple RFC 2119 keywords.",
         "A requirement MUST be terminated by one of the following: period (.)",
-        "A requirement MUST be terminated by one of the following: exclamation point " "(!)",
+        "A requirement MUST be terminated by one of the following: exclamation point (!)",
         "A requirement MUST be terminated by one of the following: list",
         "A requirement MUST be terminated by one of the following: ",
-        "List elements MAY have RFC 2119 keywords, this is the same as regular " "sentences with multiple keywords.",
-        "Sublists MUST be treated as if the parent item were terminated by the " "sublist.",
+        "List elements MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.",
+        "Sublists MUST be treated as if the parent item were terminated by the sublist.",
         "List elements MAY contain a period (.) or exclamation point (!) and this "
         "punctuation MUST NOT terminate the requirement by excluding the following "
         "elements from the list of requirements.",
         "In the case of requirement terminated by a table, the text proceeding the "
         "table SHOULD be concatenated with each row of the table to form a "
         "requirement.",
-        "Table cells MAY have RFC 2119 keywords, this is the same as regular " "sentences with multiple keywords.",
+        "Table cells MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.",
         "Table cells MAY contain a period (.) or exclamation point (!) and this "
         "punctuation MUST NOT terminate the requirement by excluding the following "
         "rows from the table of requirements.",
@@ -225,12 +225,12 @@ def test_extract_inline_requirements_complicated():
     assert extract_inline_requirements(
         TEST_REQUIREMENT_STR_WITH_LIST[220 : len(TEST_REQUIREMENT_STR_WITH_LIST) - 1]
     ) == [
-        "List elements MAY have RFC 2119 keywords, this is the same as regular" " sentences with multiple keywords.",
+        "List elements MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.",
         "Sublists MUST be treated as if the parent item were terminated by the sublist.",
         "List elements MAY contain a period (.) or exclamation point (!) and this "
         "punctuation MUST NOT terminate the requirement by excluding the following "
         "elements from the list of requirements.",
         "In the case of requirement terminated by a table, the text proceeding the "
         "table SHOULD be concatenated with each row of the table to form a requirement.",
-        "Table cells MAY have RFC 2119 keywords, this is the same as" " regular sentences with multiple keywords.",
+        "Table cells MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.",
     ]
