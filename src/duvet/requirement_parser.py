@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
 import re
+import warnings
 
 import attr
 from attrs import define, field
@@ -30,6 +31,73 @@ SUFFIXES = r"(Inc|Ltd|Jr|Sr|Co)"
 STARTERS = r"(Mr|Mrs|Ms|Dr|He\s|She\s|It\s|They\s|Their\s|Our\s|We\s|But\s|However\s|That\s|This\s|Wherever)"
 ACRONYMS = r"([A-Z][.][A-Z][.](?:[A-Z][.])?)"
 WEBSITES = r"[.](com|net|org|io|gov)"
+
+
+@define
+class RequirementParser:
+    """The parser of a requirement in a block."""
+
+    _legacy: bool = False
+    _format: str = "MARKDOWN"
+    _list_entry_regex: str = ALL_MARKDOWN_LIST_ENTRY_REGEX
+
+    @classmethod
+    def set_legacy(cls):
+        """Set legacy mode."""
+        cls._legacy = True
+
+    @classmethod
+    def set_rfc(cls):
+        """Set RFC format."""
+        cls._format = "RFC"
+        cls._list_entry_regex = ALL_RFC_LIST_ENTRY_REGEX
+
+    def extract_requirements(self, quotes: str) -> list:
+        """Take a chunk of string in section.
+
+        Create a list of sentences containing RFC2019 keywords.
+        The following assumptions are made about the structure of the In line requirements:
+        1. Section string is not included in the string chunk.
+        2. There is no list or table within the requirement sring we want to parse
+        3. There is no e.g. or ? to break the parser.
+
+        TODO: During these extractions we lost all the location information of the requirements.
+        Which would be needed in the report. For now I am gonna ignore it.
+
+        list block is considered as a block of string. It starts with a sentence, followed by ordered
+        or unordered lists. It end with two nextline signs
+        """
+        temp_match = re.search(self._list_entry_regex, quotes)
+        result = []
+        temp = []
+        if temp_match is not None:
+            left = temp_match.span()[0]
+            right = temp_match.span()[1]
+            list_block_left = 0
+            list_block_right = len(quotes) - 1
+            left_bound_checked = False
+            right_bound_checked = False
+            for end_sentence_punc in SENTENCE_DIVIDER:
+                left_punc = quotes[:left].rfind(end_sentence_punc)
+                if left_punc != -1:
+                    left_bound_checked = True
+                    list_block_left = max(list_block_left, left_punc)
+            right_punc = quotes[right:].find("\n\n")
+            if right_punc != -1:
+                right_bound_checked = True
+                list_block_right = right + right_punc
+            if left_bound_checked and right_bound_checked:
+                # Call the function to take care of the lis of requirements
+                req_in_list = ListRequirements.from_line(
+                    quotes[list_block_left + 2: list_block_right + 2], self._list_entry_regex
+                )
+                temp.extend(req_in_list.to_string_list())
+            result.extend(_extract_inline_requirements(quotes[: list_block_left + 2]))
+            result.extend(temp)
+            result.extend(self.extract_requirements(quotes[list_block_right + 2:]))
+            return result
+        else:
+            return _extract_inline_requirements(quotes)
 
 
 @define
@@ -65,21 +133,22 @@ class ListRequirements:
     list_elements: list = field(init=False, default=attr.Factory(list))
 
     @classmethod
-    def from_line(cls, quotes: str):
+    def from_line(cls, quotes: str, list_entry_format: re.Pattern):
         """Create list requirements from a chunk of string."""
-
         # Find the end of the list using the "\n\n".
         end_of_list = quotes.rfind("\n\n") + 2
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
-        first_list_identifier = re.search(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes).span()
+        if re.search(list_entry_format, quotes) is None:
+            raise ValueError("Requirement list syntax is not valid in " + quotes)
+        first_list_identifier = re.search(list_entry_format, quotes).span()
         start_of_list = first_list_identifier[0]
         list_parent = quotes[0:start_of_list].strip("\n").replace("\n", " ")
         new_list_requirements = cls(list_parent)
         matched_span = []
         prev = first_list_identifier[1]
-        for match in re.finditer(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes):
+        for match in re.finditer(list_entry_format, quotes):
             if prev < match.span()[0]:
-                temp = quotes[prev : match.span()[0]].strip("\n").replace("\n", " ")
+                temp = quotes[prev: match.span()[0]].strip("\n").replace("\n", " ")
                 prev = match.span()[1]
                 matched_span.append(temp)
         # last element of th list
@@ -124,7 +193,6 @@ def extract_list_requirements(lines: list, start_line: int, end_line: int, list_
     list_req = ListRequirements(list_parent)
     for elem in list_elements:
         list_req.add_list_element(elem)
-
     return list_req
 
 
@@ -150,7 +218,7 @@ def create_requirements_from_list_to_section(section: Section, list_req: list) -
         elif "MAY" in req_line:
             requirement_list.append(_create_requirement(RequirementLevel.MUST, req_line, section))
         else:
-            return False
+            warnings.warn('No RFC2019 Keywords found in "' + req_line + '"')
 
     for req in requirement_list:
         section.add_requirement(req)
@@ -158,53 +226,7 @@ def create_requirements_from_list_to_section(section: Section, list_req: list) -
     return True
 
 
-def extract_requirements(quotes: str) -> list:
-    """Take a chunk of string in section.
-
-    Create a list of sentences containing RFC2019 keywords.
-    The following assumptions are made about the structure of the In line requirements:
-    1. Section string is not included in the string chunk.
-    2. There is no list or table within the requirement sring we want to parse
-    3. There is no e.g. or ? to break the parser.
-
-    TODO: During these extractions we lost all the location information of the requirements.
-    Which would be needed in the report. For now I am gonna ignore it.
-
-    list block is considered as a block of string. It starts with a sentence, followed by ordered
-    or unordered lists. It end with two nextline signs
-    """
-    temp_match = re.search(ALL_MARKDOWN_LIST_ENTRY_REGEX, quotes)
-    result = []
-    temp = []
-    if temp_match is not None:
-        left = temp_match.span()[0]
-        right = temp_match.span()[1]
-        list_block_left = 0
-        list_block_right = len(quotes) - 1
-        left_bound_checked = False
-        right_bound_checked = False
-        for end_sentence_punc in SENTENCE_DIVIDER:
-            left_punc = quotes[:left].rfind(end_sentence_punc)
-            if left_punc != -1:
-                left_bound_checked = True
-                list_block_left = max(list_block_left, left_punc)
-        right_punc = quotes[right:].find("\n\n")
-        if right_punc != -1:
-            right_bound_checked = True
-            list_block_right = right + right_punc
-        if left_bound_checked and right_bound_checked:
-            # Call the function to take care of the lis of requirements
-            req_in_list = ListRequirements.from_line(quotes[list_block_left + 2 : list_block_right + 2])
-            temp.extend(req_in_list.to_string_list())
-        result.extend(extract_inline_requirements(quotes[: list_block_left + 2]))
-        result.extend(temp)
-        result.extend(extract_requirements(quotes[list_block_right + 2 :]))
-        return result
-    else:
-        return extract_inline_requirements(quotes)
-
-
-def extract_inline_requirements(quotes: str) -> list:  # pylint: disable too-many-locals
+def _extract_inline_requirements(quotes: str) -> list:  # pylint: disable too-many-locals
     """Take a chunk of string in section.
 
     Create a list of sentences containing RFC2019 keywords.
@@ -215,7 +237,7 @@ def extract_inline_requirements(quotes: str) -> list:  # pylint: disable too-man
     3. There is no list or table within the requirement sTring we want to parse
     4. Section string is not included in the string chunk.
     """
-    quotes = preprocess_inline_requirements(quotes)
+    quotes = _preprocess_inline_requirements(quotes)
     requirement_candidates = []
     requirement_strings = []
     for match in re.finditer(REQUIREMENT_IDENTIFIER_REGEX, quotes):
@@ -242,33 +264,38 @@ def extract_inline_requirements(quotes: str) -> list:  # pylint: disable too-man
     return requirement_strings
 
 
-def preprocess_inline_requirements(text: str) -> str:
+def _preprocess_inline_requirements(inline_text: str) -> str:
     """Take a chunk of inline requirement string and return a labeled string."""
-    text = "<stop> " + text + "  <stop>"
-    text = text.replace("\n", " ")
-    text = re.sub(PREFIXES, "\\1<prd>", text)
-    text = re.sub(WEBSITES, "<prd>\\1", text)
-    if "Ph.D" in text:
-        text = text.replace("Ph.D.", "Ph<prd>D<prd>")
-    text = re.sub(r"\s" + ALPHABETS + "[.] ", " \\1<prd> ", text)
-    text = re.sub(ACRONYMS + " " + STARTERS, "\\1<stop> \\2", text)
-    text = re.sub(ALPHABETS + "[.]" + ALPHABETS + "[.]" + ALPHABETS + "[.]", "\\1<prd>\\2<prd>\\3<prd>", text)
-    text = re.sub(ALPHABETS + "[.]" + ALPHABETS + "[.]", "\\1<prd>\\2<prd>", text)
-    text = re.sub(" " + SUFFIXES + "[.] " + STARTERS, " \\1<stop> \\2", text)
-    text = re.sub(" " + SUFFIXES + "[.]", " \\1<prd>", text)
-    text = re.sub(" " + ALPHABETS + "[.]", " \\1<prd>", text)
-    if "”" in text:
-        text = text.replace(".”", "”.")
-    if '"' in text:
-        text = text.replace('."', '".')
-    if "!" in text:
-        text = text.replace('!"', '"!')
-    if "?" in text:
-        text = text.replace('?"', '"?')
-    text = text.replace(". ", ". <stop>")
-    text = text.replace("? ", "? <stop>")
-    text = text.replace("! ", "! <stop>")
-    text = text.replace(".\n", ".\n<stop>")
-    text = text.replace("?\n", "?\n<stop>")
-    text = text.replace("!\n", "!\n<stop>").replace("<prd>", ".")
-    return text
+    processed_text = "<stop> " + inline_text + "  <stop>"
+    processed_text = processed_text.replace("\n", " ")
+    processed_text = re.sub(PREFIXES, "\\1<prd>", processed_text)
+    processed_text = re.sub(WEBSITES, "<prd>\\1", processed_text)
+    if "Ph.D" in processed_text:
+        processed_text = processed_text.replace("Ph.D.", "Ph<prd>D<prd>")
+    processed_text = re.sub(r"\s" + ALPHABETS + "[.] ", " \\1<prd> ", processed_text)
+    processed_text = re.sub(ACRONYMS + " " + STARTERS, "\\1<stop> \\2", processed_text)
+    processed_text = re.sub(
+        ALPHABETS + "[.]" + ALPHABETS + "[.]" + ALPHABETS + "[.]", "\\1<prd>\\2<prd>\\3<prd>", processed_text
+    )
+    processed_text = re.sub(ALPHABETS + "[.]" + ALPHABETS + "[.]", "\\1<prd>\\2<prd>", processed_text)
+    processed_text = re.sub(" " + SUFFIXES + "[.] " + STARTERS, " \\1<stop> \\2", processed_text)
+    processed_text = re.sub(" " + SUFFIXES + "[.]", " \\1<prd>", processed_text)
+    processed_text = re.sub(" " + ALPHABETS + "[.]", " \\1<prd>", processed_text)
+    if "”" in processed_text:
+        processed_text = processed_text.replace(".”", "”.")
+    if '"' in processed_text:
+        processed_text = processed_text.replace('."', '".')
+    if "!" in processed_text:
+        processed_text = processed_text.replace('!"', '"!')
+    if "?" in processed_text:
+        processed_text = processed_text.replace('?"', '"?')
+    processed_text = (
+        processed_text.replace(". ", ". <stop>")
+        .replace("? ", "? <stop>")
+        .replace("! ", "! <stop>")
+        .replace(".\n", ".\n<stop>")
+        .replace("?\n", "?\n<stop>")
+        .replace("!\n", "!\n<stop>")
+        .replace("<prd>", ".")
+    )
+    return processed_text
