@@ -5,7 +5,8 @@ from duvet.requirement_parser import (
     ALL_RFC_LIST_ENTRY_REGEX,
     ListRequirements,
     RequirementParser,
-    _extract_inline_requirements, create_requirements_from_list_to_section,
+    _extract_inline_requirements,
+    create_requirements_from_list_to_section,
 )
 from duvet.structures import Section
 
