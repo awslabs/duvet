@@ -4,7 +4,7 @@ from duvet.requirement_parser import (
     ALL_MARKDOWN_LIST_ENTRY_REGEX,
     ALL_RFC_LIST_ENTRY_REGEX,
     ListRequirements,
-    create_requirements_from_list,
+    create_requirements_from_list_to_section,
     extract_inline_requirements,
     extract_list_requirements,
     extract_requirements,
@@ -98,16 +98,16 @@ def test_extract_rfc_list():
     ]
 
 
-def test_create_requirement_from_list():
+def test_create_requirement_from_list_to_section():
     lines = TEST_VALID_MARKDOWN_LIST.splitlines()
-    temp_list_req = extract_list_requirements(lines, 0, 8, ALL_MARKDOWN_LIST_ENTRY_REGEX)
+    temp_list_req = extract_list_requirements(lines, 0, 8, ALL_MARKDOWN_LIST_ENTRY_REGEX).to_string_list()
     test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
     assert test_sec.title == "A Section Title"
     assert test_sec.uri == "h1.h2.h3.a-section-title"
     temp_str = test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
     assert temp_str == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
     assert not test_sec.has_requirements
-    assert create_requirements_from_list(test_sec, temp_list_req)
+    assert create_requirements_from_list_to_section(test_sec, temp_list_req)
     assert test_sec.has_requirements
     # Verify the extract_list function by checking the number of requirements it adds to section
     assert len(test_sec.requirements.keys()) == 5

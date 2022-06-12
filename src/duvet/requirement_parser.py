@@ -128,36 +128,29 @@ def extract_list_requirements(lines: list, start_line: int, end_line: int, list_
     return list_req
 
 
-def create_requirements_from_list(section: Section, list_req: ListRequirements) -> bool:
-    """Take a RequirementList and Section.
+def create_requirements_from_list_to_section(section: Section, list_req: list) -> bool:
+    """Take a list of string of requirements and Section.
 
     Creates Requirement Object within that section
     """
 
-    def _create_requirement(
-        level: RequirementLevel, _section_line: str, _list_entry: str, _section: Section
-    ) -> Requirement:
+    def _create_requirement(level: RequirementLevel, _req_line: str, _section: Section) -> Requirement:
         """Take a RequirementList element and Section.
 
         Creates Requirement Object within that section
         """
-        return Requirement(
-            level, " ".join([_section_line, _list_entry]), _section.uri + "$" + " ".join([_section_line, _list_entry])
-        )
+        return Requirement(level, _req_line, _section.uri + "$" + _req_line)
 
-    section_line = list_req.list_parent
     requirement_list = []
-    if "MUST" in section_line:
-        for child in list_req.list_elements:
-            requirement_list.append(_create_requirement(RequirementLevel.MUST, section_line, child, section))
-    elif "SHOULD" in section_line:
-        for child in list_req.list_elements:
-            requirement_list.append(_create_requirement(RequirementLevel.SHOULD, section_line, child, section))
-    elif "MAY" in section_line:
-        for child in list_req.list_elements:
-            requirement_list.append(_create_requirement(RequirementLevel.MUST, section_line, child, section))
-    else:
-        return False
+    for req_line in list_req:
+        if "MUST" in req_line:
+            requirement_list.append(_create_requirement(RequirementLevel.MUST, req_line, section))
+        elif "SHOULD" in req_line:
+            requirement_list.append(_create_requirement(RequirementLevel.SHOULD, req_line, section))
+        elif "MAY" in req_line:
+            requirement_list.append(_create_requirement(RequirementLevel.MUST, req_line, section))
+        else:
+            return False
 
     for req in requirement_list:
         section.add_requirement(req)
