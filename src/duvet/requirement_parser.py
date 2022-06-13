@@ -39,7 +39,7 @@ class RequirementParser:
 
     _legacy: bool = False
     _format: str = "MARKDOWN"
-    _list_entry_regex: str = ALL_MARKDOWN_LIST_ENTRY_REGEX
+    _list_entry_regex: re.Pattern = ALL_MARKDOWN_LIST_ENTRY_REGEX
 
     @classmethod
     def set_legacy(cls):

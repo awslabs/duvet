@@ -99,7 +99,6 @@ def test_extract_rfc_list():
 
 
 def test_create_requirement_from_list_to_section():
-    # lines = TEST_VALID_MARKDOWN_LIST.splitlines()
     temp_list_req = ListRequirements.from_line(TEST_VALID_MARKDOWN_LIST, ALL_MARKDOWN_LIST_ENTRY_REGEX)
     test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
     assert test_sec.title == "A Section Title"
