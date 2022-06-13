@@ -17,7 +17,7 @@ class Config:
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
         """Parse a config file."""
-        with open(config_file_path, "r", encoding="UTF8") as config_file:
+        with open(config_file_path, "r", encoding="utf-8") as config_file:
             parsed = toml.load(config_file)
         # Parse implementation and specification preset
         return Config(parsed["implementation"], parsed["spec"])
