@@ -1,6 +1,9 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Unit tests for ``duvet._config``."""
+
+from typing import Dict
+
 import pytest
 
 from duvet._config import Config
