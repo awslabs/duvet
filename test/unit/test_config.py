@@ -6,7 +6,7 @@ from typing import Dict
 
 import pytest
 
-from duvet._config import Config
+from duvet._config import Config, ImplConfig
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
@@ -20,7 +20,7 @@ patterns = ["src/**/*.rs", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
 comment-style = { meta = "//=", content = "//#" }
 [implementation.dfy]
 patterns = ["src/**/*.dfy", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
-[[spec.markdown]]
+[spec.markdown]
 patterns = ["project-specification/**/*.md"]
         """,
         {
@@ -36,15 +36,32 @@ patterns = ["project-specification/**/*.md"]
 def test_config_parse(tmpdir, contents: str, mapping: Dict[str, Config]):
     source = tmpdir.join("source")
     source.write(contents)
-
     test = Config.parse(str(source))
+    test_impl_config = ImplConfig(impl_filenames=[])
+    assert test.implementation_configs == [test_impl_config]
+    assert test.specs == []
 
-    assert test.implementation == {
-        "dfy": {"patterns": ["src/**/*.dfy", "test/**/*.rs", "compliance_exceptions/**/*.txt"]},
-        "rs": {
-            "comment-style": {"content": "//#", "meta": "//="},
-            "patterns": ["src/**/*.rs", "test/**/*.rs", "compliance_exceptions/**/*.txt"],
-        },
-    }
 
-    assert test.spec == {"markdown": [{"patterns": ["project-specification/**/*.md"]}]}
+def test_impl_config():
+    try:
+        ImplConfig([], "//=", "//=")
+    except TypeError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("TypeError('Meta style and Content style of annotation cannot be same.')")
+
+    try:
+        ImplConfig([], "/", "//=")
+    except TypeError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("TypeError('AnnotationPrefixes must have 3 or more characters')")
+
+    try:
+        ImplConfig([], "   ", "//=")
+    except TypeError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("TypeError('AnnotationPrefixes must not be all whitespace')")
+    try:
+        ImplConfig([], 123, "//=")
+    except TypeError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("TypeError('AnnotationPrefixes must be string')")
