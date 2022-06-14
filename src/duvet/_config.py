@@ -18,8 +18,11 @@ __all__ = ["Config"]
 class Config:
     """Duvet configuration container and parser."""
 
-    implementation_configs: field(init=True, default=attr.Factory(list))
-    specs: field(init=True, default=attr.Factory(list))
+    implementation_configs: list = field(init=True, default=attr.Factory(list))
+    specs: list = field(init=True, default=attr.Factory(list))
+    legacy: bool = field(init=True, default=False)
+    blob_url: str = field(init=True, default="Github Blob URL Placeholder")
+    issue_url: str = field(init=True, default="Github Issue URL Placeholder")
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -35,16 +38,23 @@ class ConfigParser:
 
     def extract_config(self) -> Config:
         """Parse a config file."""
+        legacy = False
         with open(self.config_file_path, "r", encoding="utf-8") as config_file:
             parsed = toml.load(config_file)
             # print(parsed)
-        if parsed["implementation"] is None:
+        if "implementation" not in parsed.keys():
             raise ValueError("Implementation Config not found.")
-        if parsed["spec"] is None:
+        if "spec" not in parsed.keys():
             raise ValueError("Specification Config not found.")
+        if "report" not in parsed.keys():
+            raise ValueError("Report Config not found.")
+        if "mode" not in parsed.keys():
+            pass
+        else:
+            legacy = parsed["mode"]["legacy"]
         implementation_configs = self._validate_implementation(parsed["implementation"])
         spec_configs = self._validate_specification(parsed["spec"])
-        return Config(implementation_configs, spec_configs)
+        return Config(implementation_configs, spec_configs, legacy, parsed["report"]["blob"], parsed["report"]["issue"])
 
     @staticmethod
     def _validate_patterns(spec: dict, entry_key: str, mode: str) -> list:
