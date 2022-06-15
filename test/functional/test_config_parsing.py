@@ -51,10 +51,10 @@ legacy = true
 def test_config_parse(tmpdir, contents: str):
     source = tmpdir.join("source")
     source.write(contents)
-    actural = Config.parse(str(source))
+    actual = Config.parse(str(source))
     expected_impl_config = ImplConfig(impl_filenames=[])
-    assert actural.implementation_configs == [expected_impl_config, expected_impl_config]
-    assert not actural.specs
+    assert actual.implementation_configs == [expected_impl_config, expected_impl_config]
+    assert not actual.specs
 
 
 def test_missing_keys(tmp_path):
@@ -85,8 +85,8 @@ def test_valid_files(tmp_path):
     populate_file(tmp_path, "# spec1", "src/spec1.dfy")
     populate_file(tmp_path, "# spec2", "src/spec2.rs")
     populate_file(tmp_path, "# spec3", "test/test_spec1.dfy")
-    expected_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
-    expected_config = Config.parse(expected_path)
-
-    assert len(expected_config.implementation_configs) == 2
-    assert len(expected_config.specs) == 3
+    actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
+    actual_config = Config.parse(actual_path)
+    # Verify the correctness of the Config object by checking the length.
+    assert len(actual_config.implementation_configs) == 2
+    assert len(actual_config.specs) == 3

@@ -56,6 +56,7 @@ class Config:
     legacy: bool = field(init=True, default=False)
     blob_url: Optional[str] = field(init=True, default="Github Blob URL Placeholder")
     issue_url: Optional[str] = field(init=True, default="Github Issue URL Placeholder")
+    # This is the directory we kept a record for report generation purpose.
     config_path: pathlib.Path = field(init=True, default=pathlib.Path("/"))
 
     @classmethod
