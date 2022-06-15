@@ -92,7 +92,7 @@ class ConfigParser:
             temp_impl_config = ImplConfig(impl_file_list)
             if "comment-style" in entry.keys():
                 comment_style = entry.get("comment-style")
-                temp_impl_config = ImplConfig(impl_file_list, comment_style.get("meta"), comment_style.get("content"))
+                temp_impl_config = ImplConfig(impl_file_list, comment_style.get("meta", DEFAULT_META_STYLE), comment_style.get("content", DEFAULT_CONTENT_STYLE))
         impl_config_list.append(temp_impl_config)
         return impl_config_list
 
