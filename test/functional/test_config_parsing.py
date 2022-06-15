@@ -1,0 +1,119 @@
+# Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""Functional testing for config parsing"""
+import os
+
+import pytest
+
+from duvet._config import Config, ImplConfig
+
+from ..utils import populate_file  # isort:skip
+
+pytestmark = [pytest.mark.local, pytest.mark.functional]
+
+SPEC_BLOCK = """[spec.markdown]
+patterns = ["project-specification/**/*.md"]"""
+
+IMPL_BLOCK = """[implementation]
+[implementation.rs]
+patterns = ["src/**/*.rs", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
+comment-style = { meta = "//=", content = "//#" }
+[implementation.dfy]
+patterns = ["src/**/*.dfy", "test/**/*.dfy", "compliance_exceptions/**/*.txt"]"""
+
+REPORT_BLOCK = """[report]
+[report.blob]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/blob/"]
+[report.issue]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
+
+
+def _config_test_cases():
+    yield (
+        """
+[implementation]
+[implementation.rs]
+patterns = ["src/**/*.rs", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
+comment-style = { meta = "//=", content = "//#" }
+[implementation.dfy]
+patterns = ["src/**/*.dfy", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
+[spec.markdown]
+patterns = ["project-specification/**/*.md"]
+[report]
+blob = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
+issue = "https://github.com/aws/aws-encryption-sdk-dafny/issues"
+[mode]
+legacy = true
+        """
+    )
+
+
+@pytest.mark.parametrize("contents", _config_test_cases())
+def test_config_parse(tmpdir, contents: str):
+    source = tmpdir.join("source")
+    source.write(contents)
+    actural = Config.parse(str(source))
+    expected_impl_config = ImplConfig(impl_filenames=[])
+    assert actural.implementation_configs == [expected_impl_config, expected_impl_config]
+    assert not actural.specs
+
+
+def test_impl_config():
+    try:
+        ImplConfig([], "//=", "//=")
+    except TypeError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("TypeError('Meta style and Content style of annotation cannot be same.')")
+
+    try:
+        ImplConfig([], "/", "//=")
+    except TypeError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("TypeError('AnnotationPrefixes must have 3 or more characters')")
+
+    try:
+        ImplConfig([], "   ", "//=")
+    except TypeError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("TypeError('AnnotationPrefixes must not be all whitespace')")
+    try:
+        ImplConfig([], 123, "//=")
+    except TypeError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("TypeError('AnnotationPrefixes must be string')")
+
+
+def test_missing_keys(tmp_path):
+    try:
+        Config.parse(populate_file(tmp_path, IMPL_BLOCK, "duvet_config.toml"))
+    except ValueError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("ValueError('Specification Config not found.')")
+
+    try:
+        Config.parse(populate_file(tmp_path, SPEC_BLOCK, "duvet_config.toml"))
+    except ValueError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("ValueError('Implementation Config not found.')")
+
+    try:
+        Config.parse(populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK]), "duvet_config.toml"))
+    except ValueError as error:
+        # Verify the config function by checking the error message.
+        assert repr(error) == ("ValueError('Report Config not found.')")
+
+
+def test_valid_files(tmp_path):
+    populate_file(tmp_path, "# spec1", "project-specification/spec1.md")
+    populate_file(tmp_path, "# spec3", "project-specification/spec2/spec3.md")
+    populate_file(tmp_path, "# spec4", "project-specification/spec4.md")
+    # Verify that missing implementation will not interrupt file running
+    populate_file(tmp_path, "# spec1", "src/spec1.dfy")
+    populate_file(tmp_path, "# spec2", "src/spec2.rs")
+    populate_file(tmp_path, "# spec3", "test/test_spec1.dfy")
+    populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
+    os.chdir(tmp_path)
+    expected_config = Config.parse("duvet_config.toml")
+
+    assert len(expected_config.implementation_configs) == 2
+    assert len(expected_config.specs) == 3

@@ -5,7 +5,7 @@ import glob
 import pathlib
 import re
 import warnings
-from typing import List
+from typing import List, Optional
 
 import attr
 import toml
@@ -15,6 +15,39 @@ __all__ = ["Config"]
 
 DEFAULT_META_STYLE = "//="
 DEFAULT_CONTENT_STYLE = "//#"
+
+
+@define
+class ImplConfig:
+    """Implementation container."""
+
+    impl_filenames: List[pathlib.Path] = field(
+        init=True,
+        default=attr.Factory(list),
+        validator=attr.validators.deep_iterable(
+            member_validator=attr.validators.instance_of(pathlib.Path),
+            iterable_validator=attr.validators.instance_of(List),
+        ),
+    )
+    meta_style: str = DEFAULT_META_STYLE
+    content_style: str = DEFAULT_CONTENT_STYLE
+
+    def __attrs_post_init__(self):
+        self._check(self.meta_style)
+        self._check(self.content_style)
+        if self.meta_style == self.content_style:
+            raise TypeError("Meta style and Content style of annotation cannot be same.")
+
+    @staticmethod
+    def _check(value: str):
+        if not isinstance(value, str):
+            raise TypeError("AnnotationPrefixes must be string")
+        if re.match(r"[\s]+", value):
+            raise TypeError("AnnotationPrefixes must not be all whitespace")
+        if len(value) < 3:
+            raise TypeError("AnnotationPrefixes must have 3 or more characters")
+
+
 @define
 class Config:
     """Duvet configuration container and parser."""
@@ -51,7 +84,7 @@ class ConfigParser:
         if "mode" not in parsed.keys():
             pass
         else:
-            legacy = parsed.get("mode").get("legacy")
+            legacy = parsed.get("mode").get("legacy", False)
         implementation_configs = self._validate_implementation(parsed.get("implementation"))
         spec_configs = self._validate_specification(parsed.get("spec"))
         return Config(
@@ -63,27 +96,27 @@ class ConfigParser:
         )
 
     @staticmethod
-    def _validate_patterns(spec: dict, entry_key: str, mode: str) -> List[AnyStr]:
+    def _validate_patterns(spec: dict, entry_key: str, mode: str) -> List[pathlib.Path]:
         spec_file_list = []
         entry = spec.get(entry_key)
         if "patterns" not in entry.keys():
             raise ValueError("Patterns not found in" + mode + " Config " + entry_key)
         for pattern in entry.get("patterns"):
-            temp_list = glob.glob(pattern)
+            temp_list = glob.glob(pattern, recursive=True)
             if len(temp_list) == 0:
                 warnings.warn("No files found in pattern " + pattern + " in " + mode)
             else:
                 spec_file_list.extend(temp_list)
-        return spec_file_list
+        return [pathlib.Path(x) for x in spec_file_list]
 
-    def _validate_specification(self, spec: dict) -> list:
+    def _validate_specification(self, spec: dict) -> list[pathlib.Path]:
         """Validate Config specification files."""
         spec_file_list = []
         for entry_key in spec.keys():
             spec_file_list.extend(self._validate_patterns(spec, entry_key, "Specification"))
         return spec_file_list
 
-    def _validate_implementation(self, impl: dict) -> list:
+    def _validate_implementation(self, impl: dict) -> List[ImplConfig]:
         """Validate Config implementation files."""
         impl_config_list = []
         for entry_key in impl.keys():
@@ -92,37 +125,10 @@ class ConfigParser:
             temp_impl_config = ImplConfig(impl_file_list)
             if "comment-style" in entry.keys():
                 comment_style = entry.get("comment-style")
-                temp_impl_config = ImplConfig(impl_file_list, comment_style.get("meta", DEFAULT_META_STYLE), comment_style.get("content", DEFAULT_CONTENT_STYLE))
-        impl_config_list.append(temp_impl_config)
+                temp_impl_config = ImplConfig(
+                    impl_file_list,
+                    comment_style.get("meta", DEFAULT_META_STYLE),
+                    comment_style.get("content", DEFAULT_CONTENT_STYLE),
+                )
+            impl_config_list.append(temp_impl_config)
         return impl_config_list
-
-
-@define
-class ImplConfig:
-    """Implementation container."""
-
-    impl_filenames: List[pathlib.Path] = field(
-        init=True,
-        default=attr.Factory(list),
-        validator=attr.validators.deep_iterable(
-            member_validator=attr.validators.instance_of(pathlib.Path),
-            iterable_validator=attr.validators.instance_of(List),
-        ),
-    )
-    meta_style: str = "//="
-    content_style: str = "//#"
-
-    def __attrs_post_init__(self):
-        self._check(self.meta_style)
-        self._check(self.content_style)
-        if self.meta_style == self.content_style:
-            raise TypeError("Meta style and Content style of annotation cannot be same.")
-
-    @staticmethod
-    def _check(value: str):
-        if not isinstance(value, str):
-            raise TypeError("AnnotationPrefixes must be string")
-        if re.match(r"[\s]+", value):
-            raise TypeError("AnnotationPrefixes must not be all whitespace")
-        if len(value) < 3:
-            raise TypeError("AnnotationPrefixes must have 3 or more characters")

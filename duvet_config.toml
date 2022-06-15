@@ -1,0 +1,13 @@
+[implementation]
+[implementation.py]
+patterns = ["src/**/*.py", "test/**/*.py"]
+comment-style = { meta = "#//=", content = "#//#" }
+[spec.markdown]
+patterns = ["duvet-specification/**/*.md"]
+[report]
+[report.blob]
+url = ["https://github.com/awslabs/duvet/blob/"]
+[report.issue]
+url = ["https://github.com/awslabs/duvet/issues"]
+[mode]
+legacy = false
