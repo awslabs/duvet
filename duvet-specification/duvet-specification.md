@@ -383,11 +383,19 @@ This behavior MUST accept a configuration file.
 
 ### Parse Specifications
 
-Duvet MUST accept one or more file patterns that describe the paths to the specifications files.
+Duvet MUST accept one or more groups of file patterns that describe the paths to the specifications files.
 
-Duvet MUST parse as a [specification](#specification) any files ending in `.txt` discovered on these file patterns as an IETF RFC.
+These file pattern groups MUST specify which [specification format](#formats) they are in.
 
-Duvet MUST parse as a [specification](#specification) any files ending in `.md` discovered on these file patterns as a Markdown.
+For each file pattern group,
+for each file pattern in the group,
+Duvet MUST attempt to parse as a [specification](#specification) any files
+discovered on this file pattern
+as if they were in the file pattern groups' [specification format](#formats).
+
+Failure to parse a file MUST NOT halt Duvet.
+
+Failure to parse a file SHOULD yield a warning.
 
 #### Specifications as TOML
 
@@ -422,14 +430,22 @@ Duvet SHOULD extract a [requirement](#requirement).
 
 ### Parse Implementation
 
-Duvet MUST accept one or more file patterns that describe the paths to the implementation files.
+Duvet MUST accept one or more file pattern groups that describe the paths to the implementation files.
 
-Each file pattern MAY be associated with an annotation identifier tuple.
+Each file pattern group MAY be associated with an annotation identifier tuple,
+which MUST be used when parsing files from the file pattern group.
 
-Otherwise, the default annotation identifiers MUST be used.
+Otherwise, the default annotation identifiers MUST be used for that file pattern group.
 
-For every file found via a file pattern,
-Duvet MUST extract [annotations](#annotation) form that file.
+For each file pattern group,
+for each file pattern in the group,
+for every file found via a file pattern,
+Duvet MUST extract [annotations](#annotation) form that file
+with the group's annotation identifiers.
+
+Failure to parse a file MUST NOT halt Duvet.
+
+Failure to parse a file SHOULD yield a warning.
 
 Duvet MUST attempt to match these [annotations](#annotation) to [requirements](#requirement)
 as described in [Matching](#matching).
