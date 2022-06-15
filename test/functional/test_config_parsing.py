@@ -58,29 +58,6 @@ def test_config_parse(tmpdir, contents: str):
     assert not actural.specs
 
 
-def test_impl_config():
-    try:
-        ImplConfig([], "//=", "//=")
-    except TypeError as error:
-        # Verify the config function by checking the error message.
-        assert repr(error) == ("TypeError('Meta style and Content style of annotation cannot be same.')")
-
-    try:
-        ImplConfig([], "/", "//=")
-    except TypeError as error:
-        # Verify the config function by checking the error message.
-        assert repr(error) == ("TypeError('AnnotationPrefixes must have 3 or more characters')")
-
-    try:
-        ImplConfig([], "   ", "//=")
-    except TypeError as error:
-        # Verify the config function by checking the error message.
-        assert repr(error) == ("TypeError('AnnotationPrefixes must not be all whitespace')")
-    try:
-        ImplConfig([], 123, "//=")
-    except TypeError as error:
-        # Verify the config function by checking the error message.
-        assert repr(error) == ("TypeError('AnnotationPrefixes must be string')")
 
 
 def test_missing_keys(tmp_path):
