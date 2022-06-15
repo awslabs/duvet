@@ -2,14 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit tests for ``duvet._config``."""
 
-
 import pytest
 
 from duvet._config import ImplConfig
 
 pytestmark = [pytest.mark.local, pytest.mark.unit]
-
-
 
 
 def test_impl_config():

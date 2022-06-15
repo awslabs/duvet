@@ -51,13 +51,13 @@ class ImplConfig:
 class Config:
     """Duvet configuration container and parser."""
 
+    # This is the directory we kept a record for report generation purpose.
+    config_path: pathlib.Path = field(init=True)
     implementation_configs: List[ImplConfig] = field(init=True, default=attr.Factory(list))
     specs: List[pathlib.Path] = field(init=True, default=attr.Factory(list))
     legacy: bool = field(init=True, default=False)
     blob_url: Optional[str] = field(init=True, default="Github Blob URL Placeholder")
     issue_url: Optional[str] = field(init=True, default="Github Issue URL Placeholder")
-    # This is the directory we kept a record for report generation purpose.
-    config_path: pathlib.Path = field(init=True)
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -89,12 +89,12 @@ class ConfigParser:
         implementation_configs = self._validate_implementation(parsed.get("implementation"))
         spec_configs = self._validate_specification(parsed.get("spec"))
         return Config(
+            self.config_file_path.parent,
             implementation_configs,
             spec_configs,
             legacy,
             parsed.get("report").get("blob"),
             parsed.get("report").get("issue"),
-            self.config_file_path.parent,
         )
 
     def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[pathlib.Path]:
