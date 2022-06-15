@@ -63,7 +63,7 @@ class ConfigParser:
         )
 
     @staticmethod
-    def _validate_patterns(spec: dict, entry_key: str, mode: str) -> list:
+    def _validate_patterns(spec: dict, entry_key: str, mode: str) -> List[AnyStr]:
         spec_file_list = []
         entry = spec.get(entry_key)
         if "patterns" not in entry.keys():
