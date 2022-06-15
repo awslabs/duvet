@@ -64,7 +64,7 @@ class ConfigParser:
     @staticmethod
     def _validate_patterns(spec: dict, entry_key: str, mode: str) -> list:
         spec_file_list = []
-        entry = spec[entry_key]
+        entry = spec.get(entry_key)
         if "patterns" not in entry.keys():
             raise ValueError("Patterns not found in" + mode + " Config " + entry_key)
         for pattern in entry.get("patterns"):
@@ -86,7 +86,7 @@ class ConfigParser:
         """Validate Config implementation files."""
         impl_config_list = []
         for entry_key in impl.keys():
-            entry = impl[entry_key]
+            entry = impl.get(entry_key)
             impl_file_list = self._validate_patterns(impl, entry_key, "Implementation")
             temp_impl_config = ImplConfig(impl_file_list)
             if "comment-style" in entry.keys():
