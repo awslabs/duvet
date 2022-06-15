@@ -1,0 +1,20 @@
+target = "compliance/spec/spec.txt#2.5.2"
+
+# 2.5.2.  Attested
+#
+# A requirement MUST be be considered attested if its annotation type
+# is
+# 
+# *  test
+# 
+# *  untested
+# 
+# *  implication
+
+[[spec]]
+level = "MUST"
+quote = '''
+A requirement MUST be be considered attested if its annotation type
+is
+'''
+

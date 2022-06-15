@@ -1,0 +1,39 @@
+target = "compliance/spec/spec.txt#2.5.7"
+
+# 2.5.7.  Specification Overview
+#
+# The specification overview shows more detailed information about the
+# specific specification.  It MUST a table summarizing the matrix of
+# requirements crossed annotation types, and include totals for both
+# sides.  It MUST show a table with a row for each requirement.  The
+# table MUST have a colum for
+# 
+# *  Section within the specification
+# 
+# *  Requirement
+# 
+# *  Status
+# 
+# *  Text - The requirement text
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST a table summarizing the matrix of
+requirements crossed annotation types, and include totals for both
+sides.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST show a table with a row for each requirement.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The
+table MUST have a colum for
+'''
+

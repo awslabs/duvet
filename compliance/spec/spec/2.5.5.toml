@@ -1,0 +1,40 @@
+target = "compliance/spec/spec.txt#2.5.5"
+
+# 2.5.5.  Pass/Fail
+#
+# For the report to pass
+# 
+# *  Every specification requirement MUST match an annotation
+# 
+# *  Every implemented annotation MUST match an attested annotation
+# 
+# *  Every attested annotation MUST match an implemented annotation
+# 
+# *  Every annotation referencing an included specification MUST match
+#    the specification
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Every specification requirement MUST match an annotation
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Every implemented annotation MUST match an attested annotation
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Every attested annotation MUST match an implemented annotation
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Every annotation referencing an included specification MUST match
+the specification
+'''
+

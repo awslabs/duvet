@@ -39,3 +39,4 @@ venv/
 
 # Tox
 .tox
+/compliance/

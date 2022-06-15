@@ -1,0 +1,22 @@
+target = "compliance/spec/spec.txt#2.3.1"
+
+# 2.3.1.  Meta
+#
+# The default identifier for the meta part in source documents MUST be
+# //= followed by a single space.  This identifier of meta parts MUST
+# be configurable.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The default identifier for the meta part in source documents MUST be
+//= followed by a single space.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+This identifier of meta parts MUST
+be configurable.
+'''
+

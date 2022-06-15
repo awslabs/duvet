@@ -1,0 +1,14 @@
+target = "compliance/spec/spec.txt#2.5.3"
+
+# 2.5.3.  Omitted
+#
+# A requirement MUST be be considered omitted if its annotation type is
+# 
+# *  exception
+
+[[spec]]
+level = "MUST"
+quote = '''
+A requirement MUST be be considered omitted if its annotation type is
+'''
+

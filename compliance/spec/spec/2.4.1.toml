@@ -1,0 +1,29 @@
+target = "compliance/spec/spec.txt#2.4.1"
+
+# 2.4.1.  Matching annotations
+#
+# For two annotations to match their location and content MUST be a
+# match.  This match MUST be case sensitive but MUST NOT be white space
+# sensitive.
+
+[[spec]]
+level = "MUST"
+quote = '''
+For two annotations to match their location and content MUST be a
+match.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+This match MUST be case sensitive but MUST NOT be white space
+sensitive.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+This match MUST be case sensitive but MUST NOT be white space
+sensitive.
+'''
+

@@ -1,0 +1,22 @@
+target = "compliance/spec/spec.txt#2.5.1"
+
+# 2.5.1.  Implemented
+#
+# A requirement MUST be considered implemented if its annotation type
+# is
+# 
+# *  citation
+# 
+# *  untested
+# 
+# *  deviation
+# 
+# *  implication
+
+[[spec]]
+level = "MUST"
+quote = '''
+A requirement MUST be considered implemented if its annotation type
+is
+'''
+

@@ -1,0 +1,38 @@
+target = "compliance/spec/spec.txt#2.3.5"
+
+# 2.3.5.  Content
+#
+# A one or two line meta part MUST be followed by at least a one line
+# content part.  The default identifier for the content part in
+# software documents MUST be //# followed by a single space.  This
+# identifier of content parts MUST be configurable.  All content part
+# lines MUST be consecutive.
+
+[[spec]]
+level = "MUST"
+quote = '''
+A one or two line meta part MUST be followed by at least a one line
+content part.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The default identifier for the content part in
+software documents MUST be //# followed by a single space.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+This
+identifier of content parts MUST be configurable.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+All content part
+lines MUST be consecutive.
+'''
+
