@@ -58,8 +58,6 @@ def test_config_parse(tmpdir, contents: str):
     assert not actural.specs
 
 
-
-
 def test_missing_keys(tmp_path):
     try:
         Config.parse(populate_file(tmp_path, IMPL_BLOCK, "duvet_config.toml"))
