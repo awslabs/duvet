@@ -19,11 +19,11 @@ DEFAULT_CONTENT_STYLE = "//#"
 class Config:
     """Duvet configuration container and parser."""
 
-    implementation_configs: list = field(init=True, default=attr.Factory(list))
-    specs: list = field(init=True, default=attr.Factory(list))
+    implementation_configs: List[ImplConfig] = field(init=True, default=attr.Factory(list))
+    specs: List[pathlib.Path] = field(init=True, default=attr.Factory(list))
     legacy: bool = field(init=True, default=False)
-    blob_url: str = field(init=True, default="Github Blob URL Placeholder")
-    issue_url: str = field(init=True, default="Github Issue URL Placeholder")
+    blob_url: Optional[str] = field(init=True, default="Github Blob URL Placeholder")
+    issue_url: Optional[str] = field(init=True, default="Github Issue URL Placeholder")
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
