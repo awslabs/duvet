@@ -1,7 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Functional testing for config parsing"""
-import os
 
 import pytest
 
@@ -86,9 +85,8 @@ def test_valid_files(tmp_path):
     populate_file(tmp_path, "# spec1", "src/spec1.dfy")
     populate_file(tmp_path, "# spec2", "src/spec2.rs")
     populate_file(tmp_path, "# spec3", "test/test_spec1.dfy")
-    populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
-    os.chdir(tmp_path)
-    expected_config = Config.parse("duvet_config.toml")
+    expected_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
+    expected_config = Config.parse(expected_path)
 
     assert len(expected_config.implementation_configs) == 2
     assert len(expected_config.specs) == 3

@@ -56,6 +56,7 @@ class Config:
     legacy: bool = field(init=True, default=False)
     blob_url: Optional[str] = field(init=True, default="Github Blob URL Placeholder")
     issue_url: Optional[str] = field(init=True, default="Github Issue URL Placeholder")
+    config_path: pathlib.Path = field(init=True, default=pathlib.Path("/"))
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -92,6 +93,7 @@ class ConfigParser:
             legacy,
             parsed.get("report").get("blob"),
             parsed.get("report").get("issue"),
+            self.config_file_path.parent,
         )
 
     def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[pathlib.Path]:
