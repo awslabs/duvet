@@ -1,7 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Parse a config file."""
-import glob
 import pathlib
 import re
 import warnings
@@ -61,14 +60,14 @@ class Config:
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
         """Parse a config file."""
-        return ConfigParser(config_file_path).extract_config()
+        return ConfigParser(pathlib.Path(config_file_path)).extract_config()
 
 
 @define
 class ConfigParser:
     """Parser of config toml file."""
 
-    config_file_path: str
+    config_file_path: pathlib.Path
 
     def extract_config(self) -> Config:
         """Parse a config file."""
@@ -95,14 +94,13 @@ class ConfigParser:
             parsed.get("report").get("issue"),
         )
 
-    @staticmethod
-    def _validate_patterns(spec: dict, entry_key: str, mode: str) -> List[pathlib.Path]:
+    def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[pathlib.Path]:
         spec_file_list = []
         entry = spec.get(entry_key)
         if "patterns" not in entry.keys():
             raise ValueError("Patterns not found in" + mode + " Config " + entry_key)
         for pattern in entry.get("patterns"):
-            temp_list = glob.glob(pattern, recursive=True)
+            temp_list = list(self.config_file_path.parent.glob(pattern))
             if len(temp_list) == 0:
                 warnings.warn("No files found in pattern " + pattern + " in " + mode)
             else:
