@@ -11,7 +11,7 @@
 
 - 0.2.0
 
-- Initial record
+  - Initial record
 
 - 0.1.0
 
@@ -57,7 +57,7 @@ This following sections describe the common Duvet structures and their behavior.
 A specification is a document, like this, that defines correct behavior.
 This behavior is defined in regular human language.
 
-### Section
+## Section
 
 The top level header for requirements is the name of a section.
 The name of the sections MUST NOT be nested.
@@ -68,7 +68,7 @@ A section MUST be indexable by combining different levels of naming.
 This means that Duvet needs to be able to locate it uniquely within a specification.
 A good example of a section is a header in an HTML or Markdown document.
 
-### Requirement
+## Requirement
 
 Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.
 A requirement MAY contain multiple RFC 2119 keywords.
@@ -118,6 +118,13 @@ A requirement MUST be terminated by one of the following:
 The main distinction between this legacy and regular requirement identification
 is that there is no sugar for lists or tables.
 For a given a specification Duvet MUST use one way to identify requirements.
+
+### Formats
+
+Duvet MUST be able to parse specifications formatted as:
+
+- Markdown
+- IETF style RFCs as text files.
 
 #### Requirements to TOML
 
@@ -194,7 +201,7 @@ Each type is listed here with its intended usage.
   For example take a requirement that a function take a specific set of arguments.
   In a static strongly typed language the arguments of a function can not change.
   So an implication could be a good choice to express that the implementation satisfies this requirement.
-- Todo: The suggested location for the implementation.
+- TODO: The suggested location for the implementation.
 
 ### Content
 
@@ -372,17 +379,15 @@ Implementations of Duvet MUST implement this behavior.
 
 This MUST be the default execution of Duvet.
 
-This behavior MUST accept arguments or a configuration file.
+This behavior MUST accept a configuration file.
 
 ### Parse Specifications
 
-Duvet MUST parse one or more specifications written as IETF style RFC or Markdown.
-
 Duvet MUST accept one or more file patterns that describe the paths to the specifications files.
 
-Duvet MUST parse as a [specification](#specification) any files ending in `.txt` discovered on this file pattern as an IETF RFC.
+Duvet MUST parse as a [specification](#specification) any files ending in `.txt` discovered on these file patterns as an IETF RFC.
 
-Duvet MUST parse as a [specification](#specification) any files ending in `.md` discovered on this file pattern as a Markdown.
+Duvet MUST parse as a [specification](#specification) any files ending in `.md` discovered on these file patterns as a Markdown.
 
 #### Specifications as TOML
 
@@ -395,11 +400,11 @@ See [Sections as TOML](#sections-as-toml).
 
 ### Extract Sections
 
-Duvet MUST extract [sections](#section) from specifications.
+Duvet MUST extract [sections](#section) from [specifications](#specification).
 
 #### Sections as TOML
 
-If Duvet has interpreted TOML directories as specifications,
+If Duvet has interpreted TOML directories as [specifications](#specification),
 Duvet SHOULD interpret each TOML file in a directory
 as a [section](#section) of that directories' specification.
 
@@ -412,7 +417,7 @@ Duvet MUST extract [Requirements](#requirement) from [Sections](#section).
 #### Requirements from TOML
 
 If Duvet has interpreted TOML files as a [section](#section),
-for every entry in the TOML file,
+for every [array of tables](https://toml.io/en/v1.0.0#array-of-tables) in the TOML file,
 Duvet SHOULD extract a [requirement](#requirement).
 
 ### Parse Implementation
