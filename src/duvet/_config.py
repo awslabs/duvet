@@ -57,7 +57,7 @@ class Config:
     blob_url: Optional[str] = field(init=True, default="Github Blob URL Placeholder")
     issue_url: Optional[str] = field(init=True, default="Github Issue URL Placeholder")
     # This is the directory we kept a record for report generation purpose.
-    config_path: pathlib.Path = field(init=True, default=pathlib.Path("/"))
+    config_path: pathlib.Path = field(init=True)
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -110,7 +110,7 @@ class ConfigParser:
                 spec_file_list.extend(temp_list)
         return [pathlib.Path(x) for x in spec_file_list]
 
-    def _validate_specification(self, spec: dict) -> list[pathlib.Path]:
+    def _validate_specification(self, spec: dict) -> List[pathlib.Path]:
         """Validate Config specification files."""
         spec_file_list = []
         for entry_key in spec.keys():

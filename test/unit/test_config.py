@@ -7,27 +7,9 @@ import pytest
 
 from duvet._config import ImplConfig
 
-pytestmark = [pytest.mark.local, pytest.mark.functional]
+pytestmark = [pytest.mark.local, pytest.mark.unit]
 
 
-def _config_test_cases():
-    yield (
-        """
-[implementation]
-[implementation.rs]
-patterns = ["src/**/*.rs", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
-comment-style = { meta = "//=", content = "//#" }
-[implementation.dfy]
-patterns = ["src/**/*.dfy", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
-[spec.markdown]
-patterns = ["project-specification/**/*.md"]
-[report]
-blob = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
-issue = "https://github.com/aws/aws-encryption-sdk-dafny/issues"
-[mode]
-legacy = true
-        """
-    )
 
 
 def test_impl_config():
