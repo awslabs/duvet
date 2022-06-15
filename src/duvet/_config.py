@@ -32,7 +32,7 @@ class Config:
 
 @define
 class ConfigParser:
-    """Parser of confit toml file."""
+    """Parser of config toml file."""
 
     config_file_path: str
 
@@ -41,7 +41,6 @@ class ConfigParser:
         legacy = False
         with open(self.config_file_path, "r", encoding="utf-8") as config_file:
             parsed = toml.load(config_file)
-            # print(parsed)
         if "implementation" not in parsed.keys():
             raise ValueError("Implementation Config not found.")
         if "spec" not in parsed.keys():
@@ -51,19 +50,24 @@ class ConfigParser:
         if "mode" not in parsed.keys():
             pass
         else:
-            legacy = parsed["mode"]["legacy"]
-        implementation_configs = self._validate_implementation(parsed["implementation"])
-        spec_configs = self._validate_specification(parsed["spec"])
-        return Config(implementation_configs, spec_configs, legacy, parsed["report"]["blob"], parsed["report"]["issue"])
+            legacy = parsed.get("mode").get("legacy")
+        implementation_configs = self._validate_implementation(parsed.get("implementation"))
+        spec_configs = self._validate_specification(parsed.get("spec"))
+        return Config(
+            implementation_configs,
+            spec_configs,
+            legacy,
+            parsed.get("report").get("blob"),
+            parsed.get("report").get("issue"),
+        )
 
     @staticmethod
     def _validate_patterns(spec: dict, entry_key: str, mode: str) -> list:
         spec_file_list = []
         entry = spec[entry_key]
         if "patterns" not in entry.keys():
-            # print(spec.keys())
             raise ValueError("Patterns not found in" + mode + " Config " + entry_key)
-        for pattern in entry["patterns"]:
+        for pattern in entry.get("patterns"):
             temp_list = glob.glob(pattern)
             if len(temp_list) == 0:
                 warnings.warn("No files found in pattern " + pattern + " in " + mode)
@@ -80,15 +84,14 @@ class ConfigParser:
 
     def _validate_implementation(self, impl: dict) -> list:
         """Validate Config implementation files."""
-        # print(impl)
         impl_config_list = []
         for entry_key in impl.keys():
             entry = impl[entry_key]
             impl_file_list = self._validate_patterns(impl, entry_key, "Implementation")
             temp_impl_config = ImplConfig(impl_file_list)
             if "comment-style" in entry.keys():
-                comment_style = entry["comment-style"]
-                temp_impl_config = ImplConfig(impl_file_list, comment_style["meta"], comment_style["content"])
+                comment_style = entry.get("comment-style")
+                temp_impl_config = ImplConfig(impl_file_list, comment_style.get("meta"), comment_style.get("content"))
         impl_config_list.append(temp_impl_config)
         return impl_config_list
 
