@@ -78,7 +78,7 @@ def test_missing_uri(tmp_path):
 
 
 def test_missing_specs(tmp_path):
-    # We will not throw error is there is no requirements.
+    # We will not throw error if there is no requirements.
     patterns = "compliance/**/*.toml"
     populate_file(tmp_path, TEST_SPEC_TOML_TARGET, "compliance/spec/section1.toml")
     actual_report = TomlRequirementParser.extract_toml_specs(patterns, tmp_path)
