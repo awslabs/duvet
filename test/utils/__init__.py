@@ -3,12 +3,9 @@
 """Utilities for testing Duvet."""
 import pathlib
 
-# noinspection PyUnresolvedReferences
-import pytest
-
-
 def populate_file(tmp_path: pathlib.Path, content: str, filename: str) -> pathlib.Path:
     filepath = tmp_path.joinpath(filename)
+    filepath.parent.mkdir(exist_ok=True, parents=True)
     with open(filepath, mode="w") as open_file:
         open_file.write(content)
     return filepath
