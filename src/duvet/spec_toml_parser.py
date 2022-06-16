@@ -15,7 +15,6 @@ from duvet.structures import Report, Requirement, Section, Specification
 
 __all__ = ["TomlRequirementParser"]
 
-_LOGGER = logging.getLogger(__name__)
 
 TOML_URI_KEY = "target"
 TOML_SPEC_KEY = "spec"
