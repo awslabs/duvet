@@ -55,7 +55,7 @@ A section MUST be indexable by combining different levels of naming.
 
 
 def test_extract_toml_spec():
-    path = pathlib.Path("./").resolve()
+    path = pathlib.Path("./duvet-specification").resolve()
     patterns = "compliance/**/*.toml"
     test_report = TomlRequirementParser.extract_toml_specs(patterns, path)
     # Verify one spec is added to the report object

@@ -1,9 +1,8 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Specification Parser used by duvet-python for toml format."""
-import pathlib
-import warnings
 from pathlib import Path
+import warnings
 from typing import Dict, List, Optional
 
 import toml
@@ -26,7 +25,7 @@ class TomlRequirementParser:
     """Parser for requirements in toml format."""
 
     @staticmethod
-    def extract_toml_specs(patterns: str, path: pathlib.Path, toml_report: Optional[Report] = None) -> Report:
+    def extract_toml_specs(patterns: str, path: Path, toml_report: Optional[Report] = None) -> Report:
         """Take the patterns of the toml.
 
         Return a Report object containing all the specs.
