@@ -47,7 +47,7 @@ class TomlRequirementParser:
             if uri is None:
                 warnings.warn(f'{temp_toml.name}: The key "{TOML_URI_KEY}" is missing. Skipping file.')
                 continue
-            title = uri.split("#")[1]
+            title = uri.rsplit("#", 1)[-1]
             if title is None:
                 warnings.warn(f'{temp_toml.name}: Could not process the key "{TOML_URI_KEY}". Skipping file.')
                 continue

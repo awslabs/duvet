@@ -53,7 +53,7 @@ A section MUST be indexable by combining different levels of naming.
 """
 
 
-def test_extreact_toml_spec():
+def test_extract_toml_spec():
     path = "./"
     patterns = "compliance/**/*.toml"
     test_report = TomlRequirementParser.extract_toml_specs(patterns, path)
