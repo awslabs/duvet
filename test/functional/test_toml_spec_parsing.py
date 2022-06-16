@@ -2,13 +2,13 @@
 
 import pytest
 
-from duvet.spec_toml_parser import extract_toml_specs
+from duvet.spec_toml_parser import TomlRequirementParser
 
 from ..utils import populate_file  # isort:skip
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
-TEST_SPEC_TOML = """target = "../compliance/Users/yuancc/workspaces/duvet-python/spec/spec.txt#2.2.1""" ""
+TEST_SPEC_TOML_TARGET = """target = "../duvet-python/spec/spec.txt#2.2.1"    """
 
 TEST_SPEC_TOML_COMMENT = """
 # 2.2.1.  Section
@@ -56,27 +56,49 @@ A section MUST be indexable by combining different levels of naming.
 def test_extreact_toml_spec():
     path = "./"
     patterns = "compliance/**/*.toml"
-    test_report = extract_toml_specs(patterns, path)
+    test_report = TomlRequirementParser.extract_toml_specs(patterns, path)
     # Verify one spec is added to the report object
     assert len(test_report.specifications.keys()) == 1
 
 
-def test_missing_keys(tmp_path):
+def test_missing_uri(tmp_path):
+    # We will not throw error is there is no targset.
     patterns = "compliance/**/*.toml"
-    try:
-        extract_toml_specs(patterns, populate_file(tmp_path, TEST_SPEC_TOML_COMMENT, "section1.toml"))
-    except TypeError as error:
-        # Verify the config function by checking the error message.
-        assert repr(error) == ("ValueError('Specification Config not found.')")
+    populate_file(tmp_path, TEST_SPEC_TOML_COMMENT, "compliance/spec/section1.toml")
+    with pytest.warns(UserWarning) as record:
+        TomlRequirementParser.extract_toml_specs(patterns, tmp_path)
+    # print(UserWarning.)
+    # check that only one warning was raised
+    assert len(record) == 1
+    # check that the message matches
+    assert record[0].message.args[0] == 'section1.toml: The key "target" is missing. Skipping file.'
 
-    try:
-        extract_toml_specs(patterns, populate_file(tmp_path, TEST_SPEC_TOML_SPEC, "section2.toml"))
-    except ValueError as error:
-        # Verify the config function by checking the error message.
-        assert repr(error) == ("ValueError('Implementation Config not found.')")
 
-    try:
-        extract_toml_specs(patterns, populate_file(tmp_path, TEST_SPEC_TOML_SPEC, "section3.toml"))
-    except ValueError as error:
-        # Verify the config function by checking the error message.
-        assert repr(error) == ("ValueError('Report Config not found.')")
+def test_missing_specs(tmp_path):
+    # We will not throw error is there is no requirements.
+    patterns = "compliance/**/*.toml"
+    populate_file(tmp_path, TEST_SPEC_TOML_TARGET, "compliance/spec/section1.toml")
+    actual_report = TomlRequirementParser.extract_toml_specs(patterns, tmp_path)
+    # Verify one section is added to the report object
+    assert (
+        actual_report.specifications.get("../duvet-python/spec/spec.txt")
+        .sections.get("../duvet-python/spec/spec.txt#2.2.1")
+        .requirements
+        == {}
+    )
+
+
+def test_extract_spec_toml(tmp_path):
+    # We will not throw error is there is no requirements.
+    patterns = "compliance/**/*.toml"
+    populate_file(tmp_path, "\n".join([TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC]), "compliance/spec/section1.toml")
+    actual_report = TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
+    # Verify requirements is added to the report object
+    assert (
+        len(
+            actual_report.specifications.get("../duvet-python/spec/spec.txt")
+            .sections.get("../duvet-python/spec/spec.txt#2.2.1")
+            .requirements
+        )
+        == 1
+    )
