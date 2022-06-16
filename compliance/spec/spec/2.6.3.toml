@@ -1,0 +1,43 @@
+target = "../compliance/Users/yuancc/workspaces/duvet-python/spec/spec.txt#2.6.3"
+
+# 2.6.3.  Report Summary
+#
+# The report summary shows high level information about the linkage
+# between annotations and specifications.  It MUST have all a link for
+# each included specifications.  It MUST have all a link for
+# annotations that do not match any included specifications.  It MUST
+# have all a link for annotations not associated with any
+# specifications.  For each link it MUST have a table summarizing the
+# matrix of requirements crossed annotation types, and include totals
+# for both sides.
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST have all a link for
+each included specifications.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST have all a link for
+annotations that do not match any included specifications.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST
+have all a link for annotations not associated with any
+specifications.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+For each link it MUST have a table summarizing the
+matrix of requirements crossed annotation types, and include totals
+for both sides.
+'''
+

@@ -2,13 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Specification Parser used by duvet-python for toml format."""
 import logging
-import os
-import warnings
+import pathlib
 from pathlib import Path
 
 import toml
-
-__all__ = ["Config"]
 
 from duvet.identifiers import RequirementLevel
 from duvet.structures import Report, Requirement, Section, Specification
@@ -16,22 +13,14 @@ from duvet.structures import Report, Requirement, Section, Specification
 _LOGGER = logging.getLogger(__name__)
 
 
-def extract_toml_specs(patterns: str, path: str) -> Report:
+def extract_toml_specs(patterns: str, path: pathlib.Path) -> Report:
     """Take the patterns of the toml.
 
     Return a Report object containing all the specs.
     """
-    try:
-        os.chdir(path)
-        _LOGGER.warning(f"Current working directory: {0}".format(os.getcwd()))
-    except FileNotFoundError:
-        warnings.warn(f"Directory: {0} does not exist".format(path))
-    except NotADirectoryError:
-        warnings.warn(f"{0} is not a directory".format(path))
-    except PermissionError:
-        warnings.warn(f"You do not have permissions to change to {0}".format(path))
-    toml_list = Path().glob(patterns)
+    toml_list = Path(path).glob(patterns)
     temp_toml_list = list(toml_list)
+    print(temp_toml_list)
     # Because there are might be a lot of specs in this directory,
     # We will create a Report object to contain all the specs.
     toml_report = Report()

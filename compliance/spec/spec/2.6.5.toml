@@ -1,0 +1,110 @@
+target = "../compliance/Users/yuancc/workspaces/duvet-python/spec/spec.txt#2.6.5"
+
+# 2.6.5.  Specification Section
+#
+# The specification section shows the specific specification text and
+# how this links to annotation.  It MUST show all text from the
+# section.  It MUST highlight the text for every requirement.  It MUST
+# highlight the text that matches any annotation.  Any highlighted text
+# MUST have a mouse over that shows its annotation information.
+# Clicking on any highlighted text MUST bring up a popup that shows:
+# 
+# *  The requirement level
+# 
+# *  The text
+# 
+# *  List of quick links to add the text to a Duvet comment for every
+#    annotation type
+# 
+# *  If annotations exist, relative links to these files.  This link
+#    SHOULD include the line number.
+# 
+# Selecting any text of the specification and right-clicking on it MUST
+# bring up a popup for the selected text that shows:
+# 
+# *  The text
+# 
+# *  List of quick links to add the text to a Duvet comment for every
+#    annotation type
+# 
+# *  If annotations exist, relative links to these files.  This link
+#    SHOULD include the line number.
+# 
+# It MUST show a table with a row for each requirement included in this
+# section.  The table MUST have a column for:
+# 
+# *  Section within the specification
+# 
+# *  Requirement key word - key word defined in rfc2119
+# 
+# *  Status
+# 
+# *  Text - The requirement text
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST show all text from the
+section.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST highlight the text for every requirement.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST
+highlight the text that matches any annotation.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Any highlighted text
+MUST have a mouse over that shows its annotation information.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Clicking on any highlighted text MUST bring up a popup that shows:
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+This link
+SHOULD include the line number.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Selecting any text of the specification and right-clicking on it MUST
+bring up a popup for the selected text that shows:
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+This link
+SHOULD include the line number.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST show a table with a row for each requirement included in this
+section.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The table MUST have a column for:
+'''
+

@@ -1,0 +1,40 @@
+target = "../compliance/Users/yuancc/workspaces/duvet-python/spec/spec.txt#2.3.3"
+
+# 2.3.3.  Meta: Type
+#
+# If the meta part is a single line then the type MUST be citation.  If
+# a second meta line exists it MUST start with "type=".  The type MUST
+# be a valid annotation type string:
+# 
+# *  citation
+# 
+# *  test
+# 
+# *  untestable
+# 
+# *  exception
+# 
+# *  implication
+# 
+# *  todo
+
+[[spec]]
+level = "MUST"
+quote = '''
+If the meta part is a single line then the type MUST be citation.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+If
+a second meta line exists it MUST start with "type=".
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The type MUST
+be a valid annotation type string:
+'''
+

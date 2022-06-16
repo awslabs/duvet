@@ -1,0 +1,16 @@
+target = "../compliance/Users/yuancc/workspaces/duvet-python/spec/spec.txt#2.2.4"
+
+# 2.2.4.  Formats
+#
+# Duvet MUST be able to parse specifications formatted as:
+# 
+# *  markdown
+# 
+# *  ietf
+
+[[spec]]
+level = "MUST"
+quote = '''
+Duvet MUST be able to parse specifications formatted as:
+'''
+

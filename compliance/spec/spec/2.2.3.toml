@@ -1,0 +1,61 @@
+target = "../compliance/Users/yuancc/workspaces/duvet-python/spec/spec.txt#2.2.3"
+
+# 2.2.3.  Legacy Requirement
+#
+# Older versions of Duvet were more restrictive in parsing
+# requirements.  They did not treat elements of lists or rows in a
+# table as individual elements.  For backwards compatibility Duvet MUST
+# support this older simpler form of requirement identification.  Any
+# complete sentence containing at least one RFC 2119 keyword MUST be
+# treated as a requirement.  A requirement MAY contain multiple RFC
+# 2119 keywords.  A requirement MUST be terminated by one of the
+# following:
+# 
+# *  period (.)
+# 
+# *  exclamation point (!)
+# 
+# *  an empty blank line
+# 
+# The main distinction between this legacy and regular requirement
+# identification is that there is no sugar for lists or tables.  For a
+# given a specification Duvet MUST use one way to identify
+# requirements.
+
+[[spec]]
+level = "MUST"
+quote = '''
+For backwards compatibility Duvet MUST
+support this older simpler form of requirement identification.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Any
+complete sentence containing at least one RFC 2119 keyword MUST be
+treated as a requirement.
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+A requirement MAY contain multiple RFC
+2119 keywords.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A requirement MUST be terminated by one of the
+following:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+For a
+given a specification Duvet MUST use one way to identify
+requirements.
+'''
+

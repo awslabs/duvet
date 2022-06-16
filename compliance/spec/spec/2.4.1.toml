@@ -1,0 +1,73 @@
+target = "../compliance/Users/yuancc/workspaces/duvet-python/spec/spec.txt#2.4.1"
+
+# 2.4.1.  Matching annotation and specification requirement
+#
+# For an annotation to match a specification the annotation's content
+# MUST exist in the specification's section identified by the
+# annotation's meta location URL.  The match between the annotation
+# content and the specification text MUST be case-sensitive but MUST
+# NOT be white space sensitive and MUST uniquely identify text in the
+# specification.  For simple text in a paragraph this means just
+# identifying the annotation's content is a substring of the text in
+# the specification's section.  Elements of a list MUST NOT be matched
+# by their order within the list.  This means that an annotation may
+# contain a list that is a subset of the elements in the specification.
+# Rows of a table MUST NOT be matched by their order within the table.
+# This means that an annotation MAY contain a table that is a subset of
+# the rows in the specification.
+
+[[spec]]
+level = "MUST"
+quote = '''
+For an annotation to match a specification the annotation's content
+MUST exist in the specification's section identified by the
+annotation's meta location URL.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The match between the annotation
+content and the specification text MUST be case-sensitive but MUST
+NOT be white space sensitive and MUST uniquely identify text in the
+specification.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The match between the annotation
+content and the specification text MUST be case-sensitive but MUST
+NOT be white space sensitive and MUST uniquely identify text in the
+specification.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The match between the annotation
+content and the specification text MUST be case-sensitive but MUST
+NOT be white space sensitive and MUST uniquely identify text in the
+specification.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Elements of a list MUST NOT be matched
+by their order within the list.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Rows of a table MUST NOT be matched by their order within the table.
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+This means that an annotation MAY contain a table that is a subset of
+the rows in the specification.
+'''
+

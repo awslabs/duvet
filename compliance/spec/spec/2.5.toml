@@ -1,0 +1,28 @@
+target = "../compliance/Users/yuancc/workspaces/duvet-python/spec/spec.txt#2.5"
+
+# 2.5.  Matching Labels
+#
+# Duvet MUST analyze the matching annotations, generating Matching
+# Labels.  Matching Labels MAY be exclusive.  Duvet MUST label
+# requirements matched to annotations as follows:
+
+[[spec]]
+level = "MUST"
+quote = '''
+Duvet MUST analyze the matching annotations, generating Matching
+Labels.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Duvet MUST label
+requirements matched to annotations as follows:
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+Matching Labels MAY be exclusive.
+'''
+

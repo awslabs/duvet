@@ -1,0 +1,49 @@
+target = "../compliance/Users/yuancc/workspaces/duvet-python/spec/spec.txt#2.3.2"
+
+# 2.3.2.  Meta: Location
+#
+# The first line of the meta part identifies the location of the
+# content, it MUST be parsed as a URL.  All parts of the URL other than
+# a URL fragment MUST be optional and MUST identify the specification
+# that contains this section and content.  The URL MUST contain a URL
+# fragment that uniquely identifies the section that contains this
+# content.  If the URL only contains a URL fragment then this content
+# only exists as an annotation.  Such comments are useful to use Duvet
+# to manage implementation specific requirements that do not exist in a
+# specification.
+# 
+# The Meta: Location's for Annotations targeting specifications written
+# in Markdown will NOT be identical to Locations targeting
+# specifications written in IETF.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The first line of the meta part identifies the location of the
+content, it MUST be parsed as a URL.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+All parts of the URL other than
+a URL fragment MUST be optional and MUST identify the specification
+that contains this section and content.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+All parts of the URL other than
+a URL fragment MUST be optional and MUST identify the specification
+that contains this section and content.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The URL MUST contain a URL
+fragment that uniquely identifies the section that contains this
+content.
+'''
+
