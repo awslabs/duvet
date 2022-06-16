@@ -43,4 +43,4 @@ venv/
 # Old Duvet extraction artifacts
 /package-lock.json
 /node_modules
-duvet-specification/.refcache/*
+duvet-specification/.refcache
