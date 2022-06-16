@@ -41,23 +41,23 @@ class TomlRequirementParser:
             # Parse the attributes in section.
             sec_dict = toml.load(temp_toml)
             if sec_dict is None:
-                warnings.warn(temp_toml.resolve() + " is not a valid TOML file. Skipping file")
+                warnings.warn(str(temp_toml.resolve()) + " is not a valid TOML file. Skipping file")
                 continue
             section_uri = sec_dict.get(TOML_URI_KEY)
             if section_uri is None:
-                warnings.warn(f'{temp_toml.resolve()}: The key "{TOML_URI_KEY}" is missing. Skipping file.')
+                warnings.warn(f'{str(temp_toml.resolve())}: The key "{TOML_URI_KEY}" is missing. Skipping file.')
                 continue
             title = section_uri.rsplit("#", 1)[-1]
             if title is None:
-                warnings.warn(f'{temp_toml.resolve()}: Could not process the key "{TOML_URI_KEY}". Skipping file.')
+                warnings.warn(f'{str(temp_toml.resolve())}: Could not process the key "{TOML_URI_KEY}". Skipping file.')
                 continue
-            spec_uri = section_uri.rsplit("#",1)[0]
+            spec_uri = section_uri.rsplit("#", 1)[0]
             # If the spec is not added to the dict yet. We add it to dict here.
             if spec_uri is None:
-                warnings.warn(f'{temp_toml.resolve()}: Could not process the key "{TOML_URI_KEY}". Skipping file.')
+                warnings.warn(f'{str(temp_toml.resolve())}: Could not process the key "{TOML_URI_KEY}". Skipping file.')
                 continue
             if toml_report.specifications.get(spec_uri) is None:
-                toml_report.specifications[spec_uri] = Specification(spec_uri.rsplit("/",maxsplit=1)[-1], spec_uri)
+                toml_report.specifications[spec_uri] = Specification(spec_uri.rsplit("/", maxsplit=1)[-1], spec_uri)
             temp_sec = Section(title, section_uri)
             requirements = sec_dict.get(TOML_SPEC_KEY)
             if requirements is not None:
