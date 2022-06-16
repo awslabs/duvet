@@ -18,9 +18,7 @@ def extract_toml_specs(patterns: str, path: pathlib.Path) -> Report:
 
     Return a Report object containing all the specs.
     """
-    toml_list = Path(path).glob(patterns)
-    temp_toml_list = list(toml_list)
-    print(temp_toml_list)
+    temp_toml_list = list(Path(path).glob(patterns))
     # Because there are might be a lot of specs in this directory,
     # We will create a Report object to contain all the specs.
     toml_report = Report()
@@ -38,13 +36,13 @@ def extract_toml_specs(patterns: str, path: pathlib.Path) -> Report:
         requirements = sec_dict.get("spec")
         # Parse the attributes in Requirement.
         for req in requirements:
-            req_uri = uri
-            req_content = req.get("quote")
-            req_level_name = req.get("level")
-            req_level = RequirementLevel[req_level_name]
-            temp_req = Requirement(req_level, req_content, req_uri)
+            # req_uri = uri
+            # req_content = req.get("quote")
+            # req_level_name = req.get("level")
+            # req_level = RequirementLevel[req.get("level")]
+            temp_req = Requirement(RequirementLevel[req.get("level")], req.get("quote"), uri)
             temp_sec.add_requirement(temp_req)
-        spec_uris[spec_uri].add_section(temp_sec)
+        spec_uris.get(spec_uri).add_section(temp_sec)
 
     for temp_spec in spec_uris.values():
         toml_report.add_specification(temp_spec)
