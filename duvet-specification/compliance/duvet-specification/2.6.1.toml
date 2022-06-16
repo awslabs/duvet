@@ -1,0 +1,84 @@
+target = "compliance/duvet-specification.txt#2.6.1"
+
+# 2.6.1.  Status
+#
+# Duvet MUST analyze the matching labels for every requirement; the
+# result of this analysis is the requirement's Status.  Requirement
+# Statuses MUST be exclusive.
+# 
+# The Requirement Statuses MUST be:
+# 
+# *  Complete - The requirement MUST have both the labels "Implemented"
+#    and "Attested"
+# 
+# *  Missing Proof - The requirement MUST only have the label
+#    "Implemented"
+# 
+# *  Excused - The requirement MUST only have the label "Excused"
+# 
+# *  Missing Implementation - The requirement MUST only have the label
+#    "Attested"
+# 
+# *  Not started - The requirement MUST NOT have any labels
+# 
+# *  Missing Reason - The requirement MUST have the label "Unexcused"
+
+[[spec]]
+level = "MUST"
+quote = '''
+Duvet MUST analyze the matching labels for every requirement; the
+result of this analysis is the requirement's Status.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Requirement
+Statuses MUST be exclusive.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The Requirement Statuses MUST be:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Complete - The requirement MUST have both the labels "Implemented"
+and "Attested"
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Missing Proof - The requirement MUST only have the label
+"Implemented"
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Excused - The requirement MUST only have the label "Excused"
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Missing Implementation - The requirement MUST only have the label
+"Attested"
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Not started - The requirement MUST NOT have any labels
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+*  Missing Reason - The requirement MUST have the label "Unexcused"
+'''
+

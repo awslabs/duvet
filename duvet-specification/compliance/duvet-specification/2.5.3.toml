@@ -1,0 +1,24 @@
+target = "compliance/duvet-specification.txt#2.5.3"
+
+# 2.5.3.  Excused
+#
+# A specification requirement MUST be labeled "Excused" and MUST only
+# be labeled "Excused" if there exists a matching annotation of type
+# "exception" and the annotation has a "reason".
+
+[[spec]]
+level = "MUST"
+quote = '''
+A specification requirement MUST be labeled "Excused" and MUST only
+be labeled "Excused" if there exists a matching annotation of type
+"exception" and the annotation has a "reason".
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A specification requirement MUST be labeled "Excused" and MUST only
+be labeled "Excused" if there exists a matching annotation of type
+"exception" and the annotation has a "reason".
+'''
+
