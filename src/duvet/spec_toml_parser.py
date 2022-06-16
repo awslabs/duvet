@@ -27,19 +27,24 @@ def extract_toml_specs(patterns: str, path: pathlib.Path) -> Report:
     for temp_toml in temp_toml_list:
         # Parse the attributes in section.
         sec_dict = toml.load(temp_toml)
+        if sec_dict is None:
+            raise TypeError(temp_toml.name + " is not a valid TOML file.")
         uri = sec_dict.get("target")
+        if uri is None:
+            raise ValueError("URI in " + temp_toml.name + " is not valid.")
         title = uri.split("#")[1]
+        if title is None:
+            raise ValueError("title in " + temp_toml.name + " is not valid.")
         spec_uri = uri.split("#")[0]
+        # If the spec is not added to the dict yet. We add it to dict here.
+        if spec_uri is None:
+            raise ValueError("Spec URI in " + temp_toml.name + " is not valid.")
         if spec_uris.get(spec_uri) is None:
             spec_uris[spec_uri] = Specification(spec_uri.split("/")[1], spec_uri)
         temp_sec = Section(title, uri)
         requirements = sec_dict.get("spec")
         # Parse the attributes in Requirement.
         for req in requirements:
-            # req_uri = uri
-            # req_content = req.get("quote")
-            # req_level_name = req.get("level")
-            # req_level = RequirementLevel[req.get("level")]
             temp_req = Requirement(RequirementLevel[req.get("level")], req.get("quote"), uri)
             temp_sec.add_requirement(temp_req)
         spec_uris.get(spec_uri).add_section(temp_sec)
