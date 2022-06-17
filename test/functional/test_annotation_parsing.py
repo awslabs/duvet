@@ -168,7 +168,7 @@ def test_extract_python_implementation_annotation():
 
 
 def test_extract_python_no_implementation_annotation():
-    path = pathlib.Path("./src/duvet/__init__.py").resolve()
+    path = pathlib.Path("./src/duvet/identifiers.py").resolve()
     anno_meta_style = "# //="
     anno_content_style = "# //#"
     # Verify warning
@@ -178,5 +178,5 @@ def test_extract_python_no_implementation_annotation():
     assert len(record) == 1
     # check that the message matches
     assert record[0].message.args[0] == (
-        "/Users/yuancc/Documents/GitHub/duvet-1/src/duvet/__init__.py do not have any " "annotations. Skipping file"
+        "/Users/yuancc/Documents/GitHub/duvet-1/src/duvet/identifiers.py do not have any " "annotations. Skipping file"
     )
