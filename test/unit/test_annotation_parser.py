@@ -1,6 +1,8 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Annotation Parser used by duvet-python."""
+import pathlib
+
 import pytest
 
 from duvet.annotation_parser import AnnotationParser
@@ -27,11 +29,19 @@ TEST_PYTHON_STR = (
 
 
 def test_extract_annotation():
-    temp_anno = AnnotationParser()._extract_annotation(TEST_DAFNY_STR, 0, )
-    assert temp_anno.type.name == "IMPLICATION"
-    assert temp_anno.target == 'compliance/client-apis/client.txt#2.4.2.1'
-    assert temp_anno.content == (
-        '* encrypt (encrypt.md) MUST only support algorithm suites that havea Key '
-        'Commitment '
-        '(../framework/algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) '
-        'value of False')
+    expected_content = (
+        "* encrypt (encrypt.md) MUST only support algorithm suites that have\n"
+        "a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
+        ""
+        "suites-encryption-key-derivation-settings) value of False\n"
+    ).replace("\n","")
+    actual_anno = AnnotationParser(
+        [pathlib.Path("test.dfy")])._extract_annotation(
+        TEST_DAFNY_STR, 0, 4,
+        pathlib.Path("test.dfy"))
+    assert actual_anno.type == AnnotationType["IMPLICATION"]
+    assert actual_anno.target == 'compliance/client-apis/client.txt#2.4.2.1'
+    assert actual_anno.content == expected_content
+    assert actual_anno.uri == "$".join([
+        "compliance/client-apis/client.txt#2.4.2.1",
+        expected_content])

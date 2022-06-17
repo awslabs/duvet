@@ -70,7 +70,7 @@ class AnnotationParser():
     def _extract_annotation_block(self, lines: List[str], annotation_start: int, annotation_end: int,
                                   file_path: pathlib.Path) -> Annotation:
         new_lines = "".join(lines[annotation_start:annotation_end])
-        return self._extract_annotation(new_lines, annotation_start, annotation_start,file_path)
+        return self._extract_annotation(new_lines, annotation_start, annotation_start, file_path)
 
     def _extract_annotation(self, lines: str, start: int, end: int, file_path: pathlib.Path) -> Annotation:
         """Take a chunk of comments and extract annotation object from it.
@@ -86,8 +86,9 @@ class AnnotationParser():
         anno_type = AnnotationType[temp_type]
         anno_content = ""
         target_meta = re.search(r'//=\s(.*?)\n', lines).group(1)
-        if re.findall(r'#\s(.*?)\n', lines) is not None:
-            for temp_content in re.findall(r'#\s(.*?)\n', lines):
+        if re.findall(r'//#\s(.*?)\n', lines) is not None:
+            for temp_content in re.findall(r'//#\s(.*?)\n', lines):
                 anno_content = "".join([anno_content, temp_content])
-        return Annotation(target_meta, anno_type, anno_content, start, end, "$".join([target_meta, anno_type]),
+        anno_content = anno_content.replace("\n","")
+        return Annotation(target_meta, anno_type, anno_content, start, end, "$".join([target_meta, anno_content]),
                           file_path.resolve())
