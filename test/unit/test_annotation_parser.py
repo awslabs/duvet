@@ -6,8 +6,6 @@ import pathlib
 import pytest
 
 from duvet.annotation_parser import AnnotationParser
-from src.duvet.identifiers import *
-from src.duvet.annotation_parser import *
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -34,14 +32,11 @@ def test_extract_annotation():
         "a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
         ""
         "suites-encryption-key-derivation-settings) value of False\n"
-    ).replace("\n","")
-    actual_anno = AnnotationParser(
-        [pathlib.Path("test.dfy")])._extract_annotation(
-        TEST_DAFNY_STR, 0, 4,
-        pathlib.Path("test.dfy"))
-    assert actual_anno.type == AnnotationType["IMPLICATION"]
-    assert actual_anno.target == 'compliance/client-apis/client.txt#2.4.2.1'
+    ).replace("\n", "")
+    actual_anno = AnnotationParser([pathlib.Path("test.dfy")])._extract_annotation(
+        TEST_DAFNY_STR, 0, 4, pathlib.Path("test.dfy")
+    )
+    assert actual_anno.type.name == "IMPLICATION"
+    assert actual_anno.target == "compliance/client-apis/client.txt#2.4.2.1"
     assert actual_anno.content == expected_content
-    assert actual_anno.uri == "$".join([
-        "compliance/client-apis/client.txt#2.4.2.1",
-        expected_content])
+    assert actual_anno.uri == "$".join(["compliance/client-apis/client.txt#2.4.2.1", expected_content])
