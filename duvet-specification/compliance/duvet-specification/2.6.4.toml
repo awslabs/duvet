@@ -1,0 +1,40 @@
+target = "compliance/duvet-specification.txt#2.6.4"
+
+# 2.6.4.  Specification Overview
+#
+# The specification overview shows more detailed information about the
+# specific specification.  It MUST have a table summarizing the matrix
+# of requirements across annotation types, and include totals for both
+# sides.  It MUST show a table with a row for each requirement.  The
+# table MUST have a column for:
+# 
+# *  Section within the specification - it would be heading in the
+#    markdown, section name and number for ietf docs
+# 
+# *  Requirement key word - key word defined in rfc2119
+# 
+# *  Status
+# 
+# *  Text - The requirement text
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST have a table summarizing the matrix
+of requirements across annotation types, and include totals for both
+sides.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST show a table with a row for each requirement.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The
+table MUST have a column for:
+'''
+
