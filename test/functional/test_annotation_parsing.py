@@ -1,7 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Functional testing for annotation parsing"""
-import pathlib
 
 import pytest
 
@@ -178,5 +177,5 @@ def test_extract_python_no_implementation_annotation(pytestconfig):
     assert len(record) == 1
     # check that the message matches
     assert record[0].message.args[0] == (
-        "/Users/yuancc/Documents/GitHub/duvet-1/src/duvet/identifiers.py do not have any " "annotations. Skipping file"
+        f"{path} do not have any " "annotations. Skipping file"
     )
