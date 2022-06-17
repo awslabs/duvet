@@ -145,8 +145,8 @@ def test_2_valid_file(tmp_path):
     )
 
 
-def test_extract_python_implementation_annotation():
-    path = pathlib.Path("./src/duvet/annotation_parser.py").resolve()
+def test_extract_python_implementation_annotation(pytestconfig):
+    path = pytestconfig.rootpath.joinpath("src/duvet/annotation_parser.py")
     anno_meta_style = "# //="
     anno_content_style = "# //#"
     actual_annos = AnnotationParser(
@@ -167,8 +167,8 @@ def test_extract_python_implementation_annotation():
     )
 
 
-def test_extract_python_no_implementation_annotation():
-    path = pathlib.Path("../src/duvet/identifiers.py").resolve()
+def test_extract_python_no_implementation_annotation(pytestconfig):
+    path = pytestconfig.rootpath.joinpath("src/duvet/identifiers.py")
     anno_meta_style = "# //="
     anno_content_style = "# //#"
     # Verify warning
