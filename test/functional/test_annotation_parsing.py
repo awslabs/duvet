@@ -168,7 +168,7 @@ def test_extract_python_implementation_annotation():
 
 
 def test_extract_python_no_implementation_annotation():
-    path = pathlib.Path("./src/duvet/identifiers.py").resolve()
+    path = pathlib.Path("../src/duvet/identifiers.py").resolve()
     anno_meta_style = "# //="
     anno_content_style = "# //#"
     # Verify warning
