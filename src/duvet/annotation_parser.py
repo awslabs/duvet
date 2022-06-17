@@ -25,7 +25,7 @@ __all__ = ["AnnotationParser"]
 class AnnotationParser:
     """Parser for annotation from implementation."""
 
-    paths: list[pathlib.Path] = field(init=True, default=attr.Factory(list))
+    paths: List[pathlib.Path] = field(init=True, default=attr.Factory(list))
     annotations: List[Annotation] = field(init=False, default=attr.Factory(list))
     # //= compliance/duvet-specification.txt#2.3.1
     # //= type=implication
