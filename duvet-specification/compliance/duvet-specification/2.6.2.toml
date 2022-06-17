@@ -1,0 +1,44 @@
+target = "compliance/duvet-specification.txt#2.6.2"
+
+# 2.6.2.  Pass/Fail
+#
+# For Duvet to pass the Status of every "MUST" and "MUST NOT"
+# requirement MUST be Complete or Excused.
+# Duvet MUST return "0" for Pass.  Duvet SHOULD print a success
+# message.
+# Duvet MUST NOT return "0" for Fail.  Duvet SHOULD print a failure
+# message.
+
+[[spec]]
+level = "MUST"
+quote = '''
+For Duvet to pass the Status of every "MUST" and "MUST NOT"
+requirement MUST be Complete or Excused.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Duvet MUST return "0" for Pass.
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+Duvet SHOULD print a success
+message.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Duvet MUST NOT return "0" for Fail.
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+Duvet SHOULD print a failure
+message.
+'''
+
