@@ -38,7 +38,7 @@ class AnnotationParser:
     anno_content_regex: re.Pattern = field(init=False, default=re.compile(content_style + r"\s(.*?)\n"))
 
     def extract_implementation_file_annotations(self) -> List[Annotation]:
-        """Given a path of a implementation code.
+        """Given paths to  implementation code, extract annotations.
 
         Return a list of annotation objects.
         """
