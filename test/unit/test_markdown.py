@@ -7,7 +7,7 @@ import pytest
 
 from duvet.markdown import MAX_HEADER_LEVELS, MarkdownHeader, MarkdownSpecification, Span
 
-from ..utils import populate_file
+from ..utils import populate_file  # isort:skip
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -50,9 +50,9 @@ class TestMarkdownHeader:
     )
     def test_add_child_positive(self, parent: MarkdownHeader, child: MarkdownHeader):
         parent.add_child(child)
-        assert len(parent.child_headers) == 1
-        assert parent.child_headers[0] == child
-        assert child.parent_header == parent
+        assert len(parent.children) == 1
+        assert parent.children[0] == child
+        assert child.parent == parent
 
     @pytest.mark.parametrize(
         "parent, child", [(MarkdownHeader.from_line("## Overview"), MarkdownHeader.from_line("# Duvet Specification"))]
@@ -60,38 +60,6 @@ class TestMarkdownHeader:
     def test_add_child_negative(self, parent: MarkdownHeader, child: MarkdownHeader):
         with pytest.raises(AssertionError):
             parent.add_child(child)
-
-    @pytest.mark.parametrize(
-        "parent, child, sibling",
-        [
-            (
-                MarkdownHeader.from_line("# Duvet Specification"),
-                MarkdownHeader.from_line("## Overview"),
-                MarkdownHeader.from_line("## Editing"),
-            )
-        ],
-    )
-    def test_add_sibling_positive(self, parent: MarkdownHeader, child: MarkdownHeader, sibling: MarkdownHeader):
-        parent.add_child(child)
-        child.add_sibling(sibling)
-        assert len(parent.child_headers) == 2
-        assert child.parent_header == parent
-        assert sibling.parent_header == parent
-
-    @pytest.mark.parametrize(
-        "parent, child, sibling",
-        [
-            (
-                MarkdownHeader.from_line("# Duvet Specification"),
-                MarkdownHeader.from_line("## Overview"),
-                MarkdownHeader.from_line("# Editing"),
-            )
-        ],
-    )
-    def test_add_sibling_negative(self, parent: MarkdownHeader, child: MarkdownHeader, sibling: MarkdownHeader):
-        parent.add_child(child)
-        with pytest.raises(AssertionError):
-            child.add_sibling(sibling)
 
     @pytest.mark.parametrize(
         "parent, child, expected",
@@ -134,9 +102,9 @@ class TestMarkdownSpecification:
         assert actual.content == expected_content
         # Tests that Spec finds top header
         assert actual.cursor.title == expected_top.title
-        assert len(actual.top_headers) == 1
-        assert actual.top_headers[0].title == expected_top.title
-        actual_top = actual.top_headers[0]
+        assert len(actual.headers) == 1
+        assert actual.headers[0].title == expected_top.title
+        actual_top = actual.headers[0]
         # Tests that spec sets top header span's correctly
         assert actual_top.title_span == expected_top.title_span
         assert actual_top.body_span == expected_top.body_span
@@ -147,17 +115,11 @@ class TestMarkdownSpecification:
     @staticmethod
     def test_header_tree_assembly_happy(tmp_path):
         markdown_block = (
-            "\n"
-            "# Main Title\n"
-            "\n"
-            "## A Section\n"
-            "\n"
-            "### A Sub Section\n"
-            "\n"
-            "## Another Section\n"
-            "\n"
-            "## Another Another Section\n"
-            "\n"
+            "\n# Main Title\n\n"
+            "## A Section\n\n"
+            "### A Sub Section\n\n"
+            "## Another Section\n\n"
+            "## Another Another Section\n\n"
             "# Another Title\n"
         )
 
@@ -165,7 +127,7 @@ class TestMarkdownSpecification:
             top = MarkdownHeader.from_line("# Main Title")
             top.add_child(MarkdownHeader.from_line("## A Section"))
             top.add_child(MarkdownHeader.from_line("## Another Section"))
-            top.child_headers[0].add_child(MarkdownHeader.from_line("### A Sub Section"))
+            top.children[0].add_child(MarkdownHeader.from_line("### A Sub Section"))
             top.add_child(MarkdownHeader.from_line("## Another Another Section"))
             another_top = MarkdownHeader.from_line("# Another Title")
             return [top, another_top]
@@ -173,26 +135,19 @@ class TestMarkdownSpecification:
         actual = MarkdownSpecification(filepath=populate_file(tmp_path, markdown_block, "markdown.md"))
         expected_top = get_expected_top()
         # Verify that the tree is correct by checking against the expected headers titles
-        assert [hdr.title for hdr in actual.top_headers] == [hdr.title for hdr in expected_top]
-        assert [hdr.title for hdr in actual.top_headers[0].child_headers] == [
-            hdr.title for hdr in expected_top[0].child_headers
-        ]
-        assert [hdr.title for hdr in actual.top_headers[0].child_headers[0].child_headers] == [
-            hdr.title for hdr in expected_top[0].child_headers[0].child_headers
+        assert [hdr.title for hdr in actual.headers] == [hdr.title for hdr in expected_top]
+        assert [hdr.title for hdr in actual.headers[0].children] == [hdr.title for hdr in expected_top[0].children]
+        assert [hdr.title for hdr in actual.headers[0].children[0].children] == [
+            hdr.title for hdr in expected_top[0].children[0].children
         ]
         # Verify that all Headers in the tree are complete
-        assert all([hdr.validate() for hdr in actual.top_headers])
-        assert all([hdr.validate() for hdr in actual.top_headers[0].child_headers])
-        assert all([hdr.validate() for hdr in actual.top_headers[0].child_headers[0].child_headers])
+        assert all([hdr.validate() for hdr in actual.headers])
+        assert all([hdr.validate() for hdr in actual.headers[0].children])
+        assert all([hdr.validate() for hdr in actual.headers[0].children[0].children])
 
     @staticmethod
-    @pytest.mark.xfail
     def test_header_tree_assembly_skip(tmp_path):
-        # Currently, fails due to MarkdownSpecification assumption 3.
-        # Once 3 is addressed, may fail for others as well.
-        markdown_block = (
-            "\n" "# Main Title\n" "\n" "### A Sub Section\n" "\n" "### Another Sub Section\n" "\n" "## A Section\n"
-        )
+        markdown_block = "\n# Main Title\n\n" "### A Sub Section\n\n" "### Another Sub Section\n\n" "## A Section\n"
 
         def get_expected_top() -> List[MarkdownHeader]:
             top = MarkdownHeader.from_line("# Main Title")
@@ -204,60 +159,48 @@ class TestMarkdownSpecification:
         actual = MarkdownSpecification(filepath=populate_file(tmp_path, markdown_block, "markdown.md"))
         expected_top = get_expected_top()
         # Verify that the tree is correct by checking against the expected headers titles
-        assert [hdr.title for hdr in actual.top_headers] == [hdr.title for hdr in expected_top]
-        assert [hdr.title for hdr in actual.top_headers[0].child_headers] == [
-            hdr.title for hdr in expected_top[0].child_headers
-        ]
-        assert [hdr.title for hdr in actual.top_headers[0].child_headers[0].child_headers] == [
-            hdr.title for hdr in expected_top[0].child_headers[0].child_headers
+        assert [hdr.title for hdr in actual.headers] == [hdr.title for hdr in expected_top]
+        assert [hdr.title for hdr in actual.headers[0].children] == [hdr.title for hdr in expected_top[0].children]
+        assert [hdr.title for hdr in actual.headers[0].children[0].children] == [
+            hdr.title for hdr in expected_top[0].children[0].children
         ]
 
     @staticmethod
-    @pytest.mark.xfail
     def test_header_tree_assembly_start_not_one(tmp_path):
-        # Currently, fails due to MarkdownSpecification assumption 3.
-        # Once 3 is addressed, may fail for others as well.
-        markdown_block = "\n" "# Main Title\n" "\n" "## A Section\n" "\n" "\n" "## A Section\n"
+        markdown_block = "\n## A Section\n\n" "### A Sub Section\n\n" "## Another Section\n\n" "# A Title"
 
         def get_expected_top() -> List[MarkdownHeader]:
-            top = MarkdownHeader.from_line("# Main Title")
-            top.add_child(MarkdownHeader.from_line("### A Sub Section"))
-            top.add_child(MarkdownHeader.from_line("### Another Sub Section"))
-            top.add_child(MarkdownHeader.from_line("## A Section"))
-            return [top]
+            rtn = [MarkdownHeader.from_line("## A Section")]
+            rtn[0].add_child(MarkdownHeader.from_line("### A Sub Section"))
+            rtn.append(MarkdownHeader.from_line("## Another Section"))
+            rtn.append(MarkdownHeader.from_line("# A Title"))
+            return rtn
 
         actual = MarkdownSpecification(filepath=populate_file(tmp_path, markdown_block, "markdown.md"))
         expected_top = get_expected_top()
         # Verify that the tree is correct by checking against the expected headers titles
-        assert [hdr.title for hdr in actual.top_headers] == [hdr.title for hdr in expected_top]
-        assert [hdr.title for hdr in actual.top_headers[0].child_headers] == [
-            hdr.title for hdr in expected_top[0].child_headers
-        ]
-        assert [hdr.title for hdr in actual.top_headers[0].child_headers[0].child_headers] == [
-            hdr.title for hdr in expected_top[0].child_headers[0].child_headers
+        assert [hdr.title for hdr in actual.headers] == [hdr.title for hdr in expected_top]
+        assert [hdr.title for hdr in actual.headers[0].children] == [hdr.title for hdr in expected_top[0].children]
+        assert [hdr.title for hdr in actual.headers[0].children[0].children] == [
+            hdr.title for hdr in expected_top[0].children[0].children
         ]
 
     @staticmethod
-    @pytest.mark.xfail
     def test_header_tree_assembly_jump_back(tmp_path):
-        # Currently, fails due to MarkdownSpecification assumption 4.
-        # Once 3 is addressed, may fail for others as well.
         markdown_block = "\n" "# Main Title\n" "\n" "## A Section\n" "\n" "### A Sub Section\n" "\n" "# Another Title\n"
 
         def get_expected_top() -> List[MarkdownHeader]:
             top = MarkdownHeader.from_line("# Main Title")
             top.add_child(MarkdownHeader.from_line("## A Section"))
-            top.child_headers[0].add_child(MarkdownHeader.from_line("### A Sub Section"))
+            top.children[0].add_child(MarkdownHeader.from_line("### A Sub Section"))
             another_top = MarkdownHeader.from_line("# Another Title")
             return [top, another_top]
 
         actual = MarkdownSpecification(filepath=populate_file(tmp_path, markdown_block, "markdown.md"))
         expected_top = get_expected_top()
         # Verify that the tree is correct by checking against the expected headers titles
-        assert [hdr.title for hdr in actual.top_headers] == [hdr.title for hdr in expected_top]
-        assert [hdr.title for hdr in actual.top_headers[0].child_headers] == [
-            hdr.title for hdr in expected_top[0].child_headers
-        ]
-        assert [hdr.title for hdr in actual.top_headers[0].child_headers[0].child_headers] == [
-            hdr.title for hdr in expected_top[0].child_headers[0].child_headers
+        assert [hdr.title for hdr in actual.headers] == [hdr.title for hdr in expected_top]
+        assert [hdr.title for hdr in actual.headers[0].children] == [hdr.title for hdr in expected_top[0].children]
+        assert [hdr.title for hdr in actual.headers[0].children[0].children] == [
+            hdr.title for hdr in expected_top[0].children[0].children
         ]
