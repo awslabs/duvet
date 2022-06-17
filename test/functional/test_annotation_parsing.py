@@ -176,6 +176,4 @@ def test_extract_python_no_implementation_annotation(pytestconfig):
     # check that only one warning was raised
     assert len(record) == 1
     # check that the message matches
-    assert record[0].message.args[0] == (
-        f"{path} do not have any annotations. Skipping file"
-    )
+    assert record[0].message.args[0] == (f"{path} do not have any annotations. Skipping file")
