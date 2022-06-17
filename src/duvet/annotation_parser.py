@@ -3,10 +3,11 @@
 """Annotation Parser used by duvet-python."""
 import pathlib
 import re
+import warnings
 from typing import List
 
-from attr import field
-from attrs import define
+import attr
+from attrs import define, field
 
 from duvet._config import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
 from duvet.identifiers import AnnotationType
@@ -15,29 +16,40 @@ from duvet.structures import Annotation
 __all__ = ["AnnotationParser"]
 
 
-# //= "compliance/duvet-specification.txt#2.3.1"
-# //= type=implication\n"
-# //# If
-# //# a second meta line exists it MUST start with "type=".
+# //= compliance/duvet-specification.txt#2.3.1
+# //= type=implication
+# //# If a second meta line exists it MUST start with "type=".
 
 
 @define
 class AnnotationParser:
     """Parser for annotation from implementation."""
 
-    paths: [pathlib.Path] = field(init=True)
-    annotations: List[Annotation] = field(init=False, default=[])
-    # //= "compliance/duvet-specification.txt#2.3.1"
-    # //= type=implication\n"
+    paths: list[pathlib.Path] = field(init=True, default=attr.Factory(list))
+    annotations: List[Annotation] = field(init=False, default=attr.Factory(list))
+    # //= compliance/duvet-specification.txt#2.3.1
+    # //= type=implication
     # //# This identifier of meta parts MUST
-    # //#be configurable.
+    # //# be configurable.
     meta_style: str = DEFAULT_META_STYLE
     content_style: str = DEFAULT_CONTENT_STYLE
     anno_type_regex: re.Pattern = field(init=False, default=re.compile(meta_style + r"[\s]type=" + r"(.*?)\n"))
     anno_meta_regex: re.Pattern = field(init=False, default=re.compile(meta_style + r"[\s](.*?)\n"))
     anno_content_regex: re.Pattern = field(init=False, default=re.compile(content_style + r"\s(.*?)\n"))
 
-    def extract_file_annotations(self, file_path: pathlib.Path) -> List[Annotation]:
+    def extract_implementation_file_annotations(self) -> List[Annotation]:
+        """Given a path of a implementation code.
+
+        Return a list of annotation objects.
+        """
+        for filename in self.paths:  # pylint: disable=not-an-iterable
+            temp_list = self._extract_file_annotations(filename)
+            if len(temp_list) == 0:
+                warnings.warn(f"{str(filename.resolve())} do not have any annotations. Skipping file")
+            self.annotations.extend(temp_list)
+        return self.annotations
+
+    def _extract_file_annotations(self, file_path: pathlib.Path) -> List[Annotation]:
         """Given a path of a implementation code.
 
         Return a list of annotation objects.
@@ -52,7 +64,7 @@ class AnnotationParser:
             line = lines[curr_line]
             if (
                 re.search(r"[\s]*" + self.meta_style, line) is not None
-                or re.search(r"[\s]" + self.content_style, line) is not None
+                or re.search(r"[\s]*" + self.content_style, line) is not None
             ):
                 if annotation_start == -1:
                     annotation_start = curr_line
@@ -73,20 +85,12 @@ class AnnotationParser:
     ) -> Annotation:
         """Take a block of comments and extract one or none annotation object from it."""
 
-        # print(lines)
         new_lines = "".join(lines[annotation_start:annotation_end])
-        # print(new_lines)
         return self._extract_annotation(new_lines, annotation_start, annotation_start, file_path)
 
     def _extract_annotation(self, lines: str, start: int, end: int, file_path: pathlib.Path) -> Annotation:
-        """Take a chunk of comments and extract or none annotation object from it.
+        """Take a chunk of comments and extract or none annotation object from it."""
 
-        TODO: This part needed to be configurable by customer.
-        We will implement it in the future.
-        We will not support it for now.
-        """
-
-        # print("I am printing" + lines)
         temp_type = re.search(self.anno_type_regex, lines).group(1).upper()
         anno_type = AnnotationType[temp_type]
         anno_content = ""

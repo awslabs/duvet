@@ -1,10 +1,15 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Functional testing for annotation parsing"""
+import pathlib
+
+import pytest
 
 from duvet.annotation_parser import AnnotationParser
 
 from ..utils import populate_file  # isort:skip
+
+pytestmark = [pytest.mark.local, pytest.mark.functional]
 
 TEST_DFY_BLOCK = """// Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
@@ -104,8 +109,7 @@ module MessageBody {
 
 def test_one_valid_file(tmp_path):
     actual_path = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet.dfy")
-    actual_annos = AnnotationParser([actual_path]).extract_file_annotations(actual_path)
-    # print(actual_annos)
+    actual_annos = AnnotationParser([actual_path])._extract_file_annotations(actual_path)
     assert len(actual_annos) == 4
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[0].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
@@ -117,4 +121,62 @@ def test_one_valid_file(tmp_path):
         "compliance/data-format/message-body.txt#2.5.2.1.2$The IV length MUST be "
         "equal to the IVlength of the algorithm suite specified by the Algorithm "
         "Suite ID(message-header.md#algorithm-suite-id) field."
+    )
+
+
+def test_2_valid_file(tmp_path):
+    actual_path1 = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet1.dfy")
+    actual_path2 = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet2.dfy")
+    actual_annos = AnnotationParser([actual_path1, actual_path2]).extract_implementation_file_annotations()
+    assert len(actual_annos) == 8
+    assert actual_annos[0].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
+    assert (
+        actual_annos[0].target  # pylint: disable=(unsubscriptable-object
+        == "compliance/data-format/message-body.txt#2.5.2.1.2"
+    )
+    assert actual_annos[0].content == (  # pylint: disable=(unsubscriptable-object
+        "The IV length MUST be equal to the IVlength of the algorithm suite specified "
+        "by the Algorithm Suite ID(message-header.md#algorithm-suite-id) field."
+    )
+    assert actual_annos[0].uri == (  # pylint: disable=(unsubscriptable-object
+        "compliance/data-format/message-body.txt#2.5.2.1.2$The IV length MUST be "
+        "equal to the IVlength of the algorithm suite specified by the Algorithm "
+        "Suite ID(message-header.md#algorithm-suite-id) field."
+    )
+
+
+def test_extract_python_implementation_annotation():
+    path = pathlib.Path("./src/duvet/annotation_parser.py").resolve()
+    anno_meta_style = "# //="
+    anno_content_style = "# //#"
+    actual_annos = AnnotationParser(
+        [path], anno_meta_style, anno_content_style
+    ).extract_implementation_file_annotations()
+    # Verify two annotation is added to parser
+    assert len(actual_annos) == 2
+    assert actual_annos[0].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
+    assert (
+        actual_annos[0].target == "compliance/duvet-specification.txt#2.3.1"  # pylint: disable=(unsubscriptable-object
+    )
+    assert (
+        actual_annos[0].content  # pylint: disable=(unsubscriptable-object
+        == 'If a second meta line exists it MUST start with "type=".'
+    )
+    assert actual_annos[0].uri == (  # pylint: disable=(unsubscriptable-object
+        "compliance/duvet-specification.txt#2.3.1$If a second meta line exists it " 'MUST start with "type=".'
+    )
+
+
+def test_extract_python_no_implementation_annotation():
+    path = pathlib.Path("./src/duvet/__init__.py").resolve()
+    anno_meta_style = "# //="
+    anno_content_style = "# //#"
+    # Verify warning
+    with pytest.warns(UserWarning) as record:
+        AnnotationParser([path], anno_meta_style, anno_content_style).extract_implementation_file_annotations()
+    # check that only one warning was raised
+    assert len(record) == 1
+    # check that the message matches
+    assert record[0].message.args[0] == (
+        "/Users/yuancc/Documents/GitHub/duvet-1/src/duvet/__init__.py do not have any " "annotations. Skipping file"
     )
