@@ -94,40 +94,42 @@ class TestMarkdownSpecification:
 
     @staticmethod
     def test_simple(tmp_path):
-        expected_content = "# Main Title\nBody"
+        expected_top_title = "# Main Title"
+        expected_top_body = "\nBody"
+        expected_content = expected_top_title + expected_top_body
         expected_title = "markdown.md"
-        expected_top = MarkdownHeader.from_line("# Main Title")
-        expected_top.set_body(Span(12, len(expected_content)))
-        expected_top.title_span = Span(0, 12)
+        expected_top = MarkdownHeader.from_line(expected_top_title)
+        expected_top.set_body(Span(len(expected_top_title), len(expected_content)))
+        expected_top.title_span = Span(0, len(expected_top_title))
         filepath = populate_file(tmp_path, expected_content, expected_title)
-        actual = MarkdownSpecification(filepath=filepath)
+        actual = MarkdownSpecification.parse(filepath=filepath)
         assert actual.filepath == filepath
         assert actual.title == expected_title
         # Tests that Spec reads file
         assert actual.content == expected_content
         # Tests that Spec finds top header
-        assert len(actual.root.children) == 1
-        assert actual.root.children[0].title == expected_top.title  # pylint: disable=E1136
-        actual_top = actual.root.children[0]
-        # Tests that spec sets top header span's correctly
+        assert len(actual.children) == 1
+        assert actual.children[0].title == expected_top.title
+        actual_top = actual.children[0]
+        # Tests that spec set top header correctly
         assert actual_top.title_span == expected_top.title_span
         assert actual_top.body_span == expected_top.body_span
-        assert actual_top.specification == actual
-        assert actual_top.get_body() == "\nBody"
+        # assert actual_top.specfication == actual
+        assert actual_top.root == actual
+        assert actual_top.get_body() == expected_top_body
         assert actual_top.validate() is True
 
     @staticmethod
-    def execute(filepath: pathlib.Path, markdown_block: str, get_expected_top: Callable):
-        actual = MarkdownSpecification(filepath=populate_file(filepath, markdown_block, "markdown.md"))
-        expected_top = get_expected_top()
-        # Verify that the tree is correct by checking against the expected root titles
-        assert [hdr.title for hdr in actual.root.children] == [hdr.title for hdr in expected_top]
-        # pylint: disable=E1136
-        assert [hdr.title for hdr in actual.root.children[0].descendants] == [
+    def execute(filepath: pathlib.Path, markdown_block: str, get_expected_top: Callable[[], List[MarkdownHeader]]):
+        actual = MarkdownSpecification.parse(filepath=populate_file(filepath, markdown_block, "markdown.md"))
+        expected_top: List[MarkdownHeader] = get_expected_top()
+        # Verify that the tree is correct by checking against the expected titles
+        assert [hdr.title for hdr in actual.children] == [hdr.title for hdr in expected_top]
+        assert [hdr.title for hdr in actual.children[0].descendants] == [
             hdr.title for hdr in expected_top[0].descendants
         ]
         # Verify that all Headers in the tree are complete
-        assert all(hdr.validate() for hdr in actual.root.descendants)
+        assert all(hdr.validate() for hdr in actual.descendants)
 
     @staticmethod
     def test_header_tree_assembly_happy(tmp_path):
