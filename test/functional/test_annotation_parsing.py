@@ -15,39 +15,13 @@ TEST_DFY_BLOCK = """// Copyright Amazon.com Inc. or its affiliates. All Rights R
 
 include "../StandardLibrary/StandardLibrary.dfy"
 include "../StandardLibrary/UInt.dfy"
-include "Serialize/SerializableTypes.dfy"
-include "../AwsCryptographicMaterialProviders/Client.dfy"
-include "../Crypto/AESEncryption.dfy"
-include "../Util/Streams.dfy"
-include "../Util/UTF8.dfy"
-include "Serialize/Frames.dfy"
-
-include "Serialize/Header.dfy"
-include "Serialize/HeaderTypes.dfy"
-include "Serialize/V1HeaderBody.dfy"
-include "Serialize/HeaderAuth.dfy"
-include "Serialize/SerializeFunctions.dfy"
-include "../../libraries/src/Collections/Sequences/Seq.dfy"
 
 module MessageBody {
   // export
   //   provides EncryptMessageBody, DecryptFramedMessageBody, DecryptNonFramedMessageBody,
-  //     Wrappers, UInt, Streams, Client,
-  //     FramesEncryptPlaintext, AESEncryption, DecryptedWithKey
-  //   reveals  SeqWithGhostFrames
 
   import opened Wrappers
   import opened UInt = StandardLibrary.UInt
-  import AESEncryption
-  import Streams
-  import UTF8
-  import SerializableTypes
-  import MaterialProviders.Client
-  import Frames
-  import Header
-  import opened SerializeFunctions
-  import Seq
-  import StandardLibrary
 
   datatype BodyAADContent = AADRegularFrame | AADFinalFrame | AADSingleBlock
 
@@ -73,7 +47,6 @@ module MessageBody {
     //# The IV length MUST be equal to the IV
     //# length of the algorithm suite specified by the Algorithm Suite ID
     //# (message-header.md#algorithm-suite-id) field.
-    //
     //= compliance/data-format/message-body.txt#2.5.2.2.3
     //= type=implication
     //# The IV length MUST be equal to the IV length of the algorithm suite
