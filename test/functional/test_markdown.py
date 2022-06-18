@@ -16,7 +16,8 @@ class TestMarkdownSpecification:
         filepath: Path = pytestconfig.rootpath.joinpath("duvet-specification", "duvet-specification.md")
         duvet_spec: MarkdownSpecification = MarkdownSpecification(filepath)
         assert duvet_spec.filepath == filepath
-        assert len(duvet_spec.headers) == 1
+        assert len(duvet_spec.root.children) == 1
+        duvet_spec.cursor = duvet_spec.root.children[0]
         assert duvet_spec.cursor.title == "Duvet specification"
         assert len(duvet_spec.cursor.descendants) == 27
         assert all(hdr.validate() for hdr in duvet_spec.cursor.descendants)

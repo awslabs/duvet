@@ -3,7 +3,7 @@
 """Methods and classes for parsing Markdown files."""
 import re
 from pathlib import Path
-from typing import List, Optional, TypeVar
+from typing import Optional, TypeVar, Union
 
 import attr
 from anytree import NodeMixin
@@ -94,7 +94,7 @@ class MarkdownHeader(NodeMixin):
         child.parent = self
 
     def get_url(self) -> str:
-        """Prefixes parent headers titles to this.
+        """Prefixes parent root titles to this.
 
         Titles are transformed as follows:
         - spaces are replaced with "-"
@@ -119,6 +119,19 @@ class MarkdownHeader(NodeMixin):
 
 
 @define
+class MarkdownRoot(NodeMixin):
+    """Root of a MarkdownHeader Tree."""
+
+    level: int = field(default=0, init=False)
+
+    def add_child(self, child: MarkdownHeaderT):
+        """Add a child Markdown Header."""
+        assert self.level < child.level, f"Child's level: {child.level} is higher than parent's: {self.level}"
+        assert len(child.children) == 0, "Cannot add child that has children"
+        child.parent = self
+
+
+@define
 class MarkdownSpecification:
     """Represent a Markdown Specification.
 
@@ -135,8 +148,8 @@ class MarkdownSpecification:
     filepath: Path = field(init=True, repr=False)
     title: str = field(init=False, repr=False)
     content: str = field(init=False, default=None, repr=False)
-    cursor: Optional[MarkdownHeader] = field(init=False, default=None)
-    headers: List[MarkdownHeader] = field(init=False, default=attr.Factory(list), repr=False)
+    cursor: Optional[Union[MarkdownHeader, MarkdownRoot]] = field(init=False, default=None)
+    root: MarkdownRoot = field(init=False, default=attr.Factory(MarkdownRoot), repr=False)
 
     @staticmethod
     def is_markdown(filename: str) -> bool:
@@ -147,6 +160,7 @@ class MarkdownSpecification:
         """Read Markdown file and create Header tree."""
         assert MarkdownSpecification.is_markdown(self.filepath.suffix), f"{self.filepath} does not end in .md"
         self.title = self.filepath.name
+        self.cursor = self.root
         with open(file=self.filepath, mode="rt", encoding="utf-8") as spec:
             self.content = spec.read()
         self._process()
@@ -168,7 +182,7 @@ class MarkdownSpecification:
         It does NOT support arbitrary header insertion.
         """
         if cursor is None or new_header.level == 1:
-            self.headers.append(new_header)
+            self.root.add_child(new_header)
         elif cursor.level < new_header.level:
             for child in reversed(cursor.children):
                 if child.level < new_header.level:
@@ -181,14 +195,14 @@ class MarkdownSpecification:
             raise Exception("The logic for MarkdownSpecification._insert_header is incorrect.")
 
     def _set_cursor_body(self, match: re.Match):
-        """Set the current headers body span."""
-        if self.cursor:
+        """Set the current root body span."""
+        if self.cursor != self.root:
             # From the end of title to the start of the next title.
             span = Span(self.cursor.title_span.end, match.start())
             self.cursor.set_body(span)
 
     def _handle_last_header(self):
-        """Set the current headers body span."""
+        """Set the current root body span."""
         if self.cursor:
             # From the end of title to the end of the file.
             span = Span(self.cursor.title_span.end, len(self.content))
@@ -196,5 +210,4 @@ class MarkdownSpecification:
 
     def reset_header_cursor(self):
         """Reset the header cursor to the first top header."""
-        if len(self.headers) > 0:
-            self.cursor = self.headers[0]  # pylint: disable=E1136
+        self.cursor = self.root

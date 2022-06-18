@@ -1,6 +1,7 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Unit test suite for duvet.markdown."""
+import pathlib
 from typing import Callable, List
 
 import pytest
@@ -105,10 +106,9 @@ class TestMarkdownSpecification:
         # Tests that Spec reads file
         assert actual.content == expected_content
         # Tests that Spec finds top header
-        assert actual.cursor.title == expected_top.title
-        assert len(actual.headers) == 1
-        assert actual.headers[0].title == expected_top.title  # pylint: disable=E1136
-        actual_top = actual.headers[0]  # pylint: disable=E1136
+        assert len(actual.root.children) == 1
+        assert actual.root.children[0].title == expected_top.title  # pylint: disable=E1136
+        actual_top = actual.root.children[0]
         # Tests that spec sets top header span's correctly
         assert actual_top.title_span == expected_top.title_span
         assert actual_top.body_span == expected_top.body_span
@@ -117,18 +117,17 @@ class TestMarkdownSpecification:
         assert actual_top.validate() is True
 
     @staticmethod
-    def execute(tmp_path, markdown_block: str, get_expected_top: Callable):
-        actual = MarkdownSpecification(filepath=populate_file(tmp_path, markdown_block, "markdown.md"))
+    def execute(filepath: pathlib.Path, markdown_block: str, get_expected_top: Callable):
+        actual = MarkdownSpecification(filepath=populate_file(filepath, markdown_block, "markdown.md"))
         expected_top = get_expected_top()
-        # Verify that the tree is correct by checking against the expected headers titles
-        assert [hdr.title for hdr in actual.headers] == [hdr.title for hdr in expected_top]  # pylint: disable=E1133
+        # Verify that the tree is correct by checking against the expected root titles
+        assert [hdr.title for hdr in actual.root.children] == [hdr.title for hdr in expected_top]
         # pylint: disable=E1136
-        assert [hdr.title for hdr in actual.headers[0].descendants] == [
+        assert [hdr.title for hdr in actual.root.children[0].descendants] == [
             hdr.title for hdr in expected_top[0].descendants
         ]
         # Verify that all Headers in the tree are complete
-        assert all(hdr.validate() for hdr in actual.headers)  # pylint: disable=E1133
-        assert all(hdr.validate() for hdr in actual.cursor.descendants)
+        assert all(hdr.validate() for hdr in actual.root.descendants)
 
     @staticmethod
     def test_header_tree_assembly_happy(tmp_path):
