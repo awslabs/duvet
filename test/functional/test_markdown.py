@@ -15,4 +15,9 @@ class TestMarkdownSpecification:
     def test_dogfood(pytestconfig):
         filepath: Path = pytestconfig.rootpath.joinpath("duvet-specification", "duvet-specification.md")
         duvet_spec: MarkdownSpecification = MarkdownSpecification(filepath)
-        # TODO: add assertions for duvet_spec
+        assert duvet_spec.filepath == filepath
+        assert len(duvet_spec.headers) == 1
+        assert duvet_spec.cursor.title == "Duvet specification"
+        assert len(duvet_spec.cursor.descendants) == 27
+        assert all(hdr.validate() for hdr in duvet_spec.cursor.descendants)
+        assert duvet_spec.cursor.get_body() == "\n\n"
