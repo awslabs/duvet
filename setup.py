@@ -1,4 +1,4 @@
-# Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com Inc. or its affiliates. All Rights Reserved. # pylint: disable=(duplicate-code
 # SPDX-License-Identifier: Apache-2.0
 """duvet-python."""
 import io

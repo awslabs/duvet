@@ -4,7 +4,7 @@
 import pathlib
 import re
 import warnings
-from typing import List
+from typing import List, Optional
 
 import attr
 from attrs import define, field
@@ -78,19 +78,31 @@ class AnnotationParser:
                 annotation_start = -1
                 annotation_end = -1
             curr_line += 1
+            # Add edge case when annotation is at the end of the file.
+            if annotation_start != -1 and annotation_end == len(lines) - 1:
+                temp_annotation_list.append(
+                    self._extract_annotation_block(lines, annotation_start, annotation_end + 1, file_path)
+                )
         return temp_annotation_list
 
     def _extract_annotation_block(
         self, lines: List[str], annotation_start: int, annotation_end: int, file_path: pathlib.Path
-    ) -> Annotation:
+    ) -> Optional[Annotation]:
         """Take a block of comments and extract one or none annotation object from it."""
 
+        assert (
+            annotation_start <= annotation_end
+        ), f"Start must be less than or equal end. {annotation_start} !< {annotation_end}"
         new_lines = "".join(lines[annotation_start:annotation_end])
+        if not new_lines.endswith("\n"):
+            new_lines = new_lines + "\n"
         return self._extract_annotation(new_lines, annotation_start, annotation_start, file_path)
 
-    def _extract_annotation(self, lines: str, start: int, end: int, file_path: pathlib.Path) -> Annotation:
+    def _extract_annotation(self, lines: str, start: int, end: int, file_path: pathlib.Path) -> Optional[Annotation]:
         """Take a chunk of comments and extract or none annotation object from it."""
 
+        # TODO: If temp_type is none. It could only be citation. # pylint: disable=fixme
+        #   I will make another PR to address citation and exception.
         temp_type = re.search(self.anno_type_regex, lines).group(1).upper()
         anno_type = AnnotationType[temp_type]
         anno_content = ""

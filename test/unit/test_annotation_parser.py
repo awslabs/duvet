@@ -17,14 +17,6 @@ TEST_DAFNY_STR = (
     "//# suites-encryption-key-derivation-settings) value of False\n"
 )
 
-TEST_PYTHON_STR = (
-    "//= compliance/client-apis/client.txt#2.4.2.1\n"
-    "//= type=implication\n"
-    "//# * encrypt (encrypt.md) MUST only support algorithm suites that have\n"
-    "//# a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
-    "//# suites-encryption-key-derivation-settings) value of False\n"
-)
-
 expected_content = (
     "* encrypt (encrypt.md) MUST only support algorithm suites that have\n"
     "a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"

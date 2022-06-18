@@ -90,20 +90,7 @@ module MessageBody {
   //
   //= compliance/data-format/message-body.txt#2.5.2.2.3
   //= type=implication
-  //# The IV MUST be a unique IV within the message.
-  lemma IVSeqDistinct(suite: Client.AlgorithmSuites.AlgorithmSuite, m: uint32, n: uint32)
-    requires m != n
-    ensures
-      var algorithmSuiteID := SerializableTypes.GetESDKAlgorithmSuiteId(suite.id);
-      && IVSeq(suite, m) != IVSeq(suite, n)
-  {
-    var paddingLength :=  suite.encrypt.ivLength as int - 4;
-    assert IVSeq(suite, m)[paddingLength..] == UInt32ToSeq(m);
-    assert IVSeq(suite, n)[paddingLength..] == UInt32ToSeq(n);
-    UInt32SeqSerializeDeserialize(m);
-    UInt32SeqSerializeDeserialize(n);
-  }
-"""
+  //# The IV MUST be a unique IV within the message."""
 
 
 def test_one_valid_file(tmp_path):
@@ -121,6 +108,8 @@ def test_one_valid_file(tmp_path):
         "equal to the IVlength of the algorithm suite specified by the Algorithm "
         "Suite ID(message-header.md#algorithm-suite-id) field."
     )
+    # Verify the last annotation is not broken.
+    assert actual_annos[3].content == ("The IV MUST be a unique IV within the message.")
 
 
 def test_2_valid_file(tmp_path):
@@ -155,14 +144,15 @@ def test_extract_python_implementation_annotation(pytestconfig):
     assert len(actual_annos) == 2
     assert actual_annos[0].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
     assert (
-        actual_annos[0].target == "compliance/duvet-specification.txt#2.3.1"  # pylint: disable=(unsubscriptable-object
+        actual_annos[0].target  # pylint: disable=(unsubscriptable-object
+        == "compliance/duvet-specification.txt#2.3.1"
     )
     assert (
         actual_annos[0].content  # pylint: disable=(unsubscriptable-object
         == 'If a second meta line exists it MUST start with "type=".'
     )
     assert actual_annos[0].uri == (  # pylint: disable=(unsubscriptable-object
-        "compliance/duvet-specification.txt#2.3.1$If a second meta line exists it " 'MUST start with "type=".'
+        'compliance/duvet-specification.txt#2.3.1$If a second meta line exists it MUST start with "type=".'
     )
 
 
