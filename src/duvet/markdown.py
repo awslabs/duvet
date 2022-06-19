@@ -48,7 +48,7 @@ class Span:
 class MarkdownElement(NodeMixin):
     """Either a Markdown file or header in a Markdown file."""
 
-    level: int = field(init=True)
+    level: int = field(init=True, repr=False)
     title: str = field(init=True, repr=True)
 
     def add_child(self, child: MarkdownElementT):
@@ -116,9 +116,7 @@ class MarkdownHeader(MarkdownElement):
     def validate(self) -> bool:
         """Check that all needed fields are set and reasonable."""
         return (
-            self.body_span is not None
-            and self.title_span is not None
-            and len(self.root.content) >= self.body_span.end
+            self.body_span is not None and self.title_span is not None and len(self.root.content) >= self.body_span.end
         )
 
 
@@ -136,7 +134,7 @@ class MarkdownSpecification(MarkdownElement):
     """
 
     filepath: Path = field(init=True, repr=False)
-    cursor: Union[MarkdownHeader, MarkdownSpecT] = field(init=False)
+    cursor: Union[MarkdownHeader, MarkdownSpecT] = field(init=False, repr=False)
     content: str = field(init=False, repr=False)
 
     @staticmethod
@@ -176,9 +174,9 @@ class MarkdownSpecification(MarkdownElement):
             for child in reversed(cursor.children):
                 if child.level < new_header.level:
                     return child.add_child(new_header)
-            cursor.add_child(new_header)
+            return cursor.add_child(new_header)
         elif cursor.level >= new_header.level:
-            self._insert_header(cursor.parent, new_header)
+            return self._insert_header(cursor.parent, new_header)
         else:
             raise Exception("The logic for MarkdownSpecification._insert_header is incorrect.")
 
