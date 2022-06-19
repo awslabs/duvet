@@ -9,6 +9,7 @@ from typing import Iterator, TypeVar, Union
 from anytree import NodeMixin
 from attr import define, field
 
+MAX_HEADER_LEVELS: str = str(4)
 SpanT = TypeVar("SpanT", bound="Span")
 SpecificationElementT = TypeVar("SpecificationElementT", bound="SpecificationElement")
 SpecificationHeaderT = TypeVar("SpecificationHeaderT", bound="SpecificationHeader")
@@ -158,7 +159,7 @@ class ParsedSpecification(SpecificationElement, metaclass=ABCMeta):
             self._set_cursor_body(match)
             self.cursor = new_header
         self._handle_last_header()
-        self.reset_header_cursor()
+        self.reset_cursor()
 
     def _insert_header(self, cursor: SpecificationElement, new_header: SpecificationHeader):
         """Insert a Header into the Tree.
@@ -189,6 +190,9 @@ class ParsedSpecification(SpecificationElement, metaclass=ABCMeta):
             span = Span(self.cursor.title_span.end, len(self.content))
             self.cursor.set_body(span)
 
-    def reset_header_cursor(self):
+    def reset_cursor(self):
         """Reset the cursor to root."""
         self.cursor = self
+
+
+__all__ = ("Span", "SpecificationHeader", "ParsedSpecification", "MAX_HEADER_LEVELS")

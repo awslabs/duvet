@@ -6,8 +6,8 @@ from typing import Callable, List
 
 import pytest
 
-from duvet.markdown import MAX_HEADER_LEVELS, MarkdownHeader, MarkdownSpecification
-from duvet.specification_parser import Span
+from duvet.markdown import MarkdownHeader, MarkdownSpecification
+from duvet.specification_parser import MAX_HEADER_LEVELS, Span
 
 from ..utils import populate_file  # isort:skip
 
@@ -25,7 +25,7 @@ HEADER_NEGATIVE_CASES = [
     "#\r",
     "#\f",
     "#\v",
-    "".join(["#" for i in range(0, MAX_HEADER_LEVELS)]),
+    "".join(["#" for i in range(0, int(MAX_HEADER_LEVELS))]),
 ]
 
 
@@ -86,12 +86,12 @@ class TestMarkdownHeader:
 class TestMarkdownSpecification:
     @staticmethod
     @pytest.mark.parametrize(
-        "filename, is_file_format",
+        "filename, is_markdown",
         [(filename, True) for filename in ["markdown.md", "another/markdown.md"]]
         + [(filename, False) for filename in ["not_markdown.rts", "another/markdown.txt"]],
     )
     def test_is_markdown(filename: str, is_markdown: bool):
-        assert MarkdownSpecification.is_markdown(filename) is is_markdown
+        assert MarkdownSpecification.is_file_format(filename) is is_markdown
 
     @staticmethod
     def test_simple(tmp_path):

@@ -7,15 +7,14 @@ from typing import Iterator, TypeVar
 
 from attr import define
 
-from duvet.specification_parser import ParsedSpecification, Span, SpecificationHeader
+from duvet.specification_parser import MAX_HEADER_LEVELS, ParsedSpecification, Span, SpecificationHeader
 
-MAX_HEADER_LEVELS: int = 4
 # From start of string                                 :: ^
 # Match at least 1 up to MAX_HEADER_LEVELS "#"         :: #{1,MAX_HEADER_LEVELS}
-# followed by 1 or more white space excluding new line :: [ \t\r\f\v]+
+# followed by 1 or more white space excluding new line :: [ \t\r]+
 # followed by 1 or more not white space                :: [^\s]+
 # followed by 0 or more not newline                    :: [^\n]*
-HEADER_REGEX = r"(^#{1," + str(MAX_HEADER_LEVELS) + r"}[ \t\r\f\v]+[^\s]+[^\n]*)"
+HEADER_REGEX = r"(^#{1," + MAX_HEADER_LEVELS + r"}[ \t\r]+[^\s]+[^\n]*)"
 # Match A Markdown Header
 IS_HEADER_REGEX = re.compile(HEADER_REGEX)
 # Match All Markdown Headers
@@ -82,3 +81,6 @@ class MarkdownSpecification(ParsedSpecification):
 
     def _new_header(self, match: re.Match) -> SpecificationHeader:
         return MarkdownHeader.from_match(match)
+
+
+__all__ = ("MarkdownHeader", "MarkdownSpecification")
