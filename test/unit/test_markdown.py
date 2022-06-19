@@ -6,7 +6,8 @@ from typing import Callable, List
 
 import pytest
 
-from duvet.markdown import MAX_HEADER_LEVELS, MarkdownHeader, MarkdownSpecification, Span
+from duvet.markdown import MAX_HEADER_LEVELS, MarkdownHeader, MarkdownSpecification
+from duvet.specification_parser import Span
 
 from ..utils import populate_file  # isort:skip
 
@@ -85,7 +86,7 @@ class TestMarkdownHeader:
 class TestMarkdownSpecification:
     @staticmethod
     @pytest.mark.parametrize(
-        "filename, is_markdown",
+        "filename, is_file_format",
         [(filename, True) for filename in ["markdown.md", "another/markdown.md"]]
         + [(filename, False) for filename in ["not_markdown.rts", "another/markdown.txt"]],
     )
