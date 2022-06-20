@@ -99,22 +99,7 @@ def test_extract_python_no_implementation_annotation(pytestconfig):
     path = pytestconfig.rootpath.joinpath("src/duvet/identifiers.py")
     anno_meta_style = "# //="
     anno_content_style = "# //#"
-    # Verify warning
     AnnotationParser([path], anno_meta_style, anno_content_style).extract_implementation_file_annotations()
-    # check that only one warning was raised
-
-
-def test_stand_alone_annotation(tmp_path):
-    actual_path = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-stand-alone-annotation.dfy")
-    actual_annos = AnnotationParser([actual_path])._extract_file_annotations(actual_path)
-    assert len(actual_annos) == 1
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
-    assert actual_annos[0].content == "On client initialization, the caller MUST have the option to providea:"
-    assert (
-        actual_annos[0].uri == "compliance/client-apis/client.txt#2.4$On client initialization, the caller "
-        "MUST have the option to providea:"
-    )
 
 
 def test_run_into_another(tmp_path):
