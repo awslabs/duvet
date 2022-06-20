@@ -100,12 +100,8 @@ def test_extract_python_no_implementation_annotation(pytestconfig):
     anno_meta_style = "# //="
     anno_content_style = "# //#"
     # Verify warning
-    with pytest.warns(UserWarning) as record:
-        AnnotationParser([path], anno_meta_style, anno_content_style).extract_implementation_file_annotations()
+    AnnotationParser([path], anno_meta_style, anno_content_style).extract_implementation_file_annotations()
     # check that only one warning was raised
-    assert len(record) == 1
-    # check that the message matches
-    assert record[0].message.args[0] == (f"{path} do not have any annotations. Skipping file")
 
 
 def test_stand_alone_annotation(tmp_path):

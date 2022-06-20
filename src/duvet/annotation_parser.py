@@ -1,9 +1,9 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Annotation Parser used by duvet-python."""
+import logging
 import pathlib
 import re
-import warnings
 from typing import List, Optional
 
 import attr
@@ -15,10 +15,10 @@ from duvet.structures import Annotation
 
 __all__ = ["AnnotationParser"]
 
-
 # //= compliance/duvet-specification.txt#2.3.1
 # //= type=implication
 # //# If a second meta line exists it MUST start with "type=".
+logging.basicConfig(filename="annotation_parser.log", encoding="utf-8", level=logging.DEBUG)
 
 
 @define
@@ -33,6 +33,7 @@ class AnnotationParser:
     # //# be configurable.
     meta_style: str = DEFAULT_META_STYLE
     content_style: str = DEFAULT_CONTENT_STYLE
+    # TODO: Sanitize user input for regular expression usage # pylint: disable=fixme
     anno_type_regex: re.Pattern = field(init=False, default=re.compile(meta_style + r"[\s]type=" + r"(.*?)\n"))
     anno_meta_regex: re.Pattern = field(init=False, default=re.compile(meta_style + r"[\s](.*?)\n"))
     anno_content_regex: re.Pattern = field(init=False, default=re.compile(content_style + r"\s(.*?)\n"))
@@ -45,7 +46,9 @@ class AnnotationParser:
         for filename in self.paths:  # pylint: disable=not-an-iterable
             temp_list = self._extract_file_annotations(filename)
             if len(temp_list) == 0:
-                warnings.warn(f"{str(filename.resolve())} do not have any annotations. Skipping file")
+                logging.info(
+                    str(filename.resolve()) + "do not have any annotations. " "Skipping file"  # pylint: disable=w1201
+                )
             self.annotations.extend(temp_list)
         return self.annotations
 
@@ -112,7 +115,7 @@ class AnnotationParser:
         assert (
             annotation_start <= annotation_end
         ), f"Start must be less than or equal end. {annotation_start} !< {annotation_end}"
-        new_lines = "".join(lines[annotation_start:annotation_end])
+        new_lines = " ".join(lines[annotation_start:annotation_end])
         if not new_lines.endswith("\n"):
             new_lines = new_lines + "\n"
         return self._extract_annotation(new_lines, annotation_start, annotation_start, file_path)
@@ -122,10 +125,19 @@ class AnnotationParser:
 
         # TODO: If temp_type is none. It could only be citation. # pylint: disable=fixme
         #   I will make another PR to address citation and exception.
-        temp_type = re.search(self.anno_type_regex, lines).group(1).upper()
-        anno_type = AnnotationType[temp_type]
+        temp_type = re.search(self.anno_type_regex, lines)
+        if temp_type is None:
+            anno_type = AnnotationType["CITATION"]
+        else:
+            temp_type = temp_type.group(1).upper()
+            anno_type = AnnotationType[temp_type]
         anno_content = ""
-        target_meta = re.search(self.anno_meta_regex, lines).group(1)
+        target_meta = re.search(self.anno_meta_regex, lines)
+        if target_meta is None:
+            logging.warning(str(file_path.resolve()) + " Invalid annotation ")  # pylint: disable=w1201
+            return None
+        else:
+            target_meta = target_meta.group(1)
         if re.findall(self.anno_content_regex, lines) is not None:
             for temp_content in re.findall(self.anno_content_regex, lines):
                 anno_content = "".join([anno_content, temp_content])

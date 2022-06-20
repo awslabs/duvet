@@ -20,7 +20,6 @@ TEST_DAFNY_STR = (
 expected_content = (
     "* encrypt (encrypt.md) MUST only support algorithm suites that have\n"
     "a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
-    ""
     "suites-encryption-key-derivation-settings) value of False\n"
 ).replace("\n", "")
 
@@ -42,6 +41,35 @@ def test_extract_annotation_block():
         TEST_DAFNY_STR.splitlines(keepends=True), 0, 5, pathlib.Path("test.dfy")
     )
     assert actual_anno.type.name == "IMPLICATION"
+    assert actual_anno.target == "compliance/client-apis/client.txt#2.4.2.1"
+    assert actual_anno.content == expected_content
+    assert actual_anno.uri == "$".join(["compliance/client-apis/client.txt#2.4.2.1", expected_content])
+
+
+def test_extract_annotation_content_block():
+    """Test a valid annotation block in dafny format."""
+    anno_content = (
+        "//# * encrypt (encrypt.md) MUST only support algorithm suites that have\n"
+        "//# a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
+        "//# suites-encryption-key-derivation-settings) value of False\n"
+    )
+    actual_anno = AnnotationParser([pathlib.Path("test.dfy")])._extract_annotation(
+        anno_content, 0, 5, pathlib.Path("test.dfy")
+    )
+    assert actual_anno is None
+
+
+def test_citation():
+    anno_meta_content = (
+        "//= compliance/client-apis/client.txt#2.4.2.1\n"
+        "//# * encrypt (encrypt.md) MUST only support algorithm suites that have\n"
+        "//# a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
+        "//# suites-encryption-key-derivation-settings) value of False\n"
+    )
+    actual_anno = AnnotationParser([pathlib.Path("test.dfy")])._extract_annotation(
+        anno_meta_content, 0, 5, pathlib.Path("test.dfy")
+    )
+    assert actual_anno.type.name == "CITATION"
     assert actual_anno.target == "compliance/client-apis/client.txt#2.4.2.1"
     assert actual_anno.content == expected_content
     assert actual_anno.uri == "$".join(["compliance/client-apis/client.txt#2.4.2.1", expected_content])
