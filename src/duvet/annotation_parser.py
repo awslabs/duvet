@@ -60,12 +60,30 @@ class AnnotationParser:
         curr_line = 0
         annotation_start = -1
         annotation_end = -1
+        state = "CODE"
         while curr_line < len(lines):
             line = lines[curr_line]
-            if (
-                re.search(r"[\s]*" + self.meta_style, line) is not None
-                or re.search(r"[\s]*" + self.content_style, line) is not None
-            ):
+            # If curr_line is part of anno_meta.
+            if re.search(r"[\s]*" + self.meta_style, line) is not None:
+                # Check current state. If state is ANNO_CONTENT.
+                # We should let helper function create an annotation object.
+                if state == "ANNO_CONTENT":
+                    temp_annotation_list.append(
+                        self._extract_annotation_block(lines, annotation_start, annotation_end + 1, file_path)
+                    )
+                    state = "ANNO_META"
+                    annotation_start = curr_line
+                    annotation_end = curr_line
+                elif state == "CODE":
+                    # It should be true if the function is doing it is supposed to do.
+                    assert annotation_start == -1
+                    state = "ANNO_META"
+                    annotation_start = curr_line
+                    annotation_end = curr_line
+                elif state == "ANNO_META":
+                    annotation_end = curr_line
+            elif re.search(r"[\s]*" + self.content_style, line) is not None:
+                state = "ANNO_CONTENT"
                 if annotation_start == -1:
                     annotation_start = curr_line
                     annotation_end = curr_line
@@ -75,6 +93,7 @@ class AnnotationParser:
                 temp_annotation_list.append(
                     self._extract_annotation_block(lines, annotation_start, annotation_end + 1, file_path)
                 )
+                state = "CODE"
                 annotation_start = -1
                 annotation_end = -1
             curr_line += 1
