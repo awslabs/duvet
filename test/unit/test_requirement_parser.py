@@ -1,3 +1,6 @@
+# Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+"""Unit tests for ``duvet.requirement_parser``."""
 import pytest
 
 from duvet.requirement_parser import (
@@ -202,7 +205,7 @@ by excluding the following rows from the table of requirements.
 
 def test_extract_requirements():
     """Test Requirement without list."""
-    test_parser = RequirementParser()
+    test_parser = RequirementParser(["test_requirements.md"])
     assert test_parser.extract_requirements(TEST_REQUIREMENT_STR) == [
         "It MUST show all text from the section.",
         "It MUST highlight the text for every requirement.",
@@ -213,7 +216,7 @@ def test_extract_requirements():
 
 def test_extract_requirements_with_lists_wrapped():
     """Test complicated requirement with list wrapped by inline requirements."""
-    test_parser = RequirementParser()
+    test_parser = RequirementParser(["test_requirements.md"])
     assert test_parser.extract_requirements(TEST_REQUIREMENT_STR_WITH_LIST) == [
         "Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.",
         "A requirement MAY contain multiple RFC 2119 keywords.",
@@ -242,20 +245,20 @@ def test_extract_requirements_with_lists_wrapped():
 def test_extract_inline_requirements_complicated():
     """Test Complicated inline Requirement without list."""
     assert _extract_inline_requirements(
-        TEST_REQUIREMENT_STR_WITH_LIST[300: len(TEST_REQUIREMENT_STR_WITH_LIST) - 1]
-    ) == ["by a list, the text proceeding the list MUST be concatenated with each "
-          "element of the list to form a requirement.",
-          "List elements MAY have RFC 2119 keywords, this is the same as regular "
-          "sentences with multiple keywords.",
-          "Sublists MUST be treated as if the parent item were terminated by the sublist.",
-          "List elements MAY contain a period (.) or exclamation point (!) and this "
-          "punctuation MUST NOT terminate the requirement by excluding the following "
-          "elements from the list of requirements.",
-          "In the case of requirement terminated by a table, the text proceeding the "
-          "table SHOULD be concatenated with each row of the table to form a "
-          "requirement.",
-          "Table cells MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.",
-          "Table cells MAY contain a period (.) or exclamation point (!) and this "
-          "punctuation MUST NOT terminate the requirement by excluding the following "
-          "rows from the table of requirements.",
-          ]
+        TEST_REQUIREMENT_STR_WITH_LIST[300 : len(TEST_REQUIREMENT_STR_WITH_LIST) - 1]
+    ) == [
+        "by a list, the text proceeding the list MUST be concatenated with each "
+        "element of the list to form a requirement.",
+        "List elements MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.",
+        "Sublists MUST be treated as if the parent item were terminated by the sublist.",
+        "List elements MAY contain a period (.) or exclamation point (!) and this "
+        "punctuation MUST NOT terminate the requirement by excluding the following "
+        "elements from the list of requirements.",
+        "In the case of requirement terminated by a table, the text proceeding the "
+        "table SHOULD be concatenated with each row of the table to form a "
+        "requirement.",
+        "Table cells MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.",
+        "Table cells MAY contain a period (.) or exclamation point (!) and this "
+        "punctuation MUST NOT terminate the requirement by excluding the following "
+        "rows from the table of requirements.",
+    ]

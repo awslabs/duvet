@@ -1,14 +1,18 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
+import pathlib
 import re
 import warnings
+from typing import List
 
 import attr
 from attrs import define, field
 
 from duvet.identifiers import RequirementLevel
 from duvet.structures import Requirement, Section
+
+__all__ = ["RequirementParser"]
 
 MARKDOWN_LIST_MEMBER_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))"
 # Match All List identifiers
@@ -37,9 +41,10 @@ WEBSITES = r"[.](com|net|org|io|gov)"
 class RequirementParser:
     """The parser of a requirement in a block."""
 
-    _legacy: bool = False
-    _format: str = "MARKDOWN"
-    _list_entry_regex: re.Pattern = ALL_MARKDOWN_LIST_ENTRY_REGEX
+    _legacy: bool = field(init=False, default=False)
+    _format: str = field(init=False, default="MARKDOWN")
+    _list_entry_regex: re.Pattern = field(init=False, default=ALL_MARKDOWN_LIST_ENTRY_REGEX)
+    _filenames: List[pathlib.Path] = field(init=True)
 
     @classmethod
     def set_legacy(cls):
@@ -89,12 +94,12 @@ class RequirementParser:
             if left_bound_checked and right_bound_checked:
                 # Call the function to take care of the lis of requirements
                 req_in_list = ListRequirements.from_line(
-                    quotes[list_block_left + 2: list_block_right + 2], self._list_entry_regex
+                    quotes[list_block_left + 2 : list_block_right + 2], self._list_entry_regex
                 )
                 temp.extend(req_in_list.to_string_list())
             result.extend(_extract_inline_requirements(quotes[: list_block_left + 2]))
             result.extend(temp)
-            result.extend(self.extract_requirements(quotes[list_block_right + 2:]))
+            result.extend(self.extract_requirements(quotes[list_block_right + 2 :]))
             return result
         else:
             return _extract_inline_requirements(quotes)
@@ -148,7 +153,7 @@ class ListRequirements:
         prev = first_list_identifier[1]
         for match in re.finditer(list_entry_format, quotes):
             if prev < match.span()[0]:
-                temp = quotes[prev: match.span()[0]].strip("\n").replace("\n", " ")
+                temp = quotes[prev : match.span()[0]].strip("\n").replace("\n", " ")
                 prev = match.span()[1]
                 matched_span.append(temp)
         # last element of th list
