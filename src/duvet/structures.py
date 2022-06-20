@@ -40,7 +40,7 @@ class Annotation:
     location: str
 
     def location_to_string(self) -> str:
-        """Return annotation location"""
+        """Return annotation location."""
         return f"{self.location}#L{self.start_line}-L{self.end_line}"
 
 
@@ -265,11 +265,15 @@ class Report:
         else:
             return self.specifications[spec_id].add_annotation(annotation)  # pylint: disable=E1136
 
+
 @define
 class ExceptionAnnotation(Annotation):
-    reason : str = field(init=False)
-    has_reason : bool = field(init=False)
+    """Exception annotations in duvet."""
 
-    def add_reason(self, reason:str):
+    reason: str = field(init=False)
+    has_reason: bool = field(init=False)
+
+    def add_reason(self, reason: str):
+        """Add reason to exception."""
         self.reason = reason
         self.has_reason = True
