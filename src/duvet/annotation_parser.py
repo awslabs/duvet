@@ -46,7 +46,7 @@ class AnnotationParser:
         for filename in self.paths:  # pylint: disable=not-an-iterable
             temp_list = self._extract_file_annotations(filename)
             if len(temp_list) == 0:
-                logging.info(# pylint: disable=w1201
+                logging.info(  # pylint: disable=w1201
                     str(filename.resolve()) + "do not have any annotations. " "Skipping file"
                 )
             self.annotations.extend(temp_list)
