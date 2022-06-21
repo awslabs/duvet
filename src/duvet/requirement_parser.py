@@ -1,7 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
-import pathlib
 import re
 import warnings
 from typing import List
@@ -57,7 +56,7 @@ class RequirementParser:
         cls._format = "RFC"
         cls._list_entry_regex = ALL_RFC_LIST_ENTRY_REGEX
 
-    def extract_requirements(self, quotes: str) -> list:
+    def extract_requirements(self, quotes: str) -> List[str]:
         """Take a chunk of string in section.
 
         Create a list of sentences containing RFC2019 keywords.
@@ -212,7 +211,7 @@ def create_requirements_from_list_to_section(section: Section, list_req: list) -
 
         Creates Requirement Object within that section
         """
-        return Requirement(level, _req_line, "$".join([_section.uri  , str(_req_line)]))
+        return Requirement(level, _req_line, "$".join([_section.uri, str(_req_line)]))
 
     requirement_list = []
     for req_line in list_req:

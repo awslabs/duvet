@@ -3,28 +3,30 @@
 """Requirement Parser used by duvet-python."""
 import os
 import pathlib
-import re
-import warnings
 from typing import List, Optional
 
-import attr
 import toml
-from attrs import define, field
+from attrs import define
 
-from duvet.identifiers import RequirementLevel
-from duvet.requirement_parser import RequirementParser, ALL_MARKDOWN_LIST_ENTRY_REGEX, SENTENCE_DIVIDER, \
-    REQUIREMENT_IDENTIFIER_REGEX, _preprocess_inline_requirements, ListRequirements, _extract_inline_requirements, \
-    create_requirements_from_list_to_section
-from duvet.structures import Requirement, Section, Report, Specification
+from duvet.requirement_parser import (
+    RequirementParser,
+    create_requirements_from_list_to_section,
+)
+from duvet.structures import Report, Section, Specification
 
 __all__ = ["MDRequirementParser"]
 
 
 @define
 class MDRequirementParser:
+    """Parser for specification in markdown format."""
 
     @staticmethod
     def extract_md_specs(patterns: str, path: pathlib.Path, md_report: Optional[Report] = None) -> Report:
+        """Given pattern and filepath of markdown specs.
+
+        Return or create a report.
+        """
         if md_report is None:
             md_report = Report()
         for temp_md in pathlib.Path(path).glob(patterns):
@@ -35,66 +37,69 @@ class MDRequirementParser:
 
 @define
 class MDSpec:
+    """Parser for specification in Markdown."""
 
     @staticmethod
-    def load(markdown_spec_dir: pathlib.Path) -> Optional[Specification]:
-        markdown_spec = open(markdown_spec_dir, "r")
-        lines = markdown_spec.readlines()
-        h1 = "h1"
-        h2 = "h2"
-        h3 = "h3"
-        h4 = "h4"
-        h5 = "h5"
-        section_state = ""
-        requirement_state = ""
-        specification_state = ""
+    def load(markdown_spec_dir: pathlib.Path) -> Optional[Specification]:  # pylint:disable=R0914
+        """Given a filepath of a markdown spec.
+
+        Return a specification or none.
+        """
+        with open(markdown_spec_dir, "r", encoding="utf-8") as markdown_spec:
+            lines = markdown_spec.readlines()
+        heading1 = "h1"
+        heading2 = "h2"
+        heading3 = "h3"
+        heading4 = "h4"
         curr_line = 0
         spec = Specification(markdown_spec_dir.name, str(os.path.relpath(markdown_spec_dir, pathlib.Path.cwd())))
-        # print(spec)
-        section_lists = []
-        section_start = 0
-        section_end = 0
-        curr_section = Section(h4, "#".join([spec.spec_dir, h4.split(".")[-1]]), curr_line, curr_line)
-        # for this toy script we only support update to h4
+        curr_section = Section(heading4, "#".join([spec.spec_dir, heading4.rsplit(".", maxsplit=1)[-1]]), curr_line,
+                               curr_line)
+        # for this toy script we only support update to heading4
         # which would be an equivalent to rfc in 1.1.1
         while curr_line < len(lines):
             line = lines[curr_line]
             if "#### " in line:
-                target = line.replace("#### ", h1 + ".").replace(" ", "-").removesuffix("\n").lower()
-                h4 = line.replace("#### ", h3 + ".").replace(" ", "-").removesuffix("\n").lower()
+                target = line.replace("#### ", heading1 + ".").replace(" ", "-").removesuffix("\n").lower()
+                heading4 = line.replace("#### ", heading3 + ".").replace(" ", "-").removesuffix("\n").lower()
                 # set the end line of the previous section
                 curr_section.end_line = curr_line - 1
                 # set the start line of the new section
-                curr_section = Section(h4, "#".join([spec.spec_dir, h4.split(".")[-1]]), curr_line, curr_line)
-                # turn the new section to curr_section
-                spec.sections[h4] = curr_section
-                # print(target)
-                # print(h4)
-            elif "### " in line:
-                target = line.replace("### ", h1 + ".").replace(" ", "-").removesuffix("\n").lower()
-                h3 = line.replace("### ", h2 + ".").replace(" ", "-").removesuffix("\n").replace("/", "").lower()
-                # set the end line of the previous section
-                curr_section.end_line = curr_line - 1
-                # set the start line of the new section
-                curr_section = Section(h3, "#".join([spec.spec_dir, h3.split(".")[-1]]), curr_line, curr_line)
-                # turn the new section to curr_section
-                spec.sections[h3] = curr_section
-                # print(target)
-                # print(h3)
-            elif "## " in line:
-                h2 = line.removeprefix("## ").removesuffix("\n").lower()
-                # set the end line of the previous section
-                curr_section.end_line = curr_line - 1
-                # set the start line of the new section
-                curr_section = Section(h2, "#".join([str(markdown_spec_dir.resolve()), h2.split(".")[-1]]), curr_line,
+                curr_section = Section(heading4, "#".join([spec.spec_dir, heading4.split(".")[-1]]), curr_line,
                                        curr_line)
                 # turn the new section to curr_section
-                spec.sections[h2] = curr_section
-                # print(h2)
+                spec.sections.setdefault(heading4, curr_section)
+                # print(target)
+                # print(heading4)
+            elif "### " in line:
+                target = line.replace("### ", heading1 + ".").replace(" ", "-").removesuffix("\n").lower()
+                heading3 = line.replace("### ", heading2 + ".").replace(" ", "-").removesuffix("\n").replace("/",
+                                                                                                             "").lower()
+                # set the end line of the previous section
+                curr_section.end_line = curr_line - 1
+                # set the start line of the new section
+                curr_section = Section(heading3, "#".join([spec.spec_dir, heading3.split(".")[-1]]), curr_line,
+                                       curr_line)
+                # turn the new section to curr_section
+                spec.sections.setdefault(heading3, curr_section)
+                # print(target)
+                # print(heading3)
+            elif "## " in line:
+                heading2 = line.removeprefix("## ").removesuffix("\n").lower()
+                # set the end line of the previous section
+                curr_section.end_line = curr_line - 1
+                # set the start line of the new section
+                curr_section = Section(
+                    heading2, "#".join([str(markdown_spec_dir.resolve()), heading2.split(".")[-1]]), curr_line,
+                    curr_line
+                )
+                # turn the new section to curr_section
+                spec.sections.setdefault(heading2, curr_section)
+                # print(heading2)
             elif "# " in line and curr_line == 1:  # we do not really want the title here
-                curr_state = "section_candidate"
-                h1 = line.removeprefix("# ").replace(" ", "-").removesuffix("\n").lower()
-                # print(h1)
+                # curr_state = "section_candidate"
+                heading1 = line.removeprefix("# ").replace(" ", "-").removesuffix("\n").lower()
+                # print(heading1)
 
             # increment current line by one
             curr_line += 1
@@ -109,23 +114,23 @@ class MDSpec:
         #             print(section_line)
         #         section_curr_line += 1
         #     section.requirements = reqs
-        def _extract_requirements(section: Section, lines: list) -> bool:
-            quotes = "".join(lines[section.start_line:section.end_line])
+        def _extract_requirements(section: Section, lines: List[str]) -> bool:
+            quotes = "".join(lines[section.start_line: section.end_line])
             req_list_str = RequirementParser().extract_requirements(quotes)
             return create_requirements_from_list_to_section(section, req_list_str)
 
-        for s in spec.sections.values():
-            _extract_requirements(s, lines)
-            print(s)
+        for temp_section in spec.sections.values():
+            _extract_requirements(temp_section, lines)
+            # print(s)
 
-        for s in spec.sections.values():
-            with open(s.title + ".toml", "w") as f:
-                h = s.title.split(".")
-                target = spec.spec_dir + "#" + h[- 1]
+        for temp_section in spec.sections.values():
+            with open(temp_section.title + ".toml", "w", encoding="utf-8") as temp_file:
+                temp_heading = temp_section.title.split(".")
+                target = spec.spec_dir + "#" + temp_heading[-1]
                 spec_dict = []
-                for r in s.requirements.values():
-                    temp_dict = {"level": r.requirement_level.name, "quote": r.content}
+                for temp_req in temp_section.requirements.values():
+                    temp_dict = {"level": temp_req.requirement_level.name, "quote": temp_req.content}
                     spec_dict.append(temp_dict)
 
-                st = {"target": target, "spec": spec_dict}
-                new_toml_string = toml.dump(st, f)
+                toml_dict = {"target": target, "spec": spec_dict}
+                toml.dump(toml_dict, temp_file)

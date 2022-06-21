@@ -205,7 +205,7 @@ by excluding the following rows from the table of requirements.
 
 def test_extract_requirements():
     """Test Requirement without list."""
-    test_parser = RequirementParser(["test_requirements.md"])
+    test_parser = RequirementParser()
     assert test_parser.extract_requirements(TEST_REQUIREMENT_STR) == [
         "It MUST show all text from the section.",
         "It MUST highlight the text for every requirement.",
@@ -216,7 +216,7 @@ def test_extract_requirements():
 
 def test_extract_requirements_with_lists_wrapped():
     """Test complicated requirement with list wrapped by inline requirements."""
-    test_parser = RequirementParser(["test_requirements.md"])
+    test_parser = RequirementParser()
     assert test_parser.extract_requirements(TEST_REQUIREMENT_STR_WITH_LIST) == [
         "Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.",
         "A requirement MAY contain multiple RFC 2119 keywords.",

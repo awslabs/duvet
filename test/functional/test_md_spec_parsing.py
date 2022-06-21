@@ -11,6 +11,7 @@ from duvet.spec_md_parser import MDSpec
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
+
 def test_extract_python_no_implementation_annotation(pytestconfig):
     path = pytestconfig.rootpath.joinpath("duvet-specification", "duvet-specification.md")
-    print(MDSpec.load(path))
+    MDSpec.load(path)
