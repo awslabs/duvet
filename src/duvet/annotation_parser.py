@@ -4,14 +4,14 @@
 import logging
 import pathlib
 import re
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import attr
 from attrs import define, field
 
 from duvet._config import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
 from duvet.identifiers import AnnotationType
-from duvet.structures import Annotation
+from duvet.structures import Annotation, ExceptionAnnotation
 
 __all__ = ["AnnotationParser"]
 
@@ -35,6 +35,7 @@ class AnnotationParser:
     content_style: str = DEFAULT_CONTENT_STYLE
     # TODO: Sanitize user input for regular expression usage # pylint: disable=fixme
     anno_type_regex: re.Pattern = field(init=False, default=re.compile(meta_style + r"[\s]type=" + r"(.*?)\n"))
+    anno_reason_regex: re.Pattern = field(init=False, default=re.compile(meta_style + r"[\s]reason=" + r"(.*?)\n"))
     anno_meta_regex: re.Pattern = field(init=False, default=re.compile(meta_style + r"[\s](.*?)\n"))
     anno_content_regex: re.Pattern = field(init=False, default=re.compile(content_style + r"\s(.*?)\n"))
 
@@ -120,17 +121,13 @@ class AnnotationParser:
             new_lines = new_lines + "\n"
         return self._extract_annotation(new_lines, annotation_start, annotation_start, file_path)
 
-    def _extract_annotation(self, lines: str, start: int, end: int, file_path: pathlib.Path) -> Optional[Annotation]:
+    def _extract_annotation(
+        self, lines: str, start: int, end: int, file_path: pathlib.Path
+    ) -> Union[Annotation, ExceptionAnnotation, None]:
         """Take a chunk of comments and extract or none annotation object from it."""
 
-        # TODO: If temp_type is none. It could only be citation. # pylint: disable=fixme
         #   I will make another PR to address citation and exception.
         temp_type = re.search(self.anno_type_regex, lines)
-        if temp_type is None:
-            anno_type = AnnotationType["CITATION"]
-        else:
-            temp_type = temp_type.group(1).upper()
-            anno_type = AnnotationType[temp_type]
         anno_content = ""
         target_meta = re.search(self.anno_meta_regex, lines)
         if target_meta is None:
@@ -142,6 +139,39 @@ class AnnotationParser:
             for temp_content in re.findall(self.anno_content_regex, lines):
                 anno_content = "".join([anno_content, temp_content])
         anno_content = anno_content.replace("\n", "")
-        return Annotation(
-            target_meta, anno_type, anno_content, start, end, "$".join([target_meta, anno_content]), file_path.resolve()
-        )
+        # If temp_type is none. It could only be citation.
+        if temp_type is None:
+            anno_type = AnnotationType["CITATION"]
+        else:
+            temp_type = temp_type.group(1).upper()
+            anno_type = AnnotationType[temp_type]
+        if anno_type == AnnotationType.EXCEPTION:
+            anno_reason = re.search(self.anno_reason_regex, lines.split(self.content_style, maxsplit=1)[0])
+            target_meta = re.search(self.anno_meta_regex, lines.rsplit("type=", maxsplit=1)[0])
+            if target_meta is None:
+                logging.warning(str(file_path.resolve()) + " Invalid annotation ")  # pylint: disable=w1201
+                return None
+            else:
+                target_meta = target_meta.group(1)
+            result = ExceptionAnnotation(
+                target_meta,
+                anno_type,
+                anno_content,
+                start,
+                end,
+                "$".join([target_meta, anno_content]),
+                file_path.resolve(),
+            )
+            if anno_reason is not None:
+                result.add_reason(anno_reason.group(1))
+            return result
+        else:
+            return Annotation(
+                target_meta,
+                anno_type,
+                anno_content,
+                start,
+                end,
+                "$".join([target_meta, anno_content]),
+                file_path.resolve(),
+            )

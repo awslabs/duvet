@@ -73,3 +73,33 @@ def test_citation():
     assert actual_anno.target == "compliance/client-apis/client.txt#2.4.2.1"
     assert actual_anno.content == expected_content
     assert actual_anno.uri == "$".join(["compliance/client-apis/client.txt#2.4.2.1", expected_content])
+
+
+def test_reasoned_exception():
+    reasoned_exception = (
+        "//= compliance/client-apis/client.txt#2.4.2.1\n"
+        "//= type=exception\n"
+        "//= reason=This is a reason\n"
+        "//# * encrypt (encrypt.md) MUST only support algorithm suites that have\n"
+        "//# a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
+        "//# suites-encryption-key-derivation-settings) value of False\n"
+    )
+    actual_anno = AnnotationParser([pathlib.Path("test.dfy")])._extract_annotation(
+        reasoned_exception, 0, 5, pathlib.Path("test.dfy")
+    )
+    assert actual_anno.type.name == "EXCEPTION"
+
+
+def test_unreasoned_exception():
+    reasoned_exception = (
+        "//= compliance/client-apis/client.txt#2.4.2.1\n"
+        "//= type=exception\n"
+        "//# * encrypt (encrypt.md) MUST only support algorithm suites that have\n"
+        "//# a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
+        "//# suites-encryption-key-derivation-settings) value of False\n"
+    )
+    actual_anno = AnnotationParser([pathlib.Path("test.dfy")])._extract_annotation(
+        reasoned_exception, 0, 5, pathlib.Path("test.dfy")
+    )
+    assert actual_anno.type.name == "EXCEPTION"
+    assert not actual_anno.has_reason

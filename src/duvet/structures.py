@@ -271,7 +271,7 @@ class ExceptionAnnotation(Annotation):
     """Exception annotations in duvet."""
 
     reason: str = field(init=False)
-    has_reason: bool = field(init=False)
+    has_reason: bool = field(init=False, default=False)
 
     def add_reason(self, reason: str):
         """Add reason to exception."""
