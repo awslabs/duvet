@@ -69,7 +69,7 @@ def test_2_valid_file(tmp_path):
         "On client initialization, the caller MUST have the option to providea:"
     )
     assert actual_annos[0].uri == (  # pylint: disable=(unsubscriptable-object
-        "compliance/client-apis/client.txt#2.4$On client initialization, the caller MUST have the option to providea:"
+        "compliance/client-apis/client.txt#2.4$On client initialization, the caller MUST have the option to provide a:"
     )
 
 
@@ -114,7 +114,7 @@ def test_run_into_another(tmp_path):
     assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
     assert (
         actual_annos[0].content
-        == "The IV length MUST be equal to the IVlength of the algorithm suite specified by the "
+        == "The IV length MUST be equal to the IV length of the algorithm suite specified by the "
         "Algorithm Suite ID(message-header.md#algorithm-suite-id) field."
     )
     # Verify the last annotation is not broken.
@@ -124,7 +124,7 @@ def test_run_into_another(tmp_path):
     )
     assert actual_annos[0].uri == (
         "compliance/data-format/message-body.txt#2.5.2.1.2$The IV length MUST be "
-        "equal to the IVlength of the algorithm suite specified by the Algorithm "
+        "equal to the IV length of the algorithm suite specified by the Algorithm "
         "Suite ID(message-header.md#algorithm-suite-id) field."
     )
 
@@ -139,14 +139,14 @@ def test_annotation_end_a_file(tmp_path):
     assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
     assert (
         actual_annos[0].content
-        == "Each frame in the Framed Data (Section 2.5.2) MUST include an IV thatis unique within "
+        == "Each frame in the Framed Data (Section 2.5.2) MUST include an IV that is unique within "
         "the message."
     )
     # Verify the last annotation is not broken.
     assert actual_annos[1].content == ("The IV MUST be a unique IV within the message.")
     assert (
         actual_annos[0].uri == "compliance/data-format/message-body.txt#2.5.2.1.2$Each frame in the Framed Data "
-        "(Section 2.5.2) MUST include an IV thatis unique within the message."
+        "(Section 2.5.2) MUST include an IV that is unique within the message."
     )
     assert (
         actual_annos[1].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
@@ -173,7 +173,7 @@ def test_annotation_only(tmp_path):
     )
     assert (
         actual_annos[1].uri == "compliance/data-format/message-body.txt#2.5.2.1.2$Each frame in the Framed Data "
-        "(Section 2.5.2) MUST include an IV thatis unique within the message."
+        "(Section 2.5.2) MUST include an IV that is unique within the message."
     )
     assert (
         actual_annos[2].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "

@@ -21,7 +21,7 @@ expected_content = (
     "* encrypt (encrypt.md) MUST only support algorithm suites that have\n"
     "a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
     "suites-encryption-key-derivation-settings) value of False\n"
-).replace("\n", "")
+).replace("\n", " ")
 
 
 def test_extract_annotation():

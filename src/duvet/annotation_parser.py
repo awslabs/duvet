@@ -7,7 +7,7 @@ import re
 from typing import List, Optional, Union
 
 import attr
-from attrs import define, field
+from attr import define, field
 
 from duvet._config import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
 from duvet.identifiers import AnnotationType
@@ -47,9 +47,7 @@ class AnnotationParser:
         for filename in self.paths:  # pylint: disable=not-an-iterable
             temp_list = self._extract_file_annotations(filename)
             if len(temp_list) == 0:
-                logging.info(  # pylint: disable=w1201
-                    str(filename.resolve()) + "do not have any annotations. " "Skipping file"
-                )
+                logging.info("%s does not have any annotations. Skipping.", str(filename.resolve()))
             self.annotations.extend(temp_list)
         return self.annotations
 
@@ -130,7 +128,7 @@ class AnnotationParser:
         if re.findall(self.anno_content_regex, lines) is not None:
             for temp_content in re.findall(self.anno_content_regex, lines):
                 anno_content = " ".join([anno_content, temp_content])
-        anno_content = anno_content.replace("\n", "")
+        anno_content = anno_content.replace("\n", " ")
         # If temp_type is none. It could only be citation.
         if temp_type is None:
             anno_type = AnnotationType["CITATION"]
