@@ -129,7 +129,7 @@ class AnnotationParser:
         anno_content = ""
         if re.findall(self.anno_content_regex, lines) is not None:
             for temp_content in re.findall(self.anno_content_regex, lines):
-                anno_content = "".join([anno_content, temp_content])
+                anno_content = " ".join([anno_content, temp_content])
         anno_content = anno_content.replace("\n", "")
         # If temp_type is none. It could only be citation.
         if temp_type is None:
