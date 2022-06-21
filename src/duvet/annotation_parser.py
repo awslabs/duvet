@@ -113,9 +113,8 @@ class AnnotationParser:
     ) -> Optional[Annotation]:
         """Take a block of comments and extract one or none annotation object from it."""
 
-        assert (
-                annotation_start <= annotation_end
-        ), f"Start must be less than or equal end. {annotation_start} !< {annotation_end}"
+        assert (annotation_start <= annotation_end
+                ), f"Start must be less than or equal end. {annotation_start} !< {annotation_end}"
         new_lines = " ".join(lines[annotation_start:annotation_end])
         if not new_lines.endswith("\n"):
             new_lines = new_lines + "\n"
@@ -126,15 +125,8 @@ class AnnotationParser:
     ) -> Union[Annotation, ExceptionAnnotation, None]:
         """Take a chunk of comments and extract or none annotation object from it."""
 
-        #   I will make another PR to address citation and exception.
         temp_type = re.search(self.anno_type_regex, lines)
         anno_content = ""
-        target_meta = re.search(self.anno_meta_regex, lines)
-        if target_meta is None:
-            logging.warning(str(file_path.resolve()) + " Invalid annotation ")  # pylint: disable=w1201
-            return None
-        else:
-            target_meta = target_meta.group(1)
         if re.findall(self.anno_content_regex, lines) is not None:
             for temp_content in re.findall(self.anno_content_regex, lines):
                 anno_content = "".join([anno_content, temp_content])
@@ -146,34 +138,14 @@ class AnnotationParser:
             temp_type = temp_type.group(1).upper()
             anno_type = AnnotationType[temp_type]
         if anno_type == AnnotationType.EXCEPTION:
-            meta_str = lines.split(self.content_style, maxsplit=1)[0]
-            anno_reason = re.search(self.anno_reason_regex, meta_str)
-            if anno_reason is not None:
-                target_meta = re.search(self.anno_meta_regex, meta_str[:anno_reason.span()[0]])
-            else:
-                target_meta = re.search(self.anno_meta_regex, meta_str)
+            return self._extract_exception(lines, start, end, file_path, anno_content)
+        else:
+            target_meta = re.search(self.anno_meta_regex, lines)
             if target_meta is None:
                 logging.warning(str(file_path.resolve()) + " Invalid annotation ")  # pylint: disable=w1201
                 return None
             else:
                 target_meta = target_meta.group(1)
-            result = ExceptionAnnotation(
-                target_meta,
-                anno_type,
-                anno_content,
-                start,
-                end,
-                "$".join([target_meta, anno_content]),
-                file_path.resolve(),
-            )
-            if anno_reason is not None:
-                anno_reason_str = anno_reason.group(1)
-                if re.findall(self.anno_content_regex, meta_str[anno_reason.span()[1]:]) is not None:
-                    for temp_content in re.findall(self.anno_meta_regex, meta_str[anno_reason.span()[1]:]):
-                        anno_reason_str = " ".join([anno_reason_str, temp_content])
-                result.add_reason(anno_reason_str)
-            return result
-        else:
             return Annotation(
                 target_meta,
                 anno_type,
@@ -183,3 +155,34 @@ class AnnotationParser:
                 "$".join([target_meta, anno_content]),
                 file_path.resolve(),
             )
+
+    def _extract_exception(
+            self, lines: str, start: int, end: int, file_path: pathlib.Path, anno_content: str
+    ) -> Optional[ExceptionAnnotation]:
+        meta_str = lines.split(self.content_style, maxsplit=1)[0]
+        anno_reason = re.search(self.anno_reason_regex, meta_str)
+        if anno_reason is not None:
+            target_meta = re.search(self.anno_meta_regex, meta_str[:anno_reason.span()[0]])
+        else:
+            target_meta = re.search(self.anno_meta_regex, meta_str)
+        if target_meta is None:
+            logging.warning(str(file_path.resolve()) + " Invalid annotation ")  # pylint: disable=w1201
+            return None
+        else:
+            target_meta = target_meta.group(1)
+        result = ExceptionAnnotation(
+            target_meta,
+            AnnotationType.EXCEPTION,
+            anno_content,
+            start,
+            end,
+            "$".join([target_meta, anno_content]),
+            file_path.resolve(),
+        )
+        if anno_reason is not None:
+            anno_reason_str = anno_reason.group(1)
+            if re.findall(self.anno_content_regex, meta_str[anno_reason.span()[1]:]) is not None:
+                for temp_content in re.findall(self.anno_meta_regex, meta_str[anno_reason.span()[1]:]):
+                    anno_reason_str = " ".join([anno_reason_str, temp_content])
+            result.add_reason(anno_reason_str)
+        return result
