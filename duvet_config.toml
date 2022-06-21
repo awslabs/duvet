@@ -5,7 +5,7 @@ comment-style = { meta = "#//=", content = "#//#" }
 [spec.markdown]
 patterns = ["duvet-specification/duvet-specification.md"]
 [spec.toml]
-patterns = ["compliance/**/*.toml"]
+patterns = ["duvet-specification/compliance/**/*.toml"]
 [report]
 [report.blob]
 url = ["https://github.com/awslabs/duvet/blob/"]

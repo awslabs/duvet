@@ -6,12 +6,12 @@ import shutil
 
 import click
 
-from duvet._config import Config
+from _config import Config
 
 __all__ = ("run",)
 
 # from annotation_parser import AnnotationParser
-from duvet.spec_toml_parser import TomlRequirementParser
+from spec_toml_parser import TomlRequirementParser
 
 
 def _center_pad(*, message: str, pad: str) -> str:
@@ -49,4 +49,5 @@ def run(*, config: Config) -> bool:
         #                                        impl_config.meta_style).extract_implementation_file_annotations())
     for anno in all_annotations:
         test_report.add_annotation(anno)
+    print(test_report)
     return test_report.pass_fail

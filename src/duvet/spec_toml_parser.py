@@ -8,8 +8,8 @@ from typing import Dict, List, Optional
 import toml
 from attrs import define
 
-from duvet.identifiers import RequirementLevel
-from duvet.structures import Report, Requirement, Section, Specification
+from identifiers import RequirementLevel
+from structures import Report, Requirement, Section, Specification
 
 __all__ = ["TomlRequirementParser"]
 
