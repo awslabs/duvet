@@ -1,0 +1,3 @@
+mypy~=0.961
+mypy_extensions
+typing>=3.6.2
