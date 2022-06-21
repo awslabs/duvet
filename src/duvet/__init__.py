@@ -6,8 +6,8 @@ from typing import Optional
 
 import click
 
-import duvet._config
-import duvet._run_checks
+from duvet._config import Config
+from duvet._run_checks import run
 
 __all__ = ("__version__", "cli")
 
@@ -38,7 +38,7 @@ def cli(config: Optional[str], verbose: int):
         except KeyError as error:
             raise click.exceptions.BadOptionUsage(
                 option_name="config",
-                message=f"Config file must provided.",
+                message="Config file must provided.",
             ) from error
         if not os.path.isfile(config):
             raise click.BadOptionUsage(
@@ -46,11 +46,11 @@ def cli(config: Optional[str], verbose: int):
                 message=f"Requested config file '{config}' does not exist or is not a file",
             )
 
-    parsed_config = _config.Config.parse(config)
-    success = _run_checks.run(config=parsed_config)
+    parsed_config = Config.parse(config)
+    success = run(config=parsed_config)
     if not success:
         raise click.ClickException("Checks failed!")
 
 
 if __name__ == "__main__":
-    cli()
+    cli() # pylint:disable=E1120

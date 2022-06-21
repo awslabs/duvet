@@ -35,8 +35,7 @@ def _check_fail(filename: str):
 
 
 def run(*, config: Config) -> bool:
-    """Run all configured checks and return the desired shell exit code."""
-    all_checks_passed = True
+    """Run all specification checks."""
     # Extractions
     # Because we currently got only toml parser, let's give a try.
     path = pathlib.Path("./duvet-specification").resolve()
@@ -44,7 +43,7 @@ def run(*, config: Config) -> bool:
     test_report = TomlRequirementParser.extract_toml_specs(patterns, path)
     # Extract all annotations.
     all_annotations = []
-    for impl_config in config.implementation_configs:
+    for _impl_config in config.implementation_configs:
         pass
         # all_annotations.extend(AnnotationParser(impl_config.impl_filenames, impl_config.meta_style,
         #                                        impl_config.meta_style).extract_implementation_file_annotations())
