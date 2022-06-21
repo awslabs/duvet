@@ -15,6 +15,7 @@ __all__ = ["Config"]
 DEFAULT_META_STYLE = "//="
 DEFAULT_CONTENT_STYLE = "//#"
 
+# TODO:  update _config to handle spec.toml
 
 @define
 class ImplConfig:
