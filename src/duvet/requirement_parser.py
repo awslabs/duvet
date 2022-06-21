@@ -12,7 +12,7 @@ from attrs import define, field
 from duvet.identifiers import RequirementLevel
 from duvet.structures import Requirement, Section
 
-__all__ = ["RequirementParser"]
+# __all__ = ["RequirementParser"]
 
 MARKDOWN_LIST_MEMBER_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))"
 # Match All List identifiers
@@ -44,7 +44,7 @@ class RequirementParser:
     _legacy: bool = field(init=False, default=False)
     _format: str = field(init=False, default="MARKDOWN")
     _list_entry_regex: re.Pattern = field(init=False, default=ALL_MARKDOWN_LIST_ENTRY_REGEX)
-    _filenames: List[pathlib.Path] = field(init=True)
+    # _filenames: List[pathlib.Path] = field(init=True)
 
     @classmethod
     def set_legacy(cls):
@@ -212,7 +212,7 @@ def create_requirements_from_list_to_section(section: Section, list_req: list) -
 
         Creates Requirement Object within that section
         """
-        return Requirement(level, _req_line, _section.uri + "$" + _req_line)
+        return Requirement(level, _req_line, "$".join([_section.uri  , str(_req_line)]))
 
     requirement_list = []
     for req_line in list_req:
@@ -221,7 +221,7 @@ def create_requirements_from_list_to_section(section: Section, list_req: list) -
         elif "SHOULD" in req_line:
             requirement_list.append(_create_requirement(RequirementLevel.SHOULD, req_line, section))
         elif "MAY" in req_line:
-            requirement_list.append(_create_requirement(RequirementLevel.MUST, req_line, section))
+            requirement_list.append(_create_requirement(RequirementLevel.MAY, req_line, section))
         else:
             warnings.warn('No RFC2019 Keywords found in "' + req_line + '"')
 
