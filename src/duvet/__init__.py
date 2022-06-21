@@ -53,4 +53,4 @@ def cli(config: Optional[str], verbose: int):
 
 
 if __name__ == "__main__":
-    cli() # pylint:disable=E1120
+    cli()  # pylint:disable=E1120
