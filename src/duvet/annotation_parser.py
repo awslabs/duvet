@@ -16,12 +16,6 @@ from duvet.structures import Annotation, ExceptionAnnotation
 __all__ = ["AnnotationParser"]
 
 
-# //= compliance/duvet-specification.txt#2.3.1
-# //= type=implication
-# //# If a second meta line exists it MUST start with "type=".
-# logging.basicConfig(filename="annotation_parser.log", encoding="utf-8", level=logging.DEBUG)
-
-
 @define
 class AnnotationBlock:
     """Container of annotation block.
@@ -158,6 +152,9 @@ class AnnotationFile:
     annotations: List[Annotation] = field(init=False, default=attr.Factory(list))
 
     def __attrs_post_init__(self):
+        # //= compliance/duvet-specification.txt#2.3.1
+        # //= type=implication
+        # //# If a second meta line exists it MUST start with "type=".
         self.anno_type_regex = re.compile(self.meta_style + r"[\s]type=" + r"(.*?)\n")
         self.anno_reason_regex = re.compile(self.meta_style + r"[\s]reason=" + r"(.*?)\n")
         self.anno_meta_regex = re.compile(self.meta_style + r"[\s](.*?)\n")
