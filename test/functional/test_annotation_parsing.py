@@ -84,15 +84,15 @@ def test_extract_python_implementation_annotation(pytestconfig):
     ).extract_implementation_file_annotations()
     # Verify two annotation is added to parser
     assert len(actual_annos) == 2
-    assert actual_annos[0].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
+    assert actual_annos[1].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
     assert (
-        actual_annos[0].target == "compliance/duvet-specification.txt#2.3.1"  # pylint: disable=(unsubscriptable-object
+        actual_annos[1].target == "compliance/duvet-specification.txt#2.3.1"  # pylint: disable=(unsubscriptable-object
     )
     assert (
-        actual_annos[0].content  # pylint: disable=(unsubscriptable-object
+        actual_annos[1].content  # pylint: disable=(unsubscriptable-object
         == 'If a second meta line exists it MUST start with "type=".'
     )
-    assert actual_annos[0].uri == (  # pylint: disable=(unsubscriptable-object
+    assert actual_annos[1].uri == (  # pylint: disable=(unsubscriptable-object
         'compliance/duvet-specification.txt#2.3.1$If a second meta line exists it MUST start with "type=".'
     )
 
