@@ -76,4 +76,5 @@ setup(
         "Programming Language :: Python :: Implementation :: CPython",
         "Topic :: Software Development",
     ],
+    entry_points={"console_scripts": ["duvet=duvet:cli"]},
 )
