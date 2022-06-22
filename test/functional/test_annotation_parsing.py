@@ -10,6 +10,8 @@ from ..utils import populate_file  # isort:skip
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
+# pylint: disable=E1136
+
 TEST_DFY_BLOCK = """        //= compliance/client-apis/client.txt#2.4
         //= type=implication
         //# On client initialization, the caller MUST have the option to provide
@@ -48,7 +50,7 @@ ANNOTATION_END_OF_FILE = """
 
 def test_one_valid_file(tmp_path):
     actual_path = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet.dfy")
-    actual_annos = AnnotationParser([actual_path])._extract_file_annotations(actual_path)
+    actual_annos = AnnotationParser([actual_path]).extract_implementation_file_annotations()
     assert len(actual_annos) == 1
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
@@ -106,7 +108,7 @@ def test_run_into_another(tmp_path):
     actual_path = populate_file(
         tmp_path, ANNOTATION_NESTED_IN_FUNCTION, "src/test-duvet/test-run-into-another-annotation.dfy"
     )
-    actual_annos = AnnotationParser([actual_path])._extract_file_annotations(actual_path)
+    actual_annos = AnnotationParser([actual_path]).extract_implementation_file_annotations()
     assert len(actual_annos) == 2
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[1].type.name == "IMPLICATION"
@@ -131,7 +133,7 @@ def test_run_into_another(tmp_path):
 
 def test_annotation_end_a_file(tmp_path):
     actual_path = populate_file(tmp_path, ANNOTATION_END_OF_FILE, "src/test-duvet/test-sannotation-ends-a-file.dfy")
-    actual_annos = AnnotationParser([actual_path])._extract_file_annotations(actual_path)
+    actual_annos = AnnotationParser([actual_path]).extract_implementation_file_annotations()
     assert len(actual_annos) == 2
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[1].type.name == "IMPLICATION"
@@ -158,7 +160,7 @@ def test_annotation_only(tmp_path):
     actual_path = populate_file(
         tmp_path, "\n".join([TEST_DFY_BLOCK, ANNOTATION_END_OF_FILE]), "src/test-duvet/test-annotation-only.dfy"
     )
-    actual_annos = AnnotationParser([actual_path])._extract_file_annotations(actual_path)
+    actual_annos = AnnotationParser([actual_path]).extract_implementation_file_annotations()
     assert len(actual_annos) == 3
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[1].type.name == "IMPLICATION"
