@@ -18,7 +18,7 @@ __all__ = ["AnnotationParser"]
 # //= compliance/duvet-specification.txt#2.3.1
 # //= type=implication
 # //# If a second meta line exists it MUST start with "type=".
-logging.basicConfig(filename="annotation_parser.log", encoding="utf-8", level=logging.DEBUG)
+# logging.basicConfig(filename="annotation_parser.log", encoding="utf-8", level=logging.DEBUG)
 
 
 @define
