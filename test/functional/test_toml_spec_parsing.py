@@ -1,6 +1,4 @@
 """Specification Parser used by duvet-python for toml format."""
-import pathlib
-
 import pytest
 
 from duvet.spec_toml_parser import TomlRequirementParser
