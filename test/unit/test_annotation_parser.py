@@ -18,10 +18,14 @@ TEST_DAFNY_STR = (
 )
 
 expected_content = (
-    "* encrypt (encrypt.md) MUST only support algorithm suites that have\n"
-    "a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
-    "suites-encryption-key-derivation-settings) value of False\n"
-).replace("\n", " ")
+    (
+        "* encrypt (encrypt.md) MUST only support algorithm suites that have\n"
+        "a Key Commitment (../framework/algorithm-suites.md#algorithm-\n"
+        "suites-encryption-key-derivation-settings) value of False\n"
+    )
+    .replace("\n", " ")
+    .strip()
+)
 
 
 def test_extract_annotation():
@@ -104,8 +108,8 @@ def test_long_reasoned_exception():
         reasoned_exception, 0, 5, pathlib.Path("test.dfy")
     )
     assert actual_anno.type.name == "EXCEPTION"
-    assert actual_anno.reason == 'This is a reason a super super long reason.'
-    assert actual_anno.target == 'compliance/client-apis/client.txt#2.4.2.1'
+    assert actual_anno.reason == "This is a reason a super super long reason."
+    assert actual_anno.target == "compliance/client-apis/client.txt#2.4.2.1"
 
 
 def test_unreasoned_exception():

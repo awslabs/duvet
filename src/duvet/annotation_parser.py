@@ -107,19 +107,20 @@ class AnnotationParser:
         return temp_annotation_list
 
     def _extract_annotation_block(
-            self, lines: List[str], annotation_start: int, annotation_end: int, file_path: pathlib.Path
+        self, lines: List[str], annotation_start: int, annotation_end: int, file_path: pathlib.Path
     ) -> Optional[Annotation]:
         """Take a block of comments and extract one or none annotation object from it."""
 
-        assert (annotation_start <= annotation_end
-                ), f"Start must be less than or equal end. {annotation_start} !< {annotation_end}"
+        assert (
+            annotation_start <= annotation_end
+        ), f"Start must be less than or equal end. {annotation_start} !< {annotation_end}"
         new_lines = " ".join(lines[annotation_start:annotation_end])
         if not new_lines.endswith("\n"):
             new_lines = new_lines + "\n"
         return self._extract_annotation(new_lines, annotation_start, annotation_start, file_path)
 
     def _extract_annotation(
-            self, lines: str, start: int, end: int, file_path: pathlib.Path
+        self, lines: str, start: int, end: int, file_path: pathlib.Path
     ) -> Union[Annotation, ExceptionAnnotation, None]:
         """Take a chunk of comments and extract or none annotation object from it."""
 
@@ -128,7 +129,7 @@ class AnnotationParser:
         if re.findall(self.anno_content_regex, lines) is not None:
             for temp_content in re.findall(self.anno_content_regex, lines):
                 anno_content = " ".join([anno_content, temp_content])
-        anno_content = anno_content.replace("\n", " ")
+        anno_content = anno_content.replace("\n", " ").strip()
         # If temp_type is none. It could only be citation.
         if temp_type is None:
             anno_type = AnnotationType["CITATION"]
@@ -155,12 +156,12 @@ class AnnotationParser:
             )
 
     def _extract_exception(
-            self, lines: str, start: int, end: int, file_path: pathlib.Path, anno_content: str
+        self, lines: str, start: int, end: int, file_path: pathlib.Path, anno_content: str
     ) -> Optional[ExceptionAnnotation]:
         meta_str = lines.split(self.content_style, maxsplit=1)[0]
         anno_reason = re.search(self.anno_reason_regex, meta_str)
         if anno_reason is not None:
-            target_meta = re.search(self.anno_meta_regex, meta_str[:anno_reason.span()[0]])
+            target_meta = re.search(self.anno_meta_regex, meta_str[: anno_reason.span()[0]])
         else:
             target_meta = re.search(self.anno_meta_regex, meta_str)
         if target_meta is None:
@@ -179,8 +180,8 @@ class AnnotationParser:
         )
         if anno_reason is not None:
             anno_reason_str = anno_reason.group(1)
-            if re.findall(self.anno_content_regex, meta_str[anno_reason.span()[1]:]) is not None:
-                for temp_content in re.findall(self.anno_meta_regex, meta_str[anno_reason.span()[1]:]):
+            if re.findall(self.anno_content_regex, meta_str[anno_reason.span()[1] :]) is not None:
+                for temp_content in re.findall(self.anno_meta_regex, meta_str[anno_reason.span()[1] :]):
                     anno_reason_str = " ".join([anno_reason_str, temp_content])
             result.add_reason(anno_reason_str)
         return result

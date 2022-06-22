@@ -52,7 +52,7 @@ def test_one_valid_file(tmp_path):
     assert len(actual_annos) == 1
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
-    assert actual_annos[0].content == "On client initialization, the caller MUST have the option to providea:"
+    assert actual_annos[0].content == "On client initialization, the caller MUST have the option to provide a:"
     assert str(actual_annos[0].location.resolve()) == f"{str(tmp_path.resolve())}/src/test-duvet/test-duvet.dfy"
 
 
@@ -66,7 +66,7 @@ def test_2_valid_file(tmp_path):
     assert actual_annos[2].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
     assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"  # pylint: disable=(unsubscriptable-object
     assert actual_annos[0].content == (  # pylint: disable=(unsubscriptable-object
-        "On client initialization, the caller MUST have the option to providea:"
+        "On client initialization, the caller MUST have the option to provide a:"
     )
     assert actual_annos[0].uri == (  # pylint: disable=(unsubscriptable-object
         "compliance/client-apis/client.txt#2.4$On client initialization, the caller MUST have the option to provide a:"
@@ -84,11 +84,12 @@ def test_extract_python_implementation_annotation(pytestconfig):
     assert len(actual_annos) == 2
     assert actual_annos[0].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
     assert (
-        actual_annos[0].target == "compliance/duvet-specification.txt#2.3.1"  # pylint: disable=(unsubscriptable-object
+            actual_annos[0].target  # pylint: disable=(unsubscriptable-object
+            == "compliance/duvet-specification.txt#2.3.1"
     )
     assert (
-        actual_annos[0].content  # pylint: disable=(unsubscriptable-object
-        == 'If a second meta line exists it MUST start with "type=".'
+            actual_annos[0].content  # pylint: disable=(unsubscriptable-object
+            == 'If a second meta line exists it MUST start with "type=".'
     )
     assert actual_annos[0].uri == (  # pylint: disable=(unsubscriptable-object
         'compliance/duvet-specification.txt#2.3.1$If a second meta line exists it MUST start with "type=".'
@@ -113,19 +114,19 @@ def test_run_into_another(tmp_path):
     assert actual_annos[0].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
     assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
     assert (
-        actual_annos[0].content
-        == "The IV length MUST be equal to the IV length of the algorithm suite specified by the "
-        "Algorithm Suite ID(message-header.md#algorithm-suite-id) field."
+            actual_annos[0].content
+            == "The IV length MUST be equal to the IV length of the algorithm suite specified by the "
+               "Algorithm Suite ID (message-header.md#algorithm-suite-id) field."
     )
     # Verify the last annotation is not broken.
     assert (
-        actual_annos[1].content == "The IV length MUST be equal to the IV length of the algorithm "
-        "suite(../framework/algorithm-suites.md) that generated the message."
+            actual_annos[1].content == "The IV length MUST be equal to the IV length of the algorithm "
+                                       "suite (../framework/algorithm-suites.md) that generated the message."
     )
     assert actual_annos[0].uri == (
         "compliance/data-format/message-body.txt#2.5.2.1.2$The IV length MUST be "
         "equal to the IV length of the algorithm suite specified by the Algorithm "
-        "Suite ID(message-header.md#algorithm-suite-id) field."
+        "Suite ID (message-header.md#algorithm-suite-id) field."
     )
 
 
@@ -138,19 +139,19 @@ def test_annotation_end_a_file(tmp_path):
     assert actual_annos[0].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
     assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
     assert (
-        actual_annos[0].content
-        == "Each frame in the Framed Data (Section 2.5.2) MUST include an IV that is unique within "
-        "the message."
+            actual_annos[0].content
+            == "Each frame in the Framed Data (Section 2.5.2) MUST include an IV that is unique within "
+               "the message."
     )
     # Verify the last annotation is not broken.
     assert actual_annos[1].content == ("The IV MUST be a unique IV within the message.")
     assert (
-        actual_annos[0].uri == "compliance/data-format/message-body.txt#2.5.2.1.2$Each frame in the Framed Data "
-        "(Section 2.5.2) MUST include an IV that is unique within the message."
+            actual_annos[0].uri == "compliance/data-format/message-body.txt#2.5.2.1.2$Each frame in the Framed Data "
+                                   "(Section 2.5.2) MUST include an IV that is unique within the message."
     )
     assert (
-        actual_annos[1].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
-        "within the message."
+            actual_annos[1].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
+                                   "within the message."
     )
 
 
@@ -167,17 +168,17 @@ def test_annotation_only(tmp_path):
     assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
     assert actual_annos[2].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
     assert (
-        actual_annos[1].content
-        == "Each frame in the Framed Data (Section 2.5.2) MUST include an IV thatis unique within "
-        "the message."
+            actual_annos[1].content
+            == "Each frame in the Framed Data (Section 2.5.2) MUST include an IV that is unique within "
+               "the message."
     )
     assert (
-        actual_annos[1].uri == "compliance/data-format/message-body.txt#2.5.2.1.2$Each frame in the Framed Data "
-        "(Section 2.5.2) MUST include an IV that is unique within the message."
+            actual_annos[1].uri == "compliance/data-format/message-body.txt#2.5.2.1.2$Each frame in the Framed Data "
+                                   "(Section 2.5.2) MUST include an IV that is unique within the message."
     )
     assert (
-        actual_annos[2].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
-        "within the message."
+            actual_annos[2].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
+                                   "within the message."
     )
     # Verify the last annotation is not broken.
     assert actual_annos[2].content == ("The IV MUST be a unique IV within the message.")
