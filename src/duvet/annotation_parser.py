@@ -23,6 +23,10 @@ class AnnotationParser:
 
     paths: list[pathlib.Path] = field(init=True, default=attr.Factory(list))
     annotations: list[Annotation] = field(init=False, default=attr.Factory(list))
+    # //= compliance/duvet-specification.txt#2.3.1
+    # //= type=implication
+    # //# This identifier of meta parts MUST
+    # //# be configurable.
     meta_style: str = DEFAULT_META_STYLE
     content_style: str = DEFAULT_CONTENT_STYLE
 
@@ -74,15 +78,14 @@ class AnnotationBlock:
     def __attrs_post_init__(self):
         """Create regular expression based on config."""
 
+        # //= compliance/duvet-specification.txt#2.3.1
+        # //= type=implication
+        # //# If a second meta line exists it MUST start with "type=".
         self.anno_type_regex = re.compile(self.anno_file.get_meta_style() + r"[\s]type=" + r"(.*?)\n")
         self.anno_reason_regex = re.compile(self.anno_file.anno_parser.meta_style + r"[\s]reason=" + r"(.*?)\n")
         self.anno_meta_regex = re.compile(self.anno_file.get_meta_style() + r"[\s](.*?)\n")
         self.anno_content_regex = re.compile(self.anno_file.get_content_style() + r"\s(.*?)\n")
         assert self.start <= self.end, f"Start must be less than or equal end. {self.start} !< {self.end}"
-
-        # TODO: add abstraction on this code by parsing attributes using reference
-        #
-        # TODO: add abstraction on mardown parser by adding logic on parser  instead of parser itself
 
 
 def clean_content(content: str, anno_content_regex: re.Pattern) -> str:
@@ -118,8 +121,8 @@ def exceptions_from_block_helper(target_meta, content, meta, self: AnnotationBlo
     # Add reason to exception annotation if reason detected.
     if anno_reason is not None:
         anno_reason_str = anno_reason.group(1)
-        if re.findall(self.anno_content_regex, self.meta[anno_reason.span()[1]:]) is not None:
-            for temp_content in re.findall(self.anno_meta_regex, self.meta[anno_reason.span()[1]:]):
+        if re.findall(self.anno_content_regex, self.meta[anno_reason.span()[1] :]) is not None:
+            for temp_content in re.findall(self.anno_meta_regex, self.meta[anno_reason.span()[1] :]):
                 anno_reason_str = " ".join([anno_reason_str, temp_content])
         result.add_reason(anno_reason_str)
     temp_list.append(result)
@@ -153,7 +156,6 @@ def annotations_from_block_helper(quotes, content, meta, target_meta, block: Ann
             "$".join([target_meta, content]),
             block.anno_file.file_path.resolve(),
         )
-        # print(temp_anno)
         temp_list.append(temp_anno)
     return temp_list
 
@@ -165,10 +167,7 @@ def annotations_from_block(block: AnnotationBlock) -> List[Annotation]:
         temp_list = []
         temp_target = re.search(block.anno_meta_regex, meta_str)
         if temp_target is None:
-            logging.warning(
-                f"{str(block.anno_file.file_path.resolve())} "
-                f"L{str(curr_line)} Invalid annotation "
-            )
+            logging.warning(f"{str(block.anno_file.file_path.resolve())} " f"L{str(curr_line)} Invalid annotation ")
             return temp_list
         else:
             target_meta = temp_target.group(1)
@@ -187,14 +186,11 @@ def annotations_from_block(block: AnnotationBlock) -> List[Annotation]:
         content_line = re.search(r"[\s]*" + block.anno_file.get_content_style(), block.anno_file.lines[curr_line])
         if meta_line is not None:
             if state in ("START", "META"):
-                # print(meta_line)
                 meta_str = "".join([meta_str, block.anno_file.lines[curr_line]])
             elif state == "CONTENT":
-                # annotations.extend(_check_target(block,meta_str,content_str))
+                # Create a new block if there is a new annotation block detected.
                 new_block = AnnotationBlock(curr_line, block.end, block.anno_file)
-                # print(new_block)
                 new_annos = annotations_from_block(new_block)
-                # print(new_annos)
                 block.end = curr_line
                 annotations.extend(_check_target(block, meta_str, content_str))
                 annotations.extend(new_annos)
@@ -209,7 +205,6 @@ def annotations_from_block(block: AnnotationBlock) -> List[Annotation]:
                 state = "CONTENT"
         curr_line += 1
 
-    # print(block)
     annotations.extend(_check_target(block, meta_str, content_str))
     return annotations
 
@@ -227,7 +222,6 @@ def blocks_from_file(anno_file: AnnotationFile) -> List[AnnotationBlock]:
     annotation_end = -1
     state = "CODE"
     while curr_line < len(anno_file.lines):
-        # print(state)
         line = anno_file.lines[curr_line]
         # If curr_line is part of anno
         is_meta = re.search(r"[\s]*" + anno_file.anno_parser.meta_style, line) is not None
@@ -274,20 +268,8 @@ def annotations_from_parser(parser: AnnotationParser) -> List[Annotation]:
     Return a list of annotation objects.
     """
     for filename in parser.paths:  # pylint: disable=not-an-iterable
-        # temp_list = self._extract_file_annotations(filename)
         temp_list = annotations_from_file(AnnotationFile(filename, parser))
         if len(temp_list) == 0:
             logging.info("%s does not have any annotations. Skipping.", str(filename.resolve()))
         parser.annotations.extend(temp_list)
-        # print(temp_list)
-        # print(parser)
     return parser.annotations
-
-# //= compliance/duvet-specification.txt#2.3.1
-# //= type=implication
-# //# This identifier of meta parts MUST
-# //# be configurable.
-
-# //= compliance/duvet-specification.txt#2.3.1
-# //= type=implication
-# //# If a second meta line exists it MUST start with "type=".
