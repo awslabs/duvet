@@ -4,7 +4,7 @@
 
 import pytest
 
-from duvet.annotation_parser import AnnotationParser
+from duvet.annotation_parser import AnnotationParser, annotations_from_parser
 
 from ..utils import populate_file  # isort:skip
 
@@ -50,7 +50,7 @@ ANNOTATION_END_OF_FILE = """
 
 def test_one_valid_file(tmp_path):
     actual_path = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet.dfy")
-    actual_annos = AnnotationParser([actual_path]).extract_implementation_file_annotations()
+    actual_annos = annotations_from_parser(AnnotationParser([actual_path]))
     assert len(actual_annos) == 1
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
@@ -61,7 +61,7 @@ def test_one_valid_file(tmp_path):
 def test_2_valid_file(tmp_path):
     actual_path1 = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet1.dfy")
     actual_path2 = populate_file(tmp_path, ANNOTATION_NESTED_IN_FUNCTION, "src/test-duvet/test-duvet2.dfy")
-    actual_annos = AnnotationParser([actual_path1, actual_path2]).extract_implementation_file_annotations()
+    actual_annos = annotations_from_parser(AnnotationParser([actual_path1, actual_path2]))
     assert len(actual_annos) == 3
     assert actual_annos[0].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
     assert actual_annos[1].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
@@ -79,14 +79,15 @@ def test_extract_python_implementation_annotation(pytestconfig):
     path = pytestconfig.rootpath.joinpath("src/duvet/annotation_parser.py")
     anno_meta_style = "# //="
     anno_content_style = "# //#"
-    actual_annos = AnnotationParser(
-        [path], anno_meta_style, anno_content_style
-    ).extract_implementation_file_annotations()
+    actual_parser = AnnotationParser([path], anno_meta_style, anno_content_style)
+    actual_annos = annotations_from_parser(actual_parser)
     # Verify two annotation is added to parser
     assert len(actual_annos) == 2
     assert actual_annos[1].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
     assert (
-        actual_annos[1].target == "compliance/duvet-specification.txt#2.3.1"  # pylint: disable=(unsubscriptable-object
+        actual_annos[1].target
+        == "compliance/duvet-specification.txt#2.3.1"
+        # pylint: disable=(unsubscriptable-object
     )
     assert (
         actual_annos[1].content  # pylint: disable=(unsubscriptable-object
@@ -101,14 +102,14 @@ def test_extract_python_no_implementation_annotation(pytestconfig):
     path = pytestconfig.rootpath.joinpath("src/duvet/identifiers.py")
     anno_meta_style = "# //="
     anno_content_style = "# //#"
-    AnnotationParser([path], anno_meta_style, anno_content_style).extract_implementation_file_annotations()
+    AnnotationParser([path], anno_meta_style, anno_content_style)
 
 
 def test_run_into_another(tmp_path):
     actual_path = populate_file(
         tmp_path, ANNOTATION_NESTED_IN_FUNCTION, "src/test-duvet/test-run-into-another-annotation.dfy"
     )
-    actual_annos = AnnotationParser([actual_path]).extract_implementation_file_annotations()
+    actual_annos = annotations_from_parser(AnnotationParser([actual_path]))
     assert len(actual_annos) == 2
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[1].type.name == "IMPLICATION"
@@ -133,7 +134,7 @@ def test_run_into_another(tmp_path):
 
 def test_annotation_end_a_file(tmp_path):
     actual_path = populate_file(tmp_path, ANNOTATION_END_OF_FILE, "src/test-duvet/test-sannotation-ends-a-file.dfy")
-    actual_annos = AnnotationParser([actual_path]).extract_implementation_file_annotations()
+    actual_annos = annotations_from_parser(AnnotationParser([actual_path]))
     assert len(actual_annos) == 2
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[1].type.name == "IMPLICATION"
@@ -160,7 +161,7 @@ def test_annotation_only(tmp_path):
     actual_path = populate_file(
         tmp_path, "\n".join([TEST_DFY_BLOCK, ANNOTATION_END_OF_FILE]), "src/test-duvet/test-annotation-only.dfy"
     )
-    actual_annos = AnnotationParser([actual_path]).extract_implementation_file_annotations()
+    actual_annos = annotations_from_parser(AnnotationParser([actual_path]))
     assert len(actual_annos) == 3
     assert actual_annos[0].type.name == "IMPLICATION"
     assert actual_annos[1].type.name == "IMPLICATION"
