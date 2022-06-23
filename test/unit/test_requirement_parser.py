@@ -94,7 +94,7 @@ def test_extract_rfc_list():
         " the series of RFCs on the subject matter.",
     ]
     # Verify the to_string_list function by checking the content of it creates.
-    assert temp_list_req.to_string_list() == [
+    assert temp_list_req.to_string_list(False) == [
         "We MUST strive for consistency within: the document,",
         "We MUST strive for consistency within:  a cluster of documents [CLUSTER], and",
         "We MUST strive for consistency within:  the series of RFCs on the subject matter.",
@@ -109,7 +109,7 @@ def test_create_requirement_from_list_to_section():
     temp_str = test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
     assert temp_str == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
     assert not test_sec.has_requirements
-    assert create_requirements_from_list_to_section(test_sec, temp_list_req.to_string_list())
+    assert create_requirements_from_list_to_section(test_sec, temp_list_req.to_string_list(False))
     assert test_sec.has_requirements
     # Verify the extract_list function by checking the number of requirements it adds to section
     assert len(test_sec.requirements.keys()) == 5
@@ -128,7 +128,7 @@ def test_search():
     req = ListRequirements.from_line(VALID_LIST_LINES, ALL_MARKDOWN_LIST_ENTRY_REGEX)
     assert req.list_parent == "This is a MUST requirement has lists"
     assert req.list_elements == ["valid 1", "valid 2", "valid 3 This is something after valid 3"]
-    assert ListRequirements.from_line(VALID_LIST_LINES, ALL_MARKDOWN_LIST_ENTRY_REGEX).to_string_list() == [
+    assert ListRequirements.from_line(VALID_LIST_LINES, ALL_MARKDOWN_LIST_ENTRY_REGEX).to_string_list(False) == [
         "This is a MUST requirement has lists valid 1",
         "This is a MUST requirement has lists valid 2",
         "This is a MUST requirement has lists valid 3 This is something after valid 3",
