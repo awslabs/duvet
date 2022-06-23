@@ -40,16 +40,14 @@ WEBSITES = r"[.](com|net|org|io|gov)"
 class RequirementParser:
     """The parser of a requirement in a block."""
 
-    _legacy: bool = field(init=False, default=False)
+    is_legacy: bool = field(init=False, default=False)
     _format: str = field(init=False, default="MARKDOWN")
     _list_entry_regex: re.Pattern = field(init=False, default=ALL_MARKDOWN_LIST_ENTRY_REGEX)
-
-    # _filenames: List[pathlib.Path] = field(init=True)
 
     @classmethod
     def set_legacy(cls):
         """Set legacy mode."""
-        cls._legacy = True
+        cls.is_legacy = True
 
     @classmethod
     def set_rfc(cls):
@@ -65,9 +63,6 @@ class RequirementParser:
         1. Section string is not included in the string chunk.
         2. There is no list or table within the requirement sring we want to parse
         3. There is no e.g. or ? to break the parser.
-
-        TODO: During these extractions we lost all the location information of the requirements.
-        Which would be needed in the report. For now I am gonna ignore it.
 
         list block is considered as a block of string. It starts with a sentence, followed by ordered
         or unordered lists. It end with two nextline signs
@@ -96,7 +91,7 @@ class RequirementParser:
                 req_in_list = ListRequirements.from_line(
                     quotes[list_block_left + 2: list_block_right + 2], self._list_entry_regex
                 )
-                temp.extend(req_in_list.to_string_list())
+                temp.extend(req_in_list.to_string_list(self.is_legacy))
             result.extend(_extract_inline_requirements(quotes[: list_block_left + 2]))
             result.extend(temp)
             result.extend(self.extract_requirements(quotes[list_block_right + 2:]))
@@ -117,6 +112,7 @@ class ListRequirements:
 
     list_parent: str
     list_elements: list = field(init=False, default=attr.Factory(list))
+    is_legacy: bool = field(init=False, default=False)
 
     @classmethod
     def from_line(cls, quotes: str, list_entry_format: re.Pattern):
@@ -146,11 +142,14 @@ class ListRequirements:
         """Add a list element to the ListRequirement."""
         self.list_elements.append(elem)
 
-    def to_string_list(self) -> list:
+    def to_string_list(self, is_legacy: bool) -> list:
         """Convert a ListRequirements Object to a list of string."""
         result = []
-        for elem in self.list_elements:
-            result.append(" ".join([self.list_parent, elem]))
+        if not is_legacy:
+            for elem in self.list_elements:
+                result.append(" ".join([self.list_parent, elem]))
+        else:
+            result.append(self.list_parent)
         return result
 
 
