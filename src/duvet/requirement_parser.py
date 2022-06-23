@@ -43,6 +43,7 @@ class RequirementParser:
     _legacy: bool = field(init=False, default=False)
     _format: str = field(init=False, default="MARKDOWN")
     _list_entry_regex: re.Pattern = field(init=False, default=ALL_MARKDOWN_LIST_ENTRY_REGEX)
+
     # _filenames: List[pathlib.Path] = field(init=True)
 
     @classmethod
@@ -93,34 +94,15 @@ class RequirementParser:
             if left_bound_checked and right_bound_checked:
                 # Call the function to take care of the lis of requirements
                 req_in_list = ListRequirements.from_line(
-                    quotes[list_block_left + 2 : list_block_right + 2], self._list_entry_regex
+                    quotes[list_block_left + 2: list_block_right + 2], self._list_entry_regex
                 )
                 temp.extend(req_in_list.to_string_list())
             result.extend(_extract_inline_requirements(quotes[: list_block_left + 2]))
             result.extend(temp)
-            result.extend(self.extract_requirements(quotes[list_block_right + 2 :]))
+            result.extend(self.extract_requirements(quotes[list_block_right + 2:]))
             return result
         else:
             return _extract_inline_requirements(quotes)
-
-
-@define
-class Span:
-    """The start and end indexes of sub-string in a block."""
-
-    start: int = field(init=True)
-    end: int = field(init=True)
-
-    def __attrs_post_init__(self):
-        """Validate that start is before end."""
-        assert self.start < self.end, f"Start must be less than end. {self.start} !< {self.end}"
-
-    @classmethod
-    def from_match(cls, match: re.Match):
-        """Span from re.Match."""
-        start, end = match.span()
-        # noinspection PyArgumentList
-        return cls(start, end)
 
 
 @define
@@ -152,7 +134,7 @@ class ListRequirements:
         prev = first_list_identifier[1]
         for match in re.finditer(list_entry_format, quotes):
             if prev < match.span()[0]:
-                temp = quotes[prev : match.span()[0]].strip("\n").replace("\n", " ")
+                temp = quotes[prev: match.span()[0]].strip("\n").replace("\n", " ")
                 prev = match.span()[1]
                 matched_span.append(temp)
         # last element of th list
@@ -294,12 +276,8 @@ def _preprocess_inline_requirements(inline_text: str) -> str:
     if "?" in processed_text:
         processed_text = processed_text.replace('?"', '"?')
     processed_text = (
-        processed_text.replace(". ", ". <stop>")
-        .replace("? ", "? <stop>")
-        .replace("! ", "! <stop>")
-        .replace(".\n", ".\n<stop>")
-        .replace("?\n", "?\n<stop>")
-        .replace("!\n", "!\n<stop>")
-        .replace("<prd>", ".")
+        processed_text.replace(". ", ". <stop>").replace("? ", "? <stop>").replace("! ", "! <stop>")
+            .replace(".\n", ".\n<stop>").replace("?\n", "?\n<stop>")  # noqa: E131
+            .replace("!\n", "!\n<stop>").replace("<prd>", ".")
     )
     return processed_text
