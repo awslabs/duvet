@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Public data structures for Duvet."""
 import logging
+from typing import Dict
 
 import attr
-from attrs import define, field
+from attr import define, field
 
 from duvet.identifiers import (
     AnnotationType,
@@ -193,7 +194,7 @@ class Section:
             _LOGGER.warning("%s not Found in %s", anno.uri, self.uri)
             return False
         else:
-            return self.requirements[anno.uri].add_annotation(anno)  # pylint: disable=E1136
+            return self.requirements[anno.uri].add_annotation(anno)
 
 
 # noinspection PyUnresolvedReferences
@@ -229,7 +230,7 @@ class Specification:
             _LOGGER.warning("%s not found in %s", annotation.target, self.spec_dir)
             return False
         else:
-            return self.sections[sec_id].add_annotation(annotation)  # pylint: disable=E1136
+            return self.sections[sec_id].add_annotation(annotation)
 
 
 # noinspection PyUnresolvedReferences
@@ -249,7 +250,7 @@ class Report:
     """
 
     pass_fail: bool = field(init=False, default=False)
-    specifications: dict = field(init=False, default=attr.Factory(dict))
+    specifications: Dict[str, Specification] = field(init=False, default=attr.Factory(dict))
 
     def add_specification(self, specification: Specification):
         """Add Specification to Report."""
@@ -263,7 +264,7 @@ class Report:
             _LOGGER.warning("%s not found in report", spec_id)
             return False
         else:
-            return self.specifications[spec_id].add_annotation(annotation)  # pylint: disable=E1136
+            return self.specifications[spec_id].add_annotation(annotation)
 
 
 @define
