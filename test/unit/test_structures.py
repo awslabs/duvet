@@ -14,7 +14,7 @@ def test_annotation():
         "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
     )
     assert test_anno.target == "test_target.md#target"
-    assert test_anno.type == AnnotationType.CITATION
+    assert test_anno.anno_type == AnnotationType.CITATION
     assert test_anno.content == "content"
     assert test_anno.start_line == 1
     assert test_anno.end_line == 2
@@ -135,7 +135,7 @@ def test_exception_annotaion():
     )
     test_anno.add_reason("reason")
     assert test_anno.target == "test_target.md#target"
-    assert test_anno.type == AnnotationType.EXCEPTION
+    assert test_anno.anno_type == AnnotationType.EXCEPTION
     assert test_anno.content == "content"
     assert test_anno.reason == "reason"
     assert test_anno.start_line == 1
