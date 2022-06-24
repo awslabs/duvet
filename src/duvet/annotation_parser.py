@@ -68,7 +68,7 @@ class AnnotationParser:
             elif anno_hit is not None and start_anno is None:
                 start_anno = index
         # Edge case for annotation blocks that end the file
-        if start_anno:
+        if start_anno is not None:
             anno_blocks.append(LineSpan(start=start_anno, end=len(lines)))
 
         return anno_blocks
