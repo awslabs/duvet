@@ -133,3 +133,4 @@ class AnnotationParser:
         anno_blocks: list[LineSpan] = self._extract_blocks(lines)
         anno_kwargs: list[dict] = self._extract_anno_kwargs(lines, anno_blocks)
         return anno_kwargs
+#//
