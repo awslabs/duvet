@@ -10,7 +10,7 @@ import attr
 import toml
 from attrs import define, field
 
-__all__ = ["Config"]
+__all__ = ["Config", "DEFAULT_META_STYLE", "DEFAULT_CONTENT_STYLE"]
 
 DEFAULT_META_STYLE = "//="
 DEFAULT_CONTENT_STYLE = "//#"

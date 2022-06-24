@@ -52,7 +52,7 @@ def test_one_valid_file(tmp_path):
     actual_path = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet.dfy")
     actual_annos = annotations_from_parser(AnnotationParser([actual_path]))
     assert len(actual_annos) == 1
-    assert actual_annos[0].type.name == "IMPLICATION"
+    assert actual_annos[0].anno_type.name == "IMPLICATION"
     assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
     assert actual_annos[0].content == "On client initialization, the caller MUST have the option to provide a:"
     assert str(actual_annos[0].location.resolve()) == f"{str(tmp_path.resolve())}/src/test-duvet/test-duvet.dfy"
@@ -63,9 +63,9 @@ def test_2_valid_file(tmp_path):
     actual_path2 = populate_file(tmp_path, ANNOTATION_NESTED_IN_FUNCTION, "src/test-duvet/test-duvet2.dfy")
     actual_annos = annotations_from_parser(AnnotationParser([actual_path1, actual_path2]))
     assert len(actual_annos) == 3
-    assert actual_annos[0].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
-    assert actual_annos[1].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
-    assert actual_annos[2].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
+    assert actual_annos[0].anno_type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
+    assert actual_annos[1].anno_type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
+    assert actual_annos[2].anno_type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
     assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"  # pylint: disable=(unsubscriptable-object
     assert actual_annos[0].content == (  # pylint: disable=(unsubscriptable-object
         "On client initialization, the caller MUST have the option to provide a:"
@@ -83,7 +83,7 @@ def test_extract_python_implementation_annotation(pytestconfig):
     actual_annos = annotations_from_parser(actual_parser)
     # Verify two annotation is added to parser
     assert len(actual_annos) == 2
-    assert actual_annos[1].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
+    assert actual_annos[1].anno_type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
     assert (
         actual_annos[1].target
         == "compliance/duvet-specification.txt#2.3.1"
@@ -111,8 +111,8 @@ def test_run_into_another(tmp_path):
     )
     actual_annos = annotations_from_parser(AnnotationParser([actual_path]))
     assert len(actual_annos) == 2
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[1].type.name == "IMPLICATION"
+    assert actual_annos[0].anno_type.name == "IMPLICATION"
+    assert actual_annos[1].anno_type.name == "IMPLICATION"
     assert actual_annos[0].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
     assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
     assert (
@@ -136,8 +136,8 @@ def test_annotation_end_a_file(tmp_path):
     actual_path = populate_file(tmp_path, ANNOTATION_END_OF_FILE, "src/test-duvet/test-sannotation-ends-a-file.dfy")
     actual_annos = annotations_from_parser(AnnotationParser([actual_path]))
     assert len(actual_annos) == 2
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[1].type.name == "IMPLICATION"
+    assert actual_annos[0].anno_type.name == "IMPLICATION"
+    assert actual_annos[1].anno_type.name == "IMPLICATION"
     assert actual_annos[0].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
     assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
     assert (
@@ -163,9 +163,9 @@ def test_annotation_only(tmp_path):
     )
     actual_annos = annotations_from_parser(AnnotationParser([actual_path]))
     assert len(actual_annos) == 3
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[1].type.name == "IMPLICATION"
-    assert actual_annos[2].type.name == "IMPLICATION"
+    assert actual_annos[0].anno_type.name == "IMPLICATION"
+    assert actual_annos[1].anno_type.name == "IMPLICATION"
+    assert actual_annos[2].anno_type.name == "IMPLICATION"
     assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
     assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
     assert actual_annos[2].target == "compliance/data-format/message-body.txt#2.5.2.2.3"

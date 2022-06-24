@@ -24,7 +24,7 @@ class Annotation:
     """Annotations are references to a text from a section in a specification.
 
     :param str target: Location of the section (Foreign Key)
-    :param AnnotationType type: An enumeration type of annotation
+    :param AnnotationType anno_type: An enumeration type of annotation
     :param str content: A string of the exact requirement words
     :param int start_line: Number of the start line of the annotation
     :param int end_line: Number of the end line of the annotation
@@ -32,7 +32,7 @@ class Annotation:
     """
 
     target: str
-    type: AnnotationType
+    anno_type: AnnotationType
     content: str
     start_line: int
     end_line: int
@@ -129,22 +129,22 @@ class Requirement:
         * exception
         """
         for anno in self.matched_annotations.values():
-            if anno.type in implemented_type:
+            if anno.anno_type in implemented_type:
                 self.implemented = True
-            if anno.type in attested_type:
+            if anno.anno_type in attested_type:
                 self.attested = True
-            if anno.type in omitted_type:
+            if anno.anno_type in omitted_type:
                 self.omitted = True
 
     def add_annotation(self, anno) -> bool:
         """There MUST be a method to add annotations."""
         new_dict = {anno.uri: anno}
         self.matched_annotations.update(new_dict)
-        if anno.type in implemented_type:
+        if anno.anno_type in implemented_type:
             self.implemented = True
-        if anno.type in attested_type:
+        if anno.anno_type in attested_type:
             self.attested = True
-        if anno.type in omitted_type:
+        if anno.anno_type in omitted_type:
             self.omitted = True
         self.set_status()
         return True
