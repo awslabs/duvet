@@ -20,6 +20,8 @@ jobs:
           - pylint-tests
           - black-check
           - isort-check
+          - mypy-src
+          - mypy-test
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v2

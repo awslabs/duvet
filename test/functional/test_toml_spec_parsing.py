@@ -1,6 +1,4 @@
 """Specification Parser used by duvet-python for toml format."""
-import pathlib
-
 import pytest
 
 from duvet.spec_toml_parser import TomlRequirementParser
@@ -54,10 +52,10 @@ A section MUST be indexable by combining different levels of naming.
 """
 
 
-def test_extract_toml_spec():
-    path = pathlib.Path("./duvet-specification").resolve()
+def test_dogfood(pytestconfig):
+    filepath = pytestconfig.rootpath.joinpath("duvet-specification")
     patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser.extract_toml_specs(patterns, path)
+    test_report = TomlRequirementParser.extract_toml_specs(patterns, filepath)
     # Verify one spec is added to the report object
     assert len(test_report.specifications.keys()) == 1
 
