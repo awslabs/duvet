@@ -8,7 +8,7 @@ from typing import List, Optional
 
 import attr
 import toml
-from attrs import define, field
+from attr import define, field
 
 __all__ = ["Config", "DEFAULT_META_STYLE", "DEFAULT_CONTENT_STYLE"]
 
@@ -85,21 +85,21 @@ class ConfigParser:
         if "mode" not in parsed.keys():
             pass
         else:
-            legacy = parsed.get("mode").get("legacy", False)
-        implementation_configs = self._validate_implementation(parsed.get("implementation"))
-        spec_configs = self._validate_specification(parsed.get("spec"))
+            legacy = parsed.get("mode", {}).get("legacy", False)
+        implementation_configs = self._validate_implementation(parsed.get("implementation", {}))
+        spec_configs = self._validate_specification(parsed.get("spec", {}))
         return Config(
             self.config_file_path.parent,
             implementation_configs,
             spec_configs,
             legacy,
-            parsed.get("report").get("blob"),
-            parsed.get("report").get("issue"),
+            parsed.get("report", {}).get("blob"),
+            parsed.get("report", {}).get("issue"),
         )
 
     def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[pathlib.Path]:
         spec_file_list = []
-        entry = spec.get(entry_key)
+        entry = spec.get(entry_key, {})
         if "patterns" not in entry.keys():
             raise ValueError("Patterns not found in" + mode + " Config " + entry_key)
         for pattern in entry.get("patterns"):
@@ -121,7 +121,7 @@ class ConfigParser:
         """Validate Config implementation files."""
         impl_config_list = []
         for entry_key in impl.keys():
-            entry = impl.get(entry_key)
+            entry = impl.get(entry_key, {})
             impl_file_list = self._validate_patterns(impl, entry_key, "Implementation")
             temp_impl_config = ImplConfig(impl_file_list)
             if "comment-style" in entry.keys():

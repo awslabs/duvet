@@ -35,7 +35,7 @@ def test_requirement():
     assert not test_req.attested
     assert not test_req.omitted
     assert test_req.uri == "test_target#target$content"
-    assert test_req.matched_annotations["test_target#target$content"] == test_anno  # pylint: disable=E1136
+    assert test_req.matched_annotations["test_target#target$content"] == test_anno
 
 
 def test_add_annotation():
