@@ -58,28 +58,28 @@ class AnnotationParser:
 
     def _extract_blocks(self, lines: list[str]) -> list[LineSpan]:
         """Extract Annotation blocks from a file."""
-        anno_blocks: list[LineSpan] = []
+        anno_spans: list[LineSpan] = []
         start_anno: Optional[int] = None
 
         for index, line in enumerate(lines):
             anno_hit: Optional[re.Match] = self.is_anno.search(line)
             if anno_hit is None and start_anno is not None:
-                anno_blocks.append(LineSpan(start=start_anno, end=index))
+                anno_spans.append(LineSpan(start=start_anno, end=index))
                 start_anno = None
             elif anno_hit is not None and start_anno is None:
                 start_anno = index
         # Edge case for annotation blocks that end the file
         if start_anno is not None:
-            anno_blocks.append(LineSpan(start=start_anno, end=len(lines)))
+            anno_spans.append(LineSpan(start=start_anno, end=len(lines)-1))
 
-        return anno_blocks
+        return anno_spans
 
-    def _extract_anno_kwargs(self, lines: list[str], anno_blocks: list[LineSpan]) -> list[dict]:
+    def _extract_anno_kwargs(self, lines: list[str], spans: list[LineSpan]) -> list[dict]:
         """Parse none or more Annotation key word args from lines via LineSpans."""
         kwargs: list[dict] = []
-        for anno_block in anno_blocks:
-            index: int = anno_block.start
-            while index < anno_block.end:
+        for span in spans:
+            index: int = span.start
+            while index < span.end:
                 start: int = index
 
                 # the first line will be the url
@@ -103,18 +103,16 @@ class AnnotationParser:
                 # there MUST be content
                 content = ""
                 match = self.match_content.match(lines[index])
-                while index < len(lines) and isinstance(match, re.Match):
+                while index < span.end and isinstance(match, re.Match):
                     content += match.__getitem__(1) + "\n"
                     index += 1
-                    match = self.match_content.match(lines[index])
+                    match = self.match_content.match(lines[index]) if index < span.end else None
                 del match
 
                 # fmt: off
                 kwarg = {"target": url, "type": _type, "start_line": start,
                          "end_line": index, "reason": reason, "content": content}
                 kwargs.append(kwarg)
-                # assert url is not None, f"url is None on anno start {start}"
-                # assert content is not None, f"content is None on anno start {start}"
                 # fmt: on
 
         return kwargs
@@ -144,6 +142,6 @@ class AnnotationParser:
         with open(filepath, "r", encoding="utf-8") as implementation_file:
             lines: list[str] = implementation_file.readlines()
 
-        anno_blocks: list[LineSpan] = self._extract_blocks(lines)
-        anno_kwargs: list[dict] = self._extract_anno_kwargs(lines, anno_blocks)
+        spans: list[LineSpan] = self._extract_blocks(lines)
+        anno_kwargs: list[dict] = self._extract_anno_kwargs(lines, spans)
         return self._process_anno_kwargs(anno_kwargs, filepath)

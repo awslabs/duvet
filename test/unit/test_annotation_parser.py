@@ -51,7 +51,7 @@ def test_extract_blocks(tmp_path):
     # lines[-1] = lines[-1] = +   '\n'
     parser = AnnotationParser(actual_path)
     actual_linespan = parser._extract_blocks(lines)
-    assert actual_linespan == [LineSpan(start=0, end=6)]
+    assert actual_linespan == [LineSpan(start=0, end=5)]
 
 
 def test_extract_blocks_nested(tmp_path):
@@ -81,55 +81,6 @@ def test_extract_anno_kwargs(tmp_path):
             "target": "compliance/client-apis/client.txt#2.4",
             "type": "implication",
         }
-    ]
-
-
-def test_process_file(tmp_path):
-    actual_path = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet.dfy")
-    parser = AnnotationParser(actual_path)
-    actual_dicts = parser.process_file(actual_path)
-    assert actual_dicts == [
-        {
-            "content": "On client initialization, the caller MUST have the option to "
-                       "provide\n"
-                       "a:\n"
-                       "*  commitment policy (Section 2.4.1)\n"
-                       "*  maximum number of encrypted data keys (Section 2.4.2)\n",
-            "end_line": 6,
-            "reason": None,
-            "start_line": 0,
-            "target": "compliance/client-apis/client.txt#2.4",
-            "type": "implication",
-        }
-    ]
-
-
-def test_process_file_with_nested_annotation(tmp_path):
-    actual_path = populate_file(tmp_path, ANNOTATION_NESTED_IN_FUNCTION, "src/test-duvet/test-duvet.dfy")
-    parser = AnnotationParser(actual_path)
-    actual_dicts = parser.process_file(actual_path)
-    assert actual_dicts == [
-        {
-            "content": "The IV length MUST be equal to the IV\n"
-                       "length of the algorithm suite specified by the Algorithm Suite "
-                       "ID\n"
-                       "(message-header.md#algorithm-suite-id) field.\n",
-            "end_line": 8,
-            "reason": None,
-            "start_line": 3,
-            "target": "compliance/data-format/message-body.txt#2.5.2.1.2",
-            "type": "implication",
-        },
-        {
-            "content": "The IV length MUST be equal to the IV length of the algorithm "
-                       "suite\n"
-                       "(../framework/algorithm-suites.md) that generated the message.\n",
-            "end_line": 12,
-            "reason": None,
-            "start_line": 8,
-            "target": "compliance/data-format/message-body.txt#2.5.2.2.3",
-            "type": "implication",
-        },
     ]
 
 #
