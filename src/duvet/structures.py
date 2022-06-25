@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Public data structures for Duvet."""
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
 import attr
 from attr import define, field
@@ -19,13 +19,12 @@ from duvet.identifiers import (
 _LOGGER = logging.getLogger(__name__)
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Annotation:
     """Annotations are references to a text from a section in a specification.
 
     :param str target: Location of the section (Foreign Key)
-    :param AnnotationType anno_type: An enumeration type of annotation
+    :param AnnotationType type: An enumeration type of annotation
     :param str content: A string of the exact requirement words
     :param int start_line: Number of the start line of the annotation
     :param int end_line: Number of the end line of the annotation
@@ -33,19 +32,19 @@ class Annotation:
     """
 
     target: str
-    anno_type: AnnotationType
+    type: AnnotationType
     content: str
     start_line: int
     end_line: int
     uri: str
     location: str
+    reason: Optional[str] = field(init=True, default=None)
 
     def location_to_string(self) -> str:
         """Return annotation location."""
         return f"{self.location}#L{self.start_line}-L{self.end_line}"
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Requirement:
     """Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.
@@ -130,28 +129,27 @@ class Requirement:
         * exception
         """
         for anno in self.matched_annotations.values():
-            if anno.anno_type in implemented_type:
+            if anno.type in implemented_type:
                 self.implemented = True
-            if anno.anno_type in attested_type:
+            if anno.type in attested_type:
                 self.attested = True
-            if anno.anno_type in omitted_type:
+            if anno.type in omitted_type:
                 self.omitted = True
 
     def add_annotation(self, anno) -> bool:
         """There MUST be a method to add annotations."""
         new_dict = {anno.uri: anno}
         self.matched_annotations.update(new_dict)
-        if anno.anno_type in implemented_type:
+        if anno.type in implemented_type:
             self.implemented = True
-        if anno.anno_type in attested_type:
+        if anno.type in attested_type:
             self.attested = True
-        if anno.anno_type in omitted_type:
+        if anno.type in omitted_type:
             self.omitted = True
         self.set_status()
         return True
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Section:
     """The specification section shows the specific specification text and how this links to annotation.
@@ -197,7 +195,6 @@ class Section:
             return self.requirements[anno.uri].add_annotation(anno)
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Specification:
     """A specification is a document that defines correct behavior.
@@ -233,7 +230,6 @@ class Specification:
             return self.sections[sec_id].add_annotation(annotation)
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Report:
     """Duvet's report shows how your project conforms to specifications.
@@ -265,16 +261,3 @@ class Report:
             return False
         else:
             return self.specifications[spec_id].add_annotation(annotation)
-
-
-@define
-class ExceptionAnnotation(Annotation):
-    """Exception annotations in duvet."""
-
-    reason: str = field(init=False)
-    has_reason: bool = field(init=False, default=False)
-
-    def add_reason(self, reason: str):
-        """Add reason to exception."""
-        self.reason = reason
-        self.has_reason = True

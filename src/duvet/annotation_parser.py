@@ -16,7 +16,7 @@ from duvet.structures import Annotation
 
 __all__ = ["AnnotationParser", "LineSpan"]
 _LOGGER = logging.getLogger(__name__)
-DEFAULT_ANNO_TYPE = AnnotationType.CITATION
+DEFAULT_ANNO_TYPE_NAME = AnnotationType.CITATION.name
 
 
 @define
@@ -40,6 +40,7 @@ class AnnotationParser:
     # //# be configurable.
     meta_style: str = field(init=True, default=DEFAULT_META_STYLE)
     content_style: str = field(init=True, default=DEFAULT_CONTENT_STYLE)
+
     is_anno: re.Pattern = field(init=False, repr=False)
     match_url: re.Pattern = field(init=False, repr=False)
     match_type: re.Pattern = field(init=False, repr=False)
@@ -80,40 +81,37 @@ class AnnotationParser:
             index: int = anno_block.start
             while index < anno_block.end:
                 start: int = index
-                # fmt: off
 
                 # the first line will be the url
-                url: Optional[str] = (
-                    self.match_url.match(lines[index]).__getitem__(1)
-                    if self.match_url.match(lines[index])
-                    else None
-                )
+                match = self.match_url.match(lines[index])
+                url: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
                 index += 1 if url is not None else 0
+                del match
 
                 # there may be a type
-                _type: Optional[str] = (
-                    self.match_type.match(lines[index]).__getitem__(1)
-                    if self.match_type.match(lines[index])
-                    else None
-                )
+                match = self.match_type.match(lines[index])
+                _type: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
                 index += 1 if _type is not None else 0
+                del match
 
                 # there may be a reason;
-                reason: Optional[str] = (
-                    self.match_reason.match(lines[index]).__getitem__(1)
-                    if self.match_reason.match(lines[index])
-                    else None
-                )
+                match = self.match_reason.match(lines[index])
+                reason: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
                 index += 1 if reason is not None else 0
+                del match
 
                 # there MUST be content
                 content = ""
-                while index < len(lines) and self.match_content.match(lines[index]):
-                    content += self.match_content.match(lines[index]).__getitem__(1) + "\n"
+                match = self.match_content.match(lines[index])
+                while index < len(lines) and isinstance(match, re.Match):
+                    content += match.__getitem__(1) + "\n"
                     index += 1
+                    match = self.match_content.match(lines[index])
+                del match
 
-                kwarg = {"target": url, "type": _type, "start": start,
-                         "end": index, "reason": reason, "content": content}
+                # fmt: off
+                kwarg = {"target": url, "type": _type, "start_line": start,
+                         "end_line": index, "reason": reason, "content": content}
                 kwargs.append(kwarg)
                 # assert url is not None, f"url is None on anno start {start}"
                 # assert content is not None, f"content is None on anno start {start}"
@@ -121,10 +119,26 @@ class AnnotationParser:
 
         return kwargs
 
-    def _process_anno_kwargs(self, anno_kwargs: list[dict], filepath: Path) -> list[Annotation]:
-        pass
+    @staticmethod
+    def _process_anno_kwargs(anno_kwargs: list[dict], filepath: Path) -> list[Annotation]:
+        """Convert anno kwargs to Annotations."""
+        rtn: list[Annotation] = []
+        for kwarg in anno_kwargs:
+            if kwarg.get('content') == "" or kwarg.get('target') is None:
+                continue
+            kwarg['type'] = DEFAULT_ANNO_TYPE_NAME if kwarg['type'] is None else kwarg['type']
+            try:
+                kwarg['type'] = AnnotationType[kwarg['type'].upper()]
+            except KeyError:
+                _LOGGER.warning("%s: Unknown type: %s found in lines %s to %s. Skipping",
+                                filepath, kwarg['type'], kwarg['start_line'], kwarg['end_line'])
+                continue
+            kwarg['location'] = str(filepath)
+            kwarg['uri'] = "$".join([kwarg['target'], kwarg['content']])
+            rtn.append(Annotation(**kwarg))
+        return rtn
 
-    def process_file(self, filepath: Path) -> list[dict]:
+    def process_file(self, filepath: Path) -> list[Annotation]:
         """Extract annotations from one file."""
 
         with open(filepath, "r", encoding="utf-8") as implementation_file:
@@ -132,4 +146,4 @@ class AnnotationParser:
 
         anno_blocks: list[LineSpan] = self._extract_blocks(lines)
         anno_kwargs: list[dict] = self._extract_anno_kwargs(lines, anno_blocks)
-        return anno_kwargs
+        return self._process_anno_kwargs(anno_kwargs, filepath)

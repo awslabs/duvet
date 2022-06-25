@@ -1,16 +1,11 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Annotation Parser used by duvet-python."""
-# import logging
-# from pathlib import Path
 from test.utils import populate_file
 
 import pytest
 
 from duvet.annotation_parser import AnnotationParser, LineSpan
-
-# from typing import Iterable
-
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -76,13 +71,13 @@ def test_extract_anno_kwargs(tmp_path):
     assert actual_kwargs == [
         {
             "content": "On client initialization, the caller MUST have the option to "
-            "provide\n"
-            "a:\n"
-            "*  commitment policy (Section 2.4.1)\n"
-            "*  maximum number of encrypted data keys (Section 2.4.2)\n",
-            "end": 6,
+                       "provide\n"
+                       "a:\n"
+                       "*  commitment policy (Section 2.4.1)\n"
+                       "*  maximum number of encrypted data keys (Section 2.4.2)\n",
+            "end_line": 6,
             "reason": None,
-            "start": 0,
+            "start_line": 0,
             "target": "compliance/client-apis/client.txt#2.4",
             "type": "implication",
         }
@@ -96,13 +91,13 @@ def test_process_file(tmp_path):
     assert actual_dicts == [
         {
             "content": "On client initialization, the caller MUST have the option to "
-            "provide\n"
-            "a:\n"
-            "*  commitment policy (Section 2.4.1)\n"
-            "*  maximum number of encrypted data keys (Section 2.4.2)\n",
-            "end": 6,
+                       "provide\n"
+                       "a:\n"
+                       "*  commitment policy (Section 2.4.1)\n"
+                       "*  maximum number of encrypted data keys (Section 2.4.2)\n",
+            "end_line": 6,
             "reason": None,
-            "start": 0,
+            "start_line": 0,
             "target": "compliance/client-apis/client.txt#2.4",
             "type": "implication",
         }
@@ -116,27 +111,26 @@ def test_process_file_with_nested_annotation(tmp_path):
     assert actual_dicts == [
         {
             "content": "The IV length MUST be equal to the IV\n"
-            "length of the algorithm suite specified by the Algorithm Suite "
-            "ID\n"
-            "(message-header.md#algorithm-suite-id) field.\n",
-            "end": 8,
+                       "length of the algorithm suite specified by the Algorithm Suite "
+                       "ID\n"
+                       "(message-header.md#algorithm-suite-id) field.\n",
+            "end_line": 8,
             "reason": None,
-            "start": 3,
+            "start_line": 3,
             "target": "compliance/data-format/message-body.txt#2.5.2.1.2",
             "type": "implication",
         },
         {
             "content": "The IV length MUST be equal to the IV length of the algorithm "
-            "suite\n"
-            "(../framework/algorithm-suites.md) that generated the message.\n",
-            "end": 12,
+                       "suite\n"
+                       "(../framework/algorithm-suites.md) that generated the message.\n",
+            "end_line": 12,
             "reason": None,
-            "start": 8,
+            "start_line": 8,
             "target": "compliance/data-format/message-body.txt#2.5.2.2.3",
             "type": "implication",
         },
     ]
-
 
 #
 # def test_esdk_compliance_exceptions():
