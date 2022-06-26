@@ -11,6 +11,7 @@ import attr
 from attrs import define, field
 
 from duvet._config import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
+from duvet.formatter import clean_content
 from duvet.identifiers import AnnotationType
 from duvet.structures import Annotation
 
@@ -70,7 +71,7 @@ class AnnotationParser:
                 start_anno = index
         # Edge case for annotation blocks that end the file
         if start_anno is not None:
-            anno_spans.append(LineSpan(start=start_anno, end=len(lines)-1))
+            anno_spans.append(LineSpan(start=start_anno, end=len(lines)))
 
         return anno_spans
 
@@ -102,6 +103,8 @@ class AnnotationParser:
 
                 # there MUST be content
                 content = ""
+                if not lines[index].endswith('\n'):
+                    lines[index] = lines[index] + '\n'
                 match = self.match_content.match(lines[index])
                 while index < span.end and isinstance(match, re.Match):
                     content += match.__getitem__(1) + "\n"
@@ -111,10 +114,10 @@ class AnnotationParser:
 
                 # fmt: off
                 kwarg = {"target": url, "type": _type, "start_line": start,
-                         "end_line": index, "reason": reason, "content": content}
+                         "end_line": index, "reason": reason, "content": clean_content(content)}
                 kwargs.append(kwarg)
                 # fmt: on
-
+        print(kwargs)
         return kwargs
 
     @staticmethod
@@ -145,3 +148,13 @@ class AnnotationParser:
         spans: list[LineSpan] = self._extract_blocks(lines)
         anno_kwargs: list[dict] = self._extract_anno_kwargs(lines, spans)
         return self._process_anno_kwargs(anno_kwargs, filepath)
+
+    def process_all(self) -> list[
+        Annotation]:
+        """Extract annotations from all files."""
+
+        annos: list[
+            Annotation] = []
+        for filepath in self.paths:
+            annos.extend(self.process_file(filepath))
+        return annos
