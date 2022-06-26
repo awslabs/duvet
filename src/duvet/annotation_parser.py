@@ -103,8 +103,8 @@ class AnnotationParser:
 
                 # there MUST be content
                 content = ""
-                if not lines[index].endswith('\n'):
-                    lines[index] = lines[index] + '\n'
+                if not lines[index].endswith("\n"):
+                    lines[index] = lines[index] + "\n"
                 match = self.match_content.match(lines[index])
                 while index < span.end and isinstance(match, re.Match):
                     content += match.__getitem__(1) + "\n"
@@ -117,7 +117,6 @@ class AnnotationParser:
                          "end_line": index, "reason": reason, "content": clean_content(content)}
                 kwargs.append(kwarg)
                 # fmt: on
-        print(kwargs)
         return kwargs
 
     @staticmethod
@@ -125,17 +124,22 @@ class AnnotationParser:
         """Convert anno kwargs to Annotations."""
         rtn: list[Annotation] = []
         for kwarg in anno_kwargs:
-            if kwarg.get('content') == "" or kwarg.get('target') is None:
+            if kwarg.get("content") == "" or kwarg.get("target") is None:
                 continue
-            kwarg['type'] = DEFAULT_ANNO_TYPE_NAME if kwarg['type'] is None else kwarg['type']
+            kwarg["type"] = DEFAULT_ANNO_TYPE_NAME if kwarg["type"] is None else kwarg["type"]
             try:
-                kwarg['type'] = AnnotationType[kwarg['type'].upper()]
+                kwarg["type"] = AnnotationType[kwarg["type"].upper()]
             except KeyError:
-                _LOGGER.warning("%s: Unknown type: %s found in lines %s to %s. Skipping",
-                                filepath, kwarg['type'], kwarg['start_line'], kwarg['end_line'])
+                _LOGGER.warning(
+                    "%s: Unknown type: %s found in lines %s to %s. Skipping",
+                    filepath,
+                    kwarg["type"],
+                    kwarg["start_line"],
+                    kwarg["end_line"],
+                )
                 continue
-            kwarg['location'] = str(filepath)
-            kwarg['uri'] = "$".join([kwarg['target'], kwarg['content']])
+            kwarg["location"] = str(filepath)
+            kwarg["uri"] = "$".join([kwarg["target"], kwarg["content"]])
             rtn.append(Annotation(**kwarg))
         return rtn
 
@@ -149,12 +153,10 @@ class AnnotationParser:
         anno_kwargs: list[dict] = self._extract_anno_kwargs(lines, spans)
         return self._process_anno_kwargs(anno_kwargs, filepath)
 
-    def process_all(self) -> list[
-        Annotation]:
+    def process_all(self) -> list[Annotation]:
         """Extract annotations from all files."""
 
-        annos: list[
-            Annotation] = []
-        for filepath in self.paths:
+        annos: list[Annotation] = []
+        for filepath in self.paths: # pylint: disable=E1133
             annos.extend(self.process_file(filepath))
         return annos

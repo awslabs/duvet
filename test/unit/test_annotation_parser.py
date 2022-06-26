@@ -70,10 +70,10 @@ def test_extract_anno_kwargs(tmp_path):
     assert actual_kwargs == [
         {
             "content": "On client initialization, the caller MUST have the option to "
-                       "provide "
-                       "a: "
-                       "*  commitment policy (Section 2.4.1) "
-                       "*  maximum number of encrypted data keys (Section 2.4.2)",
+            "provide "
+            "a: "
+            "*  commitment policy (Section 2.4.1) "
+            "*  maximum number of encrypted data keys (Section 2.4.2)",
             "end_line": 6,
             "reason": None,
             "start_line": 0,
@@ -89,9 +89,9 @@ def test_process_anno_kwargs(tmp_path):
     actual_dicts = [
         {
             "content": "The IV length MUST be equal to the IV "
-                       "length of the algorithm suite specified by the Algorithm Suite "
-                       "ID "
-                       "(message-header.md#algorithm-suite-id) field.",
+            "length of the algorithm suite specified by the Algorithm Suite "
+            "ID "
+            "(message-header.md#algorithm-suite-id) field.",
             "end_line": 8,
             "reason": None,
             "start_line": 3,
@@ -100,8 +100,8 @@ def test_process_anno_kwargs(tmp_path):
         },
         {
             "content": "The IV length MUST be equal to the IV length of the algorithm "
-                       "suite "
-                       "(../framework/algorithm-suites.md) that generated the message.",
+            "suite "
+            "(../framework/algorithm-suites.md) that generated the message.",
             "end_line": 12,
             "reason": None,
             "start_line": 8,
@@ -116,20 +116,21 @@ def test_process_anno_kwargs(tmp_path):
     assert actual_annos[0].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
     assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
     assert (
-            actual_annos[0].content
-            == "The IV length MUST be equal to the IV length of the algorithm suite specified by the "
-               "Algorithm Suite ID (message-header.md#algorithm-suite-id) field."
+        actual_annos[0].content
+        == "The IV length MUST be equal to the IV length of the algorithm suite specified by the "
+        "Algorithm Suite ID (message-header.md#algorithm-suite-id) field."
     )
     # Verify the last annotation is not broken.
     assert (
-            actual_annos[1].content == "The IV length MUST be equal to the IV length of the algorithm "
-                                       "suite (../framework/algorithm-suites.md) that generated the message."
+        actual_annos[1].content == "The IV length MUST be equal to the IV length of the algorithm "
+        "suite (../framework/algorithm-suites.md) that generated the message."
     )
     assert actual_annos[0].uri == (
         "compliance/data-format/message-body.txt#2.5.2.1.2$The IV length MUST be "
         "equal to the IV length of the algorithm suite specified by the Algorithm "
         "Suite ID (message-header.md#algorithm-suite-id) field."
     )
+
 
 #
 # def test_esdk_compliance_exceptions():
