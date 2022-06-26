@@ -51,7 +51,9 @@ legacy = true
 def test_config_parse(tmpdir, contents: str):
     source = tmpdir.join("source")
     source.write(contents)
-    actual = Config.parse(str(source))
+    with pytest.warns(UserWarning) as record:
+        actual = Config.parse(str(source))
+    assert len(record) == 7
     expected_impl_config = ImplConfig(impl_filenames=[])
     assert actual.implementation_configs == [expected_impl_config, expected_impl_config]
     assert not actual.specs
@@ -85,8 +87,11 @@ def test_valid_files(tmp_path):
     populate_file(tmp_path, "# spec1", "src/spec1.dfy")
     populate_file(tmp_path, "# spec2", "src/spec2.rs")
     populate_file(tmp_path, "# spec3", "test/test_spec1.dfy")
+
     actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
-    actual_config = Config.parse(actual_path)
+    with pytest.warns(UserWarning) as record:
+        actual_config = Config.parse(actual_path)
+    assert len(record) == 3
     # Verify the correctness of the Config object by checking the length.
     assert len(actual_config.implementation_configs) == 2
     assert len(actual_config.specs) == 3
