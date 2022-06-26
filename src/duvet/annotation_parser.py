@@ -11,12 +11,13 @@ import attr
 from attrs import define, field
 
 from duvet._config import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
+from duvet.formatter import clean_content
 from duvet.identifiers import AnnotationType
 from duvet.structures import Annotation
 
 __all__ = ["AnnotationParser", "LineSpan"]
 _LOGGER = logging.getLogger(__name__)
-DEFAULT_ANNO_TYPE = AnnotationType.CITATION
+DEFAULT_ANNO_TYPE_NAME = AnnotationType.CITATION.name
 
 
 @define
@@ -40,6 +41,7 @@ class AnnotationParser:
     # //# be configurable.
     meta_style: str = field(init=True, default=DEFAULT_META_STYLE)
     content_style: str = field(init=True, default=DEFAULT_CONTENT_STYLE)
+
     is_anno: re.Pattern = field(init=False, repr=False)
     match_url: re.Pattern = field(init=False, repr=False)
     match_type: re.Pattern = field(init=False, repr=False)
@@ -57,79 +59,102 @@ class AnnotationParser:
 
     def _extract_blocks(self, lines: list[str]) -> list[LineSpan]:
         """Extract Annotation blocks from a file."""
-        anno_blocks: list[LineSpan] = []
+        anno_spans: list[LineSpan] = []
         start_anno: Optional[int] = None
 
         for index, line in enumerate(lines):
             anno_hit: Optional[re.Match] = self.is_anno.search(line)
             if anno_hit is None and start_anno is not None:
-                anno_blocks.append(LineSpan(start=start_anno, end=index))
+                anno_spans.append(LineSpan(start=start_anno, end=index))
                 start_anno = None
             elif anno_hit is not None and start_anno is None:
                 start_anno = index
         # Edge case for annotation blocks that end the file
         if start_anno is not None:
-            anno_blocks.append(LineSpan(start=start_anno, end=len(lines)))
+            anno_spans.append(LineSpan(start=start_anno, end=len(lines)))
 
-        return anno_blocks
+        return anno_spans
 
-    def _extract_anno_kwargs(self, lines: list[str], anno_blocks: list[LineSpan]) -> list[dict]:
+    def _extract_anno_kwargs(self, lines: list[str], spans: list[LineSpan]) -> list[dict]:
         """Parse none or more Annotation key word args from lines via LineSpans."""
         kwargs: list[dict] = []
-        for anno_block in anno_blocks:
-            index: int = anno_block.start
-            while index < anno_block.end:
+        for span in spans:
+            index: int = span.start
+            while index < span.end:
                 start: int = index
-                # fmt: off
 
                 # the first line will be the url
-                url: Optional[str] = (
-                    self.match_url.match(lines[index]).__getitem__(1)
-                    if self.match_url.match(lines[index])
-                    else None
-                )
+                match = self.match_url.match(lines[index])
+                url: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
                 index += 1 if url is not None else 0
+                del match
 
                 # there may be a type
-                _type: Optional[str] = (
-                    self.match_type.match(lines[index]).__getitem__(1)
-                    if self.match_type.match(lines[index])
-                    else None
-                )
+                match = self.match_type.match(lines[index])
+                _type: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
                 index += 1 if _type is not None else 0
+                del match
 
                 # there may be a reason;
-                reason: Optional[str] = (
-                    self.match_reason.match(lines[index]).__getitem__(1)
-                    if self.match_reason.match(lines[index])
-                    else None
-                )
+                match = self.match_reason.match(lines[index])
+                reason: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
                 index += 1 if reason is not None else 0
+                del match
 
                 # there MUST be content
                 content = ""
-                while index < len(lines) and self.match_content.match(lines[index]):
-                    content += self.match_content.match(lines[index]).__getitem__(1) + "\n"
+                if not lines[index].endswith('\n'):
+                    lines[index] = lines[index] + '\n'
+                match = self.match_content.match(lines[index])
+                while index < span.end and isinstance(match, re.Match):
+                    content += match.__getitem__(1) + "\n"
                     index += 1
+                    match = self.match_content.match(lines[index]) if index < span.end else None
+                del match
 
-                kwarg = {"target": url, "type": _type, "start": start,
-                         "end": index, "reason": reason, "content": content}
+                # fmt: off
+                kwarg = {"target": url, "type": _type, "start_line": start,
+                         "end_line": index, "reason": reason, "content": clean_content(content)}
                 kwargs.append(kwarg)
-                # assert url is not None, f"url is None on anno start {start}"
-                # assert content is not None, f"content is None on anno start {start}"
                 # fmt: on
-
+        print(kwargs)
         return kwargs
 
-    def _process_anno_kwargs(self, anno_kwargs: list[dict], filepath: Path) -> list[Annotation]:
-        pass
+    @staticmethod
+    def _process_anno_kwargs(anno_kwargs: list[dict], filepath: Path) -> list[Annotation]:
+        """Convert anno kwargs to Annotations."""
+        rtn: list[Annotation] = []
+        for kwarg in anno_kwargs:
+            if kwarg.get('content') == "" or kwarg.get('target') is None:
+                continue
+            kwarg['type'] = DEFAULT_ANNO_TYPE_NAME if kwarg['type'] is None else kwarg['type']
+            try:
+                kwarg['type'] = AnnotationType[kwarg['type'].upper()]
+            except KeyError:
+                _LOGGER.warning("%s: Unknown type: %s found in lines %s to %s. Skipping",
+                                filepath, kwarg['type'], kwarg['start_line'], kwarg['end_line'])
+                continue
+            kwarg['location'] = str(filepath)
+            kwarg['uri'] = "$".join([kwarg['target'], kwarg['content']])
+            rtn.append(Annotation(**kwarg))
+        return rtn
 
-    def process_file(self, filepath: Path) -> list[dict]:
+    def process_file(self, filepath: Path) -> list[Annotation]:
         """Extract annotations from one file."""
 
         with open(filepath, "r", encoding="utf-8") as implementation_file:
             lines: list[str] = implementation_file.readlines()
 
-        anno_blocks: list[LineSpan] = self._extract_blocks(lines)
-        anno_kwargs: list[dict] = self._extract_anno_kwargs(lines, anno_blocks)
-        return anno_kwargs
+        spans: list[LineSpan] = self._extract_blocks(lines)
+        anno_kwargs: list[dict] = self._extract_anno_kwargs(lines, spans)
+        return self._process_anno_kwargs(anno_kwargs, filepath)
+
+    def process_all(self) -> list[
+        Annotation]:
+        """Extract annotations from all files."""
+
+        annos: list[
+            Annotation] = []
+        for filepath in self.paths:
+            annos.extend(self.process_file(filepath))
+        return annos

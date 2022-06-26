@@ -1,16 +1,11 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Annotation Parser used by duvet-python."""
-# import logging
-# from pathlib import Path
 from test.utils import populate_file
 
 import pytest
 
 from duvet.annotation_parser import AnnotationParser, LineSpan
-
-# from typing import Iterable
-
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -53,7 +48,6 @@ ANNOTATION_END_OF_FILE = """
 def test_extract_blocks(tmp_path):
     actual_path = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet.dfy")
     lines = TEST_DFY_BLOCK.splitlines(keepends=True)
-    # lines[-1] = lines[-1] = +   '\n'
     parser = AnnotationParser(actual_path)
     actual_linespan = parser._extract_blocks(lines)
     assert actual_linespan == [LineSpan(start=0, end=6)]
@@ -76,67 +70,66 @@ def test_extract_anno_kwargs(tmp_path):
     assert actual_kwargs == [
         {
             "content": "On client initialization, the caller MUST have the option to "
-            "provide\n"
-            "a:\n"
-            "*  commitment policy (Section 2.4.1)\n"
-            "*  maximum number of encrypted data keys (Section 2.4.2)\n",
-            "end": 6,
+                       "provide "
+                       "a: "
+                       "*  commitment policy (Section 2.4.1) "
+                       "*  maximum number of encrypted data keys (Section 2.4.2)",
+            "end_line": 6,
             "reason": None,
-            "start": 0,
+            "start_line": 0,
             "target": "compliance/client-apis/client.txt#2.4",
             "type": "implication",
         }
     ]
 
 
-def test_process_file(tmp_path):
-    actual_path = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet.dfy")
-    parser = AnnotationParser(actual_path)
-    actual_dicts = parser.process_file(actual_path)
-    assert actual_dicts == [
-        {
-            "content": "On client initialization, the caller MUST have the option to "
-            "provide\n"
-            "a:\n"
-            "*  commitment policy (Section 2.4.1)\n"
-            "*  maximum number of encrypted data keys (Section 2.4.2)\n",
-            "end": 6,
-            "reason": None,
-            "start": 0,
-            "target": "compliance/client-apis/client.txt#2.4",
-            "type": "implication",
-        }
-    ]
-
-
-def test_process_file_with_nested_annotation(tmp_path):
+def test_process_anno_kwargs(tmp_path):
     actual_path = populate_file(tmp_path, ANNOTATION_NESTED_IN_FUNCTION, "src/test-duvet/test-duvet.dfy")
-    parser = AnnotationParser(actual_path)
-    actual_dicts = parser.process_file(actual_path)
-    assert actual_dicts == [
+    parser = AnnotationParser([actual_path])
+    actual_dicts = [
         {
-            "content": "The IV length MUST be equal to the IV\n"
-            "length of the algorithm suite specified by the Algorithm Suite "
-            "ID\n"
-            "(message-header.md#algorithm-suite-id) field.\n",
-            "end": 8,
+            "content": "The IV length MUST be equal to the IV "
+                       "length of the algorithm suite specified by the Algorithm Suite "
+                       "ID "
+                       "(message-header.md#algorithm-suite-id) field.",
+            "end_line": 8,
             "reason": None,
-            "start": 3,
+            "start_line": 3,
             "target": "compliance/data-format/message-body.txt#2.5.2.1.2",
             "type": "implication",
         },
         {
             "content": "The IV length MUST be equal to the IV length of the algorithm "
-            "suite\n"
-            "(../framework/algorithm-suites.md) that generated the message.\n",
-            "end": 12,
+                       "suite "
+                       "(../framework/algorithm-suites.md) that generated the message.",
+            "end_line": 12,
             "reason": None,
-            "start": 8,
+            "start_line": 8,
             "target": "compliance/data-format/message-body.txt#2.5.2.2.3",
             "type": "implication",
         },
     ]
-
+    actual_annos = parser._process_anno_kwargs(actual_dicts, actual_path)
+    assert len(actual_annos) == 2
+    assert actual_annos[0].type.name == "IMPLICATION"
+    assert actual_annos[1].type.name == "IMPLICATION"
+    assert actual_annos[0].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
+    assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
+    assert (
+            actual_annos[0].content
+            == "The IV length MUST be equal to the IV length of the algorithm suite specified by the "
+               "Algorithm Suite ID (message-header.md#algorithm-suite-id) field."
+    )
+    # Verify the last annotation is not broken.
+    assert (
+            actual_annos[1].content == "The IV length MUST be equal to the IV length of the algorithm "
+                                       "suite (../framework/algorithm-suites.md) that generated the message."
+    )
+    assert actual_annos[0].uri == (
+        "compliance/data-format/message-body.txt#2.5.2.1.2$The IV length MUST be "
+        "equal to the IV length of the algorithm suite specified by the Algorithm "
+        "Suite ID (message-header.md#algorithm-suite-id) field."
+    )
 
 #
 # def test_esdk_compliance_exceptions():
