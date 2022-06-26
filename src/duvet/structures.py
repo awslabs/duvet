@@ -44,6 +44,9 @@ class Annotation:
         """Return annotation location."""
         return f"{self.location}#L{self.start_line}-L{self.end_line}"
 
+    def _has_reason(self):
+        return self.reason is not None
+
 
 @define
 class Requirement:

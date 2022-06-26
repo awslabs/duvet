@@ -157,6 +157,6 @@ class AnnotationParser:
         """Extract annotations from all files."""
 
         annos: list[Annotation] = []
-        for filepath in self.paths: # pylint: disable=E1133
+        for filepath in self.paths:  # pylint: disable=E1133
             annos.extend(self.process_file(filepath))
         return annos

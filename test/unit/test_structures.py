@@ -131,9 +131,9 @@ def test_report_add_annotation():
 
 def test_exception_annotaion():
     test_anno = Annotation(
-        "test_target.md#target", AnnotationType.EXCEPTION, "content", 1, 2, "test_target#target$content", "code.py"
+        "test_target.md#target", AnnotationType.EXCEPTION,
+        "content", 1, 2, "test_target#target$content", "code.py","reason"
     )
-    test_anno.add_reason("reason")
     assert test_anno.target == "test_target.md#target"
     assert test_anno.type == AnnotationType.EXCEPTION
     assert test_anno.content == "content"
@@ -142,4 +142,4 @@ def test_exception_annotaion():
     assert test_anno.end_line == 2
     assert test_anno.uri == "test_target#target$content"
     assert test_anno.location == "code.py"
-    assert test_anno.has_reason
+    assert test_anno._has_reason()
