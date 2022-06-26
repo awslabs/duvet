@@ -78,10 +78,8 @@ def test_section():
     test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
     assert test_sec.title == "A Section Title"
     assert test_sec.uri == "h1.h2.h3.a-section-title"
-    assert (
-        test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
-        == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
-    )
+    assert (test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
+            == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title")
     assert not test_sec.has_requirements
     test_sec.add_requirement(test_req)
     assert test_sec.has_requirements
@@ -91,10 +89,9 @@ def test_specification():
     test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
     test_spec = Specification("A Specification Title", "spec/spec.md")
     test_spec.add_section(test_sec)
-    assert (
-        test_spec.to_github_url("https://github.com/awslabs/duvet")
-        == "https://github.com/awslabs/duvet/blob/master/spec/spec.md"
-    )
+    assert (test_spec.to_github_url("https://github.com/awslabs/duvet")
+            == "https://github.com/awslabs/duvet/blob/master/spec/spec.md"
+            )
 
 
 def test_report_add_annotation():
@@ -132,7 +129,7 @@ def test_report_add_annotation():
 def test_exception_annotaion():
     test_anno = Annotation(
         "test_target.md#target", AnnotationType.EXCEPTION,
-        "content", 1, 2, "test_target#target$content", "code.py","reason"
+        "content", 1, 2, "test_target#target$content", "code.py", "reason"
     )
     assert test_anno.target == "test_target.md#target"
     assert test_anno.type == AnnotationType.EXCEPTION
