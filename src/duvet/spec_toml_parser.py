@@ -1,16 +1,18 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Specification Parser used by duvet-python for toml format."""
+import logging
 import warnings
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, List, MutableMapping, Optional
 
 import toml
-from attrs import define
+from attr import define
 
 from duvet.identifiers import RequirementLevel
 from duvet.structures import Report, Requirement, Section, Specification
 
+_LOGGER = logging.getLogger(__name__)
 __all__ = ["TomlRequirementParser"]
 
 
@@ -58,18 +60,25 @@ class TomlRequirementParser:
             temp_sec = Section(title, section_uri)
             requirements = sec_dict.get(TOML_SPEC_KEY)
             if requirements is not None:
-                _parse_requirement_attributes(requirements, sec_dict, temp_sec)
-            toml_report.specifications.get(spec_uri).add_section(temp_sec)
+                _parse_requirement_attributes(requirements, sec_dict, temp_sec, temp_toml)
+            # TODO: use a default dict for Report.specifications  # pylint: disable=fixme
+            toml_report.specifications.get(spec_uri).add_section(temp_sec)  # type: ignore[union-attr]
 
         return toml_report
 
 
-def _parse_requirement_attributes(requirements: List[Requirement], sec_dict: Dict, temp_sec: Section):
+def _parse_requirement_attributes(
+    requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section, filepath: Path
+):
     # Parse the attributes in Requirement.
+    # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
     for req in requirements:
-        temp_req = Requirement(
-            RequirementLevel[req.get(TOML_REQ_LEVEL_KEY)],
-            req.get(TOML_REQ_CONTENT_KEY),
-            "$".join([sec_dict.get(TOML_URI_KEY), req.get(TOML_REQ_CONTENT_KEY)]),
-        )
-        temp_sec.add_requirement(temp_req)
+        try:
+            temp_req = Requirement(
+                RequirementLevel[req.get(TOML_REQ_LEVEL_KEY)],  # type: ignore[misc]  # will raise KeyError
+                req.get(TOML_REQ_CONTENT_KEY),  # type: ignore[arg-type]  # at worst, will raise TypeError
+                "$".join([sec_dict.get(TOML_URI_KEY), req.get(TOML_REQ_CONTENT_KEY)]),  # type: ignore[list-item]
+            )
+            temp_sec.add_requirement(temp_req)
+        except (TypeError, KeyError) as ex:
+            _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
