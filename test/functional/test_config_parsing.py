@@ -6,7 +6,7 @@ import pytest
 
 from duvet._config import Config, ImplConfig
 
-from ..utils import populate_file  # isort:skip
+from ..utils import populate_file
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 

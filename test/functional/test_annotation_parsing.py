@@ -4,13 +4,9 @@
 
 import pytest
 
-# from ..utils import populate_file  # isort:skip
 from duvet.annotation_parser import AnnotationParser
 
 from ..utils import populate_file
-
-# from duvet.annotation_parser import AnnotationParser
-
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
@@ -73,19 +69,21 @@ def test_2_valid_file(tmp_path):
     parser = AnnotationParser([actual_path1, actual_path2])
     actual_annos = parser.process_all()
     assert len(actual_annos) == 3
-    assert actual_annos[0].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
-    assert actual_annos[1].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
-    assert actual_annos[2].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
-    assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"  # pylint: disable=(unsubscriptable-object
+    assert actual_annos[0].type.name == "IMPLICATION"
+    assert actual_annos[1].type.name == "IMPLICATION"
+    assert actual_annos[2].type.name == "IMPLICATION"
+    assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
     assert actual_annos[0].content == (
         "On client initialization, the caller MUST have the option to provide a: *  "
         "commitment policy (Section 2.4.1) *  maximum number of encrypted data keys "
         "(Section 2.4.2)"
     )
-    # assert actual_annos[0].uri == (  # pylint: disable=(unsubscriptable-object
-    #     "compliance/client-apis/client.txt#2.4$On client initialization,
-    #     "the caller MUST have the option to provide a:"
-    # )
+    assert actual_annos[0].uri == (
+        "compliance/client-apis/client.txt#2.4$On client initialization, "
+        "the caller MUST have the option to provide a: *  "
+        "commitment policy (Section 2.4.1) *  maximum number of encrypted data keys "
+        "(Section 2.4.2)"
+    )
 
 
 def test_extract_python_implementation_annotation(pytestconfig):
@@ -96,17 +94,10 @@ def test_extract_python_implementation_annotation(pytestconfig):
     actual_annos = parser.process_file(actual_path)
     # Verify two annotation is added to parser
     assert len(actual_annos) == 1
-    assert actual_annos[0].type.name == "IMPLICATION"  # pylint: disable=(unsubscriptable-object
-    assert (
-        actual_annos[0].target
-        == "compliance/duvet-specification.txt#2.3.1"
-        # pylint: disable=(unsubscriptable-object
-    )
-    assert (
-        actual_annos[0].content  # pylint: disable=(unsubscriptable-object
-        == "This identifier of meta parts MUST be configurable."
-    )
-    assert actual_annos[0].uri == (  # pylint: disable=(unsubscriptable-object
+    assert actual_annos[0].type.name == "IMPLICATION"
+    assert actual_annos[0].target == "compliance/duvet-specification.txt#2.3.1"
+    assert actual_annos[0].content == "This identifier of meta parts MUST be configurable."
+    assert actual_annos[0].uri == (
         "compliance/duvet-specification.txt#2.3.1$This identifier of meta parts MUST be configurable."
     )
 
