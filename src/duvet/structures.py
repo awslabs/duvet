@@ -5,7 +5,7 @@ import logging
 from typing import Dict, Optional
 
 import attr
-from attr import define, field
+from attrs import define, field
 
 from duvet.identifiers import (
     AnnotationType,
@@ -43,6 +43,9 @@ class Annotation:
     def location_to_string(self) -> str:
         """Return annotation location."""
         return f"{self.location}#L{self.start_line}-L{self.end_line}"
+
+    def _has_reason(self):
+        return self.reason is not None
 
 
 @define
