@@ -125,7 +125,7 @@ class AnnotationParser:
         rtn: list[Annotation] = []
         for kwarg in anno_kwargs:
             if kwarg.get("content") == "" or kwarg.get("target") is None:
-                continue # pragma: no cover
+                continue  # pragma: no cover
             kwarg["type"] = DEFAULT_ANNO_TYPE_NAME if kwarg["type"] is None else kwarg["type"]
             try:
                 kwarg["type"] = AnnotationType[kwarg["type"].upper()]
