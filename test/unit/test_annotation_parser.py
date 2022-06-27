@@ -28,11 +28,11 @@ class TestExtractSpans:
             (f"\n{DEFAULT_META_STYLE} content\n\n{DEFAULT_CONTENT_STYLE} content\n", [LineSpan(1, 2), LineSpan(3, 4)]),
         ],
     )
-
     def test_extract(self, under_test, text: str, expected_spans: list[LineSpan]):
         lines = text.splitlines(keepends=True)
         actual_spans = under_test._extract_blocks(lines)
         assert expected_spans == actual_spans
+
 
 # pylint: disable=R0201
 class TestExtractkwargs:
@@ -43,54 +43,54 @@ class TestExtractkwargs:
         "lines, spans, expected_dicts",
         [
             (
-                    test_str.splitlines(keepends=True),
-                    [LineSpan(0, 3)],
-                    [
-                        {
-                            "content": "Duvet MUST",
-                            "end_line": 3,
-                            "reason": None,
-                            "start_line": 0,
-                            "target": "target",
-                            "type": "implication",
-                        }
-                    ],
+                test_str.splitlines(keepends=True),
+                [LineSpan(0, 3)],
+                [
+                    {
+                        "content": "Duvet MUST",
+                        "end_line": 3,
+                        "reason": None,
+                        "start_line": 0,
+                        "target": "target",
+                        "type": "implication",
+                    }
+                ],
             ),
             (
-                    nested_str.splitlines(True),
-                    [LineSpan(1, 4)],
-                    [
-                        {
-                            "content": "Duvet MUST",
-                            "end_line": 4,
-                            "reason": None,
-                            "start_line": 1,
-                            "target": "target",
-                            "type": "implication",
-                        }
-                    ],
+                nested_str.splitlines(True),
+                [LineSpan(1, 4)],
+                [
+                    {
+                        "content": "Duvet MUST",
+                        "end_line": 4,
+                        "reason": None,
+                        "start_line": 1,
+                        "target": "target",
+                        "type": "implication",
+                    }
+                ],
             ),
             (
-                    (test_str + test_str).splitlines(True),
-                    [LineSpan(0, 3), LineSpan(3, 6)],
-                    [
-                        {
-                            "content": "Duvet MUST",
-                            "end_line": 3,
-                            "reason": None,
-                            "start_line": 0,
-                            "target": "target",
-                            "type": "implication",
-                        },
-                        {
-                            "content": "Duvet MUST",
-                            "end_line": 6,
-                            "reason": None,
-                            "start_line": 3,
-                            "target": "target",
-                            "type": "implication",
-                        },
-                    ],
+                (test_str + test_str).splitlines(True),
+                [LineSpan(0, 3), LineSpan(3, 6)],
+                [
+                    {
+                        "content": "Duvet MUST",
+                        "end_line": 3,
+                        "reason": None,
+                        "start_line": 0,
+                        "target": "target",
+                        "type": "implication",
+                    },
+                    {
+                        "content": "Duvet MUST",
+                        "end_line": 6,
+                        "reason": None,
+                        "start_line": 3,
+                        "target": "target",
+                        "type": "implication",
+                    },
+                ],
             ),
         ],
     )
