@@ -15,6 +15,7 @@ from duvet.identifiers import (
     implemented_type,
     omitted_type,
 )
+from duvet.specification_parser import Span
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,6 +64,8 @@ class Requirement:
     :param dict matched_annotations: A hashtable of annotations matched with the requirement content and section uri
     """
 
+    # span of the start and end of the
+    span: Span
     requirement_level: RequirementLevel
     status: RequirementStatus = field(init=False, default=RequirementStatus.NOT_STARTED)
     implemented: bool = field(init=False, default=False)
@@ -158,7 +161,7 @@ class Section:
     Clicking on any highlighted text MUST bring up a popup that shows
 
     :param  str uri: a unique identifier of the section, for mark down documents it would be h1.h2.h3.h4 (Primary Key)
-    :param  str title: the name of the title which we can target here using GitHub hyper link
+    :param  str title: the name of the title which we can target here using GitHub hyperlink
     :param  int start_line: the line number of the start of the section
     :param  int end_line: the line number of the end of the section
     :param  dict requirements: a hashmap of requirements extracted from the section
@@ -191,6 +194,18 @@ class Section:
             return False
         else:
             return self.requirements[anno.uri].add_annotation(anno)
+
+    def to_toml(self, spec_dir) -> bool:
+        """Covert markdown section to toml files."""
+        with open(self.title + ".toml", "w", encoding="utf-8") as temp_file:
+            temp_heading = self.title.split(".")
+            target = spec_dir + "#" + temp_heading[-1]
+            for temp_req in self.requirements.values():
+                temp_dict = {"level": temp_req.requirement_level.name, "quote": temp_req.content}
+                self.spec_dict.append(temp_dict)
+
+            toml_dict = {"target": target, "spec": self.spec_dict}
+            return toml.dump(toml_dict, temp_file)
 
 
 # noinspection PyUnresolvedReferences

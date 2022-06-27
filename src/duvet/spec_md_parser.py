@@ -9,8 +9,9 @@ import toml
 from attrs import define, field
 
 from duvet.markdown import MarkdownSpecification
-from duvet.requirement_parser import RequirementParser, create_requirements_from_list_to_section
-from duvet.structures import Report, Section, Specification
+from duvet.requirement_parser import RequirementParser
+from duvet.specification_parser import Span
+from duvet.structures import Report, Requirement, Section, Specification
 
 __all__ = ["MDRequirementParser"]
 
@@ -54,22 +55,12 @@ class MDSection:
         )
         self._extract_requirements()
 
-    def to_toml(self, spec_dir):
-        """Covert markdown section to toml files."""
-
-        with open(self.title + ".toml", "w", encoding="utf-8") as temp_file:
-            temp_heading = self.title.split(".")
-            target = spec_dir + "#" + temp_heading[-1]
-            for temp_req in self.requirements.values():
-                temp_dict = {"level": temp_req.requirement_level.name, "quote": temp_req.content}
-                self.spec_dict.append(temp_dict)
-
-            toml_dict = {"target": target, "spec": self.spec_dict}
-            toml.dump(toml_dict, temp_file)
-
     def _extract_requirements(self) -> bool:
-        req_list_str = RequirementParser().extract_requirements(self.quotes)
-        return create_requirements_from_list_to_section(self.section, req_list_str)
+        req_kwargs: List[dict] = RequirementParser(self.quotes).extract_requirements(Span(0, len(self.quotes)))
+        for kwarg in req_kwargs:
+            kwarg.setdefault("uri", "$".join([self.section.uri, kwarg.get("content")]))
+            self.section.add_requirement(Requirement(**kwarg))
+        return True
 
 
 @define
@@ -89,7 +80,8 @@ class MDSpec:
 
         parser = MarkdownSpecification.parse(markdown_spec_dir)
         spec = Specification(markdown_spec_dir.name, str(os.path.relpath(markdown_spec_dir, pathlib.Path.cwd())))
-        return cls(parser, spec, markdown_spec_dir)
+        filepath = markdown_spec_dir
+        return cls(parser, spec, filepath)
 
     def _get_md_sections(self) -> List[MDSection]:
         md_section_list = []

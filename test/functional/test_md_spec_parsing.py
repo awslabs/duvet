@@ -32,8 +32,7 @@ A header MUST NOT itself be a requirement.
 
 def test_extract_duvet_specification(pytestconfig):
     path = pytestconfig.rootpath.joinpath("duvet-specification", "duvet-specification.md")
-    new_spec = MDSpec.load(path)
-    actual_spec = new_spec.get_spec()
+    actual_spec = MDSpec.load(path).get_spec()
     expected_title = "duvet-specification.md"
     assert actual_spec.title == expected_title
     # print(new_spec.get_spec())
