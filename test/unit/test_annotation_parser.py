@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Annotation Parser used by duvet-python."""
 import pytest
+from _pytest.tmpdir import tmp_path
 
 from duvet._config import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
 from duvet.annotation_parser import AnnotationParser, LineSpan
@@ -98,3 +99,13 @@ class TestExtractkwargs:
     def test_extract(self, under_test, lines: list[str], spans: list[LineSpan], expected_dicts: list[dict]):
         actual_spans = under_test._extract_anno_kwargs(lines, spans)
         assert expected_dicts == actual_spans
+
+
+class TestProcessKwargs:
+
+    # pylint disable=no-self-use
+    def test_process_annos(self, under_test):
+        actual_result = under_test._process_anno_kwargs(
+            [{"target": None}, {"target": "target", "type": "none"}], tmp_path
+        )
+        assert len(actual_result) == 0

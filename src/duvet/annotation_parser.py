@@ -125,17 +125,17 @@ class AnnotationParser:
         rtn: list[Annotation] = []
         for kwarg in anno_kwargs:
             if kwarg.get("content") == "" or kwarg.get("target") is None:
-                continue  # pragma: no cover
+                continue
             kwarg["type"] = DEFAULT_ANNO_TYPE_NAME if kwarg["type"] is None else kwarg["type"]
             try:
                 kwarg["type"] = AnnotationType[kwarg["type"].upper()]
-            except KeyError:  # pragma: no cover
+            except KeyError:
                 _LOGGER.warning(
                     "%s: Unknown type: %s found in lines %s to %s. Skipping",
                     filepath,
                     kwarg["type"],
-                    kwarg["start_line"],
-                    kwarg["end_line"],
+                    kwarg.get("start_line", "NO_START_LINE"),
+                    kwarg.get("end_line", "NO_END_LINE"),
                 )
                 continue
             kwarg["location"] = str(filepath)
