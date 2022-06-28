@@ -134,8 +134,8 @@ class AnnotationParser:
                     "%s: Unknown type: %s found in lines %s to %s. Skipping",
                     filepath,
                     kwarg["type"],
-                    kwarg.get("start_line", "NO_START_LINE"),
-                    kwarg.get("end_line", "NO_END_LINE"),
+                    kwarg["start_line"],
+                    kwarg["end_line"],
                 )
                 continue
             kwarg["location"] = str(filepath)

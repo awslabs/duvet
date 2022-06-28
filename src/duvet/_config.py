@@ -101,7 +101,7 @@ class ConfigParser:
         spec_file_list = []
         entry = spec.get(entry_key, {})
         if "patterns" not in entry.keys():
-            raise ValueError("Patterns not found in" + mode + " Config " + entry_key)  # pragma: no cover
+            raise ValueError("Patterns not found in" + mode + " Config " + entry_key)
         for pattern in entry.get("patterns"):
             temp_list = list(self.config_file_path.parent.glob(pattern))
             if len(temp_list) == 0:

@@ -1,6 +1,8 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Annotation Parser used by duvet-python."""
+import copy
+
 import pytest
 from _pytest.tmpdir import tmp_path
 
@@ -15,7 +17,6 @@ def under_test(tmp_path) -> AnnotationParser:
     return AnnotationParser([tmp_path])
 
 
-# pylint: disable=R0201
 class TestExtractSpans:
     @pytest.mark.parametrize(
         "text, expected_spans",
@@ -35,7 +36,6 @@ class TestExtractSpans:
         assert expected_spans == actual_spans
 
 
-# pylint: disable=R0201
 class TestExtractkwargs:
     test_str = "//= target\n//= type=implication\n//# Duvet MUST\n"
     nested_str = "some code\n//= target\n//= type=implication\n//# Duvet MUST\nsome code\n"
@@ -102,10 +102,18 @@ class TestExtractkwargs:
 
 
 class TestProcessKwargs:
-
-    # pylint disable=no-self-use
     def test_process_annos(self, under_test):
-        actual_result = under_test._process_anno_kwargs(
-            [{"target": None}, {"target": "target", "type": "none"}], tmp_path
-        )
+        kwarg = {
+            "target": "target",
+            "type": "target",
+            "start_line": 1,
+            "end_line": 2,
+            "reason": "reason",
+            "content": "content_entry",
+        }
+        target_kwarg = copy.deepcopy(kwarg)
+        target_kwarg["target"] = None
+        type_kwarg = copy.deepcopy(kwarg)
+        type_kwarg["type"] = "none"
+        actual_result = under_test._process_anno_kwargs([target_kwarg, type_kwarg], tmp_path)
         assert len(actual_result) == 0

@@ -103,10 +103,12 @@ def test_extract_python_implementation_annotation(pytestconfig):
 
 
 def test_extract_python_no_implementation_annotation(pytestconfig):
-    path = pytestconfig.rootpath.joinpath("src/duvet/identifiers.py")
+    path = pytestconfig.rootpath.joinpath("src/duvet/__init__.py")
     anno_meta_style = "# //="
     anno_content_style = "# //#"
-    AnnotationParser([path], anno_meta_style, anno_content_style)
+    actual_parser = AnnotationParser([path], anno_meta_style, anno_content_style)
+    assert actual_parser.meta_style == anno_meta_style
+    assert actual_parser.content_style == anno_content_style
 
 
 def test_run_into_another(tmp_path):
