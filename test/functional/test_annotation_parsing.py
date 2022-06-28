@@ -6,7 +6,7 @@ import pytest
 
 from duvet.annotation_parser import AnnotationParser
 
-from ..utils import populate_file
+from ..utils import populate_file  # isort: skip
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
