@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 import attr
+import click
 from attrs import define, field
 
 from duvet._config import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
@@ -33,7 +34,6 @@ class AnnotationParser:
     """Parser for annotation from implementation."""
 
     paths: list[Path] = field(init=True, default=attr.Factory(list), repr=False)
-    annotations: list[Annotation] = field(init=False, default=attr.Factory(list), repr=False)
     # TODO: Sanitize user input for regular expression usage;
     # //= compliance/duvet-specification.txt#2.3.1
     # //= type=implication
@@ -41,6 +41,7 @@ class AnnotationParser:
     # //# be configurable.
     meta_style: str = field(init=True, default=DEFAULT_META_STYLE)
     content_style: str = field(init=True, default=DEFAULT_CONTENT_STYLE)
+    annotations: list[Annotation] = field(init=False, default=attr.Factory(list), repr=False)
     is_anno: re.Pattern = field(init=False, repr=False)
     match_url: re.Pattern = field(init=False, repr=False)
     match_type: re.Pattern = field(init=False, repr=False)
@@ -49,7 +50,7 @@ class AnnotationParser:
 
     def __attrs_post_init__(self):
         """Set regular expression attributes."""
-        pattern: str = f"((?:{self.meta_style})|(?:{self.content_style}))"
+        pattern: str = r"^([\s]*" + f"((?:{self.meta_style})|(?:{self.content_style})))"
         self.is_anno = re.compile(pattern)
         self.match_url = re.compile(r"[\s]*" + self.meta_style + r"[\s](.*?)\n")
         self.match_type = re.compile(r"[\s]*" + self.meta_style + r"[\s]type=(.*?)\n")
@@ -157,5 +158,6 @@ class AnnotationParser:
 
         annotations: list[Annotation] = []
         for filepath in self.paths:
+            click.echo("Processing " + str(filepath.name))
             annotations.extend(self.process_file(filepath))
         return annotations

@@ -47,58 +47,29 @@ ANNOTATION_END_OF_FILE = """
   //= type=implication
   //# The IV MUST be a unique IV within the message."""
 
-
-def test_one_valid_file(tmp_path):
-    actual_path = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet.dfy")
-    parser = AnnotationParser([actual_path])
-    actual_annos = parser.process_file(actual_path)
-    assert len(actual_annos) == 1
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
-    assert actual_annos[0].content == (
-        "On client initialization, the caller MUST have the option to provide a: *  "
-        "commitment policy (Section 2.4.1) *  maximum number of encrypted data keys "
-        "(Section 2.4.2)"
-    )
-    # assert str(actual_annos[0].location.resolve()) == f"{str(tmp_path.resolve())}/src/test-duvet/test-duvet.dfy"
+IMPLICATION = "IMPLICATION"
 
 
-def test_2_valid_file(tmp_path):
+def test_more_than_one_valid_files(tmp_path):
     actual_path1 = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet1.dfy")
     actual_path2 = populate_file(tmp_path, ANNOTATION_NESTED_IN_FUNCTION, "src/test-duvet/test-duvet2.dfy")
     parser = AnnotationParser([actual_path1, actual_path2])
-    actual_annos = parser.process_all()
-    assert len(actual_annos) == 3
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[1].type.name == "IMPLICATION"
-    assert actual_annos[2].type.name == "IMPLICATION"
-    assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
-    assert actual_annos[0].content == (
+    actual_annotations = parser.process_all()
+    assert len(actual_annotations) == 3
+    assert actual_annotations[0].type.name == "IMPLICATION"
+    assert actual_annotations[1].type.name == "IMPLICATION"
+    assert actual_annotations[2].type.name == "IMPLICATION"
+    assert actual_annotations[0].target == "compliance/client-apis/client.txt#2.4"
+    assert actual_annotations[0].content == (
         "On client initialization, the caller MUST have the option to provide a: *  "
         "commitment policy (Section 2.4.1) *  maximum number of encrypted data keys "
         "(Section 2.4.2)"
     )
-    assert actual_annos[0].uri == (
+    assert actual_annotations[0].uri == (
         "compliance/client-apis/client.txt#2.4$On client initialization, "
         "the caller MUST have the option to provide a: *  "
         "commitment policy (Section 2.4.1) *  maximum number of encrypted data keys "
         "(Section 2.4.2)"
-    )
-
-
-def test_extract_python_implementation_annotation(pytestconfig):
-    actual_path = pytestconfig.rootpath.joinpath("src/duvet/annotation_parser.py")
-    anno_meta_style = "# //="
-    anno_content_style = "# //#"
-    parser = AnnotationParser([actual_path], anno_meta_style, anno_content_style)
-    actual_annos = parser.process_file(actual_path)
-    # Verify two annotation is added to parser
-    assert len(actual_annos) == 1
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[0].target == "compliance/duvet-specification.txt#2.3.1"
-    assert actual_annos[0].content == "This identifier of meta parts MUST be configurable."
-    assert actual_annos[0].uri == (
-        "compliance/duvet-specification.txt#2.3.1$This identifier of meta parts MUST be configurable."
     )
 
 
@@ -109,87 +80,19 @@ def test_extract_python_no_implementation_annotation(pytestconfig):
     actual_parser = AnnotationParser([path], anno_meta_style, anno_content_style)
     assert actual_parser.meta_style == anno_meta_style
     assert actual_parser.content_style == anno_content_style
-
-
-def test_run_into_another(tmp_path):
-    actual_path = populate_file(
-        tmp_path, ANNOTATION_NESTED_IN_FUNCTION, "src/test-duvet/test-run-into-another-annotation.dfy"
-    )
-    parser = AnnotationParser([actual_path])
-    actual_annos = parser.process_file(actual_path)
-    assert len(actual_annos) == 2
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[1].type.name == "IMPLICATION"
-    assert actual_annos[0].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
-    assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
-    assert (
-        actual_annos[0].content
-        == "The IV length MUST be equal to the IV length of the algorithm suite specified by the "
-        "Algorithm Suite ID (message-header.md#algorithm-suite-id) field."
-    )
-    # Verify the last annotation is not broken.
-    assert (
-        actual_annos[1].content == "The IV length MUST be equal to the IV length of the algorithm "
-        "suite (../framework/algorithm-suites.md) that generated the message."
-    )
-    assert actual_annos[0].uri == (
-        "compliance/data-format/message-body.txt#2.5.2.1.2$The IV length MUST be "
-        "equal to the IV length of the algorithm suite specified by the Algorithm "
-        "Suite ID (message-header.md#algorithm-suite-id) field."
-    )
+    assert len(actual_parser.process_all()) == 0
 
 
 def test_annotation_end_a_file(tmp_path):
-    actual_path = populate_file(tmp_path, ANNOTATION_END_OF_FILE, "src/test-duvet/test-sannotation-ends-a-file.dfy")
+    actual_path = populate_file(tmp_path, ANNOTATION_END_OF_FILE, "src/test-duvet/test-annotation-ends-a-file.dfy")
     parser = AnnotationParser([actual_path])
-    actual_annos = parser.process_file(actual_path)
-    assert len(actual_annos) == 2
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[1].type.name == "IMPLICATION"
-    assert actual_annos[0].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
-    assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
-    assert (
-        actual_annos[0].content
-        == "Each frame in the Framed Data (Section 2.5.2) MUST include an IV that is unique within "
-        "the message."
-    )
+    actual_annotations = parser.process_file(actual_path)
+    assert len(actual_annotations) == 2
     # Verify the last annotation is not broken.
-    assert actual_annos[1].content == ("The IV MUST be a unique IV within the message.")
+    assert actual_annotations[1].type.name == "IMPLICATION"
+    assert actual_annotations[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
+    assert actual_annotations[1].content == ("The IV MUST be a unique IV within the message.")
     assert (
-        actual_annos[0].uri == "compliance/data-format/message-body.txt#2.5.2.1.2$Each frame in the Framed Data "
-        "(Section 2.5.2) MUST include an IV that is unique within the message."
-    )
-    assert (
-        actual_annos[1].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
+        actual_annotations[1].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
         "within the message."
     )
-
-
-def test_annotation_only(tmp_path):
-    actual_path = populate_file(
-        tmp_path, "\n".join([TEST_DFY_BLOCK, ANNOTATION_END_OF_FILE]), "src/test-duvet/test-annotation-only.dfy"
-    )
-    parser = AnnotationParser([actual_path])
-    actual_annos = parser.process_file(actual_path)
-    assert len(actual_annos) == 3
-    assert actual_annos[0].type.name == "IMPLICATION"
-    assert actual_annos[1].type.name == "IMPLICATION"
-    assert actual_annos[2].type.name == "IMPLICATION"
-    assert actual_annos[0].target == "compliance/client-apis/client.txt#2.4"
-    assert actual_annos[1].target == "compliance/data-format/message-body.txt#2.5.2.1.2"
-    assert actual_annos[2].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
-    assert (
-        actual_annos[1].content
-        == "Each frame in the Framed Data (Section 2.5.2) MUST include an IV that is unique within "
-        "the message."
-    )
-    assert (
-        actual_annos[1].uri == "compliance/data-format/message-body.txt#2.5.2.1.2$Each frame in the Framed Data "
-        "(Section 2.5.2) MUST include an IV that is unique within the message."
-    )
-    assert (
-        actual_annos[2].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
-        "within the message."
-    )
-    # Verify the last annotation is not broken.
-    assert actual_annos[2].content == ("The IV MUST be a unique IV within the message.")
