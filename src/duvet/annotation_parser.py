@@ -58,7 +58,7 @@ class AnnotationParser:
         self.match_content = re.compile(r"[\s]*" + self.content_style + r"[\s]*(.*?)\n")
 
     def _extract_spans(self, lines: list[str]) -> list[LineSpan]:
-        """Extract Annotation blocks from a file."""
+        """Extract Annotation spans from a file."""
         spans: list[LineSpan] = []
         start: Optional[int] = None
 

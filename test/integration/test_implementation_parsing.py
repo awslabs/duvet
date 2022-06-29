@@ -10,22 +10,24 @@ from .integration_test_utils import get_path_to_esdk_dafny  # isort: skip
 pytestmark = [pytest.mark.integ]
 
 
-class TestAnnotationParserAgainstDafnyESDK:
+class TestAnnotationParserAgainstDuvet:
     def test_extract_python_implementation_annotation(self, pytestconfig):
         actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
         actual_paths.extend(list(pytestconfig.rootpath.glob("test/**/*.py")))
         anno_meta_style = "# //="
         anno_content_style = "# //#"
         parser = AnnotationParser(actual_paths, anno_meta_style, anno_content_style)
-        parser.process_all()
+        actual = parser.process_all()
+        assert isinstance(actual, list)
+        assert len(actual) > 0
 
 
-class TestAnnotationParserAgainstDuvet:
+class TestAnnotationParserAgainstESDKDafny:
     def test_extract_dafny_implementation_annotation(self, pytestconfig):
         dfy_path = get_path_to_esdk_dafny()
         actual_paths = list(dfy_path.glob("src/**/*.dfy"))
         actual_paths.extend(list(dfy_path.glob("test/**/*.dfy")))
-        anno_meta_style = "# //="
-        anno_content_style = "# //#"
-        parser = AnnotationParser(actual_paths, anno_meta_style, anno_content_style)
-        parser.process_all()
+        parser = AnnotationParser(actual_paths)
+        actual = parser.process_all()
+        assert isinstance(actual, list)
+        assert len(actual) > 0

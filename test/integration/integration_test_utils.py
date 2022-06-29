@@ -19,6 +19,6 @@ def _get_env_key(key: str) -> str:
 
 
 def get_path_to_esdk_dafny() -> pathlib.Path:
-    """Retrieves path to AWS Encryption SDK Specification"""
+    """Retrieves path to AWS Encryption SDK Dafny"""
     value: str = _get_env_key(PATH_TO_ESDK_DAFNY_KEY)
     return pathlib.Path(value)
