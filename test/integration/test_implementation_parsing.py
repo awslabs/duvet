@@ -4,24 +4,30 @@
 import pytest
 
 from duvet.annotation_parser import AnnotationParser
+from .integration_test_utils import get_path_to_esdk_dafny
 
 
-@pytest.mark.integ
-def test_extract_python_implementation_annotation(pytestconfig):
-    actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
-    actual_paths.extend(list(pytestconfig.rootpath.glob("test/**/*.py")))
-    anno_meta_style = "# //="
-    anno_content_style = "# //#"
-    parser = AnnotationParser(actual_paths, anno_meta_style, anno_content_style)
-    parser.process_all()
+pytestmark = [pytest.mark.integ]
 
 
-@pytest.mark.integ
-def test_extract_dafny_implementation_annotation(pytestconfig):
-    dfy_path = pytestconfig.rootpath
-    actual_paths = list(dfy_path.glob("../aws-encryption-sdk-dafny/src/**/*.dfy"))
-    actual_paths.extend(list(dfy_path.glob("../aws-encryption-sdk-dafny/test/**/*.dfy")))
-    anno_meta_style = "# //="
-    anno_content_style = "# //#"
-    parser = AnnotationParser(actual_paths, anno_meta_style, anno_content_style)
-    parser.process_all()
+class TestAnnotationParserAgainstDafnyESDK:
+
+    def test_extract_python_implementation_annotation(self, pytestconfig):
+        actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
+        actual_paths.extend(list(pytestconfig.rootpath.glob("test/**/*.py")))
+        anno_meta_style = "# //="
+        anno_content_style = "# //#"
+        parser = AnnotationParser(actual_paths, anno_meta_style, anno_content_style)
+        parser.process_all()
+
+
+class TestAnnotationParserAgainstDuvet:
+
+    def test_extract_dafny_implementation_annotation(self, pytestconfig):
+        dfy_path = get_path_to_esdk_dafny()
+        actual_paths = list(dfy_path.glob("src/**/*.dfy"))
+        actual_paths.extend(list(dfy_path.glob("test/**/*.dfy")))
+        anno_meta_style = "# //="
+        anno_content_style = "# //#"
+        parser = AnnotationParser(actual_paths, anno_meta_style, anno_content_style)
+        parser.process_all()
