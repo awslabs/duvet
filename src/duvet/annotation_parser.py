@@ -41,7 +41,6 @@ class AnnotationParser:
     # //# be configurable.
     meta_style: str = field(init=True, default=DEFAULT_META_STYLE)
     content_style: str = field(init=True, default=DEFAULT_CONTENT_STYLE)
-
     is_anno: re.Pattern = field(init=False, repr=False)
     match_url: re.Pattern = field(init=False, repr=False)
     match_type: re.Pattern = field(init=False, repr=False)
@@ -57,23 +56,23 @@ class AnnotationParser:
         self.match_reason = re.compile(r"[\s]*" + self.meta_style + r"[\s]reason=(.*?)\n")
         self.match_content = re.compile(r"[\s]*" + self.content_style + r"[\s]*(.*?)\n")
 
-    def _extract_blocks(self, lines: list[str]) -> list[LineSpan]:
+    def _extract_spans(self, lines: list[str]) -> list[LineSpan]:
         """Extract Annotation blocks from a file."""
-        anno_spans: list[LineSpan] = []
-        start_anno: Optional[int] = None
+        spans: list[LineSpan] = []
+        start: Optional[int] = None
 
         for index, line in enumerate(lines):
             anno_hit: Optional[re.Match] = self.is_anno.search(line)
-            if anno_hit is None and start_anno is not None:
-                anno_spans.append(LineSpan(start=start_anno, end=index))
-                start_anno = None
-            elif anno_hit is not None and start_anno is None:
-                start_anno = index
+            if anno_hit is None and start is not None:
+                spans.append(LineSpan(start=start, end=index))
+                start = None
+            elif anno_hit is not None and start is None:
+                start = index
         # Edge case for annotation blocks that end the file
-        if start_anno is not None:
-            anno_spans.append(LineSpan(start=start_anno, end=len(lines)))
+        if start is not None:
+            spans.append(LineSpan(start=start, end=len(lines)))
 
-        return anno_spans
+        return spans
 
     def _extract_anno_kwargs(self, lines: list[str], spans: list[LineSpan]) -> list[dict]:
         """Parse none or more Annotation key word args from lines via LineSpans."""
@@ -149,14 +148,14 @@ class AnnotationParser:
         with open(filepath, "r", encoding="utf-8") as implementation_file:
             lines: list[str] = implementation_file.readlines()
 
-        spans: list[LineSpan] = self._extract_blocks(lines)
+        spans: list[LineSpan] = self._extract_spans(lines)
         anno_kwargs: list[dict] = self._extract_anno_kwargs(lines, spans)
         return self._process_anno_kwargs(anno_kwargs, filepath)
 
     def process_all(self) -> list[Annotation]:
         """Extract annotations from all files."""
 
-        annos: list[Annotation] = []
-        for filepath in self.paths:  # pylint: disable=E1133
-            annos.extend(self.process_file(filepath))
-        return annos
+        annotations: list[Annotation] = []
+        for filepath in self.paths:
+            annotations.extend(self.process_file(filepath))
+        return annotations
