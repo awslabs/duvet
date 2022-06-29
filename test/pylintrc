@@ -15,7 +15,7 @@ disable =
     unused-argument,  # raised when patches are needed but not called
     unsubscriptable-object,  # very high false positive rate, mypy addresses this better
     no-self-use, # No self use needed in the unit test
-    E1136,
+    not-an-iterable,  # very high false positive rate, mypy addresses this better
 
 [VARIABLES]
 additional-builtins = raw_input

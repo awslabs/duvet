@@ -9,6 +9,7 @@ disable =
     attribute-defined-outside-init,  # breaks with attrs_post_init
     redefined-outer-name,  # we do this on purpose in multiple places
     unsubscriptable-object,  # very high false positive rate, mypy addresses this better
+    not-an-iterable,  # very high false positive rate, mypy addresses this better
 
 [BASIC]
 # Allow function names up to 50 characters
