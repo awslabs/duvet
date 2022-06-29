@@ -1,7 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Functional testing for annotation parsing"""
-
 import pytest
 
 from duvet.annotation_parser import AnnotationParser
@@ -9,8 +8,6 @@ from duvet.annotation_parser import AnnotationParser
 from ..utils import populate_file  # isort: skip
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
-
-# pylint: disable=E1136
 
 TEST_DFY_BLOCK = """        //= compliance/client-apis/client.txt#2.4
         //= type=implication
@@ -56,21 +53,6 @@ def test_more_than_one_valid_files(tmp_path):
     parser = AnnotationParser([actual_path1, actual_path2])
     actual_annotations = parser.process_all()
     assert len(actual_annotations) == 3
-    assert actual_annotations[0].type.name == "IMPLICATION"
-    assert actual_annotations[1].type.name == "IMPLICATION"
-    assert actual_annotations[2].type.name == "IMPLICATION"
-    assert actual_annotations[0].target == "compliance/client-apis/client.txt#2.4"
-    assert actual_annotations[0].content == (
-        "On client initialization, the caller MUST have the option to provide a: *  "
-        "commitment policy (Section 2.4.1) *  maximum number of encrypted data keys "
-        "(Section 2.4.2)"
-    )
-    assert actual_annotations[0].uri == (
-        "compliance/client-apis/client.txt#2.4$On client initialization, "
-        "the caller MUST have the option to provide a: *  "
-        "commitment policy (Section 2.4.1) *  maximum number of encrypted data keys "
-        "(Section 2.4.2)"
-    )
 
 
 def test_extract_python_no_implementation_annotation(pytestconfig):
