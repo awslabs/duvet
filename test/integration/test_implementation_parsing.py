@@ -4,14 +4,13 @@
 import pytest
 
 from duvet.annotation_parser import AnnotationParser
-from .integration_test_utils import get_path_to_esdk_dafny
 
+from .integration_test_utils import get_path_to_esdk_dafny  # isort: skip
 
 pytestmark = [pytest.mark.integ]
 
 
 class TestAnnotationParserAgainstDafnyESDK:
-
     def test_extract_python_implementation_annotation(self, pytestconfig):
         actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
         actual_paths.extend(list(pytestconfig.rootpath.glob("test/**/*.py")))
@@ -22,7 +21,6 @@ class TestAnnotationParserAgainstDafnyESDK:
 
 
 class TestAnnotationParserAgainstDuvet:
-
     def test_extract_dafny_implementation_annotation(self, pytestconfig):
         dfy_path = get_path_to_esdk_dafny()
         actual_paths = list(dfy_path.glob("src/**/*.dfy"))
