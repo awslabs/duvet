@@ -1,5 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
+"""Formatter used by duvet-python."""
 """Requirement Parser used by duvet-python."""
 import logging
 import re

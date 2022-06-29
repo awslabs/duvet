@@ -3,7 +3,7 @@ import pytest
 
 from duvet.spec_toml_parser import TomlRequirementParser
 
-from ..utils import populate_file  # isort:skip
+from ..utils import populate_file  # isort: skip
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
