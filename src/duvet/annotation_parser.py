@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Optional
 
 import attr
-import click
 from attrs import define, field
 
 from duvet._config import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
@@ -158,6 +157,6 @@ class AnnotationParser:
 
         annotations: list[Annotation] = []
         for filepath in self.paths:
-            click.echo("Processing " + str(filepath.name))
+            _LOGGER.info("Processing %s", str(filepath.name))
             annotations.extend(self.process_file(filepath))
         return annotations
