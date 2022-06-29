@@ -137,14 +137,26 @@ class Requirement:
         """There MUST be a method to add annotations."""
         new_dict = {anno.uri: anno}
         self.matched_annotations.update(new_dict)
-        if anno.type in implemented_type:
-            self.implemented = True
-        if anno.type in attested_type:
-            self.attested = True
-        if anno.type in omitted_type:
-            self.omitted = True
-        self.set_status()
+        # if anno.type in implemented_type:
+        #     self.implemented = True
+        # if anno.type in attested_type:
+        #     self.attested = True
+        # if anno.type in omitted_type:
+        #     self.omitted = True
+        # self.set_status()
         return True
+
+    def analyze_annotations(self) -> bool:
+        """There MUST be a method to analyze annotations."""
+        self.set_status()
+        for anno in self.matched_annotations.values():
+            if anno.type in implemented_type:
+                self.implemented = True
+            if anno.type in attested_type:
+                self.attested = True
+            if anno.type in omitted_type:
+                self.omitted = True
+        return self.status == RequirementStatus.COMPLETE
 
 
 # noinspection PyUnresolvedReferences
@@ -192,6 +204,13 @@ class Section:
         else:
             return self.requirements[anno.uri].add_annotation(anno)
 
+    def analyze_annotations(self) -> bool:
+        """Analyze report and return true if all MUST marked complete."""
+        section_pass = True
+        for req in self.requirements.values():
+            section_pass = section_pass and req.analyze_annotations()
+        return section_pass
+
 
 # noinspection PyUnresolvedReferences
 @define
@@ -228,6 +247,13 @@ class Specification:
         else:
             return self.sections[sec_id].add_annotation(annotation)
 
+    def analyze_annotations(self) -> bool:
+        """Analyze report and return true if all MUST marked complete."""
+        spec_pass = True
+        for section in self.sections.values():
+            spec_pass = spec_pass and section.analyze_annotations()
+        return spec_pass
+
 
 # noinspection PyUnresolvedReferences
 @define
@@ -261,3 +287,11 @@ class Report:
             return False
         else:
             return self.specifications[spec_id].add_annotation(annotation)
+
+    def analyze_annotations(self) -> bool:
+        """Analyze report."""
+        report_pass = True
+        for spec in self.specifications.values():
+            report_pass = report_pass and spec.analyze_annotations()
+
+        return report_pass
