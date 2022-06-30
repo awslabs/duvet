@@ -68,6 +68,7 @@ class SummaryReporter:
         print(tabulate(table, HEADERS, tablefmt="simple"))  # noqa: T001
         return True
 
+
 # shoulds = [entry.level == RequirementLevel.SHOULD for entry in section.requirements.values()]
 #
 # entry.level == RequirementLevel.SHOULD
