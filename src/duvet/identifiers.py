@@ -28,6 +28,7 @@ class RequirementLevel(Enum):
 
 class RequirementStatus(Enum):
     """Static definition of status of requirement."""
+
     COMPLETE = 1
     MISSING_PROOF = 2
     EXCUSED = 3
