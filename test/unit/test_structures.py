@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit test suite for duvet.structures"""
 import copy
-from typing import Optional, Union
 
 import pytest
 
@@ -11,26 +10,17 @@ from duvet.structures import Annotation, Report, Requirement, Section, Specifica
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
-ARGS = [
-    "new_test_target.md#target",
-    AnnotationType.TEST,
-    "content",
-    1,
-    2,
-    "new_test_target.md#target$content",
-    "test.py",
-]
-
-VALID_KWARGS = {
+VALID_KWARGS: dict = {
     "target": "test_target.md#target",
     "type": AnnotationType.CITATION,
     "start_line": 1,
     "end_line": 2,
     "reason": None,
     "content": "content",
-    "uri":"test_target.md#target$content",
-    "location":"code.py"
+    "uri": "test_target.md#target$content",
+    "location": "code.py",
 }
+
 
 def _update_valid_kwargs(updates: dict) -> dict:
     rtn = copy.deepcopy(VALID_KWARGS)
@@ -38,11 +28,14 @@ def _update_valid_kwargs(updates: dict) -> dict:
     return rtn
 
 
+INVALID_KWARGS = _update_valid_kwargs(
+    {"target": "new_test_target.md#target", "uri": "new_test_target.md#target$content"}
+)
+
+
 class TestRequirement:
     def test_requirement(self):
-        actual_annotation = Annotation(
-            **VALID_KWARGS
-        )
+        actual_annotation = Annotation(**VALID_KWARGS)
         actual_requirement = Requirement(RequirementLevel.MUST, "content", "test_target#target$content")
         actual_requirement.add_annotation(actual_annotation)
         assert actual_requirement.requirement_level == RequirementLevel.MUST
@@ -70,10 +63,9 @@ class TestAnnotation:
         assert self.citation.location == "code.py"
 
     def test_add_annotation(self):
-        test_args = copy.deepcopy(**VALID_KWARGS)
-        test_args[1] = AnnotationType.TEST
-        actual_annotation = Annotation(*test_args)
-        self.actual_requirement.add_annotation(self.citation_anno)
+        test_args = _update_valid_kwargs({"type": AnnotationType.TEST})
+        actual_annotation = Annotation(**test_args)
+        self.actual_requirement.add_annotation(self.citation)
         self.actual_requirement.analyze_annotations()
         assert self.actual_requirement.implemented
         self.actual_requirement.add_annotation(actual_annotation)
@@ -82,9 +74,8 @@ class TestAnnotation:
         assert self.actual_requirement.attested
 
     def test_add_excepted_annotation(self):
-        exception_args = copy.deepcopy(**VALID_KWARGS)
-        exception_args[1] = AnnotationType.EXCEPTION
-        exception_anno = Annotation(*exception_args)
+        exception_kwargs = _update_valid_kwargs({"type": AnnotationType.EXCEPTION})
+        exception_anno = Annotation(**exception_kwargs)
         actual_requirement = Requirement(
             RequirementLevel.MUST,
             "content",
@@ -94,10 +85,8 @@ class TestAnnotation:
         actual_requirement.analyze_annotations()
 
     def test_exception_annotation(self):
-        exception_args = copy.deepcopy(**VALID_KWARGS)
-        exception_args[1] = AnnotationType.EXCEPTION
-        exception_args.append("reason")
-        actual_annotation = Annotation(*exception_args)
+        exception_kwargs = _update_valid_kwargs({"type": AnnotationType.EXCEPTION, "reason": "reason"})
+        actual_annotation = Annotation(**exception_kwargs)
         assert actual_annotation.target == "test_target.md#target"
         assert actual_annotation.type == AnnotationType.EXCEPTION
         assert actual_annotation.content == "content"
@@ -133,7 +122,7 @@ class TestSection:
         assert self.actual_section.has_requirements
 
     def test_specification_add_invalid_annotation(self):
-        assert not self.actual_section.add_annotation(Annotation(*ARGS))
+        assert not self.actual_section.add_annotation(Annotation(**INVALID_KWARGS))
 
 
 class TestSpecification:
@@ -146,7 +135,7 @@ class TestSpecification:
         assert github_url == "https://github.com/awslabs/duvet/blob/master/spec/spec.md"
 
     def test_specification_add_invalid_annotation(self):
-        assert not self.actual_specification.add_annotation(Annotation(*ARGS))
+        assert not self.actual_specification.add_annotation(Annotation(**INVALID_KWARGS))
 
 
 class TestReport:
@@ -184,4 +173,4 @@ class TestReport:
         assert actual_requirement.analyze_annotations()
 
     def test_report_add_invalid_annotation(self):
-        assert not self.actual_report.add_annotation(Annotation(*ARGS))
+        assert not self.actual_report.add_annotation(Annotation(**INVALID_KWARGS))
