@@ -74,8 +74,6 @@ class Requirement:
     status: RequirementStatus = field(init=False, default=RequirementStatus.NOT_STARTED)
     implemented: bool = field(init=False, default=False)
     attested: bool = field(init=False, default=False)
-    # omitted: bool = field(init=False, default=False)
-
     excused: bool = field(init=False, default=False)
     unexcused: bool = field(init=False, default=False)
 
@@ -112,32 +110,7 @@ class Requirement:
             self.status = RequirementStatus.DUVET_ERROR
 
     def set_labels(self):
-        """There MUST be a method that sets the labels based on matched_annotations.
-
-        Implemented
-
-        A specification requirement MUST be labeled implemented
-        if there exists at least one matching annotation of type:
-
-        * citation
-        * untestable
-        * deviation
-        * implication
-
-        Attested
-
-        A specification requirement MUST be labeled attested
-         if there exists at least one matching annotation of type
-
-        * test
-        * untestable
-        * implication
-
-        Omitted
-        A specification requirement MUST be labeled omitted and
-        MUST only be labeled omitted if there exists a matching annotation of type
-        * exception
-        """
+        """There MUST be a method that sets the labels based on matched_annotations."""
         for annotation in self.matched_annotations:
             if annotation.type in implemented_type:
                 self.implemented = True
@@ -175,7 +148,6 @@ class Section:
     :param  int start_line: the line number of the start of the section
     :param  int end_line: the line number of the end of the section
     :param  dict requirements: a hashmap of requirements extracted from the section
-    :param  bool has_requirements: a flag marked true when the length of the requirements field larger than 0
     """
 
     title: str = ""
@@ -206,7 +178,7 @@ class Section:
             return self.requirements[annotation.uri].add_annotation(annotation)
 
     def analyze_annotations(self) -> bool:
-        """Analyze report and return true if all MUST marked complete."""
+        """Analyze report and return true if all MUST be marked complete."""
         section_pass = True
         for requirement in self.requirements.values():
             section_pass = section_pass and requirement.analyze_annotations()
@@ -240,12 +212,12 @@ class Specification:
 
     def add_annotation(self, annotation: Annotation) -> bool:
         """Add Annotation to Specification."""
-        sec_id = annotation.target.split("#")[1]
-        if sec_id not in self.sections.keys():
+        section_uri = annotation.target.split("#")[1]
+        if section_uri not in self.sections.keys():
             _LOGGER.warning("%s not found in %s", annotation.target, self.spec_dir)
             return False
         else:
-            return self.sections[sec_id].add_annotation(annotation)
+            return self.sections[section_uri].add_annotation(annotation)
 
     def analyze_annotations(self) -> bool:
         """Analyze report and return true if all MUST marked complete."""
@@ -265,7 +237,7 @@ class Report:
 
     Duvet’s report aids customers in annotating their code.
 
-    :param bool pass_fail: A flag of pass or fail of this run, True for pass and False for fail
+    :param bool report_pass: A flag of pass or fail of this run, True for pass and False for fail
     :param dict specifications: a hashmap of specifications with specification directory as a key and
     specification object as a value
     """
