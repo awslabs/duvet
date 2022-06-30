@@ -15,26 +15,6 @@ __all__ = ("run",)
 # from annotation_parser import AnnotationParser
 
 
-def _center_pad(*, message: str, pad: str) -> str:
-    columns, _lines = shutil.get_terminal_size()
-    return message.center(columns, pad)
-
-
-def _result_pad(*, message: str, result: str) -> str:
-    columns, _lines = shutil.get_terminal_size()
-    pad_char = "."
-    pad_width = columns - len(message) - len(result) - 1
-    return f"{message}{pad_char * pad_width} {result}"
-
-
-def _check_pass(filename: str):
-    click.secho(_result_pad(message=filename, result="PASS"), fg="green")
-
-
-def _check_fail(filename: str):
-    click.secho(_result_pad(message=filename, result="FAIL"), fg="red", err=True)
-
-
 def run(*, config: Config) -> bool:
     """Run all specification checks."""
     # Extractions
