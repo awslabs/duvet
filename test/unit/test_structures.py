@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit test suite for duvet.structures"""
 import copy
+from typing import Optional, Union
 
 import pytest
 
@@ -20,21 +21,27 @@ ARGS = [
     "test.py",
 ]
 
-VALID_ARGS = [
-    "test_target.md#target",
-    AnnotationType.CITATION,
-    "content",
-    1,
-    2,
-    "test_target.md#target$content",
-    "code.py",
-]
+VALID_KWARGS = {
+    "target": "test_target.md#target",
+    "type": AnnotationType.CITATION,
+    "start_line": 1,
+    "end_line": 2,
+    "reason": None,
+    "content": "content",
+    "uri":"test_target.md#target$content",
+    "location":"code.py"
+}
+
+def _update_valid_kwargs(updates: dict) -> dict:
+    rtn = copy.deepcopy(VALID_KWARGS)
+    rtn.update(updates)
+    return rtn
 
 
 class TestRequirement:
     def test_requirement(self):
         actual_annotation = Annotation(
-            "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
+            **VALID_KWARGS
         )
         actual_requirement = Requirement(RequirementLevel.MUST, "content", "test_target#target$content")
         actual_requirement.add_annotation(actual_annotation)
@@ -51,19 +58,19 @@ class TestRequirement:
 
 class TestAnnotation:
     actual_requirement = Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content")
-    citation_anno = Annotation(*VALID_ARGS)
+    citation = Annotation(**VALID_KWARGS)
 
     def test_annotation(self):
-        assert self.citation_anno.target == "test_target.md#target"
-        assert self.citation_anno.type == AnnotationType.CITATION
-        assert self.citation_anno.content == "content"
-        assert self.citation_anno.start_line == 1
-        assert self.citation_anno.end_line == 2
-        assert self.citation_anno.uri == "test_target.md#target$content"
-        assert self.citation_anno.location == "code.py"
+        assert self.citation.target == "test_target.md#target"
+        assert self.citation.type == AnnotationType.CITATION
+        assert self.citation.content == "content"
+        assert self.citation.start_line == 1
+        assert self.citation.end_line == 2
+        assert self.citation.uri == "test_target.md#target$content"
+        assert self.citation.location == "code.py"
 
     def test_add_annotation(self):
-        test_args = copy.deepcopy(VALID_ARGS)
+        test_args = copy.deepcopy(**VALID_KWARGS)
         test_args[1] = AnnotationType.TEST
         actual_annotation = Annotation(*test_args)
         self.actual_requirement.add_annotation(self.citation_anno)
@@ -75,7 +82,7 @@ class TestAnnotation:
         assert self.actual_requirement.attested
 
     def test_add_excepted_annotation(self):
-        exception_args = copy.deepcopy(VALID_ARGS)
+        exception_args = copy.deepcopy(**VALID_KWARGS)
         exception_args[1] = AnnotationType.EXCEPTION
         exception_anno = Annotation(*exception_args)
         actual_requirement = Requirement(
@@ -87,7 +94,7 @@ class TestAnnotation:
         actual_requirement.analyze_annotations()
 
     def test_exception_annotation(self):
-        exception_args = copy.deepcopy(VALID_ARGS)
+        exception_args = copy.deepcopy(**VALID_KWARGS)
         exception_args[1] = AnnotationType.EXCEPTION
         exception_args.append("reason")
         actual_annotation = Annotation(*exception_args)
@@ -163,7 +170,7 @@ class TestReport:
         self.actual_report.add_specification(actual_specification)
         assert actual_specification in self.actual_report.specifications.values()
 
-        citation_annotation = Annotation(*VALID_ARGS)
+        citation_annotation = Annotation(**VALID_KWARGS)
         actual_annotation = Annotation(
             "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "test.py"
         )
