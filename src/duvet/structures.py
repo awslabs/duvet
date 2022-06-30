@@ -143,25 +143,12 @@ class Requirement:
         """There MUST be a method to add annotations."""
         new_dict = {anno.uri: anno}
         self.matched_annotations.update(new_dict)
-        # if anno.type in implemented_type:
-        #     self.implemented = True
-        # if anno.type in attested_type:
-        #     self.attested = True
-        # if anno.type in omitted_type:
-        #     self.omitted = True
-        # self.set_status()
         return True
 
     def analyze_annotations(self) -> bool:
         """There MUST be a method to analyze annotations."""
+        self.set_labels()
         self.set_status()
-        for anno in self.matched_annotations.values():
-            if anno.type in implemented_type:
-                self.implemented = True
-            if anno.type in attested_type:
-                self.attested = True
-            if anno.type in omitted_type:
-                self.omitted = True
         return self.status == RequirementStatus.COMPLETE
 
 
@@ -201,13 +188,13 @@ class Section:
         target_title = spec_dir + "#" + header[len(header) - 1]
         return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
 
-    def add_annotation(self, anno: Annotation) -> bool:
+    def add_annotation(self, annotation: Annotation) -> bool:
         """Add annotation to Section."""
-        if anno.uri not in self.requirements.keys():
-            _LOGGER.warning("%s not Found in %s", anno.uri, self.uri)
+        if annotation.uri not in self.requirements.keys():
+            _LOGGER.warning("%s not Found in %s", annotation.uri, self.uri)
             return False
         else:
-            return self.requirements[anno.uri].add_annotation(anno)
+            return self.requirements[annotation.uri].add_annotation(annotation)
 
     def analyze_annotations(self) -> bool:
         """Analyze report and return true if all MUST marked complete."""

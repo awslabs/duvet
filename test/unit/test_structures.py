@@ -9,149 +9,166 @@ from duvet.structures import Annotation, Report, Requirement, Section, Specifica
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
 
-def test_annotation():
-    test_anno = Annotation(
-        "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
-    )
-    assert test_anno.target == "test_target.md#target"
-    assert test_anno.type == AnnotationType.CITATION
-    assert test_anno.content == "content"
-    assert test_anno.start_line == 1
-    assert test_anno.end_line == 2
-    assert test_anno.uri == "test_target#target$content"
-    assert test_anno.location == "code.py"
+class TestRequirement:
+    def test_requirement(self):
+        actual_annotation = Annotation(
+            "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
+        )
+        actual_requirement = Requirement(RequirementLevel.MUST, "content", "test_target#target$content")
+        actual_requirement.add_annotation(actual_annotation)
+        assert actual_requirement.requirement_level == RequirementLevel.MUST
+        assert actual_requirement.status == RequirementStatus.NOT_STARTED
+        assert actual_requirement.content == "content"
+        assert actual_requirement.uri == "test_target#target$content"
+        assert actual_requirement.matched_annotations["test_target#target$content"] == actual_annotation
+
+        # Verify requirement will not pass the analysis
+        assert not actual_requirement.analyze_annotations()
+        assert actual_requirement.implemented
+        assert not actual_requirement.attested
+        assert not actual_requirement.omitted
 
 
-def test_requirement():
-    test_anno = Annotation(
-        "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
-    )
-    test_req = Requirement(RequirementLevel.MUST, "content", "test_target#target$content")
-    test_req.add_annotation(test_anno)
-    assert test_req.requirement_level == RequirementLevel.MUST
-    assert test_req.status == RequirementStatus.NOT_STARTED
-    assert test_req.content == "content"
-    assert test_req.uri == "test_target#target$content"
-    assert test_req.matched_annotations["test_target#target$content"] == test_anno
-    assert not test_req.analyze_annotations()
-    assert test_req.implemented
-    assert not test_req.attested
-    assert not test_req.omitted
+class TestAnnotation:
+    def test_annotation(self):
+        actual_annotation = Annotation(
+            "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
+        )
+        assert actual_annotation.target == "test_target.md#target"
+        assert actual_annotation.type == AnnotationType.CITATION
+        assert actual_annotation.content == "content"
+        assert actual_annotation.start_line == 1
+        assert actual_annotation.end_line == 2
+        assert actual_annotation.uri == "test_target#target$content"
+        assert actual_annotation.location == "code.py"
+
+    def test_add_annotation(self):
+        citation_anno = Annotation(
+            "test_target.md#target",
+            AnnotationType.CITATION,
+            "content",
+            1,
+            2,
+            "test_target.md#target$content",
+            "code.py",
+        )
+        actual_annotation = Annotation(
+            "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "code.py"
+        )
+        actual_requirement = Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content")
+        actual_requirement.add_annotation(citation_anno)
+        actual_requirement.analyze_annotations()
+        assert actual_requirement.implemented
+        assert not actual_requirement.attested
+        assert not actual_requirement.omitted
+        actual_requirement.add_annotation(actual_annotation)
+        actual_requirement.analyze_annotations()
+        assert actual_requirement.implemented
+        assert actual_requirement.attested
+
+    def test_add_excepted_annotation(self):
+        exception_anno = Annotation(
+            "test_target.md#target", AnnotationType.EXCEPTION, "content", 1, 2, "test_target#target$content", "code.py"
+        )
+        actual_requirement = Requirement(
+            RequirementLevel.MUST,
+            "content",
+            "test_target#target$content",
+        )
+        assert not actual_requirement.omitted
+        actual_requirement.add_annotation(exception_anno)
+        actual_requirement.analyze_annotations()
+        assert actual_requirement.omitted
+
+    def test_exception_annotation(self):
+        actual_annotation = Annotation(
+            "test_target.md#target",
+            AnnotationType.EXCEPTION,
+            "content",
+            1,
+            2,
+            "test_target#target$content",
+            "code.py",
+            "reason",
+        )
+        assert actual_annotation.target == "test_target.md#target"
+        assert actual_annotation.type == AnnotationType.EXCEPTION
+        assert actual_annotation.content == "content"
+        assert actual_annotation.reason == "reason"
+        assert actual_annotation.start_line == 1
+        assert actual_annotation.end_line == 2
+        assert actual_annotation.uri == "test_target#target$content"
+        assert actual_annotation.location == "code.py"
+        assert actual_annotation._has_reason()
 
 
-def test_add_annotation():
-    citation_anno = Annotation(
-        "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target.md#target$content", "code.py"
-    )
-    test_anno = Annotation(
-        "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "code.py"
-    )
-    test_req = Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content")
-    test_req.add_annotation(citation_anno)
-    test_req.analyze_annotations()
-    assert test_req.implemented
-    assert not test_req.attested
-    assert not test_req.omitted
-    test_req.add_annotation(test_anno)
-    test_req.analyze_annotations()
-    assert test_req.implemented
-    assert test_req.attested
+class TestSection:
+    def test_create_section_and_add_requirements(self):
+        actual_requirement = Requirement(
+            RequirementLevel.MUST,
+            "content",
+            "test_target#target$content",
+        )
+        actual_section = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
+        assert actual_section.title == "A Section Title"
+        assert actual_section.uri == "h1.h2.h3.a-section-title"
+        assert (
+            actual_section.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
+            == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
+        )
+
+        # Verify the logic of has requirements and add requirement
+        assert not actual_section.has_requirements
+        actual_section.add_requirement(actual_requirement)
+        assert actual_section.has_requirements
 
 
-def test_add_excepted_annotation():
-    exception_anno = Annotation(
-        "test_target.md#target", AnnotationType.EXCEPTION, "content", 1, 2, "test_target#target$content", "code.py"
-    )
-    test_req = Requirement(
-        RequirementLevel.MUST,
-        "content",
-        "test_target#target$content",
-    )
-    assert not test_req.omitted
-    test_req.add_annotation(exception_anno)
-    test_req.analyze_annotations()
-    assert test_req.omitted
+class TestSpecification:
+    def test_specification(self):
+        actual_section = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
+        actual_specification = Specification("A Specification Title", "spec/spec.md")
+        actual_specification.add_section(actual_section)
+        assert (
+            actual_specification.to_github_url("https://github.com/awslabs/duvet")
+            == "https://github.com/awslabs/duvet/blob/master/spec/spec.md"
+        )
 
 
-def test_section():
-    test_req = Requirement(
-        RequirementLevel.MUST,
-        "content",
-        "test_target#target$content",
-    )
-    test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
-    assert test_sec.title == "A Section Title"
-    assert test_sec.uri == "h1.h2.h3.a-section-title"
-    assert (
-        test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
-        == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
-    )
-    assert not test_sec.has_requirements
-    test_sec.add_requirement(test_req)
-    assert test_sec.has_requirements
+class TestReport:
+    def test_create_report_and_analyze_annotations(self):
+        actual_report = Report()
+        # Verify the initialization of the report pass_fail
+        assert not actual_report.pass_fail
+        actual_section = Section("target", "target", 1, 3)
+        actual_specification = Specification("target", "test_target.md")
 
+        actual_specification.add_section(actual_section)
+        actual_requirement = Requirement(
+            RequirementLevel.MUST,
+            "content",
+            "test_target.md#target$content",
+        )
+        actual_section.add_requirement(actual_requirement)
+        # Verify that the add_specification is correct
+        actual_report.add_specification(actual_specification)
+        assert actual_specification in actual_report.specifications.values()
+        citation_anno = Annotation(
+            "test_target.md#target",
+            AnnotationType.CITATION,
+            "content",
+            1,
+            2,
+            "test_target.md#target$content",
+            "code.py",
+        )
+        actual_annotation = Annotation(
+            "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "code.py"
+        )
+        actual_report.add_annotation(citation_anno)
 
-def test_specification():
-    test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
-    test_spec = Specification("A Specification Title", "spec/spec.md")
-    test_spec.add_section(test_sec)
-    assert (
-        test_spec.to_github_url("https://github.com/awslabs/duvet")
-        == "https://github.com/awslabs/duvet/blob/master/spec/spec.md"
-    )
+        # Verify that the call chain is correct by checking against the requirement status
+        assert not actual_report.analyze_annotations()
 
-
-def test_report_add_annotation():
-    test_rep = Report()
-    # Verify the initialization of the report pass_fail
-    assert not test_rep.pass_fail
-    test_sec = Section("target", "target", 1, 3)
-    test_spec = Specification("target", "test_target.md")
-    test_spec.add_section(test_sec)
-    test_req = Requirement(
-        RequirementLevel.MUST,
-        "content",
-        "test_target.md#target$content",
-    )
-    test_sec.add_requirement(test_req)
-    # Verify that the add_specification is correct
-    test_rep.add_specification(test_spec)
-    assert test_spec in test_rep.specifications.values()
-    citation_anno = Annotation(
-        "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target.md#target$content", "code.py"
-    )
-    test_anno = Annotation(
-        "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "code.py"
-    )
-    # Verify that the call chain is correct by checking against the requirement status
-    test_rep.add_annotation(citation_anno)
-    test_rep.analyze_annotations()
-    assert test_req.implemented
-    assert not test_req.attested
-    assert not test_req.omitted
-    test_rep.add_annotation(test_anno)
-    test_req.analyze_annotations()
-    assert test_req.implemented
-    assert test_req.attested
-
-
-def test_exception_annotaion():
-    test_anno = Annotation(
-        "test_target.md#target",
-        AnnotationType.EXCEPTION,
-        "content",
-        1,
-        2,
-        "test_target#target$content",
-        "code.py",
-        "reason",
-    )
-    assert test_anno.target == "test_target.md#target"
-    assert test_anno.type == AnnotationType.EXCEPTION
-    assert test_anno.content == "content"
-    assert test_anno.reason == "reason"
-    assert test_anno.start_line == 1
-    assert test_anno.end_line == 2
-    assert test_anno.uri == "test_target#target$content"
-    assert test_anno.location == "code.py"
-    assert test_anno._has_reason()
+        # Verify that the call chain is correct by checking against the requirement status
+        actual_report.add_annotation(actual_annotation)
+        assert actual_requirement.analyze_annotations()
