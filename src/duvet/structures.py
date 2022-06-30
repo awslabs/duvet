@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Public data structures for Duvet."""
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
 import attr
-from attr import define, field
+from attrs import define, field
 
 from duvet.identifiers import (
     AnnotationType,
@@ -19,7 +19,6 @@ from duvet.identifiers import (
 _LOGGER = logging.getLogger(__name__)
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Annotation:
     """Annotations are references to a text from a section in a specification.
@@ -39,9 +38,16 @@ class Annotation:
     end_line: int
     uri: str
     location: str
+    reason: Optional[str] = field(init=True, default=None)
+
+    def location_to_string(self) -> str:
+        """Return annotation location."""
+        return f"{self.location}#L{self.start_line}-L{self.end_line}"
+
+    def _has_reason(self):
+        return self.reason is not None
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Requirement:
     """Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.
@@ -159,7 +165,6 @@ class Requirement:
         return self.status == RequirementStatus.COMPLETE
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Section:
     """The specification section shows the specific specification text and how this links to annotation.
@@ -212,7 +217,6 @@ class Section:
         return section_pass
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Specification:
     """A specification is a document that defines correct behavior.
@@ -255,7 +259,6 @@ class Specification:
         return spec_pass
 
 
-# noinspection PyUnresolvedReferences
 @define
 class Report:
     """Duvet's report shows how your project conforms to specifications.
