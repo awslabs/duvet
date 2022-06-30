@@ -3,7 +3,7 @@
 """Requirement Parser used by duvet-python."""
 import logging
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from attrs import define, field
 
@@ -47,7 +47,7 @@ class RequirementParser:
         cls._format = "RFC"
         cls._list_entry_regex = ALL_RFC_LIST_ENTRY_REGEX
 
-    def extract_requirements(self, quote_span: Span) -> List[dict]:
+    def extract_requirements(self, annotated_spans: List[Tuple]) -> List[dict]:
         """Take a chunk of string in section.
 
         Create a list of sentences containing RFC2019 keywords.
@@ -67,14 +67,42 @@ class RequirementParser:
         requirement keywords.
 
         """
+        result = []
+        for annotated_span in annotated_spans:
+            if annotated_span[1] == "INLINE": result.extend(self.process_inline(annotated_span[0]))
+            if annotated_span[1] == "LIST_BLOCK": result.extend(self.process_list_block(annotated_span[0]))
+        return result
+
+    def extract_block(self, quote_span: Span) -> List[Tuple]:
+        """Take a chunk of string in section.
+
+        Create a list of sentences containing RFC2019 keywords.
+        The following assumptions are made about the structure of the In line requirements:
+        1. Section string is not included in the string chunk.
+        2. There is no table within the requirement string we want to parse
+
+        list block is considered as a block of string. It starts with a sentence, followed by ordered
+        or unordered lists. It ends with two nextline signs
+
+        Method Logic determines if a list is present in the quote_span.
+        If there is a list, it determines where the list starts and ends,
+        and then invokes helper methods to process the list block into
+        requirement keywords. It then invokes itself.
+        If there is no list detected,
+        it invokes a helper method to convert the quote_span into
+        requirement keywords.
+
+        """
+        result: List = []
         quotes = self.body[quote_span.start: quote_span.end]
-        temp_match = re.search(self._list_entry_regex, quotes)
+        list_match = re.search(self._list_entry_regex, quotes)
         # Handover to process_inline if no list identifier found.
-        if temp_match is None:
-            return self.process_inline(quote_span)
+        if list_match is None:
+            result.append((quote_span, "INLINE"))
+            return result
 
         # Identify start of the list block.
-        span = Span.from_match(temp_match)
+        span = Span.from_match(list_match)
         list_block = Span(0, len(quotes) - 1)
         left_punc: int = -1
         for end_sentence_punc in SENTENCE_DIVIDER:
@@ -87,26 +115,15 @@ class RequirementParser:
         if right_punc != -1:
             list_block.end = span.end + right_punc
 
-        # Order and return the results.
-        result: List[dict] = []
-        temp = []
-        # Call the function to take care of the list of requirements
-        req_in_list = (
-            self.process_list_block(Span(list_block.start + 2, list_block.end + 2).add_start(quote_span))
-            if left_punc != -1 and right_punc != -1
-            else []
-        )
-        temp.extend(req_in_list)
-
         # First, add requirement string before list.
-        result.extend(self.process_inline(Span(0, list_block.start + 2).add_start(quote_span)))
+        result.append((Span(0, list_block.start + 2).add_start(quote_span), "INLINE"))
 
         # Second, add requirement string from list.
-        result.extend(temp)
+        result.append((Span(list_block.start + 2, list_block.end + 2).add_start(quote_span), "LIST_BLOCK"))
 
         # Third, add requirement string after list.
-        result.extend(self.extract_requirements(Span(list_block.end + 2, quote_span.end)))
-
+        result.extend(self.extract_block(Span(list_block.end + 2, quote_span.end).add_start(quote_span)))
+        print(result)
         return result
 
     def process_inline(self, quote_span: Span) -> list[dict]:
@@ -168,38 +185,52 @@ class RequirementParser:
 
         # Extract parent.
         first_list_identifier = Span.from_match(re.search(self._list_entry_regex, quotes))
-        list_parent = clean_content(quotes[0: first_list_identifier.start])
+        list_parent = Span(0, first_list_identifier.start).add_start(quote_span)
 
         # Extract children.
         matched_span = []
         prev = first_list_identifier.end
         for match in re.finditer(self._list_entry_regex, quotes):
             if prev < match.span()[0]:
-                temp = quotes[prev: match.span()[0]].strip("\n")
+                temp = Span(prev, match.span()[0]).add_start(quote_span)
                 prev = match.span()[1]
-                matched_span.append(clean_content(temp))
+                matched_span.append(temp)
 
         # last element of th list
-        matched_span.append(clean_content(quotes[prev:end_of_list]))
+        matched_span.append(Span(prev, end_of_list).add_start(quote_span))
 
         return {"parent": list_parent, "children": matched_span}
 
-    def process_list(self, kwargs: dict) -> list[str]:
+    def process_list(self, kwargs: dict) -> list[dict]:
         """
 
 
         input: kwarg = {"parent": "parent_sentence", "children": [child1, child2]}
         output: [ "parent_sentence child1", "parent_sentence child2" ]
         """
-        req_list = []
-        parent: Optional[str] = kwargs.get("parent")
+        req_list: list[dict] = []
+        parent: Optional[Span] = kwargs.get("parent")
         # there MUST be parent.
         if self.is_legacy:
-            req_list.append(parent)
+            quotes = parent.to_string(self.body)
+            req_kwarg = {
+                "requirement_level": self.get_requirement_level(quotes),
+                "content": clean_content(quotes),
+                "span": parent,
+            }
+            req_list.append(req_kwarg)
+            return req_list
         else:
-            children: List[str] = kwargs.get("children")
+            children: List[Span] = kwargs.get("children")
             for child in children:
-                req_list.append(clean_content(" ".join([parent, child])))
+                quotes = " ".join(
+                    [clean_content(parent.to_string(self.body)), clean_content(child.to_string(self.body))])
+                req_kwarg = {
+                    "requirement_level": self.get_requirement_level(quotes),
+                    "content": clean_content(quotes),
+                    "span": child,
+                }
+                req_list.append(req_kwarg)
         return req_list
 
     @staticmethod

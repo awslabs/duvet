@@ -155,6 +155,8 @@ class Requirement:
         self.set_status()
         return True
 
+    def _has_reason(self):
+        return self.reason is not None
 
 @define
 class Section:

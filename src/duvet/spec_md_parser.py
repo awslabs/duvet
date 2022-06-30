@@ -56,7 +56,7 @@ class MDSection:
         self._extract_requirements()
 
     def _extract_requirements(self) -> bool:
-        req_kwargs: List[dict] = RequirementParser(self.quotes).extract_requirements(Span(0, len(self.quotes)))
+        req_kwargs: List[dict] = RequirementParser(self.quotes).extract_requirements([(0, len(self.quotes))])
         for kwarg in req_kwargs:
             kwarg.setdefault("uri", "$".join([self.section.uri, kwarg.get("content")]))
             self.section.add_requirement(Requirement(**kwarg))

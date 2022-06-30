@@ -59,14 +59,14 @@ def test_extract_valid_md_list():
     test_span = Span(0, len(TEST_VALID_MARKDOWN_LIST))
     temp_list_req = test_parser.process_list_block(test_span)
     # Verify the extract_list function by checking the number of children it extracts
+    assert temp_list_req.get("parent") == Span(start=0, end=58)
     assert len(temp_list_req.get("children")) == 5
     assert temp_list_req.get("children") == [
-        "period (.)",
-        "exclamation point (!)",
-        "plus",
-        "list something",
-        "double digit something",
-    ]
+        Span(start=60, end=71),
+        Span(start=73, end=95),
+        Span(start=97, end=103),
+        Span(start=106, end=121),
+        Span(start=125, end=149)]
 
 
 # Pass
@@ -101,20 +101,6 @@ def test_extract_invalid_md_list():
 #     ]
 
 
-# def test_create_requirement_from_list_to_section():
-#     temp_list_req = RequirementParser(TEST_VALID_MARKDOWN_LIST, ALL_MARKDOWN_LIST_ENTRY_REGEX)
-#     test_sec = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
-#     assert test_sec.title == "A Section Title"
-#     assert test_sec.uri == "h1.h2.h3.a-section-title"
-#     temp_str = test_sec.to_github_url("spec/spec.md", "https://github.com/awslabs/duvet")
-#     assert temp_str == "https://github.com/awslabs/duvet/blob/master/spec/spec.md#a-section-title"
-#     assert not test_sec.has_requirements
-#     assert temp_list_req.process_section(test_sec, temp_list_req.to_string_list(False))
-#     assert test_sec.has_requirements
-#     # Verify the extract_list function by checking the number of requirements it adds to section
-#     assert len(test_sec.requirements.keys()) == 5
-
-
 VALID_LIST_LINES = """This is a MUST requirement has lists
 * valid 1
 * valid 2
@@ -125,34 +111,58 @@ This is a sentence after the list"""
 
 
 def test_process_list():
-    actual_parser = RequirementParser(VALID_LIST_LINES)
+    actual_parser = RequirementParser(TEST_VALID_MARKDOWN_LIST)
     actual_dict = {
-        "parent": "This is a MUST requirement has lists",
-        "children": ["valid 1", "valid 2", "valid 3 This is something after valid 3"],
+        "parent": Span(start=0, end=58),
+        "children": [
+            Span(start=60, end=71),
+            Span(start=73, end=95),
+            Span(start=97, end=103),
+            Span(start=106, end=121),
+            Span(start=125, end=149)],
     }
     # default
     req = actual_parser.process_list(actual_dict)
     assert req == [
-        "This is a MUST requirement has lists valid 1",
-        "This is a MUST requirement has lists valid 2",
-        "This is a MUST requirement has lists valid 3 This is something after valid 3",
-    ]
+        {'content': 'A requirement MUST be terminated by one of the following period '
+                    '(.)',
+         'requirement_level': RequirementLevel.MUST,
+         'span': Span(start=60, end=71)},
+        {'content': 'A requirement MUST be terminated by one of the following '
+                    'exclamation point (!)',
+         'requirement_level': RequirementLevel.MUST,
+         'span': Span(start=73, end=95)},
+        {'content': 'A requirement MUST be terminated by one of the following plus',
+         'requirement_level': RequirementLevel.MUST,
+         'span': Span(start=97, end=103)},
+        {'content': 'A requirement MUST be terminated by one of the following list '
+                    'something',
+         'requirement_level': RequirementLevel.MUST,
+         'span': Span(start=106, end=121)},
+        {'content': 'A requirement MUST be terminated by one of the following double '
+                    'digit something',
+         'requirement_level': RequirementLevel.MUST,
+         'span': Span(start=125, end=149)}]
 
 
 TEST_REQUIREMENT_STR = (
-    "The specification section shows the specific specification text and how this links to annotation.\n"
-    "It MUST show all text from the section. It MUST highlight the text for every requirement. It MUST hig"
-    "hlight the text that matches any annotation. Any highlighted text MUST have a mouse ove"
-    "r that shows its annotation information.\n"
+    "Something something.\n"
+    "Duvet MUST implement "
+    "every requirement. "
+    "Something something.\n"
 )
 
 TEST_REQUIREMENT_WITH_INVALID_STR = (
-    "The specification section shows the specific specification text and how this links to annotation.\n"
-    "It MUST show all text from the section. It MUST highlight the text for "
-    "every requirement e.g. this is an example try to break parser. It MUST hig"
-    "hlight the text that matches any annotation? Any highlighted text MUST have a mouse ove"
-    "r that shows its annotation information.\n"
+    "Something something.\n"
+    "Duvet MUST implement"
+    "every requirement e.g. this is an example try to break parser."
+    "Something something.\n"
 )
+
+
+@pytest.fixture
+def under_test(tmp_path) -> RequirementParser:
+    return RequirementParser([tmp_path])
 
 
 def test_process_inline():
@@ -160,59 +170,13 @@ def test_process_inline():
     actual_span = Span(0, len(TEST_REQUIREMENT_STR) - 1)
 
     # Test valid inline text
-    assert actual_parser.process_inline(actual_span) == [
-        {
-            "content": "It MUST show all text from the section.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=105, end=151),
-        },
-        {
-            "content": "It MUST highlight the text for every requirement.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=151, end=207),
-        },
-        {
-            "content": "It MUST highlight the text that matches any annotation.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=207, end=269),
-        },
-        {
-            "content": "Any highlighted text MUST have a mouse over that shows its " "annotation information.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=269, end=358),
-        },
-    ]
-
-    # Test invalid inline text
-    actual_span = Span(0, len(TEST_REQUIREMENT_WITH_INVALID_STR) - 1)
-    assert actual_parser.process_inline(actual_span) == [
-        {
-            "content": "It MUST show all text from the section.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=105, end=151),
-        },
-        {
-            "content": "It MUST highlight the text for every requirement.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=151, end=207),
-        },
-        {
-            "content": "It MUST highlight the text that matches any annotation.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=207, end=269),
-        },
-        {
-            "content": "Any highlighted text MUST have a mouse over that shows its " "annotation information.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=269, end=358),
-        },
-    ]
+    assert actual_parser.process_inline(actual_span) == [{'content': 'Duvet MUST implement every requirement.',
+                                                          'requirement_level': RequirementLevel.MUST,
+                                                          'span': Span(start=28, end=74)}]
 
 
-TEST_REQUIREMENT_STR_WITH_LIST = """Any complete sentence containing at least one \
-RFC 2119 keyword MUST be treated as a requirement.
-A requirement MAY contain multiple RFC 2119 keywords.
-A requirement MUST be terminated by one of the following:
+TEST_REQUIREMENT_STR_WITH_LIST = """A requirement MAY contain multiple RFC 2119 keywords.
+A requirement SHOULD be terminated by one of the following:
 
 - period (.)
 - exclamation point (!)
@@ -225,84 +189,17 @@ with each element of the list to form a requirement.
 Taking the above list as an example,
 Duvet is required to be able to recognize 4 different ways
 to group text into requirements.
-List elements MAY have RFC 2119 keywords,
-this is the same as regular sentences with multiple keywords.
-Sublists MUST be treated as if the parent item were terminated by the sublist.
-List elements MAY contain a period (.) or exclamation point (!)
-and this punctuation MUST NOT terminate the requirement by
-excluding the following elements from the list of requirements.
-
-In the case of requirement terminated by a table,
-the text proceeding the table SHOULD be concatenated
-with each row of the table to form a requirement.
-Table cells MAY have RFC 2119 keywords,
-this is the same as regular sentences with multiple keywords.
-Table cells MAY contain a period (.) or exclamation point (!)
-and this punctuation MUST NOT terminate the requirement
-by excluding the following rows from the table of requirements.
 """
 
 
 def test_extract_requirements_with_lists_wrapped():
     """Test complicated requirement with list wrapped by inline requirements."""
     actual_parser = RequirementParser(TEST_REQUIREMENT_STR_WITH_LIST)
-    assert actual_parser.extract_requirements(Span(0, len(TEST_REQUIREMENT_STR_WITH_LIST))) == [
-        {
-            "content": "Any complete sentence containing at least one RFC 2119 keyword "
-            "MUST be treated as a requirement.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=0, end=104),
-        },
-        {
-            "content": "A requirement MAY contain multiple RFC 2119 keywords.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=104, end=164),
-        },
-        "parent",
-        "children",
-        {
-            "content": "In the case of requirement terminated by a list, the text "
-            "proceeding the list MUST be concatenated with each element of "
-            "the list to form a requirement.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=263, end=422),
-        },
-        {
-            "content": "List elements MAY have RFC 2119 keywords, this is the same as "
-            "regular sentences with multiple keywords.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=557, end=667),
-        },
-        {
-            "content": "Sublists MUST be treated as if the parent item were terminated " "by the sublist.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=667, end=752),
-        },
-        {
-            "content": "List elements MAY contain a period (.) or exclamation point (!) "
-            "and this punctuation MUST NOT terminate the requirement by "
-            "excluding the following elements from the list of requirements.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=752, end=945),
-        },
-        {
-            "content": "In the case of requirement terminated by a table, the text "
-            "proceeding the table SHOULD be concatenated with each row of the "
-            "table to form a requirement.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=945, end=1105),
-        },
-        {
-            "content": "Table cells MAY have RFC 2119 keywords, this is the same as "
-            "regular sentences with multiple keywords.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=1105, end=1213),
-        },
-        {
-            "content": "Table cells MAY contain a period (.) or exclamation point (!) "
-            "and this punctuation MUST NOT terminate the requirement by "
-            "excluding the following rows from the table of requirements.",
-            "requirement_level": RequirementLevel.MUST,
-            "span": Span(start=1213, end=1401),
-        },
-    ]
+    actual_spans = actual_parser.extract_block(Span(0, len(TEST_REQUIREMENT_STR_WITH_LIST)))
+    assert actual_spans == [
+        (Span(start=0, end=54), 'INLINE'),
+        (Span(start=54, end=168), 'LIST_BLOCK'),
+        (Span(start=168, end=449), 'INLINE')]
+
+    actual_kwargs  = actual_parser.extract_requirements(actual_spans)
+    assert actual_kwargs == []

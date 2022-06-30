@@ -34,8 +34,13 @@ class Span:
         return Span(start, end)
 
     def add_start(self, new_span: SpanT) -> SpanT:
-        """Span from Match."""
+        """Span add start from new span."""
         return Span(self.start + new_span.start, self.end + new_span.start)
+
+    def to_string(self, quotes: str) -> str:
+        """Get string from span."""
+        return quotes[self.start:self.end]
+
 
 
 @define
