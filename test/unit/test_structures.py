@@ -28,6 +28,16 @@ def _update_valid_kwargs(updates: dict) -> dict:
     return rtn
 
 
+def _help_assert_annotation(annotation: Annotation, kwargs: dict):
+    assert annotation.target == kwargs["target"]
+    assert annotation.type == kwargs["type"]
+    assert annotation.content == kwargs["content"]
+    assert annotation.start_line == kwargs["start_line"]
+    assert annotation.end_line == kwargs["end_line"]
+    assert annotation.uri == kwargs["uri"]
+    assert annotation.location == kwargs["location"]
+
+
 INVALID_KWARGS = _update_valid_kwargs(
     {"target": "new_test_target.md#target", "uri": "new_test_target.md#target$content"}
 )
@@ -54,13 +64,7 @@ class TestAnnotation:
     citation = Annotation(**VALID_KWARGS)
 
     def test_annotation(self):
-        assert self.citation.target == "test_target.md#target"
-        assert self.citation.type == AnnotationType.CITATION
-        assert self.citation.content == "content"
-        assert self.citation.start_line == 1
-        assert self.citation.end_line == 2
-        assert self.citation.uri == "test_target.md#target$content"
-        assert self.citation.location == "code.py"
+        _help_assert_annotation(self.citation, VALID_KWARGS)
 
     def test_add_annotation(self):
         test_args = _update_valid_kwargs({"type": AnnotationType.TEST})
@@ -84,19 +88,13 @@ class TestAnnotation:
         actual_requirement.add_annotation(exception_anno)
         actual_requirement.analyze_annotations()
 
-    def test_exception_annotation(self):
+    def test_exception_annotation_and_add_reason(self):
         exception_kwargs = _update_valid_kwargs({"type": AnnotationType.EXCEPTION, "reason": "reason"})
         actual_annotation = Annotation(**exception_kwargs)
-        assert actual_annotation.target == "test_target.md#target"
-        assert actual_annotation.type == AnnotationType.EXCEPTION
-        assert actual_annotation.content == "content"
-        assert actual_annotation.reason == "reason"
-        assert actual_annotation.start_line == 1
-        assert actual_annotation.end_line == 2
-        assert actual_annotation.uri == "test_target.md#target$content"
-        assert actual_annotation.location == "code.py"
+        _help_assert_annotation(actual_annotation, exception_kwargs)
         assert actual_annotation.has_reason()
 
+        # Verify reason added in the exception.
         self.actual_requirement.add_annotation(actual_annotation)
         self.actual_requirement.analyze_annotations()
         assert actual_annotation.has_reason()
