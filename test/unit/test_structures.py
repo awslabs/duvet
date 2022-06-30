@@ -51,34 +51,22 @@ class TestRequirement:
 
 class TestAnnotation:
     actual_requirement = Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content")
+    citation_anno = Annotation(*VALID_ARGS)
 
     def test_annotation(self):
-        actual_annotation = Annotation(
-            "test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test_target#target$content", "code.py"
-        )
-        assert actual_annotation.target == "test_target.md#target"
-        assert actual_annotation.type == AnnotationType.CITATION
-        assert actual_annotation.content == "content"
-        assert actual_annotation.start_line == 1
-        assert actual_annotation.end_line == 2
-        assert actual_annotation.uri == "test_target#target$content"
-        assert actual_annotation.location == "code.py"
+        assert self.citation_anno.target == "test_target.md#target"
+        assert self.citation_anno.type == AnnotationType.CITATION
+        assert self.citation_anno.content == "content"
+        assert self.citation_anno.start_line == 1
+        assert self.citation_anno.end_line == 2
+        assert self.citation_anno.uri == "test_target.md#target$content"
+        assert self.citation_anno.location == "code.py"
 
     def test_add_annotation(self):
-        citation_anno = Annotation(
-            "test_target.md#target",
-            AnnotationType.CITATION,
-            "content",
-            1,
-            2,
-            "test_target.md#target$content",
-            "code.py",
-        )
-        actual_annotation = Annotation(
-            "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "code.py"
-        )
-        # actual_requirement = Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content")
-        self.actual_requirement.add_annotation(citation_anno)
+        test_args = copy.deepcopy(VALID_ARGS)
+        test_args[1] = AnnotationType.TEST
+        actual_annotation = Annotation(*test_args)
+        self.actual_requirement.add_annotation(self.citation_anno)
         self.actual_requirement.analyze_annotations()
         assert self.actual_requirement.implemented
         self.actual_requirement.add_annotation(actual_annotation)
@@ -87,9 +75,9 @@ class TestAnnotation:
         assert self.actual_requirement.attested
 
     def test_add_excepted_annotation(self):
-        exception_anno = Annotation(
-            "test_target.md#target", AnnotationType.EXCEPTION, "content", 1, 2, "test_target#target$content", "code.py"
-        )
+        exception_args = copy.deepcopy(VALID_ARGS)
+        exception_args[1] = AnnotationType.EXCEPTION
+        exception_anno = Annotation(*exception_args)
         actual_requirement = Requirement(
             RequirementLevel.MUST,
             "content",
@@ -137,9 +125,8 @@ class TestSection:
         self.actual_section.add_requirement(self.actual_requirement)
         assert self.actual_section.has_requirements
 
-
-def test_specification_add_invalid_annotation(self):
-    assert not self.actual_section.add_annotation(Annotation(*ARGS))
+    def test_specification_add_invalid_annotation(self):
+        assert not self.actual_section.add_annotation(Annotation(*ARGS))
 
 
 class TestSpecification:
@@ -148,10 +135,8 @@ class TestSpecification:
     def test_specification(self):
         actual_section = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
         self.actual_specification.add_section(actual_section)
-        assert (
-            self.actual_specification.to_github_url("https://github.com/awslabs/duvet")
-            == "https://github.com/awslabs/duvet/blob/master/spec/spec.md"
-        )
+        github_url = self.actual_specification.to_github_url("https://github.com/awslabs/duvet")
+        assert github_url == "https://github.com/awslabs/duvet/blob/master/spec/spec.md"
 
     def test_specification_add_invalid_annotation(self):
         assert not self.actual_specification.add_annotation(Annotation(*ARGS))
