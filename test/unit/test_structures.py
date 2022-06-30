@@ -20,13 +20,11 @@ class TestRequirement:
         assert actual_requirement.status == RequirementStatus.NOT_STARTED
         assert actual_requirement.content == "content"
         assert actual_requirement.uri == "test_target#target$content"
-        assert actual_requirement.matched_annotations["test_target#target$content"] == actual_annotation
+        assert len(actual_requirement.matched_annotations) == 1
 
         # Verify requirement will not pass the analysis
         assert not actual_requirement.analyze_annotations()
         assert actual_requirement.implemented
-        assert not actual_requirement.attested
-        assert not actual_requirement.omitted
 
 
 class TestAnnotation:
@@ -60,7 +58,6 @@ class TestAnnotation:
         actual_requirement.analyze_annotations()
         assert actual_requirement.implemented
         assert not actual_requirement.attested
-        assert not actual_requirement.omitted
         actual_requirement.add_annotation(actual_annotation)
         actual_requirement.analyze_annotations()
         assert actual_requirement.implemented
@@ -75,10 +72,8 @@ class TestAnnotation:
             "content",
             "test_target#target$content",
         )
-        assert not actual_requirement.omitted
         actual_requirement.add_annotation(exception_anno)
         actual_requirement.analyze_annotations()
-        assert actual_requirement.omitted
 
     def test_exception_annotation(self):
         actual_annotation = Annotation(
@@ -99,7 +94,7 @@ class TestAnnotation:
         assert actual_annotation.end_line == 2
         assert actual_annotation.uri == "test_target#target$content"
         assert actual_annotation.location == "code.py"
-        assert actual_annotation._has_reason()
+        assert actual_annotation.has_reason()
 
 
 class TestSection:
@@ -138,7 +133,7 @@ class TestReport:
     def test_create_report_and_analyze_annotations(self):
         actual_report = Report()
         # Verify the initialization of the report pass_fail
-        assert not actual_report.pass_fail
+        assert not actual_report.report_pass
         actual_section = Section("target", "target", 1, 3)
         actual_specification = Specification("target", "test_target.md")
 
@@ -149,10 +144,12 @@ class TestReport:
             "test_target.md#target$content",
         )
         actual_section.add_requirement(actual_requirement)
+
         # Verify that the add_specification is correct
         actual_report.add_specification(actual_specification)
         assert actual_specification in actual_report.specifications.values()
-        citation_anno = Annotation(
+
+        citation_annotation = Annotation(
             "test_target.md#target",
             AnnotationType.CITATION,
             "content",
@@ -162,9 +159,9 @@ class TestReport:
             "code.py",
         )
         actual_annotation = Annotation(
-            "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "code.py"
+            "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "test.py"
         )
-        actual_report.add_annotation(citation_anno)
+        actual_report.add_annotation(citation_annotation)
 
         # Verify that the call chain is correct by checking against the requirement status
         assert not actual_report.analyze_annotations()

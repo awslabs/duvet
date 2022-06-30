@@ -12,8 +12,8 @@ from duvet.identifiers import (
     RequirementLevel,
     RequirementStatus,
     attested_type,
+    excepted_type,
     implemented_type,
-    omitted_type,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,7 +44,8 @@ class Annotation:
         """Return annotation location."""
         return f"{self.location}#L{self.start_line}-L{self.end_line}"
 
-    def _has_reason(self):
+    def has_reason(self):
+        """Return True if there is a reason."""
         return self.reason is not None
 
 
@@ -66,17 +67,21 @@ class Requirement:
     :param bool attested: A label with requirement marked true when there is annotation considered attested
     :param str content: Content of the requirement parsed from specification
     :param str uri: A combination of the section uri and content (Primary Key)(Foreign Key)
-    :param dict matched_annotations: A hashtable of annotations matched with the requirement content and section uri
+    :param lsit matched_annotations: A hashtable of annotations matched with the requirement content and section uri
     """
 
     requirement_level: RequirementLevel
     status: RequirementStatus = field(init=False, default=RequirementStatus.NOT_STARTED)
     implemented: bool = field(init=False, default=False)
     attested: bool = field(init=False, default=False)
-    omitted: bool = field(init=False, default=False)
+    # omitted: bool = field(init=False, default=False)
+
+    excused: bool = field(init=False, default=False)
+    unexcused: bool = field(init=False, default=False)
+
     content: str = ""
     uri: str = ""
-    matched_annotations: dict = field(init=False, default=attr.Factory(dict))
+    matched_annotations: list[Annotation] = field(init=False, default=attr.Factory(list))
 
     def __attrs_post_init__(self):
         """There MUST be a method that sets the status based on the labels.
@@ -92,17 +97,19 @@ class Requirement:
 
     def set_status(self):
         """There MUST be a method that sets the status based on the labels."""
-        if not self.omitted:
-            if self.implemented:
-                if self.attested:
-                    self.status = RequirementStatus.COMPLETE
-                else:
-                    self.status = RequirementStatus.MISSING_TEST
-            else:
-                if self.attested:
-                    self.status = RequirementStatus.MISSING_IMPLEMENTATION
-                else:
-                    self.status = RequirementStatus.NOT_STARTED
+        labels = [self.implemented, self.attested, self.excused, self.unexcused]
+        if labels == [True, False, False, False]:
+            self.status = RequirementStatus.MISSING_PROOF
+        elif labels == [True, True, False, False]:
+            self.status = RequirementStatus.COMPLETE
+        elif labels == [False, False, True, False]:
+            self.status = RequirementStatus.EXCUSED
+        elif labels == [False, False, False, True]:
+            self.status = RequirementStatus.MISSING_REASON
+        elif labels == [False, False, False, False]:
+            self.status = RequirementStatus.NOT_STARTED
+        else:
+            self.status = RequirementStatus.DUVET_ERROR
 
     def set_labels(self):
         """There MUST be a method that sets the labels based on matched_annotations.
@@ -131,18 +138,20 @@ class Requirement:
         MUST only be labeled omitted if there exists a matching annotation of type
         * exception
         """
-        for anno in self.matched_annotations.values():
-            if anno.type in implemented_type:
+        for annotation in self.matched_annotations:
+            if annotation.type in implemented_type:
                 self.implemented = True
-            if anno.type in attested_type:
+            if annotation.type in attested_type:
                 self.attested = True
-            if anno.type in omitted_type:
-                self.omitted = True
+            if annotation.type in excepted_type:
+                if annotation.has_reason():
+                    self.excused = True
+                else:
+                    self.unexcused = True
 
-    def add_annotation(self, anno) -> bool:
+    def add_annotation(self, annotation: Annotation) -> bool:
         """There MUST be a method to add annotations."""
-        new_dict = {anno.uri: anno}
-        self.matched_annotations.update(new_dict)
+        self.matched_annotations.append(annotation)
         return True
 
     def analyze_annotations(self) -> bool:
@@ -199,8 +208,8 @@ class Section:
     def analyze_annotations(self) -> bool:
         """Analyze report and return true if all MUST marked complete."""
         section_pass = True
-        for req in self.requirements.values():
-            section_pass = section_pass and req.analyze_annotations()
+        for requirement in self.requirements.values():
+            section_pass = section_pass and requirement.analyze_annotations()
         return section_pass
 
 
@@ -240,10 +249,10 @@ class Specification:
 
     def analyze_annotations(self) -> bool:
         """Analyze report and return true if all MUST marked complete."""
-        spec_pass = True
+        specification_pass = True
         for section in self.sections.values():
-            spec_pass = spec_pass and section.analyze_annotations()
-        return spec_pass
+            specification_pass = specification_pass and section.analyze_annotations()
+        return specification_pass
 
 
 @define
@@ -261,7 +270,7 @@ class Report:
     specification object as a value
     """
 
-    pass_fail: bool = field(init=False, default=False)
+    report_pass: bool = field(init=False, default=False)
     specifications: Dict[str, Specification] = field(init=False, default=attr.Factory(dict))
 
     def add_specification(self, specification: Specification):
@@ -280,8 +289,8 @@ class Report:
 
     def analyze_annotations(self) -> bool:
         """Analyze report."""
-        report_pass = True
+        self.report_pass = True
         for spec in self.specifications.values():
-            report_pass = report_pass and spec.analyze_annotations()
+            self.report_pass = self.report_pass and spec.analyze_annotations()
 
-        return report_pass
+        return self.report_pass

@@ -28,12 +28,13 @@ class RequirementLevel(Enum):
 
 class RequirementStatus(Enum):
     """Static definition of status of requirement."""
-
     COMPLETE = 1
-    MISSING_TEST = 2
-    EXCEPTION = 3
+    MISSING_PROOF = 2
+    EXCUSED = 3
     MISSING_IMPLEMENTATION = 4
     NOT_STARTED = 5
+    MISSING_REASON = 6
+    DUVET_ERROR = 7
 
 
 implemented_type = [
@@ -43,4 +44,4 @@ implemented_type = [
     AnnotationType.IMPLICATION,
 ]
 attested_type = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
-omitted_type = [AnnotationType.EXCEPTION]
+excepted_type = [AnnotationType.EXCEPTION]
