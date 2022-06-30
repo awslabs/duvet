@@ -8,6 +8,8 @@ disable =
     no-else-return,  # we omit this on purpose for brevity where it would add no value
     attribute-defined-outside-init,  # breaks with attrs_post_init
     redefined-outer-name,  # we do this on purpose in multiple places
+    unsubscriptable-object,  # very high false positive rate, mypy addresses this better
+    not-an-iterable,  # very high false positive rate, mypy addresses this better
 
 [BASIC]
 # Allow function names up to 50 characters
@@ -35,3 +37,13 @@ max-line-length = 120
 
 [REPORTS]
 msg-template = {path}:{line}: [{msg_id}({symbol}), {obj}] {msg}
+
+[SIMILARITIES]
+# Minimum lines number of a similarity.
+min-similarity-lines=4
+# Ignore comments when computing similarities.
+ignore-comments=yes
+# Ignore docstrings when computing similarities.
+ignore-docstrings=yes
+# Ignore imports when computing similarities.
+ignore-imports=yes

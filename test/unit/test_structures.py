@@ -35,7 +35,7 @@ def test_requirement():
     assert not test_req.attested
     assert not test_req.omitted
     assert test_req.uri == "test_target#target$content"
-    assert test_req.matched_annotations["test_target#target$content"] == test_anno  # pylint: disable=E1136
+    assert test_req.matched_annotations["test_target#target$content"] == test_anno
 
 
 def test_add_annotation():
@@ -127,3 +127,25 @@ def test_report_add_annotation():
     test_rep.add_annotation(test_anno)
     assert test_req.implemented
     assert test_req.attested
+
+
+def test_exception_annotaion():
+    test_anno = Annotation(
+        "test_target.md#target",
+        AnnotationType.EXCEPTION,
+        "content",
+        1,
+        2,
+        "test_target#target$content",
+        "code.py",
+        "reason",
+    )
+    assert test_anno.target == "test_target.md#target"
+    assert test_anno.type == AnnotationType.EXCEPTION
+    assert test_anno.content == "content"
+    assert test_anno.reason == "reason"
+    assert test_anno.start_line == 1
+    assert test_anno.end_line == 2
+    assert test_anno.uri == "test_target#target$content"
+    assert test_anno.location == "code.py"
+    assert test_anno._has_reason()
