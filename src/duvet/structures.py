@@ -67,7 +67,7 @@ class Requirement:
     :param bool attested: A label with requirement marked true when there is annotation considered attested
     :param str content: Content of the requirement parsed from specification
     :param str uri: A combination of the section uri and content (Primary Key)(Foreign Key)
-    :param lsit matched_annotations: A hashtable of annotations matched with the requirement content and section uri
+    :param list matched_annotations: A hashtable of annotations matched with the requirement content and section uri
     """
 
     requirement_level: RequirementLevel
@@ -179,10 +179,7 @@ class Section:
 
     def analyze_annotations(self) -> bool:
         """Analyze report and return true if all MUST be marked complete."""
-        section_pass = True
-        for requirement in self.requirements.values():
-            section_pass = section_pass and requirement.analyze_annotations()
-        return section_pass
+        return all(req.analyze_annotations() for req in self.requirements.values())
 
 
 @define

@@ -56,7 +56,8 @@ class TestRequirement:
 
         # Verify requirement will not pass the analysis
         assert not actual_requirement.analyze_annotations()
-        assert actual_requirement.implemented
+        # Verify set_label
+        assert actual_requirement.implemented == True
 
 
 class TestAnnotation:
@@ -67,12 +68,11 @@ class TestAnnotation:
         _help_assert_annotation(self.citation, VALID_KWARGS)
 
     def test_add_annotation(self):
-        test_args = _update_valid_kwargs({"type": AnnotationType.TEST})
-        actual_annotation = Annotation(**test_args)
+        test_annotation = Annotation(**_update_valid_kwargs({"type": AnnotationType.TEST}))
         self.actual_requirement.add_annotation(self.citation)
         self.actual_requirement.analyze_annotations()
         assert self.actual_requirement.implemented
-        self.actual_requirement.add_annotation(actual_annotation)
+        self.actual_requirement.add_annotation(test_annotation)
         self.actual_requirement.analyze_annotations()
         assert self.actual_requirement.implemented
         assert self.actual_requirement.attested
@@ -158,7 +158,7 @@ class TestReport:
         assert actual_specification in self.actual_report.specifications.values()
 
         citation_annotation = Annotation(**VALID_KWARGS)
-        actual_annotation = Annotation(
+        test_annotation = Annotation(
             "test_target.md#target", AnnotationType.TEST, "content", 1, 2, "test_target.md#target$content", "test.py"
         )
         self.actual_report.add_annotation(citation_annotation)
@@ -167,7 +167,7 @@ class TestReport:
         assert not self.actual_report.analyze_annotations()
 
         # Verify that the call chain is correct by checking against the requirement status
-        self.actual_report.add_annotation(actual_annotation)
+        self.actual_report.add_annotation(test_annotation)
         assert actual_requirement.analyze_annotations()
 
     def test_report_add_invalid_annotation(self):
