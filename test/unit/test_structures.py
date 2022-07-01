@@ -172,3 +172,55 @@ class TestReport:
 
     def test_report_add_invalid_annotation(self):
         assert not self.actual_report.add_annotation(Annotation(**INVALID_KWARGS))
+
+
+def test_add_annotation():
+    annotation = Annotation(target='compliance/client-apis/client.txt#2.4.2',
+                            type=AnnotationType.IMPLICATION, content='Callers MUST have a way to disable this limit.',
+                            start_line=99, end_line=103,
+                            uri='compliance/client-apis/client.txt#2.4.2$Callers MUST have a way to disable this limit.',
+                            location='/Users/yuancc/workspaces/aws-encryption-sdk-dafny/src/SDK/AwsEncryptionSdk.dfy',
+                            reason=None)
+
+    requirement = Requirement(
+        requirement_level=RequirementLevel.MUST,
+        content='Callers MUST have a way to disable this limit.',
+        uri='compliance/client-apis/client.txt#2.4.2$Callers MUST have a way to disable this limit.',
+    )
+
+    # report = Report(
+    #     report_pass=False, specifications={
+    #         'compliance/client-apis/client.txt':
+    #             Specification(title='client.txt',
+    #                           spec_dir='compliance/client-apis/client.txt',
+    #                           sections={
+    #                               'compliance/client-apis/client.txt#2.4.2': Section(
+    #                                   title='2.4.2',
+    #                                   uri='compliance/client-apis/client.txt#2.4.2',
+    #                                   start_line=-1,
+    #                                   end_line=-1,
+    #                                   has_requirements=True,
+    #                                   requirements={
+    #                                       'compliance/client-apis/client.txt#2.4.2$Callers MUST have a way to disable this limit.': )})})
+
+    # requirement.add_annotation(annotation)
+    # print(requirement.matched_annotations)# requiremnet working
+
+    section = Section(
+        title='2.4.2',
+        uri='compliance/client-apis/client.txt#2.4.2',
+        start_line=-1,
+        end_line=-1)
+
+    section.add_requirement(requirement)
+    # section.add_annotation(annotation)
+    # print(requirement.matched_annotations)
+
+    specification = Specification(title='client.txt', spec_dir='compliance/client-apis/client.txt')
+    specification.add_section(section)
+    specification.add_annotation(annotation)
+
+    print(requirement.matched_annotations)
+
+
+

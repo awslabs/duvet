@@ -212,7 +212,8 @@ class Specification:
 
     def add_annotation(self, annotation: Annotation) -> bool:
         """Add Annotation to Specification."""
-        section_uri = annotation.target.split("#")[1]
+        section_uri = annotation.target
+        print("section uri" + section_uri)
         if section_uri not in self.sections.keys():
             _LOGGER.warning("%s not found in %s", annotation.target, self.spec_dir)
             return False
