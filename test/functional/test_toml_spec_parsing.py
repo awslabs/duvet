@@ -72,8 +72,8 @@ def test_missing_uri(tmp_path):
     assert len(record) == 1
     # check that the message matches
     assert (
-            record[0].message.args[0]
-            == f'{tmp_path}/compliance/spec/section1.toml: The key "target" is missing. Skipping file.'
+        record[0].message.args[0]
+        == f'{tmp_path}/compliance/spec/section1.toml: The key "target" is missing. Skipping file.'
     )
 
 
@@ -88,16 +88,16 @@ def test_missing_specs(tmp_path):
     assert actual_specification.spec_dir == "../duvet-python/spec/spec.txt"
     # Verify one section is added to the report object
     assert (
-            actual_specifications.get("../duvet-python/spec/spec.txt")
-            .sections.get("../duvet-python/spec/spec.txt#2.2.1")
-            .title
-            == "2.2.1"
+        actual_specifications.get("../duvet-python/spec/spec.txt")
+        .sections.get("../duvet-python/spec/spec.txt#2.2.1")
+        .title
+        == "2.2.1"
     )
     assert (
-            actual_specifications.get("../duvet-python/spec/spec.txt")
-            .sections.get("../duvet-python/spec/spec.txt#2.2.1")
-            .uri
-            == "../duvet-python/spec/spec.txt#2.2.1"
+        actual_specifications.get("../duvet-python/spec/spec.txt")
+        .sections.get("../duvet-python/spec/spec.txt#2.2.1")
+        .uri
+        == "../duvet-python/spec/spec.txt#2.2.1"
     )
 
 
@@ -106,34 +106,33 @@ def test_extract_spec_toml(tmp_path):
     patterns = "compliance/**/*.toml"
     populate_file(tmp_path, "\n".join([TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC]), "compliance/spec/section1.toml")
     actual_report = TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
-    print(actual_report)
     # Verify requirements is added to the report object
     actual_requirements = (
         actual_report.specifications.get("../duvet-python/spec/spec.txt")
-            .sections.get("../duvet-python/spec/spec.txt#2.2.1")
-            .requirements
+        .sections.get("../duvet-python/spec/spec.txt#2.2.1")
+        .requirements
     )
     assert (
-            actual_requirements.get(
-                "../duvet-python/spec/spec.txt#2.2.1$The name of the sections MUST NOT be nested."
-            ).content
-            == "The name of the sections MUST NOT be nested."
+        actual_requirements.get(
+            "../duvet-python/spec/spec.txt#2.2.1$The name of the sections MUST NOT be nested."
+        ).content
+        == "The name of the sections MUST NOT be nested."
     )
     assert (
-            actual_requirements.get(
-                "../duvet-python/spec/spec.txt#2.2.1$A requirements section MUST " "be the top level containing header."
-            ).content
-            == "A requirements section MUST be the top level containing header."
+        actual_requirements.get(
+            "../duvet-python/spec/spec.txt#2.2.1$A requirements section MUST " "be the top level containing header."
+        ).content
+        == "A requirements section MUST be the top level containing header."
     )
     assert (
-            actual_requirements.get(
-                "../duvet-python/spec/spec.txt#2.2.1$A header MUST NOT itself be a requirement."
-            ).content
-            == "A header MUST NOT itself be a requirement."
+        actual_requirements.get(
+            "../duvet-python/spec/spec.txt#2.2.1$A header MUST NOT itself be a requirement."
+        ).content
+        == "A header MUST NOT itself be a requirement."
     )
     assert (
-            actual_requirements.get(
-                "../duvet-python/spec/spec.txt#2.2.1$A section MUST be indexable by combining different levels of naming."
-            ).content
-            == "A section MUST be indexable by combining different levels of naming."
+        actual_requirements.get(
+            "../duvet-python/spec/spec.txt#2.2.1$A section MUST be indexable by combining different levels of naming."
+        ).content
+        == "A section MUST be indexable by combining different levels of naming."
     )

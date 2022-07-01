@@ -11,9 +11,9 @@ from duvet.identifiers import (
     AnnotationType,
     RequirementLevel,
     RequirementStatus,
-    attested_type,
-    excepted_type,
-    implemented_type,
+    ATTESTED_TYPE,
+    EXCEPTED_TYPE,
+    IMPLEMENTED_TYPE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -112,11 +112,11 @@ class Requirement:
     def set_labels(self):
         """There MUST be a method that sets the labels based on matched_annotations."""
         for annotation in self.matched_annotations:
-            if annotation.type in implemented_type:
+            if annotation.type in IMPLEMENTED_TYPE:
                 self.implemented = True
-            if annotation.type in attested_type:
+            if annotation.type in ATTESTED_TYPE:
                 self.attested = True
-            if annotation.type in excepted_type:
+            if annotation.type in EXCEPTED_TYPE:
                 if annotation.has_reason():
                     self.excused = True
                 else:
@@ -210,7 +210,6 @@ class Specification:
     def add_annotation(self, annotation: Annotation) -> bool:
         """Add Annotation to Specification."""
         section_uri = annotation.target
-        print("section uri" + section_uri)
         if section_uri not in self.sections.keys():
             _LOGGER.warning("%s not found in %s", annotation.target, self.spec_dir)
             return False
