@@ -1,6 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Unit tests for ``duvet.summary``."""
+"""Unit tests for Duvet.summary."""
 import copy
 
 import pytest
