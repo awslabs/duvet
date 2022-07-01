@@ -91,7 +91,7 @@ def _parse_requirement_attributes(
                 sec_dict.get(TOML_URI_KEY)  # type: ignore[arg-type] # will raise AttributeError
             )
             temp_req = Requirement(
-                RequirementLevel[level],
+                RequirementLevel[level],  # will raise KeyError
                 content,
                 "$".join([toml_uri, content]),  # type: ignore[list-item] # will raise AttributeError
             )
