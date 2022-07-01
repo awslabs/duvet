@@ -21,24 +21,31 @@ ARGS = ["test_target.md#target", AnnotationType.CITATION, "content", 1, 2, "test
 
 
 @pytest.fixture
-def under_test(tmp_path) -> SummaryReport:
+def under_test() -> SummaryReport:
     return SummaryReport(Report())
 
 
-class TestSummaryReport:
-    actual_requirement = Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content")
-    actual_section = Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
+@pytest.fixture
+def actual_requirement() -> Requirement:
+    return Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content")
 
-    def test_analyze_incomplete_stats(self, under_test, tmp_path):
-        assert under_test._analyze_stats(self.actual_section) == TABLE
+
+@pytest.fixture
+def actual_section() -> Section:
+    return Section("A Section Title", "h1.h2.h3.a-section-title", 1, 3)
+
+
+class TestSummaryReport:
+    def test_analyze_incomplete_stats(self, under_test, tmp_path, actual_section, actual_requirement):
+        assert under_test._analyze_stats(actual_section) == TABLE
 
         # Requirement MUST be in summary if not completes.
         incomplete_table = copy.deepcopy(TABLE)
         incomplete_table[0][2], incomplete_table[0][3] = 1, 1
-        self.actual_section.add_requirement(self.actual_requirement)
-        assert under_test._analyze_stats(self.actual_section) == incomplete_table
+        actual_section.add_requirement(actual_requirement)
+        assert under_test._analyze_stats(actual_section) == incomplete_table
 
-    def test_analyze_complete_stats(self, under_test, tmp_path):
+    def test_analyze_complete_stats(self, under_test, tmp_path, actual_requirement, actual_section):
         # Requirement MUST be in marked complete if we have both implementation and test.
         citation_annotation = Annotation(*ARGS)
         test_args = copy.deepcopy(ARGS)
@@ -46,8 +53,8 @@ class TestSummaryReport:
         test_annotation = Annotation(*test_args)
         complete_table = copy.deepcopy(TABLE)
         complete_table[0][2] = 1
-        self.actual_section.add_requirement(self.actual_requirement)
-        self.actual_requirement.add_annotation(citation_annotation)
-        self.actual_requirement.add_annotation(test_annotation)
-        assert self.actual_requirement.analyze_annotations()
-        assert under_test._analyze_stats(self.actual_section) == complete_table
+        actual_section.add_requirement(actual_requirement)
+        actual_requirement.add_annotation(citation_annotation)
+        actual_requirement.add_annotation(test_annotation)
+        assert actual_requirement.analyze_annotations()
+        assert under_test._analyze_stats(actual_section) == complete_table

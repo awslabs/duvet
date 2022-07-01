@@ -8,12 +8,12 @@ import attr
 from attrs import define, field
 
 from duvet.identifiers import (
-    AnnotationType,
-    RequirementLevel,
-    RequirementStatus,
     ATTESTED_TYPE,
     EXCEPTED_TYPE,
     IMPLEMENTED_TYPE,
+    AnnotationType,
+    RequirementLevel,
+    RequirementStatus,
 )
 
 _LOGGER = logging.getLogger(__name__)
