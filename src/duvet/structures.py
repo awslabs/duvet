@@ -8,9 +8,9 @@ import attr
 from attrs import define, field
 
 from duvet.identifiers import (
-    ATTESTED_TYPE,
-    EXCEPTED_TYPE,
-    IMPLEMENTED_TYPE,
+    ATTESTED_TYPES,
+    EXCEPTED_TYPES,
+    IMPLEMENTED_TYPES,
     AnnotationType,
     RequirementLevel,
     RequirementStatus,
@@ -112,11 +112,11 @@ class Requirement:
     def set_labels(self):
         """There MUST be a method that sets the labels based on matched_annotations."""
         for annotation in self.matched_annotations:
-            if annotation.type in IMPLEMENTED_TYPE:
+            if annotation.type in IMPLEMENTED_TYPES:
                 self.implemented = True
-            if annotation.type in ATTESTED_TYPE:
+            if annotation.type in ATTESTED_TYPES:
                 self.attested = True
-            if annotation.type in EXCEPTED_TYPE:
+            if annotation.type in EXCEPTED_TYPES:
                 if annotation.has_reason():
                     self.excused = True
                 else:
@@ -131,7 +131,7 @@ class Requirement:
         """There MUST be a method to analyze annotations."""
         self.set_labels()
         self.set_status()
-        return self.status == RequirementStatus.COMPLETE
+        return self.status in [RequirementStatus.COMPLETE, RequirementStatus.EXCUSED]
 
 
 @define

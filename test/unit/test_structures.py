@@ -90,10 +90,10 @@ class TestAnnotation:
     def test_add_annotation(self, actual_requirement, citation):
         test_annotation = Annotation(**_update_valid_kwargs({"type": AnnotationType.TEST}))
         actual_requirement.add_annotation(citation)
-        actual_requirement.analyze_annotations()
+        assert not actual_requirement.analyze_annotations()
         assert actual_requirement.implemented
         actual_requirement.add_annotation(test_annotation)
-        actual_requirement.analyze_annotations()
+        assert actual_requirement.analyze_annotations()
         assert actual_requirement.implemented
         assert actual_requirement.attested
 
@@ -105,7 +105,7 @@ class TestAnnotation:
             "test_target#target$content",
         )
         actual_requirement.add_annotation(exception_annotation)
-        actual_requirement.analyze_annotations()
+        assert not actual_requirement.analyze_annotations()
 
     def test_exception_annotation_and_add_reason(self, actual_requirement):
         exception_kwargs = _update_valid_kwargs({"type": AnnotationType.EXCEPTION, "reason": "reason"})
@@ -115,7 +115,7 @@ class TestAnnotation:
 
         # Verify reason added in the exception.
         actual_requirement.add_annotation(actual_annotation)
-        actual_requirement.analyze_annotations()
+        assert actual_requirement.analyze_annotations()
         assert actual_annotation.has_reason()
 
 

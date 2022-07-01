@@ -38,11 +38,11 @@ class RequirementStatus(Enum):
     DUVET_ERROR = 7
 
 
-IMPLEMENTED_TYPE = [
+IMPLEMENTED_TYPES = [
     AnnotationType.CITATION,
     AnnotationType.UNTESTABLE,
     AnnotationType.DEVIATION,
     AnnotationType.IMPLICATION,
 ]
-ATTESTED_TYPE = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
-EXCEPTED_TYPE = [AnnotationType.EXCEPTION]
+ATTESTED_TYPES = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
+EXCEPTED_TYPES = [AnnotationType.EXCEPTION]

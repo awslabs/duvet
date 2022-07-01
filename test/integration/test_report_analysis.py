@@ -33,7 +33,7 @@ class TestSummaryReportAgainstDuvet:
                 counter += 1
         assert counter >= 0
         for record in caplog.records:
-            assert record.levelname != "CRITICAL"
+            assert record.levelname != "ERROR"
 
         test_report.analyze_annotations()
         assert not test_report.report_pass
@@ -58,5 +58,5 @@ class TestSummaryReportAgainstESDKDafny:
                 counter += 1
         assert counter >= 0
         for record in caplog.records:
-            assert record.levelname != "CRITICAL"
+            assert record.levelname != "ERROR"
         assert not SummaryReport(test_report).analyze_report()

@@ -83,16 +83,18 @@ def _parse_requirement_attributes(
     # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
     for req in requirements:
         try:
-            level: str = req.get(TOML_REQ_LEVEL_KEY)  # type: ignore[assignment]
-            content: str = clean_content(req.get(TOML_REQ_CONTENT_KEY))  # type: ignore[arg-type]
-            toml_uri: str = clean_content(sec_dict.get(TOML_URI_KEY))  # type: ignore[arg-type]
+            level: str = req.get(TOML_REQ_LEVEL_KEY)  # type: ignore[assignment] # will raise AttributeError
+            content: str = clean_content(
+                req.get(TOML_REQ_CONTENT_KEY)  # type: ignore[arg-type] # will raise AttributeError
+            )
+            toml_uri: str = clean_content(
+                sec_dict.get(TOML_URI_KEY)  # type: ignore[arg-type] # will raise AttributeError
+            )
             temp_req = Requirement(
                 RequirementLevel[level],
                 content,
-                "$".join(
-                    [toml_uri, content]  # type: ignore[list-item] # type: ignore[arg-type]
-                ),  # type: ignore[list-item]# type: ignore[arg-type]
+                "$".join([toml_uri, content]),  # type: ignore[list-item] # will raise AttributeError
             )
             temp_sec.add_requirement(temp_req)
-        except (TypeError, KeyError) as ex:
+        except (TypeError, KeyError, AttributeError) as ex:
             _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
