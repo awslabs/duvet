@@ -116,7 +116,6 @@ class TestAnnotation:
         # Verify reason added in the exception.
         actual_requirement.add_annotation(actual_annotation)
         assert actual_requirement.analyze_annotations()
-        assert actual_annotation.has_reason()
 
 
 class TestSection:
