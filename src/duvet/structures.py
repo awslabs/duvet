@@ -171,6 +171,7 @@ class Section:
     end_line: int = -1
     has_requirements: bool = field(init=False, default=False)
     requirements: dict = field(init=False, default=attr.Factory(dict))
+    lines:list= field(init=False, default=attr.Factory(list))
 
     def add_requirement(self, requirement: Requirement):
         """Add requirement to Section."""

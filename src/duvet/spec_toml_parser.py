@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Specification Parser used by duvet-python for toml format."""
 import logging
+import re
 import warnings
 from pathlib import Path
 from typing import Any, List, MutableMapping, Optional
@@ -15,7 +16,6 @@ from duvet.structures import Report, Requirement, Section, Specification
 _LOGGER = logging.getLogger(__name__)
 __all__ = ["TomlRequirementParser"]
 
-
 TOML_URI_KEY = "target"
 TOML_SPEC_KEY = "spec"
 TOML_REQ_LEVEL_KEY = "level"
@@ -26,8 +26,7 @@ TOML_REQ_CONTENT_KEY = "quote"
 class TomlRequirementParser:
     """Parser for requirements in toml format."""
 
-    @staticmethod
-    def extract_toml_specs(patterns: str, path: Path, toml_report: Optional[Report] = None) -> Report:
+    def extract_toml_specs(self, patterns: str, path: Path, toml_report: Optional[Report] = None) -> Report:
         """Take the patterns of the toml.
 
         Return a Report object containing all the specs.
@@ -58,27 +57,34 @@ class TomlRequirementParser:
             if toml_report.specifications.get(spec_uri) is None:
                 toml_report.specifications[spec_uri] = Specification(spec_uri.rsplit("/", maxsplit=1)[-1], spec_uri)
             temp_sec = Section(title, section_uri)
+
+            # Parse lines from legacy toml files
+            with open(temp_toml, mode = "r", encoding = "utf-8") as section_toml:
+                lines = section_toml.readlines()
+                lines = [line for line in lines if re.search(r"^#",line) is not None]
+                temp_sec.lines = lines
+
             requirements = sec_dict.get(TOML_SPEC_KEY)
             if requirements is not None:
-                _parse_requirement_attributes(requirements, sec_dict, temp_sec, temp_toml)
+                self._parse_requirement_attributes(requirements, sec_dict, temp_sec, temp_toml)
             # TODO: use a default dict for Report.specifications  # pylint: disable=fixme
             toml_report.specifications.get(spec_uri).add_section(temp_sec)  # type: ignore[union-attr]
 
         return toml_report
 
-
-def _parse_requirement_attributes(
-    requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section, filepath: Path
-):
-    # Parse the attributes in Requirement.
-    # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
-    for req in requirements:
-        try:
-            temp_req = Requirement(
-                RequirementLevel[req.get(TOML_REQ_LEVEL_KEY)],  # type: ignore[misc]  # will raise KeyError
-                req.get(TOML_REQ_CONTENT_KEY),  # type: ignore[arg-type]  # at worst, will raise TypeError
-                "$".join([sec_dict.get(TOML_URI_KEY), req.get(TOML_REQ_CONTENT_KEY)]),  # type: ignore[list-item]
-            )
-            temp_sec.add_requirement(temp_req)
-        except (TypeError, KeyError) as ex:
-            _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
+    @staticmethod
+    def _parse_requirement_attributes(
+                                      requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any],
+                                      temp_sec: Section, filepath: Path
+                                      ):
+        """Parse the attributes in Requirement."""
+        for req in requirements:
+            try:
+                temp_req = Requirement(
+                    RequirementLevel[req.get(TOML_REQ_LEVEL_KEY)],  # type: ignore[misc]  # will raise KeyError
+                    req.get(TOML_REQ_CONTENT_KEY),  # type: ignore[arg-type]  # at worst, will raise TypeError
+                    "$".join([sec_dict.get(TOML_URI_KEY), req.get(TOML_REQ_CONTENT_KEY)]),  # type: ignore[list-item]
+                )
+                temp_sec.add_requirement(temp_req)
+            except (TypeError, KeyError) as ex:
+                _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
