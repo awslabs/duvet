@@ -28,7 +28,7 @@ class Annotation:
     :param str content: A string of the exact requirement words
     :param int start_line: Number of the start line of the annotation
     :param int end_line: Number of the end line of the annotation
-    :param str location: Path to implementation file containing the annotation
+    :param str source: Path to implementation file containing the annotation
     """
 
     target: str
@@ -37,12 +37,12 @@ class Annotation:
     start_line: int
     end_line: int
     uri: str
-    location: str
+    source: str
     reason: Optional[str] = field(init=True, default=None)
 
     def location_to_string(self) -> str:
         """Return annotation location."""
-        return f"{self.location}#L{self.start_line}-L{self.end_line}"
+        return f"{self.source}#L{self.start_line}-L{self.end_line}"
 
     def has_reason(self):
         """Return True if there is a reason."""
@@ -165,14 +165,15 @@ class Section:
 
     def to_github_url(self, spec_dir, spec_github_url, branch_or_commit="master"):
         """URL for Section on GitHub."""
-        header = self.uri.split(".")
-        target_title = spec_dir + "#" + header[len(header) - 1]
+        section_full_title = self.uri.rsplit("#", 1)[-1]
+        header = section_full_title.rsplit(".", 1)[-1]
+        target_title = spec_dir + "#" + header
         return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
 
     def add_annotation(self, annotation: Annotation) -> bool:
         """Add annotation to Section."""
         if annotation.uri not in self.requirements.keys():
-            _LOGGER.warning("%s not Found in %s", annotation.uri, self.uri)
+            _LOGGER.warning("%s not found in %s", annotation.uri, self.uri)
             return False
         else:
             return self.requirements[annotation.uri].add_annotation(annotation)
@@ -195,12 +196,12 @@ class Specification:
     """
 
     title: str = ""
-    spec_dir: str = ""
+    source: str = ""
     sections: dict = field(init=False, default=attr.Factory(dict))  # hashmap equivalent in python
 
     def to_github_url(self, spec_github_url, branch_or_commit="master") -> str:
         """URL for Specification on GitHub."""
-        return "/".join([spec_github_url, "blob", branch_or_commit, self.spec_dir])
+        return "/".join([spec_github_url, "blob", branch_or_commit, self.source])
 
     def add_section(self, section: Section):
         """Add Section to Specification."""
@@ -211,7 +212,7 @@ class Specification:
         """Add Annotation to Specification."""
         section_uri = annotation.target
         if section_uri not in self.sections.keys():
-            _LOGGER.warning("%s not found in %s", annotation.target, self.spec_dir)
+            _LOGGER.warning("%s not found in %s", annotation.target, self.source)
             return False
         else:
             return self.sections[section_uri].add_annotation(annotation)
@@ -244,22 +245,23 @@ class Report:
 
     def add_specification(self, specification: Specification):
         """Add Specification to Report."""
-        new_dict = {specification.spec_dir: specification}
+        new_dict = {specification.source: specification}
         self.specifications.update(new_dict)
 
     def add_annotation(self, annotation: Annotation) -> bool:
         """Add Annotation to Report."""
-        spec_id = annotation.target.split("#")[0]
-        if spec_id not in self.specifications.keys():
-            _LOGGER.warning("%s not found in report", spec_id)
+        specification_uri = annotation.target.split("#")[0]
+
+        if specification_uri not in self.specifications.keys():
+            _LOGGER.warning("%s not found in report", specification_uri)
             return False
         else:
-            return self.specifications[spec_id].add_annotation(annotation)
+            return self.specifications[specification_uri].add_annotation(annotation)
 
     def analyze_annotations(self) -> bool:
         """Analyze report."""
         self.report_pass = True
-        for spec in self.specifications.values():
-            self.report_pass = self.report_pass and spec.analyze_annotations()
+        for specification in self.specifications.values():
+            self.report_pass = self.report_pass and specification.analyze_annotations()
 
         return self.report_pass

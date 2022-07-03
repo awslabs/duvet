@@ -85,7 +85,7 @@ def test_missing_specs(tmp_path):
     actual_specifications = actual_report.specifications
     actual_specification = actual_specifications.get("../duvet-python/spec/spec.txt")
     assert actual_specification.title == "spec.txt"
-    assert actual_specification.spec_dir == "../duvet-python/spec/spec.txt"
+    assert actual_specification.source == "../duvet-python/spec/spec.txt"
     # Verify one section is added to the report object
     assert (
         actual_specifications.get("../duvet-python/spec/spec.txt")
