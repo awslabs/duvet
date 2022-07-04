@@ -8,12 +8,12 @@ import attr
 from attrs import define, field
 
 from duvet.identifiers import (
+    ATTESTED_TYPES,
+    EXCEPTED_TYPES,
+    IMPLEMENTED_TYPES,
     AnnotationType,
     RequirementLevel,
     RequirementStatus,
-    attested_type,
-    implemented_type,
-    omitted_type,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class Annotation:
     :param str content: A string of the exact requirement words
     :param int start_line: Number of the start line of the annotation
     :param int end_line: Number of the end line of the annotation
-    :param str location: Path to implementation file containing the annotation
+    :param str source: Path to implementation file containing the annotation
     """
 
     target: str
@@ -37,14 +37,15 @@ class Annotation:
     start_line: int
     end_line: int
     uri: str
-    location: str
+    source: str
     reason: Optional[str] = field(init=True, default=None)
 
     def location_to_string(self) -> str:
         """Return annotation location."""
-        return f"{self.location}#L{self.start_line}-L{self.end_line}"
+        return f"{self.source}#L{self.start_line}-L{self.end_line}"
 
-    def _has_reason(self):
+    def has_reason(self):
+        """Return True if there is a reason."""
         return self.reason is not None
 
 
@@ -66,17 +67,19 @@ class Requirement:
     :param bool attested: A label with requirement marked true when there is annotation considered attested
     :param str content: Content of the requirement parsed from specification
     :param str uri: A combination of the section uri and content (Primary Key)(Foreign Key)
-    :param dict matched_annotations: A hashtable of annotations matched with the requirement content and section uri
+    :param list matched_annotations: A hashtable of annotations matched with the requirement content and section uri
     """
 
     requirement_level: RequirementLevel
     status: RequirementStatus = field(init=False, default=RequirementStatus.NOT_STARTED)
     implemented: bool = field(init=False, default=False)
     attested: bool = field(init=False, default=False)
-    omitted: bool = field(init=False, default=False)
+    excused: bool = field(init=False, default=False)
+    unexcused: bool = field(init=False, default=False)
+
     content: str = ""
     uri: str = ""
-    matched_annotations: dict = field(init=False, default=attr.Factory(dict))
+    matched_annotations: list[Annotation] = field(init=False, default=attr.Factory(list))
 
     def __attrs_post_init__(self):
         """There MUST be a method that sets the status based on the labels.
@@ -92,65 +95,43 @@ class Requirement:
 
     def set_status(self):
         """There MUST be a method that sets the status based on the labels."""
-        if not self.omitted:
-            if self.implemented:
-                if self.attested:
-                    self.status = RequirementStatus.COMPLETE
-                else:
-                    self.status = RequirementStatus.MISSING_TEST
-            else:
-                if self.attested:
-                    self.status = RequirementStatus.MISSING_IMPLEMENTATION
-                else:
-                    self.status = RequirementStatus.NOT_STARTED
+        labels = [self.implemented, self.attested, self.excused, self.unexcused]
+        if labels == [True, False, False, False]:
+            self.status = RequirementStatus.MISSING_PROOF
+        elif labels == [True, True, False, False]:
+            self.status = RequirementStatus.COMPLETE
+        elif labels == [False, False, True, False]:
+            self.status = RequirementStatus.EXCUSED
+        elif labels == [False, False, False, True]:
+            self.status = RequirementStatus.MISSING_REASON
+        elif labels == [False, False, False, False]:
+            self.status = RequirementStatus.NOT_STARTED
+        else:
+            self.status = RequirementStatus.DUVET_ERROR
 
     def set_labels(self):
-        """There MUST be a method that sets the labels based on matched_annotations.
-
-        Implemented
-
-        A specification requirement MUST be labeled implemented
-        if there exists at least one matching annotation of type:
-
-        * citation
-        * untestable
-        * deviation
-        * implication
-
-        Attested
-
-        A specification requirement MUST be labeled attested
-         if there exists at least one matching annotation of type
-
-        * test
-        * untestable
-        * implication
-
-        Omitted
-        A specification requirement MUST be labeled omitted and
-        MUST only be labeled omitted if there exists a matching annotation of type
-        * exception
-        """
-        for anno in self.matched_annotations.values():
-            if anno.type in implemented_type:
+        """There MUST be a method that sets the labels based on matched_annotations."""
+        for annotation in self.matched_annotations:
+            if annotation.type in IMPLEMENTED_TYPES:
                 self.implemented = True
-            if anno.type in attested_type:
+            if annotation.type in ATTESTED_TYPES:
                 self.attested = True
-            if anno.type in omitted_type:
-                self.omitted = True
+            if annotation.type in EXCEPTED_TYPES:
+                if annotation.has_reason():
+                    self.excused = True
+                else:
+                    self.unexcused = True
 
-    def add_annotation(self, anno) -> bool:
+    def add_annotation(self, annotation: Annotation) -> bool:
         """There MUST be a method to add annotations."""
-        new_dict = {anno.uri: anno}
-        self.matched_annotations.update(new_dict)
-        if anno.type in implemented_type:
-            self.implemented = True
-        if anno.type in attested_type:
-            self.attested = True
-        if anno.type in omitted_type:
-            self.omitted = True
-        self.set_status()
+        self.matched_annotations.append(annotation)
         return True
+
+    def analyze_annotations(self) -> bool:
+        """There MUST be a method to analyze annotations."""
+        self.set_labels()
+        self.set_status()
+        return self.status in [RequirementStatus.COMPLETE, RequirementStatus.EXCUSED]
 
 
 @define
@@ -167,7 +148,6 @@ class Section:
     :param  int start_line: the line number of the start of the section
     :param  int end_line: the line number of the end of the section
     :param  dict requirements: a hashmap of requirements extracted from the section
-    :param  bool has_requirements: a flag marked true when the length of the requirements field larger than 0
     """
 
     title: str = ""
@@ -185,17 +165,22 @@ class Section:
 
     def to_github_url(self, spec_dir, spec_github_url, branch_or_commit="master"):
         """URL for Section on GitHub."""
-        header = self.uri.split(".")
-        target_title = spec_dir + "#" + header[len(header) - 1]
+        section_full_title = self.uri.rsplit("#", 1)[-1]
+        header = section_full_title.rsplit(".", 1)[-1]
+        target_title = spec_dir + "#" + header
         return "/".join([spec_github_url, "blob", branch_or_commit, target_title])
 
-    def add_annotation(self, anno: Annotation) -> bool:
+    def add_annotation(self, annotation: Annotation) -> bool:
         """Add annotation to Section."""
-        if anno.uri not in self.requirements.keys():
-            _LOGGER.warning("%s not Found in %s", anno.uri, self.uri)
+        if annotation.uri not in self.requirements.keys():
+            _LOGGER.warning("%s not found in %s", annotation.uri, self.uri)
             return False
         else:
-            return self.requirements[anno.uri].add_annotation(anno)
+            return self.requirements[annotation.uri].add_annotation(annotation)
+
+    def analyze_annotations(self) -> bool:
+        """Analyze report and return true if all MUST be marked complete."""
+        return all(req.analyze_annotations() for req in self.requirements.values())
 
 
 @define
@@ -211,12 +196,12 @@ class Specification:
     """
 
     title: str = ""
-    spec_dir: str = ""
+    source: str = ""
     sections: dict = field(init=False, default=attr.Factory(dict))  # hashmap equivalent in python
 
     def to_github_url(self, spec_github_url, branch_or_commit="master") -> str:
         """URL for Specification on GitHub."""
-        return "/".join([spec_github_url, "blob", branch_or_commit, self.spec_dir])
+        return "/".join([spec_github_url, "blob", branch_or_commit, self.source])
 
     def add_section(self, section: Section):
         """Add Section to Specification."""
@@ -225,12 +210,19 @@ class Specification:
 
     def add_annotation(self, annotation: Annotation) -> bool:
         """Add Annotation to Specification."""
-        sec_id = annotation.target.split("#")[1]
-        if sec_id not in self.sections.keys():
-            _LOGGER.warning("%s not found in %s", annotation.target, self.spec_dir)
+        section_uri = annotation.target
+        if section_uri not in self.sections.keys():
+            _LOGGER.warning("%s not found in %s", annotation.target, self.source)
             return False
         else:
-            return self.sections[sec_id].add_annotation(annotation)
+            return self.sections[section_uri].add_annotation(annotation)
+
+    def analyze_annotations(self) -> bool:
+        """Analyze report and return true if all MUST marked complete."""
+        specification_pass = True
+        for section in self.sections.values():
+            specification_pass = specification_pass and section.analyze_annotations()
+        return specification_pass
 
 
 @define
@@ -243,24 +235,33 @@ class Report:
 
     Duvet’s report aids customers in annotating their code.
 
-    :param bool pass_fail: A flag of pass or fail of this run, True for pass and False for fail
+    :param bool report_pass: A flag of pass or fail of this run, True for pass and False for fail
     :param dict specifications: a hashmap of specifications with specification directory as a key and
     specification object as a value
     """
 
-    pass_fail: bool = field(init=False, default=False)
+    report_pass: bool = field(init=False, default=False)
     specifications: Dict[str, Specification] = field(init=False, default=attr.Factory(dict))
 
     def add_specification(self, specification: Specification):
         """Add Specification to Report."""
-        new_dict = {specification.spec_dir: specification}
+        new_dict = {specification.source: specification}
         self.specifications.update(new_dict)
 
     def add_annotation(self, annotation: Annotation) -> bool:
         """Add Annotation to Report."""
-        spec_id = annotation.target.split("#")[0]
-        if spec_id not in self.specifications.keys():
-            _LOGGER.warning("%s not found in report", spec_id)
+        specification_uri = annotation.target.split("#")[0]
+
+        if specification_uri not in self.specifications.keys():
+            _LOGGER.warning("%s not found in report", specification_uri)
             return False
         else:
-            return self.specifications[spec_id].add_annotation(annotation)
+            return self.specifications[specification_uri].add_annotation(annotation)
+
+    def analyze_annotations(self) -> bool:
+        """Analyze report."""
+        self.report_pass = True
+        for specification in self.specifications.values():
+            self.report_pass = self.report_pass and specification.analyze_annotations()
+
+        return self.report_pass
