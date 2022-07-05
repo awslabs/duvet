@@ -1,0 +1,92 @@
+{
+  "blob_link": "https://github.com/aws/aws-encryption-sdk-dafny/blob/",
+  "issue_link": "https://github.com/aws/aws-encryption-sdk-dafny/issues",
+  "specifications": {
+    "test_target.md": {
+      "requirements": [
+        1
+      ],
+      "sections": [
+        {
+          "id": "target",
+          "title": "target",
+          "lines": [
+            "#target",
+            "content"
+          ],
+          "requirements": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "annotations": [
+    {
+      "source": "test_target.md",
+      "target_path": "test_target.md",
+      "target_section": "target",
+      "type": "SPEC",
+      "level:": "MUST",
+      "comment": "content"
+    },
+    {
+      "source": "test_target.md",
+      "target_path": "test_target.md",
+      "target_section": "target",
+      "type": "SPEC",
+      "level:": "MUST",
+      "comment": "content"
+    }
+  ],
+  "statuses": {},
+  "refs": [
+    {},
+    {
+      "todo": true
+    },
+    {
+      "exception": true
+    },
+    {
+      "exception": true,
+      "todo": true
+    },
+    {
+      "test": true
+    },
+    {
+      "test": true,
+      "todo": true
+    },
+    {
+      "test": true,
+      "exception": true
+    },
+    {
+      "test": true,
+      "exception": true,
+      "todo": true
+    },
+    {
+      "implication": true
+    },
+    {
+      "implication": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "exception": true
+    },
+    {
+      "implication": true,
+      "exception": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "test": true
+    }
+  ]
+}

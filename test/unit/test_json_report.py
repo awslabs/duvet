@@ -80,7 +80,9 @@ def citation() -> Annotation:
 
 @pytest.fixture
 def actual_section() -> Section:
-    return Section("target", "test_target.md#target", 1, 3)
+    section = Section("target", "test_target.md#target", 1, 3)
+    section.lines = ["#target", "content"]
+    return section
 
 
 @pytest.fixture
@@ -94,21 +96,59 @@ class TestJSONReport:
         actual_index = actual_json.from_annotation(citation)
 
         assert actual_index == 0
-        assert actual_json.annotations == [{'line': -1,
+        assert actual_json.annotations == [{'line': 1,
                                             'source': 'code.py',
-                                            'target_path': 'test_target.md#target',
-                                            'target_section': 'test_target.md#target',
+                                            'target_path': 'test_target.md',
+                                            'target_section': 'target',
                                             'type': 'CITATION'}]
 
     def test_from_requirement(self, actual_json, actual_section, actual_requirement):
-        data = actual_json.from_requirement(actual_requirement, actual_section)
+        actual_index = actual_json.from_requirement(actual_requirement, actual_section)
 
         # Verify requirement is added to annotation.
-        assert actual_json.annotations == [{'line': -1,
+        assert actual_json.annotations == [{'comment': 'content',
+                                            'level:': 'MUST',
                                             'source': 'test_target.md#target$content',
                                             'target_path': 'test_target.md#target$content',
                                             'target_section': 'target',
-                                            'type': 'MUST'}]
-        assert data == {}
+                                            'type': 'SPEC'}]
+        assert actual_index == 0
 
-        # def test_from_section(self,actual_json,actual_section):
+    def test_from_section(self, actual_json, actual_section):
+        assert actual_json._from_section(actual_section) == {'id': 'test_target.md#target',
+                                                             'lines': ['#target', 'content'],
+                                                             'title': 'target'}
+
+    def test_from_sections(self, actual_json, actual_specification, actual_section, actual_requirement):
+        actual_section.add_requirement(actual_requirement)
+        actual_specification.add_section(actual_section)
+        sections, requirements = actual_json._from_sections(actual_specification.sections)
+
+        assert len(sections) == 1
+        assert len(requirements) == 1
+
+    def test_from_specification(self, actual_json, actual_specification, actual_section, actual_requirement):
+        # Setup specification for test.
+        actual_section.add_requirement(actual_requirement)
+        actual_specification.add_section(actual_section)
+
+        actual_json.from_specification(actual_specification)
+        specification_dict = actual_json.specifications.get(actual_specification.title)
+
+        assert len(specification_dict.get("sections")) == 1
+        assert len(specification_dict.get("requirements")) == 1
+
+    def test_from_report(self, actual_json, actual_specification, actual_section, actual_requirement):
+        # Setup specification for test.
+        actual_section.add_requirement(actual_requirement)
+        actual_specification.add_section(actual_section)
+        actual_report = Report()
+        actual_report.add_specification(actual_specification)
+
+
+        # print(actual_report)
+        actual_json.from_report(actual_report)
+
+        print(actual_json)
+        # actual_json.write_json()
+

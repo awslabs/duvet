@@ -1,0 +1,20 @@
+target = "../compliance/Users/yuancc/workspaces/duvet-python/examples/hello-world/hello-world-specification/hello-world.txt#2.1"
+
+# 2.1.  Print
+#
+# Python project MUST print hello.
+# 
+# Python Project MUST print world.
+
+[[spec]]
+level = "MUST"
+quote = '''
+Python project MUST print hello.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Python Project MUST print world.
+'''
+

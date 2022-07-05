@@ -78,6 +78,23 @@ class JSONReport:
 
         return requirements
 
+    def _from_section(self, section: Section) -> dict:
+        # Half basked section dictionary.
+        section_dict: dict = {
+            "id": section.uri,  # This might break the front end, we will see.
+            "title": section.title,
+            "lines": section.lines
+        }
+
+        # Add specification index number if section has requirements.
+        if section.has_requirements:
+            requirement_index = []
+            for requirement in section.requirements.values():
+                requirement_index.append(self.from_requirement(requirement, section))
+            section_dict.update({"requirements": requirement_index})
+
+        return section_dict
+
     def _from_sections(self, sections_dict: dict) -> (list[dict], list[int]):
         sections: list[dict] = []
         requirements: list[int] = []
@@ -85,12 +102,6 @@ class JSONReport:
         # Get sections for
         for section in sections_dict.values():
             sections.append(self._from_section(section))
-            section_dict: dict = {
-                "id": section.uri,  # This might break the front end, we will see.
-                "title": section.title,
-                "lines": section.lines
-            }
-            sections.append(section_dict)
 
             for requirement in section.requirements.values():
                 requirements.append(self.from_requirement(requirement, section))
@@ -99,37 +110,35 @@ class JSONReport:
         return sections, requirements
 
     def from_specification(self, specification: Specification) -> bool:
-        requirements: list = []
-        sections: list = []
+        sections, requirements = self._from_sections(specification.sections)
 
         # some operations
-        sections.append(self._from_sections(specification.section))
 
-        specification_dict: dict = {specification.title: {requirements, sections}}
+        specification_dict: dict = {
+            specification.title: {"requirements": requirements, "sections": sections}}
         self.specifications.update(specification_dict)
         # some operations
 
         return True
 
     def from_report(self, report: Report) -> bool:
-        self.blob_link: str = report.blob_link
-        self.issue_link: str = report.issue_link
+        self.blob_link: str = "report.blob_link"
+        self.issue_link: str = "report.issue_link"
         # specifications: dict = {}
 
         for specifications in report.specifications.values():
             self.from_specification(specifications)
-        # annotations: list = []
+
         # statuses: dict = {}
         # refs: list = []
 
-        return True
+        return self._get_dictionary()
 
     def from_requirement(self, requirement: Requirement, section: Section) -> int:
-        source = requirement.uri
-        target_path = requirement.uri
+        source = requirement.uri.rsplit("#", 1)[0]
+        target_path = requirement.uri.rsplit("#", 1)[0]
         target_section = section.title
         line = -1  # TODO: Figure out what it means.
-        type = requirement.requirement_level.name
 
         new_ref = RefStatus()
         for annotation in requirement.matched_annotations:
@@ -142,8 +151,9 @@ class JSONReport:
             "source": source,
             "target_path": target_path,
             "target_section": target_section,
-            "line": line,
-            "type": type
+            "type": "SPEC",
+            "level:": requirement.requirement_level.name,
+            "comment": requirement.content
         }
 
         # append result last because we want to know the index of this "annotation"
@@ -153,9 +163,9 @@ class JSONReport:
 
     def from_annotation(self, annotation: Annotation) -> int:
         source = annotation.source
-        target_path = annotation.target
-        target_section = annotation.target
-        line = -1  # TODO: Figure out what it means.
+        target_path = annotation.target.rsplit("#", 1)[0]
+        target_section = annotation.target.rsplit("#", 1)[1]
+        line = annotation.start_line  # TODO: Figure out what it means. line number in the section
         type = annotation.type.name
 
         result = {
@@ -182,5 +192,5 @@ class JSONReport:
 
     def write_json(self):
         "write json file."
-        with open("result.json", "w+", encoding="utf-8") as json_result:
-            json.dump(self._get_dictionary, json_result)
+        with open("duvet-result.json", "w+", encoding="utf-8") as json_result:
+            json.dump(self._get_dictionary(), json_result)

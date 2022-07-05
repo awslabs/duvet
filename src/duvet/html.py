@@ -9,7 +9,7 @@ from domonic import domonic, script, link, style, html, head, body, div, render,
 
 from duvet.json_report import JSONReport
 
-f = open("./view/result.json")
+f = open("duvet-result.json")
 data = json.load(f)
 
 
@@ -43,3 +43,6 @@ def write_html():
         html_file.write("</html>\n")
 
     webbrowser.open("duvet-report.html")
+
+
+write_html()
