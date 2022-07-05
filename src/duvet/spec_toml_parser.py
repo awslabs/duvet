@@ -69,9 +69,9 @@ class TomlRequirementParser:
             temp_sec = Section(title, section_uri)
 
             # Parse lines from legacy toml files
-            with open(temp_toml, mode = "r", encoding = "utf-8") as section_toml:
+            with open(temp_toml, mode="r", encoding="utf-8") as section_toml:
                 lines = section_toml.readlines()
-                lines = [line for line in lines if re.search(r"^#",line) is not None]
+                lines = [clean_content(line) for line in lines if re.search(r"^#", line) is not None]
                 temp_sec.lines = lines
 
             requirements = sec_dict.get(TOML_SPEC_KEY)
@@ -82,42 +82,52 @@ class TomlRequirementParser:
 
         return toml_report
 
-
-def _parse_requirement_attributes(
-    requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section, filepath: Path
-):
-    # Parse the attributes in Requirement.
-    # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
-    for req in requirements:
-        try:
-            level: str = req.get(TOML_REQ_LEVEL_KEY)  # type: ignore[assignment] # will raise AttributeError
-            content: str = clean_content(
-                req.get(TOML_REQ_CONTENT_KEY)  # type: ignore[arg-type] # will raise AttributeError
-            )
-            toml_uri: str = clean_content(
-                sec_dict.get(TOML_URI_KEY)  # type: ignore[arg-type] # will raise AttributeError
-            )
-            temp_req = Requirement(
-                RequirementLevel[level],  # will raise KeyError
-                content,
-                "$".join([toml_uri, content]),  # type: ignore[list-item] # will raise AttributeError
-            )
-            temp_sec.add_requirement(temp_req)
-        except (TypeError, KeyError, AttributeError) as ex:
-            _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
     @staticmethod
     def _parse_requirement_attributes(
-                                      requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any],
-                                      temp_sec: Section, filepath: Path
-                                      ):
-        """Parse the attributes in Requirement."""
+            requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section,
+            filepath: Path
+    ):
+        # Parse the attributes in Requirement.
+        # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
         for req in requirements:
             try:
+                level: str = req.get(TOML_REQ_LEVEL_KEY)  # type: ignore[assignment] # will raise AttributeError
+                content: str = clean_content(
+                    req.get(TOML_REQ_CONTENT_KEY)  # type: ignore[arg-type] # will raise AttributeError
+                )
+                toml_uri: str = clean_content(
+                    sec_dict.get(TOML_URI_KEY)  # type: ignore[arg-type] # will raise AttributeError
+                )
                 temp_req = Requirement(
-                    RequirementLevel[req.get(TOML_REQ_LEVEL_KEY)],  # type: ignore[misc]  # will raise KeyError
-                    req.get(TOML_REQ_CONTENT_KEY),  # type: ignore[arg-type]  # at worst, will raise TypeError
-                    "$".join([sec_dict.get(TOML_URI_KEY), req.get(TOML_REQ_CONTENT_KEY)]),  # type: ignore[list-item]
+                    RequirementLevel[level],  # will raise KeyError
+                    content,
+                    "$".join([toml_uri, content]),  # type: ignore[list-item] # will raise AttributeError
                 )
                 temp_sec.add_requirement(temp_req)
-            except (TypeError, KeyError) as ex:
+            except (TypeError, KeyError, AttributeError) as ex:
+                _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
+
+    @staticmethod
+    def _parse_requirement_attributes(
+            requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section,
+            filepath: Path
+    ):
+        # Parse the attributes in Requirement.
+        # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
+        for req in requirements:
+            try:
+                level: str = req.get(TOML_REQ_LEVEL_KEY)  # type: ignore[assignment] # will raise AttributeError
+                content: str = clean_content(
+                    req.get(TOML_REQ_CONTENT_KEY)  # type: ignore[arg-type] # will raise AttributeError
+                )
+                toml_uri: str = clean_content(
+                    sec_dict.get(TOML_URI_KEY)  # type: ignore[arg-type] # will raise AttributeError
+                )
+                temp_req = Requirement(
+                    RequirementLevel[level],  # will raise KeyError
+                    content,
+                    "$".join([toml_uri, content]),  # type: ignore[list-item] # will raise AttributeError
+                )
+                temp_sec.add_requirement(temp_req)
+            except (TypeError, KeyError, AttributeError) as ex:
                 _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
