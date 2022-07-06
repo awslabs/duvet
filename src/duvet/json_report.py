@@ -119,8 +119,10 @@ class JSONReport:
         return True
 
     def from_report(self, report: Report) -> dict:
-        self.blob_link: str = "report.blob_link"
-        self.issue_link: str = "report.issue_link"
+        # "blob_link": "https://github.com/awslabs/duvet/blob/",
+        # "issue_link": "https://github.com/awslabs/duvet/issues",
+        self.blob_link: str = "https://github.com/awslabs/duvet/blob/"
+        self.issue_link: str = "https://github.com/awslabs/duvet/issues"
         # specifications: dict = {}
 
         for specifications in report.specifications.values():

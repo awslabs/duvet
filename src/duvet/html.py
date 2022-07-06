@@ -5,7 +5,6 @@ import sys
 import webbrowser
 import json
 from attrs import define, field
-from domonic import domonic, script, link, style, html, head, body, div, render, article, h1
 
 from duvet.json_report import JSONReport
 
