@@ -7,14 +7,13 @@ Assumptions:
 2. We will map the excused_exception and un_excused map to exception, because new mode ia not supported.
 3. We try to use lines to get the content which is not supported in our implementation.
 """
-import copy
-import pathlib
 from typing import Optional
 
 import attr
 from attrs import define, field
 
 from duvet.identifiers import RequirementLevel
+from duvet.refs_json import REFS_JSON
 from duvet.structures import Section, Requirement, Specification, Report, Annotation
 import json
 
@@ -71,17 +70,13 @@ class JSONReport:
     statuses: dict = field(init=False, default=attr.Factory(dict))
     refs: list = field(init=False, default=attr.Factory(list))
 
-    def get_requirements(self, requirement: Requirement) -> list:
-        requirements = []
-
-        # some operations
-
-        return requirements
+    def __attrs_post_init__(self):
+        self.refs = REFS_JSON.get("refs")
 
     def _from_section(self, section: Section) -> dict:
         # Half basked section dictionary.
         section_dict: dict = {
-            "id": section.uri,  # This might break the front end, we will see.
+            "id": section.uri.split("#",1)[1],  # This might break the front end, we will see.
             "title": section.title,
             "lines": section.lines
         }
@@ -115,7 +110,7 @@ class JSONReport:
         # some operations
 
         specification_dict: dict = {
-            specification.title: {"requirements": requirements, "sections": sections}}
+            specification.source: {"requirements": requirements, "sections": sections}}
         self.specifications.update(specification_dict)
         # some operations
 
@@ -129,14 +124,11 @@ class JSONReport:
         for specifications in report.specifications.values():
             self.from_specification(specifications)
 
-        # statuses: dict = {}
-        # refs: list = []
-
         return self._get_dictionary()
 
     def from_requirement(self, requirement: Requirement, section: Section) -> int:
-        source = requirement.uri.rsplit("#", 1)[0]
-        target_path = requirement.uri.rsplit("#", 1)[0]
+        source = requirement.uri.split("#", 1)[0]
+        target_path = requirement.uri.split("#", 1)[0]
         target_section = section.title
         line = -1  # TODO: Figure out what it means.
 
@@ -145,7 +137,7 @@ class JSONReport:
             new_ref.from_annotation(annotation)
             self.from_annotation(annotation)
 
-        self.refs.append(new_ref.get_dict())
+        # self.refs.append(new_ref.get_dict())
 
         result = {
             "source": source,
@@ -163,8 +155,8 @@ class JSONReport:
 
     def from_annotation(self, annotation: Annotation) -> int:
         source = annotation.source
-        target_path = annotation.target.rsplit("#", 1)[0]
-        target_section = annotation.target.rsplit("#", 1)[1]
+        target_path = annotation.target.split("#", 1)[0]
+        target_section = annotation.target.split("#", 1)[1]
         line = annotation.start_line  # TODO: Figure out what it means. line number in the section
         type = annotation.type.name
 

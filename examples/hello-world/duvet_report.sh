@@ -19,4 +19,9 @@ fi
 #./util/specification_extract.sh
 #cd ..
 
-$SPEC_ROOT/util/report.js hello_world.py
+$SPEC_ROOT/util/report.js  "/Users/yuancc/Documents/GitHub/duvet-1/examples/hello-world/src/hello_world.py"
+
+# $SPEC_ROOT/util/report.js \
+#   $(find src -name '*.py') \
+#   $(find test -name '*.py') \
+#   $(find compliance_exceptions -name '*.txt')
