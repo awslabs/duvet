@@ -4,7 +4,7 @@
 
 AWS Crypto Tools                                            . Amazon AWS
                                                               Amazon AWS
-                                                             5 July 2022
+                                                             6 July 2022
 
 
                               hello-world
@@ -35,9 +35,9 @@ Table of Contents
 
 2.1.  Print
 
-   Python project MUST print hello.
+   Python project MUST print hello.  This is words after it.
 
-   Python Project MUST print world.
+   This is words before it.  Python Project MUST print world.
 
 3.  Normative References
 

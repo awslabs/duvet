@@ -50,15 +50,16 @@ class RefStatus:
         if self.exception: result.update({"exception": self.exception})
         if self.todo: result.update({"todo": self.todo})
         if self.level is not None:
-            result.update({"level": self.level.name})
+            result.update({"level": self.level})
 
         return result
 
     def from_annotation(self, annotation: Annotation):
+        print(annotation.type.name)
         if annotation.type.name.lower() == "citation": self.citation = True
-        if annotation.type.name == "implication": self.implication = True
-        if annotation.type.name == "test": self.test = True
-        if annotation.type.name == "exception": self.exception = True
+        if annotation.type.name.lower() == "implication": self.implication = True
+        if annotation.type.name.lower() == "test": self.test = True
+        if annotation.type.name.lower() == "exception": self.exception = True
 
 
 @define
@@ -76,17 +77,19 @@ class JSONReport:
     def _from_section(self, section: Section) -> dict:
         # Half basked section dictionary.
         section_dict: dict = {
-            "id": section.uri.split("#",1)[1],  # This might break the front end, we will see.
+            "id": section.uri.split("#", 1)[1],  # This might break the front end, we will see.
             "title": section.title,
             "lines": section.lines
         }
+
+        lines: list = []
 
         # Add specification index number if section has requirements.
         if section.has_requirements:
             requirement_index = []
             for requirement in section.requirements.values():
-                requirement_index.append(self.from_requirement(requirement, section))
-            section_dict.update({"requirements": requirement_index})
+                requirement_index.append(self.from_requirement(requirement, section, lines))
+            section_dict.update({"requirements": requirement_index, "lines": lines})
 
         return section_dict
 
@@ -96,10 +99,9 @@ class JSONReport:
 
         # Get sections for
         for section in sections_dict.values():
-            sections.append(self._from_section(section))
-
-            for requirement in section.requirements.values():
-                requirements.append(self.from_requirement(requirement, section))
+            section_dict = self._from_section(section)
+            sections.append(section_dict)
+            requirements.extend(section_dict.get("requirements", []))
 
         # some operations
         return sections, requirements
@@ -116,7 +118,7 @@ class JSONReport:
 
         return True
 
-    def from_report(self, report: Report) -> bool:
+    def from_report(self, report: Report) -> dict:
         self.blob_link: str = "report.blob_link"
         self.issue_link: str = "report.issue_link"
         # specifications: dict = {}
@@ -126,16 +128,34 @@ class JSONReport:
 
         return self._get_dictionary()
 
-    def from_requirement(self, requirement: Requirement, section: Section) -> int:
+    def from_requirement(self, requirement: Requirement, section: Section, lines: list) -> int:
         source = requirement.uri.split("#", 1)[0]
         target_path = requirement.uri.split("#", 1)[0]
         target_section = section.title
-        line = -1  # TODO: Figure out what it means.
 
+        # Set up ref based on the requirement.
         new_ref = RefStatus()
+        new_ref.spec = True
+        new_ref.level = requirement.requirement_level.name
         for annotation in requirement.matched_annotations:
+            print(annotation.type)
             new_ref.from_annotation(annotation)
-            self.from_annotation(annotation)
+            # self.from_annotation(annotation)
+
+        # print(new_ref.get_dict())
+        # print(self.refs.index(new_ref.get_dict()))
+        line = []
+        line_requirement = []
+
+        annotation_indexes = []
+        annotation_indexes.append(len(self.annotations))
+        line_requirement.append(annotation_indexes)
+
+        # Add reference index.
+        line_requirement.append(self.refs.index(new_ref.get_dict()))
+        line_requirement.append(requirement.content)
+        line.append(line_requirement)
+        lines.append(line)
 
         # self.refs.append(new_ref.get_dict())
 

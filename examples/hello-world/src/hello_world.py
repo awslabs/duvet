@@ -4,6 +4,7 @@
 
 
 # //= compliance/hello-world.txt#2.1
+# //= type=implication
 # //# Python project MUST print hello.
 def hello_duvet():
     print("hello duvet.")

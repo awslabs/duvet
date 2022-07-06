@@ -2,6 +2,6 @@
 
 ## Print
 
-Python project MUST print hello.
+Python project MUST print hello. This is words after it.
 
-Python Project MUST print world.
+This is words before it. Python Project MUST print world.
