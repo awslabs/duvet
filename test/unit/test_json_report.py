@@ -2,10 +2,9 @@ import copy
 
 import pytest
 
-from duvet._config import ImplConfig
-from duvet.identifiers import RequirementLevel, AnnotationType
+from duvet.identifiers import AnnotationType, RequirementLevel
 from duvet.json_report import JSONReport
-from duvet.structures import Report, Requirement, Specification, Annotation, Section
+from duvet.structures import Annotation, Report, Requirement, Section, Specification
 
 pytestmark = [pytest.mark.local, pytest.mark.unit]
 
@@ -91,33 +90,40 @@ def actual_json():
 
 
 class TestJSONReport:
-
     def test_from_annotation(self, actual_json, actual_section, citation):
         actual_index = actual_json.from_annotation(citation)
 
         assert actual_index == 0
-        assert actual_json.annotations == [{'line': 1,
-                                            'source': 'code.py',
-                                            'target_path': 'test_target.md',
-                                            'target_section': 'target',
-                                            'type': 'CITATION'}]
+        assert actual_json.annotations == [
+            {
+                "line": 1,
+                "source": "code.py",
+                "target_path": "test_target.md",
+                "target_section": "target",
+                "type": "CITATION",
+            }
+        ]
 
     def test_from_requirement(self, actual_json, actual_section, actual_requirement):
-        actual_index = actual_json.from_requirement(actual_requirement, actual_section)
+        actual_index = actual_json.from_requirement(actual_requirement, actual_section, [])
 
         # Verify requirement is added to annotation.
-        assert actual_json.annotations == [{'comment': 'content',
-                                            'level:': 'MUST',
-                                            'source': 'test_target.md#target$content',
-                                            'target_path': 'test_target.md#target$content',
-                                            'target_section': 'target',
-                                            'type': 'SPEC'}]
+        assert actual_json.annotations == [
+            {'comment': 'content',
+             'level': 'MUST',
+             'source': 'test_target.md',
+             'target_path': 'test_target.md',
+             'target_section': 'target',
+             'type': 'SPEC'}]
+
         assert actual_index == 0
 
     def test_from_section(self, actual_json, actual_section):
-        assert actual_json._from_section(actual_section) == {'id': 'test_target.md#target',
-                                                             'lines': ['#target', 'content'],
-                                                             'title': 'target'}
+        assert actual_json._from_section(actual_section) == {
+            "id": "target",
+            "lines": ["#target", "content"],
+            "title": "target",
+        }
 
     def test_from_sections(self, actual_json, actual_specification, actual_section, actual_requirement):
         actual_section.add_requirement(actual_requirement)
@@ -133,7 +139,7 @@ class TestJSONReport:
         actual_specification.add_section(actual_section)
 
         actual_json.from_specification(actual_specification)
-        specification_dict = actual_json.specifications.get(actual_specification.title)
+        specification_dict = actual_json.specifications.get(actual_specification.source)
 
         assert len(specification_dict.get("sections")) == 1
         assert len(specification_dict.get("requirements")) == 1
@@ -145,10 +151,8 @@ class TestJSONReport:
         actual_report = Report()
         actual_report.add_specification(actual_specification)
 
-
         # print(actual_report)
         actual_json.from_report(actual_report)
 
-        print(actual_json)
+        # print(actual_json)
         # actual_json.write_json()
-

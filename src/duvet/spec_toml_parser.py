@@ -84,33 +84,10 @@ class TomlRequirementParser:
 
     @staticmethod
     def _parse_requirement_attributes(
-            requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section,
-            filepath: Path
-    ):
-        # Parse the attributes in Requirement.
-        # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
-        for req in requirements:
-            try:
-                level: str = req.get(TOML_REQ_LEVEL_KEY)  # type: ignore[assignment] # will raise AttributeError
-                content: str = clean_content(
-                    req.get(TOML_REQ_CONTENT_KEY)  # type: ignore[arg-type] # will raise AttributeError
-                )
-                toml_uri: str = clean_content(
-                    sec_dict.get(TOML_URI_KEY)  # type: ignore[arg-type] # will raise AttributeError
-                )
-                temp_req = Requirement(
-                    RequirementLevel[level],  # will raise KeyError
-                    content,
-                    "$".join([toml_uri, content]),  # type: ignore[list-item] # will raise AttributeError
-                )
-                temp_sec.add_requirement(temp_req)
-            except (TypeError, KeyError, AttributeError) as ex:
-                _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
-
-    @staticmethod
-    def _parse_requirement_attributes(
-            requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section,
-            filepath: Path
+        requirements: List[MutableMapping[str, Any]],
+        sec_dict: MutableMapping[str, Any],
+        temp_sec: Section,
+        filepath: Path,
     ):
         # Parse the attributes in Requirement.
         # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme

@@ -104,7 +104,11 @@ def test_missing_specs(tmp_path):
 def test_extract_spec_toml(tmp_path):
     # We will not throw error is there is no requirements.
     patterns = "compliance/**/*.toml"
-    populate_file(tmp_path, "\n".join([TEST_SPEC_TOML_COMMENT,TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC]), "compliance/spec/section1.toml")
+    populate_file(
+        tmp_path,
+        "\n".join([TEST_SPEC_TOML_COMMENT, TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC]),
+        "compliance/spec/section1.toml",
+    )
     actual_report = TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
     # Verify requirements is added to the report object
     actual_requirements = (
@@ -137,8 +141,8 @@ def test_extract_spec_toml(tmp_path):
         == "A section MUST be indexable by combining different levels of naming."
     )
 
-    actual_section = (
-        actual_report.specifications.get("../duvet-python/spec/spec.txt")
-            .sections.get("../duvet-python/spec/spec.txt#2.2.1"))
+    # actual_section = actual_report.specifications.get("../duvet-python/spec/spec.txt").sections.get(
+    #     "../duvet-python/spec/spec.txt#2.2.1"
+    # )
 
-    print (actual_section.lines)
+    # print(actual_section.lines)

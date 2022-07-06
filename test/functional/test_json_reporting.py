@@ -18,7 +18,7 @@ def test_dogfood(pytestconfig):
     actual_json = JSONReport()
     actual_json.from_report(test_report)
     actual_json.write_json()
-    assert actual_json == []
+    assert len(actual_json.specifications.keys()) == 1
 
 
 def test_hello_world(pytestconfig):
@@ -29,4 +29,4 @@ def test_hello_world(pytestconfig):
     actual_json = JSONReport()
     actual_json.from_report(test_report)
     actual_json.write_json()
-    assert actual_json == []
+    assert len(actual_json.specifications.keys()) == 1
