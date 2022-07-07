@@ -97,7 +97,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = self.body[quote_span.start: quote_span.end]
+        quotes = self.body[quote_span.start : quote_span.end]
         list_match = re.search(self._list_entry_regex, quotes)
         # Handover to process_inline if no list identifier found.
         if list_match is None:
@@ -114,7 +114,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        right_punc = quotes[span.end:].find("\n\n")
+        right_punc = quotes[span.end :].find("\n\n")
         if right_punc != -1:
             list_block.end = span.end + right_punc
 
@@ -126,18 +126,12 @@ class RequirementParser:
 
         # Third, add requirement string after list.
         result.extend(self.extract_block(Span(list_block.end + 2, quote_span.end).add_start(quote_span)))
-        print(result)
         return result
 
     def process_inline(self, quote_span: Span) -> list[dict]:
-        """
+        """Given a span of content, return a list of key word arguments of requirement."""
 
-        requirement_level: RequirementLevel
-        content: str = ""
-        uri: str = ""
-        span : Span
-        """
-        quotes = preprocess_text(self.body[quote_span.start: quote_span.end])
+        quotes = preprocess_text(self.body[quote_span.start : quote_span.end])
         requirement_candidates: list = []
         req_kwargs: list = []
 
@@ -152,16 +146,16 @@ class RequirementParser:
             left_punc = quotes[: identifier_span.start].rfind(STOP_SIGN)
             if left_punc != -1:
                 sentence_span.start = left_punc
-            right_punc = quotes[identifier_span.end:].find(STOP_SIGN)
+            right_punc = quotes[identifier_span.end :].find(STOP_SIGN)
             if right_punc != -1:
                 sentence_span.end = identifier_span.end + right_punc
             if left_punc != -1 and right_punc != -1:
                 req = (
-                    quotes[sentence_span.start: sentence_span.end]
-                        .strip("\n")
-                        .replace("\n", " ")
-                        .replace(STOP_SIGN, "")
-                        .strip()
+                    quotes[sentence_span.start : sentence_span.end]
+                    .strip("\n")
+                    .replace("\n", " ")
+                    .replace(STOP_SIGN, "")
+                    .strip()
                 )
                 if req.endswith((".", "!")):
                     req_kwarg = {
@@ -176,16 +170,15 @@ class RequirementParser:
 
     def process_list_block(self, quote_span: Span) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = self.body[quote_span.start: quote_span.end]
+        quotes = self.body[quote_span.start : quote_span.end]
         result: list[Dict] = []
-        print(quotes)
         # Find the end of the list using the "\n\n".
         end_of_list = quotes.rfind("\n\n") + 2
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
         list_entry: Optional[Match[str]] = re.search(self._list_entry_regex, quotes)
         if list_entry is None:
-            logging.warning("Requirement list syntax is not valid in " + quotes)
+            logging.warning("Requirement list syntax is not valid in %s", quotes)
             return result
 
         first_list_identifier: Span = Span.from_match(list_entry)
@@ -207,48 +200,53 @@ class RequirementParser:
         return result
 
     def process_list(self, kwargs: Dict) -> list[Dict]:
-        """
+        """Give a dictionary of keyword arguments.
 
+        Return a list of dictionaries.
 
         input: kwarg = {"parent": "parent_sentence", "children": [child1, child2]}
         output: [ "parent_sentence child1", "parent_sentence child2" ]
         """
         req_list: list[Dict] = []
         parent: Optional[Span] = kwargs.get("parent")
-        if parent is None: return req_list
+        if parent is None:
+            return req_list
         req_kwarg = {}
         # there MUST be parent.
         if self.is_legacy:
             quotes = parent.to_string(self.body)
-            req_kwarg.update({
-                "content": clean_content(quotes),
-                "span": parent,
-            })
+            req_kwarg.update(
+                {
+                    "content": clean_content(quotes),
+                    "span": parent,
+                }
+            )
             req_kwarg.update(self.get_requirement_level(quotes))
             req_list.append(req_kwarg)
             return req_list
         else:
             children: Optional[list] = kwargs.get("children")
-            if children is None: return req_list
+            if children is None:
+                return req_list
             for child in children:
                 quotes = " ".join(
                     [clean_content(parent.to_string(self.body)), clean_content(child.to_string(self.body))]
                 )
-                req_kwarg.update({"span": child})
-                req_kwarg.update(self.get_requirement_level(quotes))
-                req_kwarg.update({"content": clean_content(quotes)})
-                req_list.append(req_kwarg)
+                child_kwarg: dict = {"span": child}
+                child_kwarg.update(self.get_requirement_level(quotes))
+                child_kwarg.update({"content": clean_content(quotes)})
+                req_list.append(child_kwarg)
         return req_list
 
     @staticmethod
     def get_requirement_level(req_line) -> dict:
-        """Get requirement level"""
+        """Get requirement level."""
         result: dict = {}
         if "MAY" in req_line:
             result.update({"requirement_level": RequirementLevel.MAY})
-        if "SHOULD" in req_line:
+        elif "SHOULD" in req_line:
             result.update({"requirement_level": RequirementLevel.SHOULD})
-        if "MUST" in req_line:
+        elif "MUST" in req_line:
             result.update({"requirement_level": RequirementLevel.MUST})
         else:
             result.update({"requirement_level": None})

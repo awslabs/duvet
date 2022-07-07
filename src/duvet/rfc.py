@@ -52,7 +52,7 @@ class RFCHeader(SpecificationHeader):
     @staticmethod
     def from_match(match: re.Match) -> RFCHeaderT:
         """Generate an RFC Header from a match."""
-        cls: RFCHeaderT = RFCHeader.from_line(match.string[match.start(): match.end()])
+        cls: RFCHeaderT = RFCHeader.from_line(match.string[match.start() : match.end()])
         cls.title_span = Span.from_match(match)
         return cls
 

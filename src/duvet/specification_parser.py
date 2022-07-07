@@ -6,7 +6,9 @@ from pathlib import Path
 from re import Match
 from typing import Iterator, TypeVar, Union
 
-import anytree  # pylint: disable=E0401
+import anytree  # type: ignore[import] # pylint: disable=E0401
+
+# We don't really need to check the type of third party library.
 from attr import define, field
 
 MAX_HEADER_LEVELS: str = str(4)
@@ -31,11 +33,13 @@ class Span:
     def from_match(match: Match) -> SpanT:
         """Span from Match."""
         start, end = match.span()
-        return Span(start, end)
+        return Span(start, end)  # type: ignore[return-value]
+        # False positive on abstract type.
 
     def add_start(self, new_span: SpanT) -> SpanT:
         """Span add start from new span."""
-        return Span(self.start + new_span.start, self.end + new_span.start)
+        return Span(self.start + new_span.start, self.end + new_span.start)  # type: ignore[return-value]
+        # False positive on abstract type.
 
     def to_string(self, quotes: str) -> str:
         """Get string from span."""
@@ -130,7 +134,7 @@ class ParsedSpecification(SpecificationElement, metaclass=ABCMeta):
     """
 
     filepath: Path = field(init=True, repr=False)
-    cursor: Union[SpecificationHeader, ParsedSpecificationT] = field(init=False, repr=False)
+    cursor: Union[SpecificationHeader, ParsedSpecificationT] = field(init=False, repr=False)  # type: ignore[valid-type]
     content: str = field(init=False, repr=False)
 
     @staticmethod

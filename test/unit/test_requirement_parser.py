@@ -4,9 +4,8 @@
 import pytest
 
 from duvet.identifiers import RequirementLevel
-from duvet.requirement_parser import ALL_MARKDOWN_LIST_ENTRY_REGEX, ALL_RFC_LIST_ENTRY_REGEX, RequirementParser
+from duvet.requirement_parser import RequirementParser
 from duvet.specification_parser import Span
-from duvet.structures import Section
 
 pytestmark = [pytest.mark.unit, pytest.mark.local]
 
@@ -154,7 +153,7 @@ def test_process_list():
     ]
 
 
-TEST_REQUIREMENT_STR = "Something something.\n" "Duvet MUST implement " "every requirement. " "Something something.\n"
+TEST_REQUIREMENT_STR = "Something something.\nDuvet MUST implement every requirement. Something something.\n"
 
 TEST_REQUIREMENT_WITH_INVALID_STR = (
     "Something something.\n"
@@ -217,12 +216,19 @@ def test_extract_requirements_with_lists_wrapped():
             "requirement_level": RequirementLevel.MAY,
             "span": Span(start=0, end=61),
         },
-        "parent",
-        "children",
+        {
+            "children": [
+                Span(start=117, end=128),
+                Span(start=130, end=152),
+                Span(start=154, end=159),
+                Span(start=161, end=168),
+            ],
+            "parent": Span(start=54, end=115),
+        },
         {
             "content": "In the case of requirement terminated by a list, the text "
-                       "proceeding the list MUST be concatenated with each element of "
-                       "the list to form a requirement.",
+            "proceeding the list MUST be concatenated with each element of "
+            "the list to form a requirement.",
             "requirement_level": RequirementLevel.MUST,
             "span": Span(start=168, end=327),
         },

@@ -72,9 +72,9 @@ class TestMarkdownHeader:
         "parent, child, expected",
         [
             (
-                    MarkdownHeader.from_line("# Parent Title"),
-                    MarkdownHeader.from_line("## Odd.Name.But.We.Will.Allow.It"),
-                    "Parent-Title.Odd_Name_But_We_Will_Allow_It",
+                MarkdownHeader.from_line("# Parent Title"),
+                MarkdownHeader.from_line("## Odd.Name.But.We.Will.Allow.It"),
+                "Parent-Title.Odd_Name_But_We_Will_Allow_It",
             )
         ],
     )
@@ -123,7 +123,8 @@ class TestMarkdownSpecification:
     @staticmethod
     def execute(filepath: pathlib.Path, markdown_block: str, get_expected_top: Callable[[], List[MarkdownHeader]]):
         actual: MarkdownHeader = MarkdownSpecification.parse(
-            filepath=populate_file(filepath, markdown_block, "markdown.md"))
+            filepath=populate_file(filepath, markdown_block, "markdown.md")
+        )
         expected_top: List[MarkdownHeader] = get_expected_top()
         # Verify that the tree is correct by checking against the expected titles
         assert [hdr.title for hdr in actual.children] == [hdr.title for hdr in expected_top]
