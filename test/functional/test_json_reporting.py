@@ -32,7 +32,6 @@ def test_hello_world(pytestconfig, caplog):
 
     # Parse annotations from implementation files.
     actual_paths = list(pytestconfig.rootpath.joinpath("examples/hello-world/").glob("src/**/*.py"))
-    print(actual_paths)
     anno_meta_style = "# //="
     anno_content_style = "# //#"
 
@@ -48,7 +47,6 @@ def test_hello_world(pytestconfig, caplog):
     actual_json = JSONReport()
     actual_json.from_report(test_report)
     # actual_json.write_json()
-    print(actual_json)
     assert len(actual_json.specifications.keys()) == 1
     actual_specification = actual_json.specifications.get("compliance/hello-world.txt")
     assert len(actual_specification.get("sections")) == 1
