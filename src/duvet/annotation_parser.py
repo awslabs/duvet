@@ -137,7 +137,7 @@ class AnnotationParser:
                     kwarg["end_line"],
                 )
                 continue
-            kwarg["location"] = str(filepath)
+            kwarg["source"] = str(filepath)
             kwarg["uri"] = "$".join([kwarg["target"], kwarg["content"]])
             rtn.append(Annotation(**kwarg))
         return rtn

@@ -4,22 +4,22 @@
 import logging
 import warnings
 from pathlib import Path
-from typing import Any, List, MutableMapping, Optional
+from typing import Any, Dict, List, MutableMapping, Optional
 
 import toml
 from attr import define
 
+from duvet.formatter import clean_content
 from duvet.identifiers import RequirementLevel
 from duvet.structures import Report, Requirement, Section, Specification
 
 _LOGGER = logging.getLogger(__name__)
 __all__ = ["TomlRequirementParser"]
 
-
-TOML_URI_KEY = "target"
-TOML_SPEC_KEY = "spec"
-TOML_REQ_LEVEL_KEY = "level"
-TOML_REQ_CONTENT_KEY = "quote"
+TOML_URI_KEY: str = "target"
+TOML_SPEC_KEY: str = "spec"
+TOML_REQ_LEVEL_KEY: str = "level"
+TOML_REQ_CONTENT_KEY: str = "quote"
 
 
 @define
@@ -38,25 +38,34 @@ class TomlRequirementParser:
             toml_report = Report()
         for temp_toml in Path(path).glob(patterns):
             # Parse the attributes in section.
-            sec_dict = toml.load(temp_toml)
+
+            sec_dict: Dict = toml.load(temp_toml)
             if sec_dict is None:
                 warnings.warn(str(temp_toml.resolve()) + " is not a valid TOML file. Skipping file")
                 continue
+
             section_uri = sec_dict.get(TOML_URI_KEY)
             if section_uri is None:
                 warnings.warn(f'{str(temp_toml.resolve())}: The key "{TOML_URI_KEY}" is missing. Skipping file.')
                 continue
+            section_uri = clean_content(section_uri)
+
             title = section_uri.rsplit("#", 1)[-1]
             if title is None:
                 warnings.warn(f'{str(temp_toml.resolve())}: Could not process the key "{TOML_URI_KEY}". Skipping file.')
                 continue
+            title = clean_content(title)
+
             spec_uri = section_uri.rsplit("#", 1)[0]
             # If the spec is not added to the dict yet. We add it to dict here.
             if spec_uri is None:
                 warnings.warn(f'{str(temp_toml.resolve())}: Could not process the key "{TOML_URI_KEY}". Skipping file.')
                 continue
+            spec_uri = clean_content(spec_uri)
+
             if toml_report.specifications.get(spec_uri) is None:
                 toml_report.specifications[spec_uri] = Specification(spec_uri.rsplit("/", maxsplit=1)[-1], spec_uri)
+
             temp_sec = Section(title, section_uri)
             requirements = sec_dict.get(TOML_SPEC_KEY)
             if requirements is not None:
@@ -74,11 +83,18 @@ def _parse_requirement_attributes(
     # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
     for req in requirements:
         try:
+            level: str = req.get(TOML_REQ_LEVEL_KEY)  # type: ignore[assignment] # will raise AttributeError
+            content: str = clean_content(
+                req.get(TOML_REQ_CONTENT_KEY)  # type: ignore[arg-type] # will raise AttributeError
+            )
+            toml_uri: str = clean_content(
+                sec_dict.get(TOML_URI_KEY)  # type: ignore[arg-type] # will raise AttributeError
+            )
             temp_req = Requirement(
-                RequirementLevel[req.get(TOML_REQ_LEVEL_KEY)],  # type: ignore[misc]  # will raise KeyError
-                req.get(TOML_REQ_CONTENT_KEY),  # type: ignore[arg-type]  # at worst, will raise TypeError
-                "$".join([sec_dict.get(TOML_URI_KEY), req.get(TOML_REQ_CONTENT_KEY)]),  # type: ignore[list-item]
+                RequirementLevel[level],  # will raise KeyError
+                content,
+                "$".join([toml_uri, content]),  # type: ignore[list-item] # will raise AttributeError
             )
             temp_sec.add_requirement(temp_req)
-        except (TypeError, KeyError) as ex:
+        except (TypeError, KeyError, AttributeError) as ex:
             _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
