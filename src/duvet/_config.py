@@ -133,3 +133,7 @@ class ConfigParser:
                 )
             impl_config_list.append(temp_impl_config)
         return impl_config_list
+
+
+# //= compliance/duvet-specification.txt#2.3.1
+# //# This identifier of meta parts MUST be configurable.

@@ -108,3 +108,7 @@ class TomlRequirementParser:
                 temp_sec.add_requirement(temp_req)
             except (TypeError, KeyError, AttributeError) as ex:
                 _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
+
+
+# //= compliance/duvet-specification.txt#2.2.4.1
+# //# Duvet SHOULD be able to parse requirements formatted as Toml files.

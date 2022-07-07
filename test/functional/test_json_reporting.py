@@ -17,6 +17,21 @@ def test_dogfood(pytestconfig):
     patterns = "compliance/**/*.toml"
     test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
 
+    # Parse annotations from implementation files.
+    actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
+    print(actual_paths)
+    anno_meta_style = "# //="
+    anno_content_style = "# //#"
+
+    parser = AnnotationParser(actual_paths, anno_meta_style, anno_content_style)
+    actual = parser.process_all()
+    counter = 0
+    for annotation in actual:
+        if test_report.add_annotation(annotation):
+            counter += 1
+    assert counter >= 0
+    test_report.analyze_annotations()
+
     actual_json = JSONReport()
     actual_json.from_report(test_report)
     actual_json.write_json()

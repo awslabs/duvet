@@ -61,3 +61,24 @@ class HTMLReport:
 html_report = HTMLReport()
 html_report.from_json()
 html_report.write_html()
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type=todo
+# //# It MUST show all text from the section.
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type=implication
+# //# Clicking on any highlighted text MUST bring up a popup that shows:
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type=implication
+# //# This link SHOULD include the line number.
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type = implication
+# //# Selecting any text of the specification and right-clicking on it MUST bring
+# //# up a popup for the selected text that shows:
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type=implication
+# //# It MUST show a table with a row for each requirement included in this section.
