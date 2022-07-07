@@ -66,7 +66,8 @@ def test_extract_valid_md_list():
         Span(start=73, end=95),
         Span(start=97, end=103),
         Span(start=106, end=121),
-        Span(start=125, end=149)]
+        Span(start=125, end=149),
+    ]
 
 
 # Pass
@@ -119,38 +120,41 @@ def test_process_list():
             Span(start=73, end=95),
             Span(start=97, end=103),
             Span(start=106, end=121),
-            Span(start=125, end=149)],
+            Span(start=125, end=149),
+        ],
     }
     # default
     req = actual_parser.process_list(actual_dict)
     assert req == [
-        {'content': 'A requirement MUST be terminated by one of the following period '
-                    '(.)',
-         'requirement_level': RequirementLevel.MUST,
-         'span': Span(start=60, end=71)},
-        {'content': 'A requirement MUST be terminated by one of the following '
-                    'exclamation point (!)',
-         'requirement_level': RequirementLevel.MUST,
-         'span': Span(start=73, end=95)},
-        {'content': 'A requirement MUST be terminated by one of the following plus',
-         'requirement_level': RequirementLevel.MUST,
-         'span': Span(start=97, end=103)},
-        {'content': 'A requirement MUST be terminated by one of the following list '
-                    'something',
-         'requirement_level': RequirementLevel.MUST,
-         'span': Span(start=106, end=121)},
-        {'content': 'A requirement MUST be terminated by one of the following double '
-                    'digit something',
-         'requirement_level': RequirementLevel.MUST,
-         'span': Span(start=125, end=149)}]
+        {
+            "content": "A requirement MUST be terminated by one of the following period " "(.)",
+            "requirement_level": RequirementLevel.MUST,
+            "span": Span(start=60, end=71),
+        },
+        {
+            "content": "A requirement MUST be terminated by one of the following " "exclamation point (!)",
+            "requirement_level": RequirementLevel.MUST,
+            "span": Span(start=73, end=95),
+        },
+        {
+            "content": "A requirement MUST be terminated by one of the following plus",
+            "requirement_level": RequirementLevel.MUST,
+            "span": Span(start=97, end=103),
+        },
+        {
+            "content": "A requirement MUST be terminated by one of the following list " "something",
+            "requirement_level": RequirementLevel.MUST,
+            "span": Span(start=106, end=121),
+        },
+        {
+            "content": "A requirement MUST be terminated by one of the following double " "digit something",
+            "requirement_level": RequirementLevel.MUST,
+            "span": Span(start=125, end=149),
+        },
+    ]
 
 
-TEST_REQUIREMENT_STR = (
-    "Something something.\n"
-    "Duvet MUST implement "
-    "every requirement. "
-    "Something something.\n"
-)
+TEST_REQUIREMENT_STR = "Something something.\n" "Duvet MUST implement " "every requirement. " "Something something.\n"
 
 TEST_REQUIREMENT_WITH_INVALID_STR = (
     "Something something.\n"
@@ -170,9 +174,13 @@ def test_process_inline():
     actual_span = Span(0, len(TEST_REQUIREMENT_STR) - 1)
 
     # Test valid inline text
-    assert actual_parser.process_inline(actual_span) == [{'content': 'Duvet MUST implement every requirement.',
-                                                          'requirement_level': RequirementLevel.MUST,
-                                                          'span': Span(start=28, end=74)}]
+    assert actual_parser.process_inline(actual_span) == [
+        {
+            "content": "Duvet MUST implement every requirement.",
+            "requirement_level": RequirementLevel.MUST,
+            "span": Span(start=28, end=74),
+        }
+    ]
 
 
 TEST_REQUIREMENT_STR_WITH_LIST = """A requirement MAY contain multiple RFC 2119 keywords.
@@ -197,9 +205,10 @@ def test_extract_requirements_with_lists_wrapped():
     actual_parser = RequirementParser(TEST_REQUIREMENT_STR_WITH_LIST)
     actual_spans = actual_parser.extract_block(Span(0, len(TEST_REQUIREMENT_STR_WITH_LIST)))
     assert actual_spans == [
-        (Span(start=0, end=54), 'INLINE'),
-        (Span(start=54, end=168), 'LIST_BLOCK'),
-        (Span(start=168, end=449), 'INLINE')]
+        (Span(start=0, end=54), "INLINE"),
+        (Span(start=54, end=168), "LIST_BLOCK"),
+        (Span(start=168, end=449), "INLINE"),
+    ]
 
-    actual_kwargs  = actual_parser.extract_requirements(actual_spans)
+    actual_kwargs = actual_parser.extract_requirements(actual_spans)
     assert actual_kwargs == []

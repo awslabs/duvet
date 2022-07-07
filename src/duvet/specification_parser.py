@@ -39,8 +39,7 @@ class Span:
 
     def to_string(self, quotes: str) -> str:
         """Get string from span."""
-        return quotes[self.start:self.end]
-
+        return quotes[self.start : self.end]
 
 
 @define

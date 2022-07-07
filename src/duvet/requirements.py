@@ -90,12 +90,12 @@ class RequirementParser:
             if left_bound_checked and right_bound_checked:
                 # Call the function to take care of the lis of requirements
                 req_in_list = ListRequirements.from_line(
-                    quotes[list_block_left + 2: list_block_right + 2], self._list_entry_regex
+                    quotes[list_block_left + 2 : list_block_right + 2], self._list_entry_regex
                 )
                 temp.extend(req_in_list.to_string_list(self.is_legacy))
             result.extend(_extract_inline_requirements(quotes[: list_block_left + 2]))
             result.extend(temp)
-            result.extend(self.extract_requirements(quotes[list_block_right + 2:]))
+            result.extend(self.extract_requirements(quotes[list_block_right + 2 :]))
             return result
         else:
             return _extract_inline_requirements(quotes)
@@ -107,7 +107,6 @@ class RequirementParser:
         # pass
         reqs = []
 
-
     def process_list(self, kwargs: dict) -> list[str]:
         """
 
@@ -116,20 +115,20 @@ class RequirementParser:
         output: [ "parent_sentence child1", "parent_sentence child2" ]
         """
         req_list = []
-        parent : Optional[str] = kwargs.get("parent")
+        parent: Optional[str] = kwargs.get("parent")
         if parent is None:
             logging.WARNING("no list parent")
             return []
-        elif self.is_legacy: return req_list.append(parent)
-        children: Optional[str]= kwargs.get("children")
+        elif self.is_legacy:
+            return req_list.append(parent)
+        children: Optional[str] = kwargs.get("children")
         if children is None:
             logging.WARNING("no list children")
             return
         else:
-            for child in children: req_list.append(" ".join([parent, child]))
+            for child in children:
+                req_list.append(" ".join([parent, child]))
         return req_list
-
-
 
 
 def _preprocess_inline_requirements(inline_text: str) -> str:
@@ -158,8 +157,12 @@ def _preprocess_inline_requirements(inline_text: str) -> str:
     if "?" in processed_text:
         processed_text = processed_text.replace('?"', '"?')
     processed_text = (
-        processed_text.replace(". ", ". <stop>").replace("? ", "? <stop>").replace("! ", "! <stop>")
-            .replace(".\n", ".\n<stop>").replace("?\n", "?\n<stop>")  # noqa: E131
-            .replace("!\n", "!\n<stop>").replace("<prd>", ".")
+        processed_text.replace(". ", ". <stop>")
+        .replace("? ", "? <stop>")
+        .replace("! ", "! <stop>")
+        .replace(".\n", ".\n<stop>")
+        .replace("?\n", "?\n<stop>")  # noqa: E131
+        .replace("!\n", "!\n<stop>")
+        .replace("<prd>", ".")
     )
     return processed_text

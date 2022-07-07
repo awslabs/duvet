@@ -158,6 +158,7 @@ class Requirement:
     def _has_reason(self):
         return self.reason is not None
 
+
 @define
 class Section:
     """The specification section shows the specific specification text and how this links to annotation.
