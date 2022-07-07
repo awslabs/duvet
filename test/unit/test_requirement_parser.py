@@ -57,7 +57,7 @@ TEST_VALID_WRAPPED_MARKDOWN_LIST = (
 def test_extract_valid_md_list():
     test_parser = RequirementParser(TEST_VALID_MARKDOWN_LIST)
     test_span = Span(0, len(TEST_VALID_MARKDOWN_LIST))
-    temp_list_req = test_parser.process_list_block(test_span)
+    temp_list_req: dict = test_parser.process_list_block(test_span)[0]
     # Verify the extract_list function by checking the number of children it extracts
     assert temp_list_req.get("parent") == Span(start=0, end=58)
     assert len(temp_list_req.get("children")) == 5
@@ -166,7 +166,7 @@ TEST_REQUIREMENT_WITH_INVALID_STR = (
 
 @pytest.fixture
 def under_test(tmp_path) -> RequirementParser:
-    return RequirementParser([tmp_path])
+    return RequirementParser(tmp_path)
 
 
 def test_process_inline():
@@ -211,4 +211,19 @@ def test_extract_requirements_with_lists_wrapped():
     ]
 
     actual_kwargs = actual_parser.extract_requirements(actual_spans)
-    assert actual_kwargs == []
+    assert actual_kwargs == [
+        {
+            "content": "A requirement MAY contain multiple RFC 2119 keywords.",
+            "requirement_level": RequirementLevel.MAY,
+            "span": Span(start=0, end=61),
+        },
+        "parent",
+        "children",
+        {
+            "content": "In the case of requirement terminated by a list, the text "
+                       "proceeding the list MUST be concatenated with each element of "
+                       "the list to form a requirement.",
+            "requirement_level": RequirementLevel.MUST,
+            "span": Span(start=168, end=327),
+        },
+    ]

@@ -5,12 +5,10 @@ import os
 import pathlib
 from typing import List, Optional
 
-import toml
 from attrs import define, field
 
 from duvet.markdown import MarkdownSpecification
 from duvet.requirement_parser import RequirementParser
-from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
 
 __all__ = ["MDRequirementParser"]
@@ -58,7 +56,10 @@ class MDSection:
     def _extract_requirements(self) -> bool:
         req_kwargs: List[dict] = RequirementParser(self.quotes).extract_requirements([(0, len(self.quotes))])
         for kwarg in req_kwargs:
-            kwarg.setdefault("uri", "$".join([self.section.uri, kwarg.get("content")]))
+            content: Optional[str] = kwarg.get("content")
+            if content is None:
+                return False
+            kwarg.setdefault("uri", "$".join([self.section.uri, content]))
             self.section.add_requirement(Requirement(**kwarg))
         return True
 
@@ -78,7 +79,7 @@ class MDSpec:
         Return a specification or none.
         """
 
-        parser = MarkdownSpecification.parse(markdown_spec_dir)
+        parser: MarkdownSpecification = MarkdownSpecification.parse(markdown_spec_dir)
         spec = Specification(markdown_spec_dir.name, str(os.path.relpath(markdown_spec_dir, pathlib.Path.cwd())))
         filepath = markdown_spec_dir
         return cls(parser, spec, filepath)
@@ -94,9 +95,10 @@ class MDSpec:
             md_section_list.append(MDSection(descendant.get_url(), start_line, end_line, quotes, self.filepath))
         return md_section_list
 
-    def get_spec(self) -> Specification:
+    def get_spec(self) -> Optional[Specification]:
         """Add sections to existing spec or new spec."""
 
         for md_section in self._get_md_sections():
-            self.spec.add_section(md_section.section)
+            if self.spec is not None:
+                self.spec.add_section(md_section.section)
         return self.spec

@@ -3,6 +3,7 @@
 """Requirement Parser used by duvet-python."""
 import logging
 import re
+from re import Match
 from typing import Dict, List, Optional, Tuple
 
 from attrs import define, field
@@ -67,7 +68,7 @@ class RequirementParser:
         requirement keywords.
 
         """
-        result = []
+        result: list = []
         for annotated_span in annotated_spans:
             if annotated_span[1] == "INLINE":
                 result.extend(self.process_inline(annotated_span[0]))
@@ -96,7 +97,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = self.body[quote_span.start : quote_span.end]
+        quotes = self.body[quote_span.start: quote_span.end]
         list_match = re.search(self._list_entry_regex, quotes)
         # Handover to process_inline if no list identifier found.
         if list_match is None:
@@ -104,8 +105,8 @@ class RequirementParser:
             return result
 
         # Identify start of the list block.
-        span = Span.from_match(list_match)
-        list_block = Span(0, len(quotes) - 1)
+        span: Span = Span.from_match(list_match)
+        list_block: Span = Span(0, len(quotes) - 1)
         left_punc: int = -1
         for end_sentence_punc in SENTENCE_DIVIDER:
             left_punc = quotes[: span.start].rfind(end_sentence_punc)
@@ -113,7 +114,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        right_punc = quotes[span.end :].find("\n\n")
+        right_punc = quotes[span.end:].find("\n\n")
         if right_punc != -1:
             list_block.end = span.end + right_punc
 
@@ -136,9 +137,9 @@ class RequirementParser:
         uri: str = ""
         span : Span
         """
-        quotes = preprocess_text(self.body[quote_span.start : quote_span.end])
-        requirement_candidates = []
-        req_kwargs = []
+        quotes = preprocess_text(self.body[quote_span.start: quote_span.end])
+        requirement_candidates: list = []
+        req_kwargs: list = []
 
         # Find requirement identifiers in the quotes.
         for match in re.finditer(REQUIREMENT_IDENTIFIER_REGEX, quotes):
@@ -151,43 +152,44 @@ class RequirementParser:
             left_punc = quotes[: identifier_span.start].rfind(STOP_SIGN)
             if left_punc != -1:
                 sentence_span.start = left_punc
-            right_punc = quotes[identifier_span.end :].find(STOP_SIGN)
+            right_punc = quotes[identifier_span.end:].find(STOP_SIGN)
             if right_punc != -1:
                 sentence_span.end = identifier_span.end + right_punc
             if left_punc != -1 and right_punc != -1:
                 req = (
-                    quotes[sentence_span.start : sentence_span.end]
-                    .strip("\n")
-                    .replace("\n", " ")
-                    .replace(STOP_SIGN, "")
-                    .strip()
+                    quotes[sentence_span.start: sentence_span.end]
+                        .strip("\n")
+                        .replace("\n", " ")
+                        .replace(STOP_SIGN, "")
+                        .strip()
                 )
                 if req.endswith((".", "!")):
                     req_kwarg = {
-                        "requirement_level": self.get_requirement_level(quotes),
                         "content": req,
                         "span": sentence_span.add_start(quote_span),
                     }
+                    req_kwarg.update(self.get_requirement_level(quotes))
                     if req_kwarg not in req_kwargs:
                         req_kwargs.append(req_kwarg)
 
         return req_kwargs
 
-    def process_list_block(self, quote_span: Span) -> Dict:
+    def process_list_block(self, quote_span: Span) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = self.body[quote_span.start : quote_span.end]
-
+        quotes = self.body[quote_span.start: quote_span.end]
+        result: list[Dict] = []
         print(quotes)
         # Find the end of the list using the "\n\n".
         end_of_list = quotes.rfind("\n\n") + 2
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
-        if re.search(self._list_entry_regex, quotes) is None:
-            raise ValueError("Requirement list syntax is not valid in " + quotes)
+        list_entry: Optional[Match[str]] = re.search(self._list_entry_regex, quotes)
+        if list_entry is None:
+            logging.warning("Requirement list syntax is not valid in " + quotes)
+            return result
 
-        # Extract parent.
-        first_list_identifier = Span.from_match(re.search(self._list_entry_regex, quotes))
-        list_parent = Span(0, first_list_identifier.start).add_start(quote_span)
+        first_list_identifier: Span = Span.from_match(list_entry)
+        list_parent: Span = Span(0, first_list_identifier.start).add_start(quote_span)
 
         # Extract children.
         matched_span = []
@@ -198,53 +200,57 @@ class RequirementParser:
                 prev = match.span()[1]
                 matched_span.append(temp)
 
-        # last element of th list
+        # Append the last element of the list
         matched_span.append(Span(prev, end_of_list).add_start(quote_span))
 
-        return {"parent": list_parent, "children": matched_span}
+        result.append({"parent": list_parent, "children": matched_span})
+        return result
 
-    def process_list(self, kwargs: dict) -> list[dict]:
+    def process_list(self, kwargs: Dict) -> list[Dict]:
         """
 
 
         input: kwarg = {"parent": "parent_sentence", "children": [child1, child2]}
         output: [ "parent_sentence child1", "parent_sentence child2" ]
         """
-        req_list: list[dict] = []
+        req_list: list[Dict] = []
         parent: Optional[Span] = kwargs.get("parent")
+        if parent is None: return req_list
+        req_kwarg = {}
         # there MUST be parent.
         if self.is_legacy:
             quotes = parent.to_string(self.body)
-            req_kwarg = {
-                "requirement_level": self.get_requirement_level(quotes),
+            req_kwarg.update({
                 "content": clean_content(quotes),
                 "span": parent,
-            }
+            })
+            req_kwarg.update(self.get_requirement_level(quotes))
             req_list.append(req_kwarg)
             return req_list
         else:
-            children: List[Span] = kwargs.get("children")
+            children: Optional[list] = kwargs.get("children")
+            if children is None: return req_list
             for child in children:
                 quotes = " ".join(
                     [clean_content(parent.to_string(self.body)), clean_content(child.to_string(self.body))]
                 )
-                req_kwarg = {
-                    "requirement_level": self.get_requirement_level(quotes),
-                    "content": clean_content(quotes),
-                    "span": child,
-                }
+                req_kwarg.update({"span": child})
+                req_kwarg.update(self.get_requirement_level(quotes))
+                req_kwarg.update({"content": clean_content(quotes)})
                 req_list.append(req_kwarg)
         return req_list
 
     @staticmethod
-    def get_requirement_level(req_line) -> Optional[RequirementLevel]:
-        level: Optional[RequirementLevel] = None
+    def get_requirement_level(req_line) -> dict:
+        """Get requirement level"""
+        result: dict = {}
         if "MAY" in req_line:
-            level = RequirementLevel.MAY
+            result.update({"requirement_level": RequirementLevel.MAY})
         if "SHOULD" in req_line:
-            level = RequirementLevel.SHOULD
+            result.update({"requirement_level": RequirementLevel.SHOULD})
         if "MUST" in req_line:
-            level = RequirementLevel.MUST
-        if level is None:
-            logging.warning("No RFC2019 Keywords found in %s", req_line)
-        return level
+            result.update({"requirement_level": RequirementLevel.MUST})
+        else:
+            result.update({"requirement_level": None})
+            logging.info("No RFC2019 Keywords found in %s", req_line)
+        return result
