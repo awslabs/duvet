@@ -109,12 +109,15 @@ class TestJSONReport:
 
         # Verify requirement is added to annotation.
         assert actual_json.annotations == [
-            {'comment': 'content',
-             'level': 'MUST',
-             'source': 'test_target.md',
-             'target_path': 'test_target.md',
-             'target_section': 'target',
-             'type': 'SPEC'}]
+            {
+                "comment": "content",
+                "level": "MUST",
+                "source": "test_target.md",
+                "target_path": "test_target.md",
+                "target_section": "target",
+                "type": "SPEC",
+            }
+        ]
 
         assert actual_index == 0
 

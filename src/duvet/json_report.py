@@ -3,9 +3,11 @@
 """Write json file for Duvet.
 
 Assumptions:
-1. This json is based on there is no change in the react file, which only support legacy mode.
-2. We will map the excused_exception and un_excused map to exception, because new mode ia not supported.
+1. This json is based on there is no change in the React file, which only support legacy mode.
+2. We will map the excused_exception and un_excused map to exception, because new mode is not supported by frontend.
 3. We try to use lines to get the content which is not supported in our implementation.
+4. We intentionally leave out the plain text of the sections, because it will introduce rfc parser which will
+be in the next PR
 """
 import json
 from typing import List, Optional
@@ -13,21 +15,10 @@ from typing import List, Optional
 import attr
 from attrs import define, field
 
+from duvet._config import Config
+from duvet.identifiers import AnnotationType
 from duvet.refs_json import REFS_JSON
 from duvet.structures import Annotation, Report, Requirement, Section, Specification
-
-
-# # Opening JSON file
-# f = open("./view/result.json")
-#
-# # returns JSON object as
-# # a dictionary
-# data = json.load(f)
-#
-# # Iterating through the json
-# # list
-# print(data)
-#
 
 
 class RefStatus:
@@ -63,26 +54,49 @@ class RefStatus:
 
     def from_annotation(self, annotation: Annotation):
         """Parse attributes from annotation."""
-        if annotation.type.name.lower() == "citation":
+        if annotation.type == AnnotationType.CITATION:
             self.citation = True
-        if annotation.type.name.lower() == "implication":
+        if annotation.type == AnnotationType.IMPLICATION:
             self.implication = True
-        if annotation.type.name.lower() == "test":
+        if annotation.type == AnnotationType.TEST:
             self.test = True
-        if annotation.type.name.lower() == "exception":
+        if annotation.type == AnnotationType.EXCEPTION:
             self.exception = True
+        if annotation.type == AnnotationType.TODO:
+            self.todo = True
+
+    def get_status(self, requirement: Requirement, annotation_indexes: list) -> dict:
+        """Get dictionary of status from RefStatus Object."""
+        result: dict = {}
+        if self.spec:
+            result.update({"spec": len(requirement.content)})
+        if self.citation:
+            result.update({"citation": len(requirement.content)})
+        if self.implication:
+            result.update({"implication": len(requirement.content)})
+        if self.test:
+            result.update({"test": len(requirement.content)})
+        if self.exception:
+            result.update({"exception": len(requirement.content)})
+        if self.todo:
+            result.update({"todo": len(requirement.content)})
+
+        if len(annotation_indexes) > 0:
+            result.update({"related": annotation_indexes})
+
+        return result
 
 
 @define
 class JSONReport:
     """Container of JSON report."""
 
-    blob_link: str = field(init=False)
-    issue_link: str = field(init=False)
+    blob_link: str = field(init=False, default="https://github.com/awslabs/duvet/blob/")
+    issue_link: str = field(init=False, default="https://github.com/awslabs/duvet/issues")
     specifications: dict = field(init=False, default=attr.Factory(dict))
     annotations: list = field(init=False, default=attr.Factory(list))
     statuses: dict = field(init=False, default=attr.Factory(dict))
-    refs: list = REFS_JSON.get("refs")
+    refs: list[dict] = REFS_JSON
 
     def _from_section(self, section: Section) -> dict:
         # Half basked section dictionary.
@@ -126,14 +140,13 @@ class JSONReport:
 
         return specification.source
 
+    def from_config(self, config: Config):
+        """Parse attributes from Config."""
+        self.blob_link: str = config.blob_url
+        self.issue_link: str = config.issue_url
+
     def from_report(self, report: Report) -> dict:
         """Parse attributes from report."""
-        # "blob_link": "https://github.com/awslabs/duvet/blob/",
-        # "issue_link": "https://github.com/awslabs/duvet/issues",
-        self.blob_link: str = "https://github.com/awslabs/duvet/blob/"
-        self.issue_link: str = "https://github.com/awslabs/duvet/issues"
-        # specifications: dict = {}
-
         for specifications in report.specifications.values():
             self.from_specification(specifications)
 
@@ -152,25 +165,25 @@ class JSONReport:
         new_ref = RefStatus()
         new_ref.spec = True
         new_ref.level = requirement.requirement_level.name
+
+        # Get annotation indexes and reference
+        annotation_indexes = []
         for annotation in requirement.matched_annotations:
             # print(annotation.type)
             new_ref.from_annotation(annotation)
-            # self.from_annotation(annotation)
+            self.from_annotation(annotation)
+            annotation_indexes.append(len(self.annotations) - 1)
 
         line: list = []
         line_requirement: list = []
-
-        annotation_indexes = []
         annotation_indexes.append(len(self.annotations))
         line_requirement.append(annotation_indexes)
 
-        # Add reference index.
+        # Add reference index to line.
         line_requirement.append(self.refs.index(new_ref.get_dict()))
         line_requirement.append(requirement.content)
         line.append(line_requirement)
         lines.append(line)
-
-        # self.refs.append(new_ref.get_dict())
 
         result = {
             "source": source,
@@ -183,6 +196,10 @@ class JSONReport:
 
         # Append result last because we want to know the index of this "annotation".
         self.annotations.append(result)
+
+        # Append statuses using the index of the requirement
+        status = new_ref.get_status(requirement, annotation_indexes)
+        self.statuses.update({str(len(self.annotations) - 1): status})
 
         return len(self.annotations) - 1
 
@@ -215,7 +232,7 @@ class JSONReport:
         }
         return result
 
-    def write_json(self):
+    def write_json(self, json_path: str = "duvet-result.json"):
         """Write json file."""
-        with open("duvet-result.json", "w+", encoding="utf-8") as json_result:
+        with open(json_path, "w+", encoding="utf-8") as json_result:
             json.dump(self._get_dictionary(), json_result)
