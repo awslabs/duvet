@@ -1,9 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Run the checks."""
-import pathlib
-import shutil
-
 import click
 
 from duvet.spec_toml_parser import TomlRequirementParser

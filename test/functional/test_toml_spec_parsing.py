@@ -58,7 +58,7 @@ A section MUST be indexable by combining different levels of naming.
 
 def test_dogfood(pytestconfig):
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
-    patterns = "compliance/**/*.toml"
+    patterns = filepath.glob("compliance/**/*.toml")
     test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
     # Verify one spec is added to the report object
     assert len(test_report.specifications.keys()) == 1
@@ -66,7 +66,7 @@ def test_dogfood(pytestconfig):
 
 def test_missing_uri(tmp_path):
     # We will not throw error is there is no targset.
-    patterns = "compliance/**/*.toml"
+    patterns = tmp_path.glob("compliance/**/*.toml")
     populate_file(tmp_path, TEST_SPEC_TOML_COMMENT, "compliance/spec/section1.toml")
     with pytest.warns(UserWarning) as record:
         TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
@@ -81,7 +81,7 @@ def test_missing_uri(tmp_path):
 
 def test_missing_specs(tmp_path):
     # We will not throw error if there is no requirements.
-    patterns = "compliance/**/*.toml"
+    patterns = tmp_path.glob("compliance/**/*.toml")
     populate_file(tmp_path, TEST_SPEC_TOML_TARGET, "compliance/spec/section1.toml")
     actual_report = TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
     actual_specifications = actual_report.specifications
@@ -105,7 +105,7 @@ def test_missing_specs(tmp_path):
 
 def test_extract_spec_toml(tmp_path):
     # We will not throw error is there is no requirements.
-    patterns = "compliance/**/*.toml"
+    patterns = tmp_path.glob("compliance/**/*.toml")
     populate_file(
         tmp_path,
         "\n".join([TEST_SPEC_TOML_COMMENT, TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC]),
@@ -142,9 +142,3 @@ def test_extract_spec_toml(tmp_path):
         ).content
         == "A section MUST be indexable by combining different levels of naming."
     )
-
-    # actual_section = actual_report.specifications.get("../duvet-python/spec/spec.txt").sections.get(
-    #     "../duvet-python/spec/spec.txt#2.2.1"
-    # )
-
-    # print(actual_section.lines)
