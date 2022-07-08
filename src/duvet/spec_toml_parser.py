@@ -27,7 +27,7 @@ TOML_REQ_CONTENT_KEY: str = "quote"
 class TomlRequirementParser:
     """Parser for requirements in toml format."""
 
-    def extract_toml_specs(self, toml_paths: list[Path], path: Path, toml_report: Optional[Report] = None) -> Report:
+    def extract_toml_specs(self, toml_paths: list[Path], toml_report: Optional[Report] = None) -> Report:
         """Take the patterns of the toml.
 
         Return a Report object containing all the specs.
@@ -84,10 +84,10 @@ class TomlRequirementParser:
 
     @staticmethod
     def _parse_requirement_attributes(
-            requirements: List[MutableMapping[str, Any]],
-            sec_dict: MutableMapping[str, Any],
-            temp_sec: Section,
-            filepath: Path,
+        requirements: List[MutableMapping[str, Any]],
+        sec_dict: MutableMapping[str, Any],
+        temp_sec: Section,
+        filepath: Path,
     ):
         # Parse the attributes in Requirement.
         # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
@@ -108,6 +108,7 @@ class TomlRequirementParser:
                 temp_sec.add_requirement(temp_req)
             except (TypeError, KeyError, AttributeError) as ex:
                 _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
+
 
 # //= compliance/duvet-specification.txt#2.2.4.1
 # //# Duvet SHOULD be able to parse requirements formatted as Toml files.

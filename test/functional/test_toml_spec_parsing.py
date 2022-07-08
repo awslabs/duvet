@@ -59,7 +59,7 @@ A section MUST be indexable by combining different levels of naming.
 def test_dogfood(pytestconfig):
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
     patterns = filepath.glob("compliance/**/*.toml")
-    test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
+    test_report = TomlRequirementParser().extract_toml_specs(patterns)
     # Verify one spec is added to the report object
     assert len(test_report.specifications.keys()) == 1
 
@@ -69,7 +69,7 @@ def test_missing_uri(tmp_path):
     patterns = tmp_path.glob("compliance/**/*.toml")
     populate_file(tmp_path, TEST_SPEC_TOML_COMMENT, "compliance/spec/section1.toml")
     with pytest.warns(UserWarning) as record:
-        TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
+        TomlRequirementParser().extract_toml_specs(patterns)
     # check that only one warning was raised
     assert len(record) == 1
     # check that the message matches
@@ -83,7 +83,7 @@ def test_missing_specs(tmp_path):
     # We will not throw error if there is no requirements.
     patterns = tmp_path.glob("compliance/**/*.toml")
     populate_file(tmp_path, TEST_SPEC_TOML_TARGET, "compliance/spec/section1.toml")
-    actual_report = TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
+    actual_report = TomlRequirementParser().extract_toml_specs(patterns)
     actual_specifications = actual_report.specifications
     actual_specification = actual_specifications.get("../duvet-python/spec/spec.txt")
     assert actual_specification.title == "spec.txt"
@@ -111,7 +111,7 @@ def test_extract_spec_toml(tmp_path):
         "\n".join([TEST_SPEC_TOML_COMMENT, TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC]),
         "compliance/spec/section1.toml",
     )
-    actual_report = TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
+    actual_report = TomlRequirementParser().extract_toml_specs(patterns)
     # Verify requirements is added to the report object
     actual_requirements = (
         actual_report.specifications.get("../duvet-python/spec/spec.txt")
