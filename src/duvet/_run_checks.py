@@ -10,9 +10,6 @@ from duvet.summary import SummaryReport
 __all__ = ("run",)
 
 
-# from annotation_parser import AnnotationParser
-
-
 def run(*, config: Config) -> bool:
     """Run all specification checks."""
     # Extractions
