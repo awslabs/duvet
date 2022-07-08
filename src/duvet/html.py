@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Html generator used by duvet-python."""
 import json
-import webbrowser
+import pathlib
 
 import attr
+import click
 from attrs import define, field
 
 from duvet.json_report import JSONReport
@@ -25,60 +26,35 @@ class HTMLReport:
         with open(json_path, "r+", encoding="utf-8") as json_file:
             self.data = json.load(json_file)
 
-    def write_html(self, html_path=DEFAULT_HTML_PATH):
+    def write_html(self, html_path=DEFAULT_HTML_PATH) -> str:
         """Write HTML report."""
+        with open("../../www/public/index.html", "r+", encoding="utf-8") as template:
+            template_string = template.read()
+
+        # Get HTML head before JSON.
+        html_head_end = template_string.find("</head>")
+        html_head = template_string[:html_head_end]
+
+        # Get HTML string between JSON and JS
+        html_body_end = template_string.find("</body>")
+        html_between_json_and_js = template_string[html_head_end:html_body_end]
+
+        # Get HTML string after JS
+        html_end = template_string[html_body_end:]
+
+        # Create JSON string.
+        json_string = f"""<script id="result" type="application/json">{json.dumps(self.data)}</script>"""
+
+        # Create JavaScript string.
+        with open("../../www/public/script.js", "r", encoding="utf-8") as javascript_file:
+            js_string = f"""<script>{javascript_file.read()}</script>"""
+
+        # Create HTML string and write to new HTML file.
+        html_string = "\n".join([html_head, json_string, html_between_json_and_js, js_string, html_end])
         with open(html_path, "w+", encoding="utf-8") as html_file:
-            # Write header.
-            html_file.write("<!DOCTYPE html>\n")
-            html_file.write("<html>\n")
-            html_file.write("<head>\n")
-            html_file.write('<meta charset="utf-8">\n')
-            html_file.write("<title>\n")
-            html_file.write("Compliance Coverage Report\n")
-            html_file.write("</title>\n")
+            html_file.write(html_string)
 
-            # Write JSON.
-            html_file.write('<script type="application/json" id=result>\n')
-            html_file.write(json.dumps(self.data))
-            html_file.write("\n")
-            html_file.write("</script>\n")
-            html_file.write("</head>\n")
-            html_file.write("<body>\n")
-            html_file.write("<div id=root></div>\n")
-
-            # Write JavaScript.
-            html_file.write("<script>\n")
-            with open("../../www/public/script.js", "r", encoding="utf-8") as javascript:
-                html_file.write(javascript.read())
-            html_file.write("</script>\n")
-            html_file.write("</body>\n")
-            html_file.write("</html>\n")
-
-        # Open file in browser.
-        webbrowser.open(html_path)
-
-
-html_report = HTMLReport()
-html_report.from_json()
-html_report.write_html()
-
-# //= compliance/duvet-specification.txt#2.6.5
-# //= type=todo
-# //# It MUST show all text from the section.
-
-# //= compliance/duvet-specification.txt#2.6.5
-# //= type=implication
-# //# Clicking on any highlighted text MUST bring up a popup that shows:
-
-# //= compliance/duvet-specification.txt#2.6.5
-# //= type=implication
-# //# This link SHOULD include the line number.
-
-# //= compliance/duvet-specification.txt#2.6.5
-# //= type = implication
-# //# Selecting any text of the specification and right-clicking on it MUST bring
-# //# up a popup for the selected text that shows:
-
-# //= compliance/duvet-specification.txt#2.6.5
-# //= type=implication
-# //# It MUST show a table with a row for each requirement included in this section.
+        # Return HTML path
+        full_html_path = str(pathlib.Path(html_path).resolve())
+        click.echo(f"""Write HTML report to {full_html_path}""")
+        return full_html_path
