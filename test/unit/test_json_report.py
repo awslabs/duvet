@@ -156,6 +156,3 @@ class TestJSONReport:
 
         # print(actual_report)
         actual_json.from_report(actual_report)
-
-        # print(actual_json)
-        # actual_json.write_json()

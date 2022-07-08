@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Run the checks."""
 import click  # type : ignore[import]
+from duvet.html import HTMLReport
+
+from duvet.json_report import JSONReport
+
+from duvet.annotation_parser import AnnotationParser
 
 from duvet._config import Config
 from duvet.spec_toml_parser import TomlRequirementParser
@@ -16,16 +21,18 @@ def run(*, config: Config) -> bool:
     # Because we currently got only toml parser, let's give a try.
     toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
     test_report = TomlRequirementParser().extract_toml_specs(toml_files)
+
     # Extract all annotations.
     all_annotations: list = []
-    for _impl_config in config.implementation_configs:
-        pass
-        # all_annotations.extend(AnnotationParser(impl_config.impl_filenames, impl_config.meta_style,
-        #                                        impl_config.meta_style).extract_implementation_file_annotations())
+    for impl_config in config.implementation_configs:
+        annotation_parser: AnnotationParser = AnnotationParser(impl_config.impl_filenames, impl_config.meta_style,
+                                                               impl_config.meta_style)
+        all_annotations.extend(annotation_parser.process_all())
+
     for anno in all_annotations:
         test_report.add_annotation(anno)
-    # print(test_report)
 
+    # Analyze report
     summary = SummaryReport(test_report, config)
     summary.analyze_report()
 
@@ -33,5 +40,15 @@ def run(*, config: Config) -> bool:
     for specification in test_report.specifications.values():
         for section in list(specification.sections.values()):
             click.echo(summary.report_section(summary.analyze_stats(section)))
+
+    # Covert report into JSON format
+    actual_json = JSONReport()
+    json_report = actual_json.from_report(test_report)
+    actual_json.write_json()
+
+    # Covert JSON report into HTML
+    html_report = HTMLReport()
+    html_report.data = json_report
+    html_report.write_html()
 
     return test_report.report_pass
