@@ -1,6 +1,11 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """duvet-python."""
-from duvet.identifiers import __version__
 
-__all__ = ("__version__",)
+from .cli import cli
+
+__all__ = ("__version__", "cli")
+
+__version__ = "1.0.0"
+_DEBUG = "INPUT_DEBUG"
+_CONFIG_FILE = "INPUT_CONFIG-FILE"
