@@ -140,9 +140,3 @@ def test_extract_spec_toml(tmp_path):
         ).content
         == "A section MUST be indexable by combining different levels of naming."
     )
-
-    # actual_section = actual_report.specifications.get("../duvet-python/spec/spec.txt").sections.get(
-    #     "../duvet-python/spec/spec.txt#2.2.1"
-    # )
-
-    # print(actual_section.lines)
