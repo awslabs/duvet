@@ -49,7 +49,7 @@ def cli(config: Optional[str], verbose: int):
     success = run(config=parsed_config)
     if not success:
         # raise click.ClickException("Checks failed!")
-        click.echo()
+        click.echo("FAIL because there are incomplete MUST requirements.")
 
 
 if __name__ == "__main__":

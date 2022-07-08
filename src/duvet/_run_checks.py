@@ -49,5 +49,6 @@ def run(*, config: Config) -> bool:
     html_report = HTMLReport()
     html_report.data = json_report
     html_report.write_html()
+    # click.echo(f"""Writing HTML report to {html_report.write_html()}""")
 
     return test_report.report_pass
