@@ -36,19 +36,19 @@ class RefStatus:
         """Get dictionary of refs from RefStatus Object."""
         result: dict = {}
         if self.spec:
-            result.update({"spec": self.spec})
+            result["spec"] = self.spec
         if self.citation:
-            result.update({"citation": self.citation})
+            result["citation"] = self.citation
         if self.implication:
-            result.update({"implication": self.implication})
+            result["implication"] = self.implication
         if self.test:
-            result.update({"test": self.test})
+            result["test"] = self.test
         if self.exception:
-            result.update({"exception": self.exception})
+            result["exception"] = self.exception
         if self.todo:
-            result.update({"todo": self.todo})
+            result["todo"] = self.todo
         if self.level is not None:
-            result.update({"level": self.level})
+            result["level"] = self.level
 
         return result
 
@@ -69,20 +69,20 @@ class RefStatus:
         """Get dictionary of status from RefStatus Object."""
         result: dict = {}
         if self.spec:
-            result.update({"spec": len(requirement.content)})
+            result["spec"] = len(requirement.content)
         if self.citation:
-            result.update({"citation": len(requirement.content)})
+            result["citation"] = len(requirement.content)
         if self.implication:
-            result.update({"implication": len(requirement.content)})
+            result["implication"] = len(requirement.content)
         if self.test:
-            result.update({"test": len(requirement.content)})
+            result["test"] = len(requirement.content)
         if self.exception:
-            result.update({"exception": len(requirement.content)})
+            result["exception"] = len(requirement.content)
         if self.todo:
-            result.update({"todo": len(requirement.content)})
+            result["todo"] = len(requirement.content)
 
         if len(annotation_indexes) > 0:
-            result.update({"related": annotation_indexes})
+            result["related"] = annotation_indexes
 
         return result
 

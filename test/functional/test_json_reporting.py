@@ -12,10 +12,25 @@ from duvet.spec_toml_parser import TomlRequirementParser
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
 
-def test_dogfood(pytestconfig):
+def test_against_duvet(pytestconfig):
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
     patterns = "compliance/**/*.toml"
     test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
+
+    # Parse annotations from implementation files.
+    actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
+    actual_paths.extend(list(pytestconfig.rootpath.glob("test/**/*.py")))
+    anno_meta_style = "# //="
+    anno_content_style = "# //#"
+
+    parser = AnnotationParser(actual_paths, anno_meta_style, anno_content_style)
+    actual = parser.process_all()
+    counter = 0
+    for annotation in actual:
+        if test_report.add_annotation(annotation):
+            counter += 1
+    assert counter >= 0
+    test_report.analyze_annotations()
 
     actual_json = JSONReport()
     actual_json.from_report(test_report)
@@ -46,7 +61,7 @@ def test_hello_world(pytestconfig, caplog):
 
     actual_json = JSONReport()
     actual_json.from_report(test_report)
-    # actual_json.write_json()
+    actual_json.write_json()
     assert len(actual_json.specifications.keys()) == 1
     actual_specification = actual_json.specifications.get("compliance/hello-world.txt")
     assert len(actual_specification.get("sections")) == 1

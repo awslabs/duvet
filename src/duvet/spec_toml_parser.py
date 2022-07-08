@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, MutableMapping, Optional
 
 import toml
-from attr import define
+from attrs import define, field
 
 from duvet.formatter import clean_content
 from duvet.identifiers import RequirementLevel
@@ -26,6 +26,8 @@ TOML_REQ_CONTENT_KEY: str = "quote"
 @define
 class TomlRequirementParser:
     """Parser for requirements in toml format."""
+
+    toml_path: Path = field(init=False)
 
     def extract_toml_specs(self, patterns: str, path: Path, toml_report: Optional[Report] = None) -> Report:
         """Take the patterns of the toml.
@@ -76,21 +78,20 @@ class TomlRequirementParser:
 
             requirements = sec_dict.get(TOML_SPEC_KEY)
             if requirements is not None:
-                self._parse_requirement_attributes(requirements, sec_dict, temp_sec, temp_toml)
+                self.toml_path = temp_toml
+                self._parse_requirement_attributes(requirements, sec_dict, temp_sec)
             # TODO: use a default dict for Report.specifications  # pylint: disable=fixme
             toml_report.specifications.get(spec_uri).add_section(temp_sec)  # type: ignore[union-attr]
 
         return toml_report
 
-    @staticmethod
     def _parse_requirement_attributes(
+        self,
         requirements: List[MutableMapping[str, Any]],
         sec_dict: MutableMapping[str, Any],
         temp_sec: Section,
-        filepath: Path,
     ):
         # Parse the attributes in Requirement.
-        # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
         for req in requirements:
             try:
                 level: str = req.get(TOML_REQ_LEVEL_KEY)  # type: ignore[assignment] # will raise AttributeError
@@ -107,4 +108,4 @@ class TomlRequirementParser:
                 )
                 temp_sec.add_requirement(temp_req)
             except (TypeError, KeyError, AttributeError) as ex:
-                _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(filepath.resolve()), req), ex)
+                _LOGGER.info("%s: Failed to parse %s into a Requirement.", (str(self.toml_path.resolve()), req), ex)
