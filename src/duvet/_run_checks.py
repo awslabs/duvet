@@ -21,8 +21,6 @@ def run(*, config: Config) -> bool:
     # Extractions
     # Because we currently got only toml parser, let's give a try.
     config_path = config.config_path
-    print(config_path)
-
     toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
     test_report = TomlRequirementParser().extract_toml_specs(toml_files, config_path)
     # Extract all annotations.

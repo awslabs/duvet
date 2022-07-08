@@ -45,7 +45,7 @@ def cli(config: Optional[str], verbose: int):
             )
 
     parsed_config = Config.parse(config)
-    click.echo(parsed_config)
+    # click.echo(parsed_config)
     success = run(config=parsed_config)
     if not success:
         # raise click.ClickException("Checks failed!")
