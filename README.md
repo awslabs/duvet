@@ -32,7 +32,6 @@ comment-style = { meta = "# //=", content = "# //#" }
 [spec]
 [spec.markdown]
 patterns = ["project-specification/**/*.md"]
-extraction_mode = default
 [spec.toml]
 patterns = ["project-specification/**/*.toml"]
 [report]
