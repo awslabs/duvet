@@ -2,8 +2,6 @@
 [implementation.py]
 patterns = ["src/**/*.py", "test/**/*.py"]
 comment-style = { meta = "#//=", content = "#//#" }
-[spec.markdown]
-patterns = ["duvet-specification/duvet-specification.md"]
 [spec.toml]
 patterns = ["duvet-specification/compliance/**/*.toml"]
 [report]

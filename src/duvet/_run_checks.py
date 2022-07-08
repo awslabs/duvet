@@ -20,9 +20,11 @@ def run(*, config: Config) -> bool:
     """Run all specification checks."""
     # Extractions
     # Because we currently got only toml parser, let's give a try.
-    path = pathlib.Path("../../duvet-specification").resolve()
-    patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser().extract_toml_specs(patterns, path)
+    config_path = config.config_path
+    print(config_path)
+
+    toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
+    test_report = TomlRequirementParser().extract_toml_specs(toml_files, config_path)
     # Extract all annotations.
     all_annotations = []
     for _impl_config in config.implementation_configs:
