@@ -2,13 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Run the checks."""
 import click  # type : ignore[import]
-from duvet.html import HTMLReport
-
-from duvet.json_report import JSONReport
-
-from duvet.annotation_parser import AnnotationParser
 
 from duvet._config import Config
+from duvet.annotation_parser import AnnotationParser
+from duvet.html import HTMLReport
+from duvet.json_report import JSONReport
 from duvet.spec_toml_parser import TomlRequirementParser
 from duvet.summary import SummaryReport
 
@@ -25,8 +23,9 @@ def run(*, config: Config) -> bool:
     # Extract all annotations.
     all_annotations: list = []
     for impl_config in config.implementation_configs:
-        annotation_parser: AnnotationParser = AnnotationParser(impl_config.impl_filenames, impl_config.meta_style,
-                                                               impl_config.meta_style)
+        annotation_parser: AnnotationParser = AnnotationParser(
+            impl_config.impl_filenames, impl_config.meta_style, impl_config.meta_style
+        )
         all_annotations.extend(annotation_parser.process_all())
 
     for anno in all_annotations:
