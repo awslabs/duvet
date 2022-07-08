@@ -1,8 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Specification Parser used by duvet-python for toml format."""
-import pathlib
-
 import pytest
 
 from duvet.spec_toml_parser import TomlRequirementParser

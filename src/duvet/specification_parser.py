@@ -1,15 +1,14 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Methods and classes for parsing Specification files."""
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod  # isort: skip
 from pathlib import Path
 from re import Match
 from typing import Iterator, TypeVar, Union
 
-import anytree  # type: ignore[import] # pylint: disable=E0401
-
 # We don't really need to check the type of third party library.
-from attr import define, field
+import anytree  # type: ignore[import] # pylint: disable=E0401
+from attrs import define, field
 
 MAX_HEADER_LEVELS: str = str(4)
 SpanT = TypeVar("SpanT", bound="Span")

@@ -19,7 +19,6 @@ def test_dogfood(pytestconfig):
 
     # Parse annotations from implementation files.
     actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
-    print(actual_paths)
     anno_meta_style = "# //="
     anno_content_style = "# //#"
 
