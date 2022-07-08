@@ -153,9 +153,4 @@ class TestJSONReport:
         actual_specification.add_section(actual_section)
         actual_report = Report()
         actual_report.add_specification(actual_specification)
-
-        # print(actual_report)
         actual_json.from_report(actual_report)
-
-        # print(actual_json)
-        # actual_json.write_json()
