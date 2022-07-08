@@ -12,6 +12,15 @@ from duvet.json_report import JSONReport
 DEFAULT_HTML_PATH = "duvet-report.html"
 DEFAULT_JSON_PATH = "duvet-result.json"
 
+HTML_HEADER = """<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="description" content="A code quality tool to help bound correctness.">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Duvet Compliance Coverage Report</title>
+"""
+
 
 @define
 class HTMLReport:
@@ -27,32 +36,37 @@ class HTMLReport:
 
     def write_html(self, html_path=DEFAULT_HTML_PATH):
         """Write HTML report."""
+        with open("../../www/public/index.html", "r+", encoding="utf-8") as template:
+            # Get HTML head.
+            template_string = template.read()
+        # Before JSON
+        html_head_end = template_string.find("</head>")
+        html_head = template_string[:html_head_end]
+        # Between JSON and JS
+        html_body_end = template_string.find("</body>")
+        html_between_json_and_js = template_string[html_head_end:html_body_end]
+        # After JS
+        html_end = template_string[html_body_end:]
+
         with open(html_path, "w+", encoding="utf-8") as html_file:
-            # Write header.
-            html_file.write("<!DOCTYPE html>\n")
-            html_file.write("<html>\n")
-            html_file.write("<head>\n")
-            html_file.write('<meta charset="utf-8">\n')
-            html_file.write("<title>\n")
-            html_file.write("Compliance Coverage Report\n")
-            html_file.write("</title>\n")
+            # Create JSON string.
+            json_string = f"""
+             <script id="result" type="application/json">
+             {json.dumps(self.data)}
+             </script>
+            """
 
-            # Write JSON.
-            html_file.write('<script type="application/json" id=result>\n')
-            html_file.write(json.dumps(self.data))
-            html_file.write("\n")
-            html_file.write("</script>\n")
-            html_file.write("</head>\n")
-            html_file.write("<body>\n")
-            html_file.write("<div id=root></div>\n")
+        # Create JavaScript string.
+        with open("../../www/public/script.js", "r", encoding="utf-8") as javascript_file:
+            js_string = f"""<script>
+            {javascript_file.read()}
+            </script>
+            """
 
-            # Write JavaScript.
-            html_file.write("<script>\n")
-            with open("../../www/public/script.js", "r", encoding="utf-8") as javascript:
-                html_file.write(javascript.read())
-            html_file.write("</script>\n")
-            html_file.write("</body>\n")
-            html_file.write("</html>\n")
+        html_string = "\n".join([html_head, json_string, html_between_json_and_js, json_string, html_end])
+
+        with open(html_path, "w+", encoding="utf-8") as html_file:
+            html_file.write(html_string)
 
         # Open file in browser.
         webbrowser.open(html_path)
