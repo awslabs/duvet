@@ -48,7 +48,8 @@ def cli(config: Optional[str], verbose: int):
     # print(parsed_config)
     success = run(config=parsed_config)
     if not success:
-        raise click.ClickException("Checks failed!")
+        # raise click.ClickException("Checks failed!")
+        click.echo()
 
 
 if __name__ == "__main__":

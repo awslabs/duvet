@@ -7,10 +7,11 @@ import shutil
 import click
 
 from duvet.spec_toml_parser import TomlRequirementParser
-
-from ._config import Config
+from duvet.summary import SummaryReport
+from duvet._config import Config
 
 __all__ = ("run",)
+
 
 # from annotation_parser import AnnotationParser
 
@@ -19,9 +20,9 @@ def run(*, config: Config) -> bool:
     """Run all specification checks."""
     # Extractions
     # Because we currently got only toml parser, let's give a try.
-    path = pathlib.Path("./duvet-specification").resolve()
+    path = pathlib.Path("../../duvet-specification").resolve()
     patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser.extract_toml_specs(patterns, path)
+    test_report = TomlRequirementParser().extract_toml_specs(patterns, path)
     # Extract all annotations.
     all_annotations = []
     for _impl_config in config.implementation_configs:
@@ -31,4 +32,13 @@ def run(*, config: Config) -> bool:
     for anno in all_annotations:
         test_report.add_annotation(anno)
     # print(test_report)
-    return test_report.pass_fail
+
+    summary = SummaryReport(test_report, config)
+    summary.analyze_report()
+
+    # Print summary to command line.
+    for specification in test_report.specifications.values():
+        for section in list(specification.sections.values()):
+            click.echo(summary.report_section(summary._analyze_stats(section)))
+
+    return test_report.report_pass
