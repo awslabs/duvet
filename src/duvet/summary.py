@@ -34,7 +34,7 @@ class SummaryReport:
         return self.report.report_pass
 
     @staticmethod
-    def _analyze_stats(section: Section) -> list[list]:
+    def analyze_stats(section: Section) -> list[list]:
         """Given a section, return a table of analysis of section.
 
         Incomplete should be the only thing we care about during CI run.

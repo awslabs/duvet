@@ -4,7 +4,7 @@
 import pathlib
 import re
 import warnings
-from typing import List, Optional
+from typing import List
 
 import attr
 import toml
@@ -59,8 +59,8 @@ class Config:
     implementation_configs: List[ImplConfig] = field(init=True, default=attr.Factory(list))
     specs: List[pathlib.Path] = field(init=True, default=attr.Factory(list))
     legacy: bool = field(init=True, default=False)
-    blob_url: Optional[str] = field(init=True, default="Github Blob URL Placeholder")
-    issue_url: Optional[str] = field(init=True, default="Github Issue URL Placeholder")
+    blob_url: str = field(init=True, default="Github Blob URL Placeholder")
+    issue_url: str = field(init=True, default="Github Issue URL Placeholder")
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -91,6 +91,7 @@ class ConfigParser:
             legacy = parsed.get("mode", {}).get("legacy", False)
         implementation_configs = self._validate_implementation(parsed.get("implementation", {}))
         spec_configs = self._validate_specification(parsed.get("spec", {}))
+        # print(implementation_configs)
         return Config(
             self.config_file_path.parent,
             implementation_configs,
@@ -136,3 +137,7 @@ class ConfigParser:
                 )
             impl_config_list.append(temp_impl_config)
         return impl_config_list
+
+
+# //= compliance/duvet-specification.txt#2.3.1
+# //# This identifier of meta parts MUST be configurable.
