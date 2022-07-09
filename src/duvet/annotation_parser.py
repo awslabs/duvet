@@ -32,7 +32,7 @@ class LineSpan:
 class AnnotationParser:
     """Parser for annotation from implementation."""
 
-    paths: list[Path] = field(init=True, default=attr.Factory(list), repr=False)
+    paths: list[Path] = field(init=True, default=attr.Factory(list))
     # TODO: Sanitize user input for regular expression usage;
     # //= compliance/duvet-specification.txt#2.3.1
     # //= type=implication
@@ -139,6 +139,7 @@ class AnnotationParser:
                 continue
             kwarg["source"] = str(filepath)
             kwarg["uri"] = "$".join([kwarg["target"], kwarg["content"]])
+            print(kwarg)
             rtn.append(Annotation(**kwarg))
         return rtn
 
@@ -157,6 +158,6 @@ class AnnotationParser:
 
         annotations: list[Annotation] = []
         for filepath in self.paths:
-            _LOGGER.info("Processing %s", str(filepath.name))
+            # print("Processing %s", str(filepath.name))
             annotations.extend(self.process_file(filepath))
         return annotations

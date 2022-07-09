@@ -24,21 +24,28 @@ def run(*, config: Config) -> bool:
     all_annotations: list = []
     for impl_config in config.implementation_configs:
         annotation_parser: AnnotationParser = AnnotationParser(
-            impl_config.impl_filenames, impl_config.meta_style, impl_config.meta_style
+            impl_config.impl_filenames, impl_config.meta_style, impl_config.content_style
         )
+        # print(annotation_parser)
         all_annotations.extend(annotation_parser.process_all())
-
+        # print(annotation_parser.process_all())
+    # print(all_annotations)
+    counter = 0
     for anno in all_annotations:
-        test_report.add_annotation(anno)
-
+        if test_report.add_annotation(anno):
+            counter += 1
+    # assert counter > 0
+    print(counter)
+    # print(config.implementation_configs)
+    # print(all_annotations)
     # Analyze report
     summary = SummaryReport(test_report, config)
     summary.analyze_report()
 
     # Print summary to command line.
-    for specification in test_report.specifications.values():
-        for section in list(specification.sections.values()):
-            click.echo(summary.report_section(summary.analyze_stats(section)))
+    # for specification in test_report.specifications.values():
+    #     for section in list(specification.sections.values()):
+            # click.echo(summary.report_section(summary.analyze_stats(section)))
 
     # Covert report into JSON format
     actual_json = JSONReport()
@@ -48,7 +55,7 @@ def run(*, config: Config) -> bool:
     # Covert JSON report into HTML
     html_report = HTMLReport()
     html_report.data = json_report
-    html_report.write_html()
-    # click.echo(f"""Writing HTML report to {html_report.write_html()}""")
+    # html_report.write_html()
+    click.echo(f"""Writing HTML report to {html_report.write_html()}""")
 
     return test_report.report_pass

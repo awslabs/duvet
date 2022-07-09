@@ -91,6 +91,7 @@ class ConfigParser:
             legacy = parsed.get("mode", {}).get("legacy", False)
         implementation_configs = self._validate_implementation(parsed.get("implementation", {}))
         spec_configs = self._validate_specification(parsed.get("spec", {}))
+        # print(implementation_configs)
         return Config(
             self.config_file_path.parent,
             implementation_configs,

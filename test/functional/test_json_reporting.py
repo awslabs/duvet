@@ -14,11 +14,12 @@ pytestmark = [pytest.mark.local, pytest.mark.functional]
 
 def test_dogfood(pytestconfig):
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
-    patterns = filepath.glob("compliance/**/*.toml")
+    patterns = list(filepath.glob("compliance/**/*.toml"))
     test_report = TomlRequirementParser().extract_toml_specs(patterns)
 
     # Parse annotations from implementation files.
     actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
+    print(actual_paths)
     anno_meta_style = "# //="
     anno_content_style = "# //#"
 
@@ -28,7 +29,8 @@ def test_dogfood(pytestconfig):
     for annotation in actual:
         if test_report.add_annotation(annotation):
             counter += 1
-    assert counter >= 0
+    assert counter > 0
+    print(counter)
     test_report.analyze_annotations()
 
     actual_json = JSONReport()
