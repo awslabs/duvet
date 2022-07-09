@@ -4,7 +4,7 @@
 import os
 from typing import Optional
 
-import click
+import click  # type : ignore[import]
 
 from duvet._config import Config
 from duvet._run_checks import run
