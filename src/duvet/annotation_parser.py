@@ -139,7 +139,7 @@ class AnnotationParser:
                 continue
             kwarg["source"] = str(filepath)
             kwarg["uri"] = "$".join([kwarg["target"], kwarg["content"]])
-            print(kwarg)
+            # print(kwarg)
             rtn.append(Annotation(**kwarg))
         return rtn
 

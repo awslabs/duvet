@@ -35,7 +35,7 @@ def run(*, config: Config) -> bool:
         if test_report.add_annotation(anno):
             counter += 1
     # assert counter > 0
-    print(counter)
+    # print(counter)
     # print(config.implementation_configs)
     # print(all_annotations)
     # Analyze report
@@ -45,7 +45,7 @@ def run(*, config: Config) -> bool:
     # Print summary to command line.
     # for specification in test_report.specifications.values():
     #     for section in list(specification.sections.values()):
-            # click.echo(summary.report_section(summary.analyze_stats(section)))
+    #           click.echo(summary.report_section(summary.analyze_stats(section)))
 
     # Covert report into JSON format
     actual_json = JSONReport()
