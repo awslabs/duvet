@@ -3,16 +3,17 @@
 """cli used by duvet-python."""
 import os
 from typing import Optional
+import logging
 
 import click  # type : ignore[import]
 
 from duvet._config import Config
 from duvet._run_checks import run
+from duvet.identifiers import __version__
 
-__version__ = "1.0.0"
 _DEBUG = "INPUT_DEBUG"
 _CONFIG_FILE = "INPUT_CONFIG-FILE"
-
+__name__ = "DUVET"
 _USAGE_URL: str = "https://github.com/awslabs/duvet/tree/feat-run-checks#usage"
 
 
@@ -25,13 +26,12 @@ _USAGE_URL: str = "https://github.com/awslabs/duvet/tree/feat-run-checks#usage"
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True, readable=True),
     help=f"Path to config file. You can find an example on {_USAGE_URL}",
 )
-@click.option("-v", "--verbose", count=True)
+@click.option("-v", "--verbose", default=0, required=False, type=int)
 @click.version_option(version=f"{__version__}", message=f"Duvet, version {__version__}\nDocumentation at {_USAGE_URL}")
-def cli(config: Optional[str], verbose: int):
+def cli(config: Optional[str], verbose: int = 0):
     """Duvet runs checks against specs and implementations."""
-    if _DEBUG in os.environ:
-        verbose += 1
 
+    # Handle config option.
     if config is None:
         try:
             config = os.environ[_CONFIG_FILE]
@@ -46,13 +46,36 @@ def cli(config: Optional[str], verbose: int):
                 message=f"Requested config file '{config}' does not exist or is not a file",
             )
 
+    # Handle verbose option for logging.
+    logger = logging.getLogger(__name__)
+    if _DEBUG in os.environ:
+        verbose += 10
+
+    logger.setLevel(verbose)
+    click.echo(f"Setting logger level to {logger.level}")
+
+    # Parse configuration file.
     parsed_config = Config.parse(config)
-    # click.echo(parsed_config)
-    success = run(config=parsed_config)
+
+    success: bool = run(config=parsed_config)
     if not success:
-        # raise click.ClickException("Checks failed!")
-        click.echo("FAIL because there are incomplete MUST requirements.")
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //= type=implication
+        # //# Duvet MUST NOT return "0" for Fail.
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //= type=implication
+        # //# Duvet SHOULD print a failure message.
+        click.echo("Duvet: FAIL. Incomplete MUST requirements found.")
+        return -1
+    else:
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //= type=implication
+        # //# Duvet MUST return "0" for Pass.
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //= type=implication
+        # //# Duvet SHOULD print a success message.
+        click.echo("Duvet: PASS. Congratulations :)")
+        return 0
 
 
-if __name__ == "__main__":
-    cli()  # pylint:disable=E1120
+cli()

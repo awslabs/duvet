@@ -59,6 +59,7 @@ class Config:
     implementation_configs: List[ImplConfig] = field(init=True, default=attr.Factory(list))
     specs: List[pathlib.Path] = field(init=True, default=attr.Factory(list))
     legacy: bool = field(init=True, default=False)
+    # GitHub blob URL is the url of the project, you could also change this the the repo link of your choice."
     blob_url: str = field(init=True, default="Github Blob URL Placeholder")
     issue_url: str = field(init=True, default="Github Issue URL Placeholder")
 
