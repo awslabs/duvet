@@ -43,9 +43,7 @@ class SummaryReport:
         section.analyze_annotations()
         for level in RequirementLevel:
             total = [entry for entry in section.requirements.values() if entry.requirement_level.name == level.name]
-            in_completes = [
-                entry for entry in total if entry.status.name in ["COMPLETE", "EXCEPTION"]
-            ]  # we don't care completes
+            in_completes = [entry for entry in total if entry.status.name != "COMPLETE"]  # we don't care
             level_dict = {
                 "Section": section.uri,
                 "Requirement": level.name,
