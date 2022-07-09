@@ -19,7 +19,7 @@ def test_dogfood(pytestconfig):
 
     # Parse annotations from implementation files.
     actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
-    print(actual_paths)
+    # print(actual_paths)
     anno_meta_style = "# //="
     anno_content_style = "# //#"
 
@@ -30,7 +30,7 @@ def test_dogfood(pytestconfig):
         if test_report.add_annotation(annotation):
             counter += 1
     assert counter > 0
-    print(counter)
+    # print(counter)
     test_report.analyze_annotations()
 
     actual_json = JSONReport()
