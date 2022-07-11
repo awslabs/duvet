@@ -96,7 +96,7 @@ class TestJSONReport:
         assert actual_index == 0
         assert actual_json.annotations == [
             {
-                "line": 1,
+                "line": 2,
                 "source": "code.py",
                 "target_path": "test_target.md",
                 "target_section": "target",

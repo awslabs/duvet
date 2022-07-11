@@ -110,7 +110,7 @@ class JSONReport:
 
         # Add specification index number if section has requirements.
         if section.has_requirements:
-            requirement_index = []
+            requirement_index: list = []
             for requirement in section.requirements.values():
                 requirement_index.append(self.from_requirement(requirement, section, lines))
             section_dict.update({"requirements": requirement_index, "lines": lines})
@@ -157,19 +157,18 @@ class JSONReport:
 
         Return index in the self.requirements.
         """
-        source = requirement.uri.split("#", 1)[0]
-        target_path = requirement.uri.split("#", 1)[0]
-        target_section = section.title
+        source: str = requirement.uri.split("#", 1)[0]
+        target_path: str = requirement.uri.split("#", 1)[0]
+        target_section: str = section.title
 
         # Set up ref based on the requirement.
-        new_ref = RefStatus()
+        new_ref: RefStatus = RefStatus()
         new_ref.spec = True
         new_ref.level = requirement.requirement_level.name
 
         # Get annotation indexes and reference
         annotation_indexes = []
         for annotation in requirement.matched_annotations:
-            # print(annotation.type)
             new_ref.from_annotation(annotation)
             self.from_annotation(annotation)
             annotation_indexes.append(len(self.annotations) - 1)
@@ -205,24 +204,24 @@ class JSONReport:
 
     def from_annotation(self, annotation: Annotation) -> int:
         """Parse annotation dictionary from annotation object."""
-        source = annotation.source
-        target_path = annotation.target.split("#", 1)[0]
-        target_section = annotation.target.split("#", 1)[1]
-        line = annotation.start_line
 
-        result = {
-            "source": source,
+        target_path: str = annotation.target.split("#", 1)[0]
+        target_section: str = annotation.target.split("#", 1)[1]
+        line: int = annotation.start_line + 1
+
+        annotation_dict: dict = {
+            "source": annotation.source,
             "target_path": target_path,
             "target_section": target_section,
             "line": line,
             "type": annotation.type.name,
         }
 
-        self.annotations.append(result)
+        self.annotations.append(annotation_dict)
         return len(self.annotations) - 1
 
     def _get_dictionary(self) -> dict:
-        result = {
+        report_dict: dict = {
             "blob_link": self.blob_link,
             "issue_link": self.issue_link,
             "specifications": self.specifications,
@@ -230,7 +229,7 @@ class JSONReport:
             "statuses": self.statuses,
             "refs": self.refs,
         }
-        return result
+        return report_dict
 
     def write_json(self, json_path: str = "duvet-result.json"):
         """Write json file."""
