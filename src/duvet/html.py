@@ -8,13 +8,13 @@ import attr
 import click
 from attrs import define, field
 
+# Backport of Python standard library importlib.resources module for older Pythons
+from importlib_resources import files  # type: ignore[import]
+
 from duvet.json_report import JSONReport
 
 DEFAULT_HTML_PATH = "duvet-report.html"
 DEFAULT_JSON_PATH = "duvet-result.json"
-
-# Backport of Python standard library importlib.resources module for older Pythons
-from importlib_resources import files  # type: ignore[import]
 
 
 @define
