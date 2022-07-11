@@ -13,6 +13,9 @@ from duvet.json_report import JSONReport
 DEFAULT_HTML_PATH = "duvet-report.html"
 DEFAULT_JSON_PATH = "duvet-result.json"
 
+# Backport of Python standard library importlib.resources module for older Pythons
+from importlib_resources import files  # type: ignore[import]
+
 
 @define
 class HTMLReport:
@@ -28,8 +31,7 @@ class HTMLReport:
 
     def write_html(self, html_path=DEFAULT_HTML_PATH) -> str:
         """Write HTML report."""
-        with open("../../www/public/index.html", "r+", encoding="utf-8") as template:
-            template_string = template.read()
+        template_string = files("duvet").joinpath("index.html").read_text()
 
         # Get HTML head before JSON.
         html_head_end = template_string.find("</head>")
@@ -46,8 +48,7 @@ class HTMLReport:
         json_string = f"""<script id="result" type="application/json">{json.dumps(self.data)}</script>"""
 
         # Create JavaScript string.
-        with open("../../www/public/script.js", "r", encoding="utf-8") as javascript_file:
-            js_string = f"""<script>{javascript_file.read()}</script>"""
+        js_string = f"""<script>{files("duvet").joinpath("script.js").read_text()}</script>"""
 
         # Create HTML string and write to new HTML file.
         html_string = "\n".join([html_head, json_string, html_between_json_and_js, js_string, html_end])

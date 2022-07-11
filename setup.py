@@ -61,7 +61,7 @@ setup(
     long_description=read("README.md"),
     keywords="duvet duvet aws",
     data_files=["README.md", "CHANGELOG.rst", "LICENSE", "requirements.txt"],
-    package_data={"duvet": ["py.typed"]},
+    package_data={"duvet": ["py.typed", "index.html", "script.js"]},
     license="Apache 2.0",
     install_requires=install_requires,
     dependency_links=dependency_links,
