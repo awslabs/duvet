@@ -13,6 +13,8 @@ __version__ = "1.0.0"
 _DEBUG = "INPUT_DEBUG"
 _CONFIG_FILE = "INPUT_CONFIG-FILE"
 
+_USAGE_URL: str = "https://github.com/awslabs/duvet/tree/feat-run-checks#usage"
+
 
 @click.command()
 @click.option(
@@ -21,10 +23,10 @@ _CONFIG_FILE = "INPUT_CONFIG-FILE"
     default=None,
     required=False,
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True, readable=True),
-    help="Path to config file",
+    help=f"Path to config file. You can find an example on {_USAGE_URL}",
 )
 @click.option("-v", "--verbose", count=True)
-@click.version_option(version=f"duvet version {__version__}")
+@click.version_option(version=f"{__version__}",message=f"Duvet, version {__version__}\nDocumentation at {_USAGE_URL}")
 def cli(config: Optional[str], verbose: int):
     """Duvet runs checks against specs and implementations."""
     if _DEBUG in os.environ:
@@ -36,7 +38,7 @@ def cli(config: Optional[str], verbose: int):
         except KeyError as error:
             raise click.exceptions.BadOptionUsage(
                 option_name="config",
-                message="Config file must provided.",
+                message=f"Config file must provided.",
             ) from error
         if not os.path.isfile(config):
             raise click.BadOptionUsage(
