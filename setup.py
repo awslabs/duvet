@@ -54,14 +54,14 @@ setup(
     author_email="aws-cryptools@amazon.com",
     maintainer="Amazon Web Services",
     description="A code quality tool to help bound correctness."
-    " By starting from a specification Duvet extracts every RFC 2119 requirement. "
-    " Duvet can then use this information to report on a code base."
-    " Duvet can then report on every requirement,"
-    " where it is honored in source, as well as how that source is tested.",
+                " By starting from a specification Duvet extracts every RFC 2119 requirement. "
+                " Duvet can then use this information to report on a code base."
+                " Duvet can then report on every requirement,"
+                " where it is honored in source, as well as how that source is tested.",
     long_description=read("README.md"),
     keywords="duvet duvet aws",
     data_files=["README.md", "CHANGELOG.rst", "LICENSE", "requirements.txt"],
-    package_data={"duvet": ["py.typed"]},
+    package_data={"duvet": ["py.typed", "script.js", "index.html"]},
     license="Apache 2.0",
     install_requires=install_requires,
     dependency_links=dependency_links,
