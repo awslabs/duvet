@@ -141,3 +141,15 @@ class ConfigParser:
 
 # //= compliance/duvet-specification.txt#2.3.1
 # //# This identifier of meta parts MUST be configurable.
+
+# //= compliance/duvet-specification.txt#2.3.6
+# //= type=implication
+# //# The default identifier for the content part in software documents MUST be "//#" followed by a single space.
+
+# //= compliance/duvet-specification.txt#2.3.6
+# //= type=implication
+# //# This identifier of content parts MUST be configurable.
+
+# //= compliance/duvet-specification.txt#2.3.6
+# //= type=implication
+# //# All content part lines MUST be consecutive.

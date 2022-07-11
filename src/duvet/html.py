@@ -57,7 +57,6 @@ class HTMLReport:
 
         # Return HTML path
         full_html_path = str(pathlib.Path(html_path).resolve())
-        click.echo(f"""Write HTML report to {full_html_path}""")
         return full_html_path
 
 # //= compliance/duvet-specification.txt#2.6.3
@@ -89,3 +88,27 @@ class HTMLReport:
 # //= compliance/duvet-specification.txt#2.6.4
 # //= type=implication
 # //# The table MUST have a column for:
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type=TODO
+# //# It MUST show all text from the section.
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type=implication
+# //# The table MUST have a column for:
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type=implication
+# //# It MUST highlight the text for every requirement.
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type=implication
+# //# It MUST highlight the text that matches any annotation.
+
+# //= compliance/duvet-specification.txt#2.6.5
+# //= type=implication
+# //# Any highlighted text MUST have a mouse over that shows its annotation information.
+
+
+
+

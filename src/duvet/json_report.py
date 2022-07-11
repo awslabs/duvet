@@ -17,7 +17,7 @@ from attrs import define, field
 
 from duvet._config import Config
 from duvet.identifiers import AnnotationType
-from duvet.refs_json import REFS_JSON
+from duvet.refs_json import REFS_JSON, CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES
 from duvet.structures import Annotation, Report, Requirement, Section, Specification
 
 
@@ -127,6 +127,8 @@ class JSONReport:
             sections.append(section_dict)
             requirements.extend(section_dict.get("requirements", []))
 
+        sections.extend([CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES])
+        sections = sorted(sections, key=lambda d: d['id'])
         return [sections, requirements]
 
     def from_specification(self, specification: Specification) -> str:

@@ -95,18 +95,32 @@ class Requirement:
 
     def set_status(self):
         """There MUST be a method that sets the status based on the labels."""
+        # //= compliance/duvet-specification.txt#2.6.1
+        # //# The Requirement Statuses MUST be:
         labels = [self.implemented, self.attested, self.excused, self.unexcused]
         if labels == [True, False, False, False]:
+            # //= compliance/duvet-specification.txt#2.6.1
+            # //# *  Missing Proof - The requirement MUST only have the label "Implemented"
             self.status = RequirementStatus.MISSING_PROOF
         elif labels == [True, True, False, False]:
+            # //= compliance/duvet-specification.txt#2.6.1
+            # //# *  Complete - The requirement MUST have both the labels "Implemented" and "Attested"
             self.status = RequirementStatus.COMPLETE
         elif labels == [False, False, True, False]:
+            # //= compliance/duvet-specification.txt#2.6.1
+            # //# *  Excused - The requirement MUST only have the label "Excused"
             self.status = RequirementStatus.EXCUSED
         elif labels == [False, False, False, True]:
+            # //= compliance/duvet-specification.txt#2.6.1
+            # //# *  Missing Reason - The requirement MUST have the label "Unexcused"
             self.status = RequirementStatus.MISSING_REASON
         elif labels == [False, False, False, False]:
+            # //= compliance/duvet-specification.txt#2.6.1
+            # //# *  Not started - The requirement MUST NOT have any labels
             self.status = RequirementStatus.NOT_STARTED
         else:
+            # //= compliance/duvet-specification.txt#2.6.1
+            # //# *  Missing Implementation - The requirement MUST only have the label "Attested"
             self.status = RequirementStatus.DUVET_ERROR
 
     def set_labels(self):
@@ -271,3 +285,15 @@ class Report:
 # //= compliance/duvet-specification.txt#2.2.4.1
 # //= type=TODO
 # //# Duvet SHOULD be able to record parsed requirements into Toml Files.
+
+# //= compliance/duvet-specification.txt#2.2.1
+# //= type=implication
+# //# The name of the sections MUST NOT be nested.
+
+# //= compliance/duvet-specification.txt#2.6.1
+# //# Duvet MUST analyze the matching labels for every requirement; the result of this analysis
+# //# is the requirement's Status.
+
+# //= compliance/duvet-specification.txt#2.6.1
+# //= type=implication
+# //# Requirement Statuses MUST be exclusive.

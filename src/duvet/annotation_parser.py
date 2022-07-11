@@ -105,6 +105,12 @@ class AnnotationParser:
                 index += 1 if url is not None else 0
                 del match
 
+                # //= compliance/duvet-specification.txt#2.3.3
+                # //# If the meta part is a single line then the type MUST be citation.
+                # //= compliance/duvet-specification.txt#2.3.3
+                # //# If a second meta line exists it MUST start with "type=".
+                # //= compliance/duvet-specification.txt#2.3.3
+                # //# The type MUST be a valid annotation type string:
                 # there may be a type
                 match = self.match_type.match(lines[index])
                 _type: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
@@ -187,3 +193,45 @@ class AnnotationParser:
 # //= type=TODO
 # //# A specification requirement MUST be labeled "Excused" and MUST only be labeled "Excused" if there exists
 # //# a matching annotation of type "exception" and the annotation has a "reason".
+
+# //= compliance/duvet-specification.txt#2.2.3
+# //= type=implication
+# //# For backwards compatibility Duvet MUST support this older simpler form of requirement identification.
+
+# //= compliance/duvet-specification.txt#2.2.3
+# //= type=implication
+# //# Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.
+
+# //= compliance/duvet-specification.txt#2.2.3
+# //= type=implication
+# //# A requirement MAY contain multiple RFC 2119 keywords.
+
+# //= compliance/duvet-specification.txt#2.2.3
+# //= type=implication
+# //# A requirement MUST be terminated by one of the following:
+
+# //= compliance/duvet-specification.txt#2.2.3
+# //= type=implication
+# //# For a given a specification Duvet MUST use one way to identify requirements.
+
+# //= compliance/duvet-specification.txt#2.4.1
+# //# For an annotation to match a specification the annotation's
+# //# content MUST exist in the specification's section identified by the annotation's meta location URL.
+
+# //= compliance/duvet-specification.txt#2.4.1
+# //# The match between the annotation content and the specification text MUST be case-sensitive but MUST NOT be white space sensitive and MUST uniquely identify text in the specification.
+
+# //= compliance/duvet-specification.txt#2.4.1
+# //# Elements of a list MUST NOT be matched by their order within the list.
+
+# //= compliance/duvet-specification.txt#2.4.1
+# //= type=exception
+# //# Rows of a table MUST NOT be matched by their order within the table.
+
+# //= compliance/duvet-specification.txt#2.4.1
+# //= type=exception
+# //# This means that an annotation MAY contain a table that is a subset of the rows in the specification.
+
+# //= compliance/duvet-specification.txt#2.6.2
+# //= type=TODO
+# //# For Duvet to pass the Status of every "MUST" and "MUST NOT" requirement MUST be Complete or Excused.

@@ -117,3 +117,8 @@ class MDSpec:
 # //= compliance/duvet-specification.txt#2.2.1
 # //= type=TODO
 # //# A section MUST be indexable by combining different levels of naming.
+
+# //= compliance/duvet-specification.txt#2.2.2
+# //= type=TODO
+# //# Sublists MUST be treated as if the parent item were
+# //# terminated by the sublist.

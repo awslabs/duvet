@@ -1,1 +1,13 @@
 // An exception file is helpful for old duvet extraction to work
+
+//= compliance/duvet-specification.txt#2.2.2
+//= type=exception
+//# In the case of requirement terminated by a table, the text proceeding the table SHOULD be concatenated with each row of the table to form a requirement.
+
+//= compliance/duvet-specification.txt#2.2.2
+//= type=exception
+//# Table cells MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.
+
+//= compliance/duvet-specification.txt#2.2.2
+//= type=exception
+//# Table cells MAY contain a period (.) or exclamation point (!) and this punctuation MUST NOT terminate the requirement by excluding the following rows from the table of requirements.

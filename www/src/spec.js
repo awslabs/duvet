@@ -266,9 +266,26 @@ function requirementStatus(requirement) {
     return [4, "Missing test", "missingTest"];
   if (requirement.spec === requirement.test)
     return [5, "Missing citation", "missingCitation"];
-  if (requirement.todo) return [7, "Not started", "error"];
+  if (requirement.todo) return [7, "TO DO", "error"];
   if (requirement.incomplete === requirement.spec)
     return [8, "Unknown", "error"];
 
-  return [6, "Partial coverage", "warning"];
+  return [6, "Not Started", "warning"];
 }
+
+//= compliance/duvet-specification.txt#2.6.5
+//= type=implication
+//# Clicking on any highlighted text MUST bring up a popup that shows:
+
+//= compliance/duvet-specification.txt#2.6.5
+//= type=implication
+//# This link SHOULD include the line number.
+
+//= compliance/duvet-specification.txt#2.6.5
+//= type=implication
+//# Selecting any text of the specification and right-clicking on it MUST bring up a popup for
+//# the selected text that shows:
+
+//= compliance/duvet-specification.txt#2.6.5
+//= type=implication
+//# It MUST show a table with a row for each requirement included in this section.

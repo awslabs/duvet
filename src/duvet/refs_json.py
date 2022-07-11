@@ -298,7 +298,7 @@ CONVENTIONS_AND_DEFINITIONS = {
 }
 
 NORMATIVE_REFERENCES = {
-    "id": "-1",
+    "id": "3",
     "title": "Normative References",
     "lines": [
         '[RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate',
@@ -313,6 +313,6 @@ NORMATIVE_REFERENCES = {
         "Amazon AWS",
         "Amazon AWS",
         "",
-        "Email: cryptools+rfc@amazon.com",
+        "Email: aws-cryptools@amazon.com",
     ],
 }

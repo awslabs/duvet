@@ -59,3 +59,16 @@ class SummaryReport:
     def report_section(table: list[list]) -> str:
         """Report Section stats."""
         return tabulate(table, HEADERS, tablefmt="simple")
+
+# //= compliance/duvet-specification.txt#2.5
+# //# Duvet MUST analyze the matching annotations, generating Matching Labels.
+
+# //= compliance/duvet-specification.txt#2.5
+# //# Duvet MUST label requirements matched to annotations as follows:
+
+# //= compliance/duvet-specification.txt#2.5
+# //# Matching Labels MAY be exclusive.
+
+# //= compliance/duvet-specification.txt#2.5.4
+# //# A specification requirement MUST be labeled "Unexcused" and MUST only be labeled "Unexcused" if there
+# //# exists a matching annotation of type "exception" and the annotation does NOT have a "reason".

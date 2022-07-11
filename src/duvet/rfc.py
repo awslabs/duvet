@@ -89,3 +89,9 @@ class RFCSpecification(ParsedSpecification):
 
 
 __all__ = ("RFCHeader", "RFCSpecification")
+
+# //= compliance/duvet-specification.txt#2.2.4
+# //= type=TODO
+# //# Duvet MUST be able to parse specifications formatted as:
+
+

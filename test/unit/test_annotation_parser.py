@@ -58,19 +58,19 @@ class TestExtractKwargs:
         "lines, spans, expected_dicts",
         [
             (
-                TEST_STR.splitlines(True),
-                [LineSpan(0, 3)],
-                [deepcopy(VALID_ANNO_KWARGS)],
+                    TEST_STR.splitlines(True),
+                    [LineSpan(0, 3)],
+                    [deepcopy(VALID_ANNO_KWARGS)],
             ),
             (
-                nested_str.splitlines(True),
-                [LineSpan(1, 4)],
-                [_update_valid_kwargs({"start_line": 1, "end_line": 4})],
+                    nested_str.splitlines(True),
+                    [LineSpan(1, 4)],
+                    [_update_valid_kwargs({"start_line": 1, "end_line": 4})],
             ),
             (
-                (TEST_STR + TEST_STR).splitlines(True),
-                [LineSpan(0, 3), LineSpan(3, 6)],
-                [deepcopy(VALID_ANNO_KWARGS), _update_valid_kwargs({"start_line": 3, "end_line": 6})],
+                    (TEST_STR + TEST_STR).splitlines(True),
+                    [LineSpan(0, 3), LineSpan(3, 6)],
+                    [deepcopy(VALID_ANNO_KWARGS), _update_valid_kwargs({"start_line": 3, "end_line": 6})],
             ),
         ],
     )
@@ -92,3 +92,36 @@ class TestProcessKwargs:
             assert len(actual) == 0
         assert len(caplog.messages) == 1
         assert "Unknown type: Anton found in lines 0 to 3. Skipping" in caplog.messages[0]
+
+# //= compliance/duvet-specification.txt#2.3.4
+# //= type=test
+# //# It MUST start with "reason=".
+
+# //= compliance/duvet-specification.txt#2.3.2
+# //= type=test
+# //# The first line of the meta part identifies the location of the content, it MUST be parsed as a URL.
+
+# //= compliance/duvet-specification.txt#2.3.2
+# //= type=test
+# //# All parts of the URL other than a URL fragment MUST be optional and MUST identify
+# //# the specification that contains this section and content.
+
+# //= compliance/duvet-specification.txt#2.3.2
+# //= type=test
+# //# The URL MUST contain a URL fragment that uniquely identifies the section that contains this content.
+
+# //= compliance/duvet-specification.txt#2.2.4.1
+# //= type=test
+# //# Duvet SHOULD be able to parse requirements formatted as Toml files.
+
+# //= compliance/duvet-specification.txt#2.3.3
+# //= type=test
+# //# If the meta part is a single line then the type MUST be citation.
+
+# //= compliance/duvet-specification.txt#2.3.3
+# //= type=test
+# //# If a second meta line exists it MUST start with "type=".
+
+# //= compliance/duvet-specification.txt#2.3.3
+# //= type=test
+# //# The type MUST be a valid annotation type string:

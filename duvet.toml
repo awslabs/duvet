@@ -2,6 +2,12 @@
 [implementation.py]
 patterns = ["src/**/*.py", "test/**/*.py"]
 comment-style = { meta = "# //=", content = "# //#" }
+[implementation.js]
+patterns = ["www/src/*.js"]
+comment-style = { meta = "//=", content = "//#" }
+[implementation.txt]
+patterns = ["compliance_exceptions/exception.txt"]
+comment-style = { meta = "//=", content = "//#" }
 [spec.toml]
 patterns = ["duvet-specification/compliance/**/*.toml"]
 [report]
