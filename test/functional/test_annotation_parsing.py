@@ -46,6 +46,10 @@ ANNOTATION_END_OF_FILE = """
 
 IMPLICATION = "IMPLICATION"
 
+# //= compliance/duvet-specification.txt#2.5.2
+# //= type=test
+# //# A specification requirement MUST be labeled "Attested" if there exists at least one matching annotation of type
+
 
 def test_more_than_one_valid_files(tmp_path):
     actual_path1 = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet1.dfy")

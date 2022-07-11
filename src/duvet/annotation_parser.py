@@ -51,8 +51,19 @@ class AnnotationParser:
         """Set regular expression attributes."""
         pattern: str = r"^([\s]*" + f"((?:{self.meta_style})|(?:{self.content_style})))"
         self.is_anno = re.compile(pattern)
+        # //= compliance/duvet-specification.txt#2.3.2
+        # //# The first line of the meta part identifies the location of the content, it MUST be parsed as a URL.
         self.match_url = re.compile(r"[\s]*" + self.meta_style + r"[\s](.*?)\n")
         self.match_type = re.compile(r"[\s]*" + self.meta_style + r"[\s]type=(.*?)\n")
+        # //= compliance/duvet-specification.txt#2.3.4
+        # //# It MUST start with "reason=".
+        # //= compliance/duvet-specification.txt#2.3.4
+        # //= type=implication
+        # //# A third meta line MAY exist: Reason.
+        # //= compliance/duvet-specification.txt#2.3.4
+        # //= type=implication
+        # //# The rest of this line and the following meta lines MUST be
+        # //#parsed as the annotation's reason until there are no more meta lines.
         self.match_reason = re.compile(r"[\s]*" + self.meta_style + r"[\s]reason=(.*?)\n")
         self.match_content = re.compile(r"[\s]*" + self.content_style + r"[\s]*(.*?)\n")
 
@@ -82,6 +93,12 @@ class AnnotationParser:
             while index < span.end:
                 start: int = index
 
+                # //= compliance/duvet-specification.txt#2.3.2
+                # //# All parts of the URL other than a URL fragment MUST be optional and MUST
+                # //# identify the specification that contains this section and content.
+                # //= compliance/duvet-specification.txt#2.3.2
+                # //# The URL MUST contain a URL fragment that uniquely identifies the section
+                # //# that contains this content.
                 # the first line will be the url
                 match = self.match_url.match(lines[index])
                 url: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
@@ -161,3 +178,12 @@ class AnnotationParser:
             # print("Processing %s", str(filepath.name))
             annotations.extend(self.process_file(filepath))
         return annotations
+
+# //= compliance/duvet-specification.txt#2.3.1
+# //= type=implication
+# //# The default identifier for the meta part in source documents MUST be //= followed by a single space.
+
+# //= compliance/duvet-specification.txt#2.5.3
+# //= type=TODO
+# //# A specification requirement MUST be labeled "Excused" and MUST only be labeled "Excused" if there exists
+# //# a matching annotation of type "exception" and the annotation has a "reason".

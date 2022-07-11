@@ -38,11 +38,18 @@ class RequirementStatus(Enum):
     DUVET_ERROR = 7
 
 
+# //= compliance/duvet-specification.txt#2.5.1
+# //# A specification requirement MUST be labeled "Implemented"
+# //# if there exists at least one matching annotation of type:
 IMPLEMENTED_TYPES = [
     AnnotationType.CITATION,
     AnnotationType.UNTESTABLE,
     AnnotationType.DEVIATION,
     AnnotationType.IMPLICATION,
 ]
+
+# //= compliance/duvet-specification.txt#2.5.2
+# //# A specification requirement MUST be labeled "Attested" if there exists at least one matching annotation of type
+
 ATTESTED_TYPES = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
 EXCEPTED_TYPES = [AnnotationType.EXCEPTION]

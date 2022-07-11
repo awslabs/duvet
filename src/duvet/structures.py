@@ -266,3 +266,8 @@ class Report:
             self.report_pass = self.report_pass and specification.analyze_annotations()
 
         return self.report_pass
+
+
+# //= compliance/duvet-specification.txt#2.2.4.1
+# //= type=TODO
+# //# Duvet SHOULD be able to record parsed requirements into Toml Files.

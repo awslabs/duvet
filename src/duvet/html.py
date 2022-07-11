@@ -59,3 +59,33 @@ class HTMLReport:
         full_html_path = str(pathlib.Path(html_path).resolve())
         click.echo(f"""Write HTML report to {full_html_path}""")
         return full_html_path
+
+# //= compliance/duvet-specification.txt#2.6.3
+# //= type=implication
+# //# It MUST have all a link for each included specifications.
+
+# //= compliance/duvet-specification.txt#2.6.3
+# //= type=implication
+# //# For each link it MUST have a table summarizing the matrix of requirements
+# //# crossed annotation types, and include totals for both sides.
+
+# //= compliance/duvet-specification.txt#2.6.3
+# //= type=implication
+# //# It MUST have all a link for annotations that do not match any included specifications.
+
+# //= compliance/duvet-specification.txt#2.6.3
+# //= type=TODO
+# //# It MUST have all a link for annotations not associated with any specifications.
+
+# //= compliance/duvet-specification.txt#2.6.4
+# //= type=implication
+# //# It MUST have a table summarizing the matrix of requirements
+# //# across annotation types, and include totals for both sides.
+
+# //= compliance/duvet-specification.txt#2.6.4
+# //= type=implication
+# //# It MUST show a table with a row for each requirement.
+
+# //= compliance/duvet-specification.txt#2.6.4
+# //= type=implication
+# //# The table MUST have a column for:

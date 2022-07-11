@@ -25,7 +25,7 @@ _CONFIG_FILE = "INPUT_CONFIG-FILE"
 )
 @click.option("-v", "--verbose", count=True)
 @click.version_option(version=f"duvet version {__version__}")
-def cli(config: Optional[str], verbose: int):
+def cli(config: Optional[str], verbose: int) -> int:
     """Duvet runs checks against specs and implementations."""
     if _DEBUG in os.environ:
         verbose += 1
@@ -48,8 +48,23 @@ def cli(config: Optional[str], verbose: int):
     # click.echo(parsed_config)
     success = run(config=parsed_config)
     if not success:
-        # raise click.ClickException("Checks failed!")
-        click.echo("FAIL because there are incomplete MUST requirements.")
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //= type=implication
+        # //# Duvet MUST NOT return "0" for Fail.
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //= type=implication
+        # //# Duvet SHOULD print a success message.
+        click.echo("Duvet: FAIL. Incomplete MUST requirements found.")
+        return -1
+    else:
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //= type=implication
+        # //# Duvet MUST return "0" for Pass.
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //= type=implication
+        # //# Duvet SHOULD print a failure message.
+        click.echo("Duvet: PASS. Congratulations :)")
+        return 0
 
 
 if __name__ == "__main__":

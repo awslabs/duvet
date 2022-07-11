@@ -102,3 +102,18 @@ class MDSpec:
             if self.spec is not None:
                 self.spec.add_section(md_section.section)
         return self.spec
+
+#//= compliance/duvet-specification.txt#2.2.1
+# //# The name of the sections MUST NOT be nested.
+
+# //= compliance/duvet-specification.txt#2.2.1
+# //= type=exception
+# //# A requirements section MUST be the top level containing header.
+
+# //= compliance/duvet-specification.txt#2.2.1
+# //= type=implication
+# //# A header MUST NOT itself be a requirement.
+
+# //= compliance/duvet-specification.txt#2.2.1
+# //= type=TODO
+# //# A section MUST be indexable by combining different levels of naming.
