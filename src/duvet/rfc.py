@@ -46,7 +46,7 @@ class RFCHeader(SpecificationHeader):
         assert RFCHeader.is_header(line), f"line is not an RFC header: {line}"
         # str.split will split on whitespace, breaking digits from everything else
         number, title = line.split(maxsplit=1)
-        level = len(number.split("."))
+        level = len(number.split(".")) - 1
         return RFCHeader(level=level, title=title.strip(), number=number)
 
     @staticmethod

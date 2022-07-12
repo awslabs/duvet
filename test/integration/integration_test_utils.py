@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Utility functions to handle configuration for integration tests."""
 import os
-import pathlib
+from pathlib import Path
 from typing import Optional
 
 PATH_TO_ESDK_DAFNY_KEY = "PATH_TO_ESDK_DAFNY"
@@ -18,7 +18,7 @@ def _get_env_key(key: str) -> str:
     return value
 
 
-def get_path_to_esdk_dafny() -> pathlib.Path:
+def get_path_to_esdk_dafny() -> Path:
     """Retrieves path to AWS Encryption SDK Dafny"""
     value: str = _get_env_key(PATH_TO_ESDK_DAFNY_KEY)
-    return pathlib.Path(value)
+    return Path(value)
