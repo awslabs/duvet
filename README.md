@@ -16,7 +16,7 @@ pyenv exec python setup.py install
 ## Usage
 
 ```commandline
-duvet -c duvet_config.toml
+duvet -c duvet.toml
 ```
 
 ### Configuration Reference
