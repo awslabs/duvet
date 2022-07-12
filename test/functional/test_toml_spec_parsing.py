@@ -1,11 +1,11 @@
+# Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
 """Specification Parser used by duvet-python for toml format."""
-import pathlib
-
 import pytest
 
 from duvet.spec_toml_parser import TomlRequirementParser
 
-from ..utils import populate_file  # isort:skip
+from ..utils import populate_file  # isort: skip
 
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
@@ -54,10 +54,10 @@ A section MUST be indexable by combining different levels of naming.
 """
 
 
-def test_extract_toml_spec():
-    path = pathlib.Path("./duvet-specification").resolve()
+def test_dogfood(pytestconfig):
+    filepath = pytestconfig.rootpath.joinpath("duvet-specification")
     patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser.extract_toml_specs(patterns, path)
+    test_report = TomlRequirementParser.extract_toml_specs(patterns, filepath)
     # Verify one spec is added to the report object
     assert len(test_report.specifications.keys()) == 1
 
@@ -85,7 +85,7 @@ def test_missing_specs(tmp_path):
     actual_specifications = actual_report.specifications
     actual_specification = actual_specifications.get("../duvet-python/spec/spec.txt")
     assert actual_specification.title == "spec.txt"
-    assert actual_specification.spec_dir == "../duvet-python/spec/spec.txt"
+    assert actual_specification.source == "../duvet-python/spec/spec.txt"
     # Verify one section is added to the report object
     assert (
         actual_specifications.get("../duvet-python/spec/spec.txt")
@@ -114,25 +114,25 @@ def test_extract_spec_toml(tmp_path):
     )
     assert (
         actual_requirements.get(
-            "../duvet-python/spec/spec.txt#2.2.1$The\nname of the sections MUST NOT be nested.\n"
+            "../duvet-python/spec/spec.txt#2.2.1$The name of the sections MUST NOT be nested."
         ).content
-        == "The\nname of the sections MUST NOT be nested.\n"
+        == "The name of the sections MUST NOT be nested."
     )
     assert (
         actual_requirements.get(
-            "../duvet-python/spec/spec.txt#2.2.1$A requirements section MUST\n" "be the top level containing header.\n"
+            "../duvet-python/spec/spec.txt#2.2.1$A requirements section MUST " "be the top level containing header."
         ).content
-        == "A requirements section MUST\nbe the top level containing header.\n"
+        == "A requirements section MUST be the top level containing header."
     )
     assert (
         actual_requirements.get(
-            "../duvet-python/spec/spec.txt#2.2.1$A header MUST NOT itself be a\nrequirement.\n"
+            "../duvet-python/spec/spec.txt#2.2.1$A header MUST NOT itself be a requirement."
         ).content
-        == "A header MUST NOT itself be a\nrequirement.\n"
+        == "A header MUST NOT itself be a requirement."
     )
     assert (
         actual_requirements.get(
-            "../duvet-python/spec/spec.txt#2.2.1$A section MUST be indexable by combining different levels of naming.\n"
+            "../duvet-python/spec/spec.txt#2.2.1$A section MUST be indexable by combining different levels of naming."
         ).content
-        == "A section MUST be indexable by combining different levels of naming.\n"
+        == "A section MUST be indexable by combining different levels of naming."
     )

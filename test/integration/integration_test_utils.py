@@ -5,8 +5,10 @@ import os
 import pathlib
 from typing import Optional
 
-PATH_TO_ESDK_SPEC_KEY = "PATH_TO_ESDK_SPEC"
+PATH_TO_ESDK_DAFNY_KEY = "PATH_TO_ESDK_DAFNY"
 ESDK_SPEC_MD_PATTERNS = ["framework/**/*.md", "client-apis/*.md", "data-format/*.md"]
+ESDK_SPEC_RFC_PATTERNS = ["compliance/**/*.txt"]
+ESDK_SPEC_FILE_COUNT = 33  # there are 33 markdown specifications in the ESDK spec
 
 
 def _get_env_key(key: str) -> str:
@@ -16,7 +18,7 @@ def _get_env_key(key: str) -> str:
     return value
 
 
-def get_path_to_esdk_spec() -> pathlib.Path:
-    """Retrieves path to AWS Encryption SDK Specification"""
-    value: str = _get_env_key(PATH_TO_ESDK_SPEC_KEY)
+def get_path_to_esdk_dafny() -> pathlib.Path:
+    """Retrieves path to AWS Encryption SDK Dafny"""
+    value: str = _get_env_key(PATH_TO_ESDK_DAFNY_KEY)
     return pathlib.Path(value)
