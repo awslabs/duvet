@@ -1,13 +1,14 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Methods and classes for parsing Specification files."""
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta, abstractmethod  # isort: skip
 from pathlib import Path
 from re import Match
 from typing import Iterator, TypeVar, Union
 
-from anytree import NodeMixin
-from attr import define, field
+# We don't really need to check the type of third party library.
+import anytree  # type: ignore[import] # pylint: disable=E0401
+from attrs import define, field
 
 MAX_HEADER_LEVELS: str = str(4)
 SpanT = TypeVar("SpanT", bound="Span")
@@ -31,11 +32,21 @@ class Span:
     def from_match(match: Match) -> SpanT:
         """Span from Match."""
         start, end = match.span()
-        return Span(start, end)
+        return Span(start, end)  # type: ignore[return-value]
+        # False positive on abstract type.
+
+    def add_start(self, new_span: SpanT) -> SpanT:
+        """Span add start from new span."""
+        return Span(self.start + new_span.start, self.end + new_span.start)  # type: ignore[return-value]
+        # False positive on abstract type.
+
+    def to_string(self, quotes: str) -> str:
+        """Get string from span."""
+        return quotes[self.start : self.end]
 
 
 @define
-class SpecificationElement(NodeMixin):
+class SpecificationElement(anytree.NodeMixin):
     """Either a Specification file or header in a Specification file."""
 
     level: int = field(init=True, repr=False)
@@ -101,11 +112,10 @@ class SpecificationHeader(SpecificationElement, metaclass=ABCMeta):
     def validate(self) -> bool:
         """Check that all needed fields are set and reasonable."""
         # fmt: off
-        return (
-            self.body_span is not None
-            and self.title_span is not None
-            and len(self.root.content) >= self.body_span.end
-        )
+        return (self.body_span is not None
+                and self.title_span is not None
+                and len(self.root.content) >= self.body_span.end
+                )
         # fmt: on
 
 
@@ -123,7 +133,7 @@ class ParsedSpecification(SpecificationElement, metaclass=ABCMeta):
     """
 
     filepath: Path = field(init=True, repr=False)
-    cursor: Union[SpecificationHeader, ParsedSpecificationT] = field(init=False, repr=False)
+    cursor: Union[SpecificationHeader, ParsedSpecificationT] = field(init=False, repr=False)  # type: ignore[valid-type]
     content: str = field(init=False, repr=False)
 
     @staticmethod

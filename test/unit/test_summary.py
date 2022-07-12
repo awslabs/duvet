@@ -37,13 +37,13 @@ def actual_section() -> Section:
 
 class TestSummaryReport:
     def test_analyze_incomplete_stats(self, under_test, tmp_path, actual_section, actual_requirement):
-        assert under_test._analyze_stats(actual_section) == TABLE
+        assert under_test.analyze_stats(actual_section) == TABLE
 
         # Requirement MUST be in summary if not completes.
         incomplete_table = copy.deepcopy(TABLE)
         incomplete_table[0][2], incomplete_table[0][3] = 1, 1
         actual_section.add_requirement(actual_requirement)
-        assert under_test._analyze_stats(actual_section) == incomplete_table
+        assert under_test.analyze_stats(actual_section) == incomplete_table
 
     def test_analyze_complete_stats(self, under_test, tmp_path, actual_requirement, actual_section):
         # Requirement MUST be in marked complete if we have both implementation and test.
@@ -57,4 +57,17 @@ class TestSummaryReport:
         actual_requirement.add_annotation(citation_annotation)
         actual_requirement.add_annotation(test_annotation)
         assert actual_requirement.analyze_annotations()
-        assert under_test._analyze_stats(actual_section) == complete_table
+        assert under_test.analyze_stats(actual_section) == complete_table
+
+
+# //= compliance/duvet-specification.txt#2.5
+# //= type=test
+# //# Duvet MUST analyze the matching annotations, generating Matching Labels.
+
+# //= compliance/duvet-specification.txt#2.5
+# //= type=test
+# //# Duvet MUST label requirements matched to annotations as follows:
+
+# //= compliance/duvet-specification.txt#2.5
+# //= type=test
+# //# Matching Labels MAY be exclusive.
