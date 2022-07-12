@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """duvet-python."""
 
-from .cli import cli
+from duvet.cli import __version__, cli
 
 __all__ = ("__version__", "cli")
-
-__version__ = "1.0.0"
-_DEBUG = "INPUT_DEBUG"
-_CONFIG_FILE = "INPUT_CONFIG-FILE"
