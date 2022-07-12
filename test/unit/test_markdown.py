@@ -45,7 +45,7 @@ class TestMarkdownHeader:
     )
     def test_from_line(line: str, level: int, title: str):
         expected = MarkdownHeader(level, title)
-        actual = MarkdownHeader.from_line(line)
+        actual: MarkdownHeader = MarkdownHeader.from_line(line)
         assert actual.level == expected.level
         assert actual.title == expected.title
 
@@ -122,7 +122,9 @@ class TestMarkdownSpecification:
 
     @staticmethod
     def execute(filepath: pathlib.Path, markdown_block: str, get_expected_top: Callable[[], List[MarkdownHeader]]):
-        actual = MarkdownSpecification.parse(filepath=populate_file(filepath, markdown_block, "markdown.md"))
+        actual: MarkdownHeader = MarkdownSpecification.parse(
+            filepath=populate_file(filepath, markdown_block, "markdown.md")
+        )
         expected_top: List[MarkdownHeader] = get_expected_top()
         # Verify that the tree is correct by checking against the expected titles
         assert [hdr.title for hdr in actual.children] == [hdr.title for hdr in expected_top]
@@ -144,12 +146,12 @@ class TestMarkdownSpecification:
         )
 
         def get_expected_top() -> List[MarkdownHeader]:
-            top = MarkdownHeader.from_line("# Main Title")
+            top: MarkdownHeader = MarkdownHeader.from_line("# Main Title")
             top.add_child(MarkdownHeader.from_line("## A Section"))
             top.add_child(MarkdownHeader.from_line("## Another Section"))
             top.children[0].add_child(MarkdownHeader.from_line("### A Sub Section"))
             top.add_child(MarkdownHeader.from_line("## Another Another Section"))
-            another_top = MarkdownHeader.from_line("# Another Title")
+            another_top: MarkdownHeader = MarkdownHeader.from_line("# Another Title")
             return [top, another_top]
 
         TestMarkdownSpecification.execute(tmp_path, markdown_block, get_expected_top)
@@ -159,7 +161,7 @@ class TestMarkdownSpecification:
         markdown_block = "\n# Main Title\n\n### A Sub Section\n\n### Another Sub Section\n\n## A Section\n"
 
         def get_expected_top() -> List[MarkdownHeader]:
-            top = MarkdownHeader.from_line("# Main Title")
+            top: MarkdownHeader = MarkdownHeader.from_line("# Main Title")
             top.add_child(MarkdownHeader.from_line("### A Sub Section"))
             top.add_child(MarkdownHeader.from_line("### Another Sub Section"))
             top.add_child(MarkdownHeader.from_line("## A Section"))
@@ -172,7 +174,7 @@ class TestMarkdownSpecification:
         markdown_block = "\n## A Section\n\n### A Sub Section\n\n## Another Section\n\n# A Title"
 
         def get_expected_top() -> List[MarkdownHeader]:
-            rtn = [MarkdownHeader.from_line("## A Section")]
+            rtn: list = [MarkdownHeader.from_line("## A Section")]
             rtn[0].add_child(MarkdownHeader.from_line("### A Sub Section"))
             rtn.append(MarkdownHeader.from_line("## Another Section"))
             rtn.append(MarkdownHeader.from_line("# A Title"))
@@ -185,10 +187,10 @@ class TestMarkdownSpecification:
         markdown_block = "\n# Main Title\n\n## A Section\n\n### A Sub Section\n\n# Another Title\n"
 
         def get_expected_top() -> List[MarkdownHeader]:
-            top = MarkdownHeader.from_line("# Main Title")
+            top: MarkdownHeader = MarkdownHeader.from_line("# Main Title")
             top.add_child(MarkdownHeader.from_line("## A Section"))
             top.children[0].add_child(MarkdownHeader.from_line("### A Sub Section"))
-            another_top = MarkdownHeader.from_line("# Another Title")
+            another_top: MarkdownHeader = MarkdownHeader.from_line("# Another Title")
             return [top, another_top]
 
         TestMarkdownSpecification.execute(tmp_path, markdown_block, get_expected_top)
