@@ -17,8 +17,8 @@ from attrs import define, field
 
 from duvet._config import Config
 from duvet.identifiers import AnnotationType
-from duvet.refs_json import REFS_JSON
-from duvet.structures import Annotation, Report, Requirement, Section, Specification
+from duvet.refs_json import CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES, REFS_JSON
+from duvet.structures import Annotation, Report, Requirement, Section, Span, Specification
 
 
 class RefStatus:
@@ -36,19 +36,19 @@ class RefStatus:
         """Get dictionary of refs from RefStatus Object."""
         result: dict = {}
         if self.spec:
-            result["spec"] = self.spec
+            result.update({"spec": self.spec})
         if self.citation:
-            result["citation"] = self.citation
+            result.update({"citation": self.citation})
         if self.implication:
-            result["implication"] = self.implication
+            result.update({"implication": self.implication})
         if self.test:
-            result["test"] = self.test
+            result.update({"test": self.test})
         if self.exception:
-            result["exception"] = self.exception
+            result.update({"exception": self.exception})
         if self.todo:
-            result["todo"] = self.todo
+            result.update({"todo": self.todo})
         if self.level is not None:
-            result["level"] = self.level
+            result.update({"level": self.level})
 
         return result
 
@@ -69,20 +69,20 @@ class RefStatus:
         """Get dictionary of status from RefStatus Object."""
         result: dict = {}
         if self.spec:
-            result["spec"] = len(requirement.content)
+            result.update({"spec": len(requirement.content)})
         if self.citation:
-            result["citation"] = len(requirement.content)
+            result.update({"citation": len(requirement.content)})
         if self.implication:
-            result["implication"] = len(requirement.content)
+            result.update({"implication": len(requirement.content)})
         if self.test:
-            result["test"] = len(requirement.content)
+            result.update({"test": len(requirement.content)})
         if self.exception:
-            result["exception"] = len(requirement.content)
+            result.update({"exception": len(requirement.content)})
         if self.todo:
-            result["todo"] = len(requirement.content)
+            result.update({"todo": len(requirement.content)})
 
         if len(annotation_indexes) > 0:
-            result["related"] = annotation_indexes
+            result.update({"related": annotation_indexes})
 
         return result
 
@@ -98,6 +98,37 @@ class JSONReport:
     statuses: dict = field(init=False, default=attr.Factory(dict))
     refs: list[dict] = REFS_JSON
 
+    @staticmethod
+    def from_lines(quotes, lines) -> list[list]:
+        """Given a span of content, return a list of key word arguments of requirement."""
+        requirements: list = []
+        requirement_dict: dict = {}
+        new_lines: list = []
+
+        # Find requirement in the quotes.
+        prev = 0
+        index = 0
+        while index < len(lines):
+            line = lines[index]
+            start = quotes.find(line[0][2])
+            end = start + len(quotes) - 1
+            requirement = Span(start, end)
+            requirements.append(requirement)
+            requirement_dict[requirement.start] = index
+            index += 1
+
+        for requirement in requirements:
+            if requirement.start <= prev:
+                pass
+            else:
+                new_lines.append(quotes[prev: requirement.start])
+            new_lines.append(lines[requirement_dict[requirement.start]])
+            prev = requirement.end
+        if prev < len(quotes) - 1:
+            new_lines.append(quotes[prev: len(quotes) - 1])
+
+        return new_lines
+
     def _from_section(self, section: Section) -> dict:
         # Half basked section dictionary.
         section_dict: dict = {
@@ -106,15 +137,20 @@ class JSONReport:
             "lines": section.lines,
         }
 
+        # Get quotes from line.
         lines: list = []
+        section_lines = [line[1:] for line in section.lines[1:]]
+        quotes = "".join(section_lines)
 
         # Add specification index number if section has requirements.
         if section.has_requirements:
-            requirement_index: list = []
+            requirement_index = []
             for requirement in section.requirements.values():
                 requirement_index.append(self.from_requirement(requirement, section, lines))
-            section_dict.update({"requirements": requirement_index, "lines": lines})
 
+            lines = self.from_lines(quotes, lines)
+
+            section_dict.update({"requirements": requirement_index, "lines": lines})
         return section_dict
 
     def _from_sections(self, sections_dict: dict) -> List[List]:
@@ -127,6 +163,8 @@ class JSONReport:
             sections.append(section_dict)
             requirements.extend(section_dict.get("requirements", []))
 
+        sections.extend([CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES])
+        sections = sorted(sections, key=lambda d: d["id"])
         return [sections, requirements]
 
     def from_specification(self, specification: Specification) -> str:
@@ -157,12 +195,12 @@ class JSONReport:
 
         Return index in the self.requirements.
         """
-        source: str = requirement.uri.split("#", 1)[0]
-        target_path: str = requirement.uri.split("#", 1)[0]
-        target_section: str = section.title
+        source = requirement.uri.split("#", 1)[0]
+        target_path = requirement.uri.split("#", 1)[0]
+        target_section = section.title
 
         # Set up ref based on the requirement.
-        new_ref: RefStatus = RefStatus()
+        new_ref = RefStatus()
         new_ref.spec = True
         new_ref.level = requirement.requirement_level.name
 
@@ -204,24 +242,24 @@ class JSONReport:
 
     def from_annotation(self, annotation: Annotation) -> int:
         """Parse annotation dictionary from annotation object."""
+        source = annotation.source
+        target_path = annotation.target.split("#", 1)[0]
+        target_section = annotation.target.split("#", 1)[1]
+        line = annotation.start_line
 
-        target_path: str = annotation.target.split("#", 1)[0]
-        target_section: str = annotation.target.split("#", 1)[1]
-        line: int = annotation.start_line + 1
-
-        annotation_dict: dict = {
-            "source": annotation.source,
+        result = {
+            "source": source,
             "target_path": target_path,
             "target_section": target_section,
             "line": line,
             "type": annotation.type.name,
         }
 
-        self.annotations.append(annotation_dict)
+        self.annotations.append(result)
         return len(self.annotations) - 1
 
     def _get_dictionary(self) -> dict:
-        report_dict: dict = {
+        result = {
             "blob_link": self.blob_link,
             "issue_link": self.issue_link,
             "specifications": self.specifications,
@@ -229,7 +267,7 @@ class JSONReport:
             "statuses": self.statuses,
             "refs": self.refs,
         }
-        return report_dict
+        return result
 
     def write_json(self, json_path: str = "duvet-result.json"):
         """Write json file."""

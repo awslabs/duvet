@@ -7,6 +7,7 @@ import pathlib
 import attr
 import click
 from attrs import define, field
+
 # Backport of Python standard library importlib.resources module for older Pythons
 from importlib_resources import files  # type: ignore[import]
 

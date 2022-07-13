@@ -96,7 +96,7 @@ class TestJSONReport:
         assert actual_index == 0
         assert actual_json.annotations == [
             {
-                "line": 2,
+                "line": 1,
                 "source": "code.py",
                 "target_path": "test_target.md",
                 "target_section": "target",
@@ -133,7 +133,7 @@ class TestJSONReport:
         actual_specification.add_section(actual_section)
         sections, requirements = actual_json._from_sections(actual_specification.sections)
 
-        assert len(sections) == 1
+        assert len(sections) == 3
         assert len(requirements) == 1
 
     def test_from_specification(self, actual_json, actual_specification, actual_section, actual_requirement):
@@ -144,7 +144,7 @@ class TestJSONReport:
         actual_json.from_specification(actual_specification)
         specification_dict = actual_json.specifications.get(actual_specification.source)
 
-        assert len(specification_dict.get("sections")) == 1
+        assert len(specification_dict.get("sections")) == 3
         assert len(specification_dict.get("requirements")) == 1
 
     def test_from_report(self, actual_json, actual_specification, actual_section, actual_requirement):

@@ -64,6 +64,6 @@ def test_hello_world(pytestconfig, caplog):
     actual_json.write_json()
     assert len(actual_json.specifications.keys()) == 1
     actual_specification = actual_json.specifications.get("compliance/hello-world.txt")
-    assert len(actual_specification.get("sections")) == 1
+    assert len(actual_specification.get("sections")) == 3
     assert len(actual_specification.get("requirements")) == 2
     assert len(actual_json.annotations) == 3
