@@ -139,7 +139,7 @@ class JSONReport:
         return new_lines
 
     def _process_section(self, section: Section) -> dict:
-        # Half-baked section dictionary.
+        """Convert Section to HTML report JSON"""
         section_dict: dict = {
             "id": section.uri.split("#", 1)[1],
             "title": section.title,
