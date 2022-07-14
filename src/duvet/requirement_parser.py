@@ -97,7 +97,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = self.body[quote_span.start: quote_span.end]
+        quotes = self.body[quote_span.start : quote_span.end]
         list_match = re.search(self._list_entry_regex, quotes)
         # Handover to process_inline if no list identifier found.
         if list_match is None:
@@ -114,7 +114,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        right_punc = quotes[span.end:].find("\n\n")
+        right_punc = quotes[span.end :].find("\n\n")
         if right_punc != -1:
             list_block.end = span.end + right_punc
 
@@ -131,7 +131,7 @@ class RequirementParser:
     def process_inline(self, quote_span: Span) -> list[dict]:
         """Given a span of content, return a list of key word arguments of requirement."""
 
-        quotes = preprocess_text(self.body[quote_span.start: quote_span.end])
+        quotes = preprocess_text(self.body[quote_span.start : quote_span.end])
         requirement_candidates: list = []
         req_kwargs: list = []
 
@@ -146,16 +146,16 @@ class RequirementParser:
             left_punc = quotes[: identifier_span.start].rfind(STOP_SIGN)
             if left_punc != -1:
                 sentence_span.start = left_punc
-            right_punc = quotes[identifier_span.end:].find(STOP_SIGN)
+            right_punc = quotes[identifier_span.end :].find(STOP_SIGN)
             if right_punc != -1:
                 sentence_span.end = identifier_span.end + right_punc
             if left_punc != -1 and right_punc != -1:
                 req = (
-                    quotes[sentence_span.start: sentence_span.end]
-                        .strip("\n")
-                        .replace("\n", " ")
-                        .replace(STOP_SIGN, "")
-                        .strip()
+                    quotes[sentence_span.start : sentence_span.end]
+                    .strip("\n")
+                    .replace("\n", " ")
+                    .replace(STOP_SIGN, "")
+                    .strip()
                 )
                 if req.endswith((".", "!")):
                     req_kwarg = {
@@ -170,7 +170,7 @@ class RequirementParser:
 
     def process_list_block(self, quote_span: Span) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = self.body[quote_span.start: quote_span.end]
+        quotes = self.body[quote_span.start : quote_span.end]
         result: list[Dict] = []
         # Find the end of the list using the "\n\n".
         end_of_list = quotes.rfind("\n\n") + 2
@@ -252,6 +252,7 @@ class RequirementParser:
             result.update({"requirement_level": None})
             logging.info("No RFC2019 Keywords found in %s", req_line)
         return result
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication

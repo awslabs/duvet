@@ -42,12 +42,12 @@ def preprocess_text(inline_text: str) -> str:
         processed_text = processed_text.replace('?"', '"?')
     processed_text = (
         processed_text.replace(". ", ". <stop>")
-        .replace("? ", "? <stop>")
-        .replace("! ", "! <stop>")
-        .replace(".\n", ".\n<stop>")
-        .replace("?\n", "?\n<stop>")  # noqa: E131
-        .replace("!\n", "!\n<stop>")
-        .replace("<prd>", ".")
+            .replace("? ", "? <stop>")
+            .replace("! ", "! <stop>")
+            .replace(".\n", ".\n<stop>")
+            .replace("?\n", "?\n<stop>")  # noqa: E131
+            .replace("!\n", "!\n<stop>")
+            .replace("<prd>", ".")
     )
     return processed_text
 
@@ -57,3 +57,14 @@ def clean_content(content: str) -> str:
 
     cleaned_content = content.replace("\n", " ").strip()
     return cleaned_content
+
+
+def split_long(para: str) -> list[str]:
+    lines = []
+    line = ''
+    for sentence in (s.strip() + '.' for s in para.split('.')[:-1]):
+        if len(line) + len(sentence) + 1 >= 80:  # can't fit on that line => start new one
+            lines.append(line)
+            line = sentence
+        else:  # can fit on => add a space then this sentence
+            line += ' ' + sentence

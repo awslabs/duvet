@@ -12,8 +12,8 @@ from attr import define
 
 from duvet.formatter import clean_content
 from duvet.identifiers import RequirementLevel
-from duvet.structures import Report, Requirement, Section, Specification
 from duvet.rfc import RFCHeader
+from duvet.structures import Report, Requirement, Section, Specification
 
 _LOGGER = logging.getLogger(__name__)
 __all__ = ["TomlRequirementParser"]

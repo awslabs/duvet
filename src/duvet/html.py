@@ -14,7 +14,7 @@ DEFAULT_HTML_PATH = "duvet-report.html"
 DEFAULT_JSON_PATH = "duvet-result.json"
 
 # Backport of Python standard library importlib.resources module for older Pythons
-from importlib_resources import files
+from importlib.resources import files
 
 
 @define
@@ -58,6 +58,7 @@ class HTMLReport:
         # Return HTML path
         full_html_path = str(pathlib.Path(html_path).resolve())
         return full_html_path
+
 
 # //= compliance/duvet-specification.txt#2.6.3
 # //= type=implication
@@ -108,7 +109,3 @@ class HTMLReport:
 # //= compliance/duvet-specification.txt#2.6.5
 # //= type=implication
 # //# Any highlighted text MUST have a mouse over that shows its annotation information.
-
-
-
-

@@ -103,7 +103,8 @@ class MDSpec:
                 self.spec.add_section(md_section.section)
         return self.spec
 
-#//= compliance/duvet-specification.txt#2.2.1
+
+# //= compliance/duvet-specification.txt#2.2.1
 # //# The name of the sections MUST NOT be nested.
 
 # //= compliance/duvet-specification.txt#2.2.1
