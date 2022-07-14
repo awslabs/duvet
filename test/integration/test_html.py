@@ -42,8 +42,7 @@ def actual_config(tmp_path) -> Config:
 
 def test_against_duvet(pytestconfig, caplog, tmp_path, actual_config):
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
-    patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
+    test_report = TomlRequirementParser().extract_toml_specs("compliance/**/*.toml", filepath)
 
     # Parse annotations from implementation files.
     actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
@@ -68,8 +67,7 @@ def test_hello_world(pytestconfig, caplog, tmp_path, actual_config):
     # Parse specifications from toml files.
     filepath = pytestconfig.rootpath.joinpath("examples/hello-world/hello-world-specification")
     caplog.set_level(logging.INFO)
-    patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
+    test_report = TomlRequirementParser().extract_toml_specs("compliance/**/*.toml", filepath)
 
     # Parse annotations from implementation files.
     actual_paths = list(pytestconfig.rootpath.joinpath("examples/hello-world/").glob("src/**/*.py"))
