@@ -80,7 +80,7 @@ def citation() -> Annotation:
 @pytest.fixture
 def actual_section() -> Section:
     section = Section("target", "test_target.md#target", 1, 3)
-    section.lines = ["#target", "content"]
+    section.lines = ["1. target", "content"]
     return section
 
 
@@ -124,7 +124,7 @@ class TestJSONReport:
     def test_from_section(self, actual_json, actual_section):
         assert actual_json._from_section(actual_section) == {
             "id": "target",
-            "lines": ["#target", "content"],
+            "lines": ["1. target", "content"],
             "title": "target",
         }
 

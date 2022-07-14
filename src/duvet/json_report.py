@@ -19,7 +19,7 @@ from duvet._config import Config
 from duvet.formatter import clean_content
 from duvet.identifiers import AnnotationType
 from duvet.refs_json import CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES, REFS_JSON
-from duvet.structures import Annotation, Report, Requirement, Section, Specification, Span
+from duvet.structures import Annotation, Report, Requirement, Section, Span, Specification
 
 
 class RefStatus:
@@ -122,12 +122,11 @@ class JSONReport:
             if requirement.start <= prev:
                 new_lines.append(lines[requirement_dict[requirement.start]])
             else:
-                new_lines.append(clean_content(quotes[prev: requirement.start]))
+                new_lines.append(clean_content(quotes[prev : requirement.start]))
                 new_lines.append(lines[requirement_dict[requirement.start]])
             prev = requirement.end
         if prev < len(quotes) - 1:
-            new_lines.append(clean_content(quotes[prev: len(quotes) - 1]))
-
+            new_lines.append(clean_content(quotes[prev : len(quotes) - 1]))
         return new_lines
 
     def _from_section(self, section: Section) -> dict:
@@ -143,6 +142,10 @@ class JSONReport:
         section_lines = [line[1:] for line in section.lines[1:]]
         quotes = "".join(section_lines)
         quotes = clean_content(quotes)
+
+        title_line = section.lines[0]
+        title = title_line.rsplit(maxsplit=1)[1]
+        section_dict["title"] = title
 
         # Add specification index number if section has requirements.
         if section.has_requirements:
