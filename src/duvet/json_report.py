@@ -13,6 +13,7 @@ from typing import List, Optional
 import attr
 from attrs import define, field
 
+from duvet._config import Config
 from duvet.formatter import clean_content
 from duvet.identifiers import DEFAULT_JSON_PATH, AnnotationType
 from duvet.refs_json import CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES, REFS_JSON
@@ -89,18 +90,20 @@ class RefStatus:
 class JSONReport:
     """Container of JSON report."""
 
-    report: Report = field(init=True)
-    blob_link: str = field(init=False, default="https://github.com/awslabs/duvet/blob/")
-    issue_link: str = field(init=False, default="https://github.com/awslabs/duvet/issues")
+    blob_link: str = field(init=True)
+    issue_link: str = field(init=True)
     specifications: dict = field(init=False, default=attr.Factory(dict))
     annotations: list = field(init=False, default=attr.Factory(list))
     statuses: dict = field(init=False, default=attr.Factory(dict))
     refs: list[dict] = REFS_JSON
 
-    def __attrs_post_init__(self):
-        """Parse attributes from report."""
-        for specifications in self.report.specifications.values():
-            self._process_specification(specifications)
+    @classmethod
+    def create(cls, report: Report, config: Config):
+        """Create a JSON Report."""
+        rtn = JSONReport(blob_link=config.blob_url, issue_link=config.issue_url)
+        for specification in report.specifications.values():
+            rtn._process_specification(specification)
+        return rtn
 
     @staticmethod
     def _process_lines(quotes: str, lines: list) -> list[list]:
@@ -139,10 +142,9 @@ class JSONReport:
         return new_lines
 
     def _process_section(self, section: Section) -> dict:
-        """Convert Section to HTML report JSON"""
+        """Convert Section to HTML report JSON."""
         section_dict: dict = {
             "id": section.uri.split("#", 1)[1],
-            "title": section.title,
             "lines": section.lines,
         }
 
@@ -182,7 +184,7 @@ class JSONReport:
         return [sections, requirements]
 
     def _process_specification(self, specification: Specification):
-        """Parse attributes from specification."""
+        """Serialize attributes from specification."""
         sections, requirements = self._process_sections(specification.sections)
 
         # Create specification dictionary
@@ -193,7 +195,7 @@ class JSONReport:
         return specification.source
 
     def _process_requirement(self, requirement: Requirement, section: Section, lines: list) -> int:
-        """Parse attributes from requirements.
+        """Serialize attributes from requirements.
 
         Return index in the self.requirements.
         """
@@ -243,7 +245,7 @@ class JSONReport:
         return len(self.annotations) - 1
 
     def _process_annotation(self, annotation: Annotation) -> int:
-        """Parse annotation dictionary from annotation object."""
+        """Serialize annotation dictionary from annotation object."""
         source = annotation.source
         target_path = annotation.target.split("#", 1)[0]
         target_section = annotation.target.split("#", 1)[1]

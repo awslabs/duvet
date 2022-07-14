@@ -2,9 +2,12 @@ import copy
 
 import pytest
 
+from duvet._config import Config
 from duvet.identifiers import AnnotationType, RequirementLevel
 from duvet.json_report import JSONReport
 from duvet.structures import Annotation, Report, Requirement, Section, Specification
+
+from ..utils import populate_file  # isort: skip
 
 pytestmark = [pytest.mark.local, pytest.mark.unit]
 
@@ -18,6 +21,22 @@ VALID_KWARGS: dict = {
     "uri": "test_target.md#target$content",
     "source": "code.py",
 }
+
+SPEC_BLOCK = """[spec.markdown]
+patterns = ["project-specification/**/*.md"]"""
+
+IMPL_BLOCK = """[implementation]
+[implementation.rs]
+patterns = ["src/**/*.rs", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
+comment-style = { meta = "//=", content = "//#" }
+[implementation.dfy]
+patterns = ["src/**/*.dfy", "test/**/*.dfy", "compliance_exceptions/**/*.txt"]"""
+
+REPORT_BLOCK = """[report]
+[report.blob]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/blob/"]
+[report.issue]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
 
 REF_STATUS: dict = {
     "spec": bool,
@@ -85,8 +104,16 @@ def actual_section() -> Section:
 
 
 @pytest.fixture
-def actual_json(actual_report: Report):
-    return JSONReport(actual_report)
+def actual_config(tmp_path) -> Config:
+    actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
+    with pytest.warns(UserWarning):
+        actual_config = Config.parse(str(actual_path.resolve()))
+    return actual_config
+
+
+@pytest.fixture
+def actual_json(actual_report: Report, actual_config: Config):
+    return JSONReport.create(actual_report, actual_config)
 
 
 class TestJSONReport:

@@ -5,14 +5,41 @@ import logging
 
 import pytest
 
+from duvet._config import Config
 from duvet.annotation_parser import AnnotationParser
 from duvet.json_report import JSONReport
 from duvet.spec_toml_parser import TomlRequirementParser
 
+from ..utils import populate_file  # isort: skip
+
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
+SPEC_BLOCK = """[spec.markdown]
+patterns = ["project-specification/**/*.md"]"""
 
-def test_against_duvet(pytestconfig):
+IMPL_BLOCK = """[implementation]
+[implementation.rs]
+patterns = ["src/**/*.rs", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
+comment-style = { meta = "//=", content = "//#" }
+[implementation.dfy]
+patterns = ["src/**/*.dfy", "test/**/*.dfy", "compliance_exceptions/**/*.txt"]"""
+
+REPORT_BLOCK = """[report]
+[report.blob]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/blob/"]
+[report.issue]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
+
+
+@pytest.fixture
+def actual_config(tmp_path) -> Config:
+    actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
+    with pytest.warns(UserWarning):
+        actual_config = Config.parse(str(actual_path.resolve()))
+    return actual_config
+
+
+def test_against_duvet(pytestconfig, actual_config):
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
     patterns = "compliance/**/*.toml"
     test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
@@ -32,12 +59,12 @@ def test_against_duvet(pytestconfig):
     assert counter > 0
     test_report.analyze_annotations()
 
-    actual_json = JSONReport(test_report)
+    actual_json = JSONReport.create(test_report, actual_config)
     actual_json.write_json()
     assert len(actual_json.specifications.keys()) == 1
 
 
-def test_hello_world(pytestconfig, caplog):
+def test_hello_world(pytestconfig, caplog, actual_config):
     # Parse specifications from toml files.
     filepath = pytestconfig.rootpath.joinpath("examples/hello-world/hello-world-specification")
     caplog.set_level(logging.INFO)
@@ -58,7 +85,7 @@ def test_hello_world(pytestconfig, caplog):
     assert counter > 0
     test_report.analyze_annotations()
 
-    actual_json = JSONReport(test_report)
+    actual_json = JSONReport.create(test_report, actual_config)
     actual_json.write_json()
     assert len(actual_json.specifications.keys()) == 1
     actual_specification = actual_json.specifications.get("compliance/hello-world.txt")
