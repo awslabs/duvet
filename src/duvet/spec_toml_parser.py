@@ -92,6 +92,7 @@ class TomlRequirementParser:
         temp_sec: Section,
     ):
         # Parse the attributes in Requirement.
+        # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme
         for req in requirements:
             try:
                 level: str = req.get(TOML_REQ_LEVEL_KEY)  # type: ignore[assignment] # will raise AttributeError

@@ -5,9 +5,7 @@
 Assumptions:
 1. This json is based on there is no change in the React file, which only support legacy mode.
 2. We will map the excused_exception and un_excused map to exception, because new mode is not supported by frontend.
-3. We try to use lines to get the content which is not supported in our implementation.
-4. We intentionally leave out the plain text of the sections, because it will introduce rfc parser which will
-be in the next PR
+3. We try to use comments in TOML to get the content
 """
 import json
 from typing import List, Optional
@@ -91,6 +89,7 @@ class RefStatus:
 class JSONReport:
     """Container of JSON report."""
 
+    report: Report = field(init=True)
     blob_link: str = field(init=False, default="https://github.com/awslabs/duvet/blob/")
     issue_link: str = field(init=False, default="https://github.com/awslabs/duvet/issues")
     specifications: dict = field(init=False, default=attr.Factory(dict))
@@ -98,8 +97,13 @@ class JSONReport:
     statuses: dict = field(init=False, default=attr.Factory(dict))
     refs: list[dict] = REFS_JSON
 
+    def __attrs_post_init__(self):
+        """Parse attributes from report."""
+        for specifications in self.report.specifications.values():
+            self._process_specification(specifications)
+
     @staticmethod
-    def from_lines(quotes: str, lines: list) -> list[list]:
+    def _process_lines(quotes: str, lines: list) -> list[list]:
         """Given a span of content, return a list of key word arguments of requirement."""
         requirements: list = []
         requirement_dict: dict = {}
@@ -128,7 +132,7 @@ class JSONReport:
             new_lines.append(clean_content(quotes[prev : len(quotes) - 1]))
         return new_lines
 
-    def _from_section(self, section: Section) -> dict:
+    def _process_section(self, section: Section) -> dict:
         # Half-baked section dictionary.
         section_dict: dict = {
             "id": section.uri.split("#", 1)[1],
@@ -150,20 +154,20 @@ class JSONReport:
         if section.has_requirements:
             requirement_index = []
             for requirement in section.requirements.values():
-                requirement_index.append(self.from_requirement(requirement, section, lines))
+                requirement_index.append(self._process_requirement(requirement, section, lines))
 
-            lines = self.from_lines(quotes, lines)
+            lines = self._process_lines(quotes, lines)
 
             section_dict.update({"requirements": requirement_index, "lines": lines})
         return section_dict
 
-    def _from_sections(self, sections_dict: dict) -> List[List]:
+    def _process_sections(self, sections_dict: dict) -> List[List]:
         sections: List[dict] = []
         requirements: List[int] = []
 
         # Get sections and requirements dictionary list from section objects.
         for section in sections_dict.values():
-            section_dict = self._from_section(section)
+            section_dict = self._process_section(section)
             sections.append(section_dict)
             requirements.extend(section_dict.get("requirements", []))
 
@@ -171,9 +175,9 @@ class JSONReport:
         sections = sorted(sections, key=lambda d: d["id"])
         return [sections, requirements]
 
-    def from_specification(self, specification: Specification) -> str:
+    def _process_specification(self, specification: Specification) -> str:
         """Parse attributes from specification."""
-        sections, requirements = self._from_sections(specification.sections)
+        sections, requirements = self._process_sections(specification.sections)
 
         # Create specification dictionary
         # and add it to self.specifications.
@@ -182,14 +186,7 @@ class JSONReport:
 
         return specification.source
 
-    def from_report(self, report: Report) -> dict:
-        """Parse attributes from report."""
-        for specifications in report.specifications.values():
-            self.from_specification(specifications)
-
-        return self._get_dictionary()
-
-    def from_requirement(self, requirement: Requirement, section: Section, lines: list) -> int:
+    def _process_requirement(self, requirement: Requirement, section: Section, lines: list) -> int:
         """Parse attributes from requirements.
 
         Return index in the self.requirements.
@@ -207,7 +204,7 @@ class JSONReport:
         annotation_indexes = []
         for annotation in requirement.matched_annotations:
             new_ref.from_annotation(annotation)
-            self.from_annotation(annotation)
+            self._process_annotation(annotation)
             annotation_indexes.append(len(self.annotations) - 1)
 
         line: list = []
@@ -239,7 +236,7 @@ class JSONReport:
 
         return len(self.annotations) - 1
 
-    def from_annotation(self, annotation: Annotation) -> int:
+    def _process_annotation(self, annotation: Annotation) -> int:
         """Parse annotation dictionary from annotation object."""
         source = annotation.source
         target_path = annotation.target.split("#", 1)[0]
@@ -257,7 +254,8 @@ class JSONReport:
         self.annotations.append(result)
         return len(self.annotations) - 1
 
-    def _get_dictionary(self) -> dict:
+    def get_dictionary(self) -> dict:
+        """Return final JSON data."""
         result = {
             "blob_link": self.blob_link,
             "issue_link": self.issue_link,
@@ -271,4 +269,4 @@ class JSONReport:
     def write_json(self, json_path: str = "duvet-result.json"):
         """Write json file."""
         with open(json_path, "w+", encoding="utf-8") as json_result:
-            json.dump(self._get_dictionary(), json_result)
+            json.dump(self.get_dictionary(), json_result)

@@ -32,7 +32,7 @@ def test_against_duvet(pytestconfig, caplog, tmp_path):
 
     actual_json = JSONReport()
     html_report = HTMLReport()
-    html_report.data = actual_json.from_report(test_report)
+    html_report.data = actual_json.process_report(test_report)
     html_path = html_report.write_html(f"{tmp_path}/duvet-report.html")
     assert html_path.endswith(".html")
 
@@ -56,8 +56,8 @@ def test_hello_world(pytestconfig, caplog, tmp_path):
     test_report.analyze_annotations()
 
     actual_json = JSONReport()
-    actual_json.from_report(test_report)
+    actual_json.process_report(test_report)
     html_report = HTMLReport()
-    html_report.data = actual_json.from_report(test_report)
+    html_report.data = actual_json.process_report(test_report)
     html_path = html_report.write_html(f"{tmp_path}/duvet-report.html")
     assert html_path.endswith(".html")

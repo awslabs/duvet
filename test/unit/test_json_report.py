@@ -85,13 +85,13 @@ def actual_section() -> Section:
 
 
 @pytest.fixture
-def actual_json():
-    return JSONReport()
+def actual_json(actual_report: Report):
+    return JSONReport(actual_report)
 
 
 class TestJSONReport:
     def test_from_annotation(self, actual_json, actual_section, citation):
-        actual_index = actual_json.from_annotation(citation)
+        actual_index = actual_json._process_annotation(citation)
 
         assert actual_index == 0
         assert actual_json.annotations == [
@@ -105,7 +105,7 @@ class TestJSONReport:
         ]
 
     def test_from_requirement(self, actual_json, actual_section, actual_requirement):
-        actual_index = actual_json.from_requirement(actual_requirement, actual_section, [])
+        actual_index = actual_json._process_requirement(actual_requirement, actual_section, [])
 
         # Verify requirement is added to annotation.
         assert actual_json.annotations == [
@@ -122,7 +122,7 @@ class TestJSONReport:
         assert actual_index == 0
 
     def test_from_section(self, actual_json, actual_section):
-        assert actual_json._from_section(actual_section) == {
+        assert actual_json._process_section(actual_section) == {
             "id": "target",
             "lines": ["1. target", "content"],
             "title": "target",
@@ -131,7 +131,7 @@ class TestJSONReport:
     def test_from_sections(self, actual_json, actual_specification, actual_section, actual_requirement):
         actual_section.add_requirement(actual_requirement)
         actual_specification.add_section(actual_section)
-        sections, requirements = actual_json._from_sections(actual_specification.sections)
+        sections, requirements = actual_json._process_sections(actual_specification.sections)
 
         assert len(sections) == 3
         assert len(requirements) == 1
@@ -141,16 +141,8 @@ class TestJSONReport:
         actual_section.add_requirement(actual_requirement)
         actual_specification.add_section(actual_section)
 
-        actual_json.from_specification(actual_specification)
+        actual_json._process_specification(actual_specification)
         specification_dict = actual_json.specifications.get(actual_specification.source)
 
         assert len(specification_dict.get("sections")) == 3
         assert len(specification_dict.get("requirements")) == 1
-
-    def test_from_report(self, actual_json, actual_specification, actual_section, actual_requirement):
-        # Setup specification for test.
-        actual_section.add_requirement(actual_requirement)
-        actual_specification.add_section(actual_section)
-        actual_report = Report()
-        actual_report.add_specification(actual_specification)
-        actual_json.from_report(actual_report)

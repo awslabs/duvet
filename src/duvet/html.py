@@ -11,7 +11,7 @@ from attrs import define, field
 
 from duvet.json_report import JSONReport
 
-DEFAULT_HTML_PATH = "duvet-report.html"
+DEFAULT_HTML_PATH = "specification_compliance_report.html"
 DEFAULT_JSON_PATH = "duvet-result.json"
 
 
@@ -22,7 +22,7 @@ class HTMLReport:
     json_report: JSONReport = field(init=False)
     data: dict = field(init=False, default=attr.Factory(dict))
 
-    def from_json(self, json_path=DEFAULT_JSON_PATH):
+    def process_json(self, json_path=DEFAULT_JSON_PATH):
         """Parse fata from JSON file."""
         with open(json_path, "r+", encoding="utf-8") as json_file:
             self.data = json.load(json_file)

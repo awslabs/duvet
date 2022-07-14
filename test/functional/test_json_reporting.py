@@ -32,8 +32,7 @@ def test_against_duvet(pytestconfig):
     assert counter > 0
     test_report.analyze_annotations()
 
-    actual_json = JSONReport()
-    actual_json.from_report(test_report)
+    actual_json = JSONReport(test_report)
     actual_json.write_json()
     assert len(actual_json.specifications.keys()) == 1
 
@@ -59,8 +58,7 @@ def test_hello_world(pytestconfig, caplog):
     assert counter > 0
     test_report.analyze_annotations()
 
-    actual_json = JSONReport()
-    actual_json.from_report(test_report)
+    actual_json = JSONReport(test_report)
     actual_json.write_json()
     assert len(actual_json.specifications.keys()) == 1
     actual_specification = actual_json.specifications.get("compliance/hello-world.txt")
