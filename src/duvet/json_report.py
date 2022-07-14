@@ -14,7 +14,7 @@ import attr
 from attrs import define, field
 
 from duvet.formatter import clean_content
-from duvet.identifiers import AnnotationType
+from duvet.identifiers import DEFAULT_JSON_PATH, AnnotationType
 from duvet.refs_json import CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES, REFS_JSON
 from duvet.structures import Annotation, Report, Requirement, Section, Span, Specification
 
@@ -104,7 +104,11 @@ class JSONReport:
 
     @staticmethod
     def _process_lines(quotes: str, lines: list) -> list[list]:
-        """Given a span of content, return a list of key word arguments of requirement."""
+        """Combine requirements and regular section sentences.
+
+        Given a string of all the words in sections and a list of requirements in list format.
+        Return a new list with both the requirement and regular section sentences.
+        """
         requirements: list = []
         requirement_dict: dict = {}
         new_lines: list = []
@@ -121,6 +125,8 @@ class JSONReport:
             requirement_dict[requirement.start] = index
             index += 1
 
+        # Add requirements and regular sentences to a new list.
+        # Following the order of appearance.
         for requirement in requirements:
             if requirement.start <= prev:
                 new_lines.append(lines[requirement_dict[requirement.start]])
@@ -175,7 +181,7 @@ class JSONReport:
         sections = sorted(sections, key=lambda d: d["id"])
         return [sections, requirements]
 
-    def _process_specification(self, specification: Specification) -> str:
+    def _process_specification(self, specification: Specification):
         """Parse attributes from specification."""
         sections, requirements = self._process_sections(specification.sections)
 
@@ -266,7 +272,7 @@ class JSONReport:
         }
         return result
 
-    def write_json(self, json_path: str = "duvet-result.json"):
+    def write_json(self, json_path: str = DEFAULT_JSON_PATH):
         """Write json file."""
         with open(json_path, "w+", encoding="utf-8") as json_result:
             json.dump(self.get_dictionary(), json_result)

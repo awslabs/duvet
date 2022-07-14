@@ -9,10 +9,8 @@ import attr
 import click
 from attrs import define, field
 
+from duvet.identifiers import DEFAULT_HTML_PATH, DEFAULT_JSON_PATH
 from duvet.json_report import JSONReport
-
-DEFAULT_HTML_PATH = "specification_compliance_report.html"
-DEFAULT_JSON_PATH = "duvet-result.json"
 
 
 @define
