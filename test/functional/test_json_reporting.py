@@ -29,7 +29,7 @@ def test_against_duvet(pytestconfig):
     for annotation in actual:
         if test_report.add_annotation(annotation):
             counter += 1
-    assert counter >= 0
+    assert counter > 0
     test_report.analyze_annotations()
 
     actual_json = JSONReport()
@@ -56,7 +56,7 @@ def test_hello_world(pytestconfig, caplog):
     for annotation in actual:
         if test_report.add_annotation(annotation):
             counter += 1
-    assert counter >= 0
+    assert counter > 0
     test_report.analyze_annotations()
 
     actual_json = JSONReport()

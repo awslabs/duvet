@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Integration testing for HTML writer."""
 import logging
-import pathlib
-from zipfile import Path
 
 import pytest
 

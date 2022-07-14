@@ -15,7 +15,6 @@ from typing import List, Optional
 import attr
 from attrs import define, field
 
-from duvet._config import Config
 from duvet.formatter import clean_content
 from duvet.identifiers import AnnotationType
 from duvet.refs_json import CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES, REFS_JSON
@@ -100,7 +99,7 @@ class JSONReport:
     refs: list[dict] = REFS_JSON
 
     @staticmethod
-    def from_lines(quotes, lines) -> list[list]:
+    def from_lines(quotes: str, lines: list) -> list[list]:
         """Given a span of content, return a list of key word arguments of requirement."""
         requirements: list = []
         requirement_dict: dict = {}
@@ -130,9 +129,9 @@ class JSONReport:
         return new_lines
 
     def _from_section(self, section: Section) -> dict:
-        # Half basked section dictionary.
+        # Half-baked section dictionary.
         section_dict: dict = {
-            "id": section.uri.split("#", 1)[1],  # This might break the front end, we will see.
+            "id": section.uri.split("#", 1)[1],
             "title": section.title,
             "lines": section.lines,
         }
@@ -182,11 +181,6 @@ class JSONReport:
         self.specifications.update(specification_dict)
 
         return specification.source
-
-    def from_config(self, config: Config):
-        """Parse attributes from Config."""
-        self.blob_link: str = config.blob_url
-        self.issue_link: str = config.issue_url
 
     def from_report(self, report: Report) -> dict:
         """Parse attributes from report."""

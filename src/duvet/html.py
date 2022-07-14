@@ -3,11 +3,11 @@
 """Html generator used by duvet-python."""
 import json
 import pathlib
+from importlib.resources import files
 
 import attr
 import click
 from attrs import define, field
-from importlib_resources import files  # type: ignore[import]
 
 from duvet.json_report import JSONReport
 
@@ -29,7 +29,7 @@ class HTMLReport:
 
     def write_html(self, html_path=DEFAULT_HTML_PATH) -> str:
         """Write HTML report."""
-        template_string = files("duvet").joinpath("index.html").read_text()
+        template_string = files("duvet").joinpath("index.html").read_text(encoding="utf-8")
 
         # Get HTML head before JSON.
         html_head_end = template_string.find("</head>")
@@ -46,7 +46,7 @@ class HTMLReport:
         json_string = f"""<script id="result" type="application/json">{json.dumps(self.data)}</script>"""
 
         # Create JavaScript string.
-        js_string = f"""<script>{files("duvet").joinpath("script.js").read_text()}</script>"""
+        js_string = f"""<script>{files("duvet").joinpath("script.js").read_text(encoding="utf-8")}</script>"""
 
         # Create HTML string and write to new HTML file.
         html_string = "\n".join([html_head, json_string, html_between_json_and_js, js_string, html_end])
