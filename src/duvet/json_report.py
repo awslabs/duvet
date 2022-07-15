@@ -8,6 +8,7 @@ Assumptions:
 3. We try to use comments in TOML to get the content
 """
 import json
+from pathlib import Path
 from typing import List, Optional
 
 import attr
@@ -92,6 +93,7 @@ class JSONReport:
 
     blob_link: str = field(init=True)
     issue_link: str = field(init=True)
+    config_path: str = field(init=True)
     specifications: dict = field(init=False, default=attr.Factory(dict))
     annotations: list = field(init=False, default=attr.Factory(list))
     statuses: dict = field(init=False, default=attr.Factory(dict))
@@ -100,7 +102,9 @@ class JSONReport:
     @classmethod
     def create(cls, report: Report, config: Config):
         """Create a JSON Report."""
-        rtn = JSONReport(blob_link=config.blob_url, issue_link=config.issue_url)
+        rtn = JSONReport(
+            blob_link=config.blob_url, issue_link=config.issue_url, config_path=str(config.config_path.resolve())
+        )
         for specification in report.specifications.values():
             rtn._process_specification(specification)
         return rtn
@@ -134,11 +138,11 @@ class JSONReport:
             if requirement.start <= prev:
                 new_lines.append(lines[requirement_dict[requirement.start]])
             else:
-                new_lines.append(clean_content(quotes[prev : requirement.start]))
+                new_lines.append(clean_content(quotes[prev: requirement.start]))
                 new_lines.append(lines[requirement_dict[requirement.start]])
             prev = requirement.end
         if prev < len(quotes) - 1:
-            new_lines.append(clean_content(quotes[prev : len(quotes) - 1]))
+            new_lines.append(clean_content(quotes[prev: len(quotes) - 1]))
         return new_lines
 
     def _process_section(self, section: Section) -> dict:
@@ -251,11 +255,13 @@ class JSONReport:
         target_section = annotation.target.split("#", 1)[1]
         line = annotation.start_line
 
+        relative_source = Path(source).resolve().relative_to(self.config_path)
+
         result = {
-            "source": source,
+            "source": str(relative_source),
             "target_path": target_path,
             "target_section": target_section,
-            "line": line,
+            "line": line + 1,
             "type": annotation.type.name,
         }
 
