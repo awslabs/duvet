@@ -190,13 +190,15 @@ class Section:
     def white_space_stripped_match(self, annotation: Annotation) -> bool:
 
         # Compare by splitting space to list.
-        for key in self.requirements.keys():
-            if key.split() == annotation.uri.split():
+        for key in list(self.requirements.keys()):
+            if str(key).split() == annotation.uri.split():
                 return self.requirements[key].add_annotation(annotation)
 
         # Compare by getting rid of all space
         for key in self.requirements.keys():
-            if key.replace(" ", "") == annotation.uri.replace(" ", ""):
+            temp_key = "".join(str(key).split())
+            temp_uri = "".join(annotation.uri.split())
+            if temp_key == temp_uri:
                 return self.requirements[key].add_annotation(annotation)
 
         return False
@@ -204,14 +206,14 @@ class Section:
     def substring_match(self, annotation: Annotation) -> bool:
 
         # Compare by splitting space to list.
-        for key in self.requirements.keys():
-            if key.find(annotation.uri) != -1 or annotation.uri.find(annotation.uri) != -1:
+        for key in list(self.requirements.keys()):
+            if str(key).find(annotation.uri) != -1 or annotation.uri.find(key) != -1:
                 return self.requirements[key].add_annotation(annotation)
 
         # Compare by getting rid of all space
-        for key in self.requirements.keys():
-            temp_key = key.replace(" ", "")
-            temp_uri = annotation.uri.replace(" ", "")
+        for key in list(self.requirements.keys()):
+            temp_key = "".join(str(key).split())
+            temp_uri = "".join(annotation.uri.split())
             if temp_key.find(temp_uri) != -1 or temp_uri.find(temp_key) != -1:
                 return self.requirements[key].add_annotation(annotation)
 
