@@ -10,6 +10,7 @@ Assumptions:
 be in the next PR
 """
 import json
+from pathlib import Path
 from typing import List, Optional
 
 import attr
@@ -254,11 +255,13 @@ class JSONReport:
         target_section = annotation.target.split("#", 1)[1]
         line = annotation.start_line
 
+        relative_source = Path(source).relative_to(self.config_path)
+
         result = {
-            "source": source,
+            "source": str(relative_source),
             "target_path": target_path,
             "target_section": target_section,
-            "line": line,
+            "line": line + 1,
             "type": annotation.type.name,
         }
 
