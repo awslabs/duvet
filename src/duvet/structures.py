@@ -172,15 +172,50 @@ class Section:
 
     def add_annotation(self, annotation: Annotation) -> bool:
         """Add annotation to Section."""
-        if annotation.uri not in self.requirements.keys():
-            _LOGGER.warning("%s not found in %s", annotation.uri, self.uri)
-            return False
-        else:
+
+        if annotation.uri in self.requirements.keys():
             return self.requirements[annotation.uri].add_annotation(annotation)
+
+        if self.white_space_stripped_match(annotation): return True
+
+        if self.substring_match(annotation): return True
+
+        _LOGGER.warning("%s not found in %s", annotation.uri, self.uri)
+        return False
 
     def analyze_annotations(self) -> bool:
         """Analyze report and return true if all MUST be marked complete."""
         return all(req.analyze_annotations() for req in self.requirements.values())
+
+    def white_space_stripped_match(self, annotation: Annotation) -> bool:
+
+        # Compare by splitting space to list.
+        for key in self.requirements.keys():
+            if key.split() == annotation.uri.split():
+                return self.requirements[key].add_annotation(annotation)
+
+        # Compare by getting rid of all space
+        for key in self.requirements.keys():
+            if key.replace(" ", "") == annotation.uri.replace(" ", ""):
+                return self.requirements[key].add_annotation(annotation)
+
+        return False
+
+    def substring_match(self, annotation: Annotation) -> bool:
+
+        # Compare by splitting space to list.
+        for key in self.requirements.keys():
+            if key.find(annotation.uri) != -1 or annotation.uri.find(annotation.uri) != -1:
+                return self.requirements[key].add_annotation(annotation)
+
+        # Compare by getting rid of all space
+        for key in self.requirements.keys():
+            temp_key = key.replace(" ", "")
+            temp_uri = annotation.uri.replace(" ", "")
+            if temp_key.find(temp_uri) != -1 or temp_uri.find(temp_key) != -1:
+                return self.requirements[key].add_annotation(annotation)
+
+        return False
 
 
 @define
