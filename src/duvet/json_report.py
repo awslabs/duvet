@@ -10,6 +10,7 @@ Assumptions:
 be in the next PR
 """
 import json
+from pathlib import Path
 from typing import List, Optional
 
 import attr
@@ -93,12 +94,21 @@ class RefStatus:
 class JSONReport:
     """Container of JSON report."""
 
-    blob_link: str = field(init=False, default="https://github.com/awslabs/duvet/blob/")
-    issue_link: str = field(init=False, default="https://github.com/awslabs/duvet/issues")
+    blob_link: str = field(init=True)
+    issue_link: str = field(init=True)
+    config_path = field(init=True)
     specifications: dict = field(init=False, default=attr.Factory(dict))
     annotations: list = field(init=False, default=attr.Factory(list))
     statuses: dict = field(init=False, default=attr.Factory(dict))
     refs: list[dict] = REFS_JSON
+
+    @classmethod
+    def create(cls, report: Report, config: Config):
+        """Create a JSON Report."""
+        rtn = JSONReport(blob_link=config.blob_url, issue_link=config.issue_url,config_path=config.config_path)
+        for specification in report.specifications.values():
+            rtn.from_specification(specification)
+        return rtn
 
     @staticmethod
     def from_lines(quotes, lines) -> list[list]:
@@ -257,8 +267,10 @@ class JSONReport:
         target_section = annotation.target.split("#", 1)[1]
         line = annotation.start_line
 
+        relative_source = Path(source).relative_to(self.config_path)
+
         result = {
-            "source": source,
+            "source": str(relative_source),
             "target_path": target_path,
             "target_section": target_section,
             "line": line,
@@ -270,8 +282,8 @@ class JSONReport:
 
     def _get_dictionary(self) -> dict:
         result = {
-            "blob_link": self.blob_link,
-            "issue_link": self.issue_link,
+            "blob_link": self.blob_link.__getitem__("url")[0],
+            "issue_link": self.issue_link.__getitem__("url")[0],
             "specifications": self.specifications,
             "annotations": self.annotations,
             "statuses": self.statuses,

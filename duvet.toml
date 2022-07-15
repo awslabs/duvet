@@ -12,7 +12,7 @@ comment-style = { meta = "//=", content = "//#" }
 patterns = ["duvet-specification/compliance/**/*.toml"]
 [report]
 [report.blob]
-url = ["https://github.com/awslabs/duvet/blob/"]
+url = ["https://github.com/awslabs/duvet/tree/sprint-demo/"]
 [report.issue]
 url = ["https://github.com/awslabs/duvet/issues"]
 [mode]

@@ -48,8 +48,8 @@ def run(*, config: Config) -> bool:
     #           click.echo(summary.report_section(summary.analyze_stats(section)))
 
     # Covert report into JSON format
-    actual_json = JSONReport()
-    json_report = actual_json.from_report(test_report)
+    actual_json = JSONReport.create(test_report,config)
+    json_report = actual_json._get_dictionary()
     actual_json.write_json()
 
     # Covert JSON report into HTML
