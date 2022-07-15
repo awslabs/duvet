@@ -207,12 +207,12 @@ class Section:
 
     def _substring_match(self, annotation: Annotation) -> bool:
 
-        # Compare by splitting space to list.
+        # Find substring
         for key in list(self.requirements.keys()):
             if str(key).find(annotation.uri) != -1 or annotation.uri.find(key) != -1:
                 return self.requirements[key].add_annotation(annotation)
 
-        # Compare by getting rid of all space
+        # Find substring after getting rid of all space
         for key in list(self.requirements.keys()):
             temp_key: str = "".join(str(key).split())
             temp_uri: str = "".join(annotation.uri.split())
