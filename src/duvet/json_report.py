@@ -138,11 +138,11 @@ class JSONReport:
             if requirement.start <= prev:
                 new_lines.append(lines[requirement_dict[requirement.start]])
             else:
-                new_lines.append(clean_content(quotes[prev: requirement.start]))
+                new_lines.append(clean_content(quotes[prev : requirement.start]))
                 new_lines.append(lines[requirement_dict[requirement.start]])
             prev = requirement.end
         if prev < len(quotes) - 1:
-            new_lines.append(clean_content(quotes[prev: len(quotes) - 1]))
+            new_lines.append(clean_content(quotes[prev : len(quotes) - 1]))
         return new_lines
 
     def _process_section(self, section: Section) -> dict:
