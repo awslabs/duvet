@@ -153,6 +153,51 @@ class TestSection:
         # Check log information.
         assert f"{mismatch_citation.uri} not found in {actual_section.uri}" in caplog.text
 
+    @staticmethod
+    def test_white_space_stripped_match(actual_section, citation, actual_requirement):
+        # Set up section.
+        actual_section.add_requirement(actual_requirement)
+
+        # Add white spaced annotation to section
+        white_spaced_kwargs = copy.deepcopy(VALID_KWARGS)
+        white_spaced_kwargs.update({"uri": "test_target.md#target$con tent"})
+
+        white_spaced_annotation = Annotation(**white_spaced_kwargs)
+        assert actual_section.add_annotation(white_spaced_annotation)
+        assert len(actual_requirement.matched_annotations) == 1
+
+        requirement = Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content long")
+        actual_section.add_requirement(requirement)
+
+        # Add white spaced annotation to section
+        more_spaced_kwargs = copy.deepcopy(VALID_KWARGS)
+        more_spaced_kwargs.update({"uri": "test_target.md#target$content   long"})
+
+        more_spaced_annotation = Annotation(**more_spaced_kwargs)
+        assert actual_section.add_annotation(more_spaced_annotation)
+        assert len(requirement.matched_annotations) == 1
+
+    @staticmethod
+    def test_substring_match(actual_section, citation, actual_requirement):
+        # Set up section.
+        actual_section.add_requirement(actual_requirement)
+
+        # Add substring annotation to section
+        substring_kwargs = copy.deepcopy(VALID_KWARGS)
+        substring_kwargs.update({"uri": "test_target.md#target$con"})
+
+        substring_annotation = Annotation(**substring_kwargs)
+        assert actual_section._substring_match(substring_annotation)
+
+        # Add longer string spaced annotation to section
+        long_kwargs = copy.deepcopy(VALID_KWARGS)
+        long_kwargs.update({"uri": "test_target.md#target$content-long", "type": AnnotationType.TEST})
+
+        long_annotation = Annotation(**long_kwargs)
+        assert actual_section._substring_match(long_annotation)
+
+        assert len(actual_requirement.matched_annotations) == 2
+
 
 class TestSpecification:
     def test_specification(self, actual_specification, actual_section):
