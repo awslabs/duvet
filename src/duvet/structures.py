@@ -198,8 +198,8 @@ class Section:
 
         # Compare by getting rid of all space
         for key in self.requirements.keys():
-            temp_key = "".join(str(key).split())
-            temp_uri = "".join(annotation.uri.split())
+            temp_key: str = "".join(str(key).split())
+            temp_uri: str = "".join(annotation.uri.split())
             if temp_key == temp_uri:
                 return self.requirements[key].add_annotation(annotation)
 
@@ -214,8 +214,8 @@ class Section:
 
         # Compare by getting rid of all space
         for key in list(self.requirements.keys()):
-            temp_key = "".join(str(key).split())
-            temp_uri = "".join(annotation.uri.split())
+            temp_key: str = "".join(str(key).split())
+            temp_uri: str = "".join(annotation.uri.split())
             if temp_key.find(temp_uri) != -1 or temp_uri.find(temp_key) != -1:
                 return self.requirements[key].add_annotation(annotation)
 
