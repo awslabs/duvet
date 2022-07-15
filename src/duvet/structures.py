@@ -176,10 +176,10 @@ class Section:
         if annotation.uri in self.requirements.keys():
             return self.requirements[annotation.uri].add_annotation(annotation)
 
-        if self.white_space_stripped_match(annotation):
+        if self._white_space_stripped_match(annotation):
             return True
 
-        if self.substring_match(annotation):
+        if self._substring_match(annotation):
             return True
 
         _LOGGER.warning("%s not found in %s", annotation.uri, self.uri)
@@ -189,7 +189,7 @@ class Section:
         """Analyze report and return true if all MUST be marked complete."""
         return all(req.analyze_annotations() for req in self.requirements.values())
 
-    def white_space_stripped_match(self, annotation: Annotation) -> bool:
+    def _white_space_stripped_match(self, annotation: Annotation) -> bool:
 
         # Compare by splitting space to list.
         for key in list(self.requirements.keys()):
@@ -205,7 +205,7 @@ class Section:
 
         return False
 
-    def substring_match(self, annotation: Annotation) -> bool:
+    def _substring_match(self, annotation: Annotation) -> bool:
 
         # Compare by splitting space to list.
         for key in list(self.requirements.keys()):
