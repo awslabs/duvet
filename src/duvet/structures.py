@@ -224,21 +224,6 @@ class Specification:
             specification_pass = specification_pass and section.analyze_annotations()
         return specification_pass
 
-    def write_toml(self, extraction_dir: Path) -> bool:
-        """Write specification TOML"""
-        for s in self.sections.values():
-            with open(s.full_title + ".toml", "w") as f:
-                h = s.full_title.split(".")
-                target = self.url + "#" + h[len(h) - 1]
-                specDict = []
-                for r in s.requirements.values():
-                    temp_dict = {"level": r.requirement_level.name, "quote": r.content}
-                    specDict.append(temp_dict)
-
-                st = {"target": target, "spec": specDict}
-                new_toml_string = self.dump(st, f)
-        return True
-
 
 @define
 class Report:
@@ -280,18 +265,3 @@ class Report:
             self.report_pass = self.report_pass and specification.analyze_annotations()
 
         return self.report_pass
-
-
-    def write_toml(self, extraction_dir: str) -> bool:
-        for s in self.sections.values():
-            with open(s.full_title + ".toml", "w") as f:
-                h = s.full_title.split(".")
-                target = self.url + "#" + h[len(h) - 1]
-                specDict = []
-                for r in s.requirements.values():
-                    temp_dict = {"level": r.requirement_level.name, "quote": r.content}
-                    specDict.append(temp_dict)
-
-                st = {"target": target, "spec": specDict}
-                new_toml_string = self.dump(st, f)
-        return True
