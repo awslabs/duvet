@@ -176,9 +176,11 @@ class Section:
         if annotation.uri in self.requirements.keys():
             return self.requirements[annotation.uri].add_annotation(annotation)
 
-        if self.white_space_stripped_match(annotation): return True
+        if self.white_space_stripped_match(annotation):
+            return True
 
-        if self.substring_match(annotation): return True
+        if self.substring_match(annotation):
+            return True
 
         _LOGGER.warning("%s not found in %s", annotation.uri, self.uri)
         return False

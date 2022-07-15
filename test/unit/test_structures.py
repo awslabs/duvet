@@ -161,7 +161,7 @@ class TestSpecification:
         assert github_url == "https://github.com/awslabs/duvet/blob/master/test_target.md"
 
     def test_specification_add_citation(
-            self, actual_specification, actual_section, actual_requirement, citation, caplog
+        self, actual_specification, actual_section, actual_requirement, citation, caplog
     ):
         # Set up specification
         actual_section.add_requirement(actual_requirement)
@@ -174,7 +174,7 @@ class TestSpecification:
         assert citation in actual_requirement.matched_annotations
 
     def test_specification_add_invalid_annotation(
-            self, actual_specification, actual_section, actual_requirement, caplog
+        self, actual_specification, actual_section, actual_requirement, caplog
     ):
         caplog.set_level(logging.INFO)
 
@@ -195,7 +195,7 @@ class TestSpecification:
 
 class TestReport:
     def test_create_report_and_analyze_annotations(
-            self, actual_report, actual_section, actual_specification, actual_requirement, citation
+        self, actual_report, actual_section, actual_specification, actual_requirement, citation
     ):
         # Set up for specification
         actual_specification.add_section(actual_section)
@@ -220,7 +220,7 @@ class TestReport:
         assert actual_report.analyze_annotations()
 
     def test_report_add_mismatch_annotation(
-            self, actual_report, actual_section, actual_specification, actual_requirement, caplog
+        self, actual_report, actual_section, actual_specification, actual_requirement, caplog
     ):
         caplog.set_level(logging.INFO)
 
