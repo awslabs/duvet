@@ -49,7 +49,7 @@ def run(*, config: Config) -> bool:
 
     # Covert report into JSON format
     actual_json = JSONReport.create(test_report,config)
-    json_report = actual_json._get_dictionary()
+    json_report = actual_json.get_dictionary()
     actual_json.write_json()
 
     # Covert JSON report into HTML

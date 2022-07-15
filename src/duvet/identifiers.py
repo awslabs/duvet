@@ -53,3 +53,6 @@ IMPLEMENTED_TYPES = [
 
 ATTESTED_TYPES = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
 EXCEPTED_TYPES = [AnnotationType.EXCEPTION]
+
+DEFAULT_HTML_PATH = "specification_compliance_report.html"
+DEFAULT_JSON_PATH = "duvet-result.json"

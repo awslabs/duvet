@@ -10,7 +10,6 @@ Assumptions:
 be in the next PR
 """
 import json
-from pathlib import Path
 from typing import List, Optional
 
 import attr
@@ -19,7 +18,7 @@ from duvet.specification_parser import Span
 
 from duvet._config import Config
 from duvet.formatter import clean_content
-from duvet.identifiers import AnnotationType
+from duvet.identifiers import AnnotationType, DEFAULT_JSON_PATH
 from duvet.refs_json import CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES, REFS_JSON
 from duvet.structures import Annotation, Report, Requirement, Section, Specification
 
@@ -105,13 +104,13 @@ class JSONReport:
     @classmethod
     def create(cls, report: Report, config: Config):
         """Create a JSON Report."""
-        rtn = JSONReport(blob_link=config.blob_url, issue_link=config.issue_url,config_path=config.config_path)
+        rtn = JSONReport(blob_link=config.blob_url, issue_link=config.issue_url, config_path=config.config_path)
         for specification in report.specifications.values():
-            rtn.from_specification(specification)
+            rtn._process_specification(specification)
         return rtn
 
     @staticmethod
-    def from_lines(quotes, lines) -> list[list]:
+    def _process_lines(quotes, lines) -> list[list]:
         """Given a span of content, return a list of key word arguments of requirement."""
         requirements: list = []
         requirement_dict: dict = {}
@@ -143,7 +142,7 @@ class JSONReport:
         # print(new_lines)
         return new_lines
 
-    def _from_section(self, section: Section) -> dict:
+    def _process_section(self, section: Section) -> dict:
         # Half basked section dictionary.
         section_dict: dict = {
             "id": section.uri.split("#", 1)[1],  # This might break the front end, we will see.
@@ -166,20 +165,20 @@ class JSONReport:
         if section.has_requirements:
             requirement_index = []
             for requirement in section.requirements.values():
-                requirement_index.append(self.from_requirement(requirement, section, lines))
+                requirement_index.append(self._process_requirement(requirement, section, lines))
 
-            lines = self.from_lines(quotes, lines)
+            lines = self._process_lines(quotes, lines)
 
             section_dict.update({"requirements": requirement_index, "lines": lines})
         return section_dict
 
-    def _from_sections(self, sections_dict: dict) -> List[List]:
+    def _process_sections(self, sections_dict: dict) -> List[List]:
         sections: List[dict] = []
         requirements: List[int] = []
 
         # Get sections and requirements dictionary list from section objects.
         for section in sections_dict.values():
-            section_dict = self._from_section(section)
+            section_dict = self._process_section(section)
             sections.append(section_dict)
             requirements.extend(section_dict.get("requirements", []))
 
@@ -187,9 +186,9 @@ class JSONReport:
         sections = sorted(sections, key=lambda d: d["id"])
         return [sections, requirements]
 
-    def from_specification(self, specification: Specification) -> str:
-        """Parse attributes from specification."""
-        sections, requirements = self._from_sections(specification.sections)
+    def _process_specification(self, specification: Specification):
+        """Serialize attributes from specification."""
+        sections, requirements = self._process_sections(specification.sections)
 
         # Create specification dictionary
         # and add it to self.specifications.
@@ -198,20 +197,8 @@ class JSONReport:
 
         return specification.source
 
-    def from_config(self, config: Config):
-        """Parse attributes from Config."""
-        self.blob_link: str = config.blob_url
-        self.issue_link: str = config.issue_url
-
-    def from_report(self, report: Report) -> dict:
-        """Parse attributes from report."""
-        for specifications in report.specifications.values():
-            self.from_specification(specifications)
-
-        return self._get_dictionary()
-
-    def from_requirement(self, requirement: Requirement, section: Section, lines: list) -> int:
-        """Parse attributes from requirements.
+    def _process_requirement(self, requirement: Requirement, section: Section, lines: list) -> int:
+        """Serialize attributes from requirements.
 
         Return index in the self.requirements.
         """
@@ -228,7 +215,7 @@ class JSONReport:
         annotation_indexes = []
         for annotation in requirement.matched_annotations:
             new_ref.from_annotation(annotation)
-            self.from_annotation(annotation)
+            self._process_annotation(annotation)
             annotation_indexes.append(len(self.annotations) - 1)
 
         line: list = []
@@ -260,17 +247,15 @@ class JSONReport:
 
         return len(self.annotations) - 1
 
-    def from_annotation(self, annotation: Annotation) -> int:
-        """Parse annotation dictionary from annotation object."""
+    def _process_annotation(self, annotation: Annotation) -> int:
+        """Serialize annotation dictionary from annotation object."""
         source = annotation.source
         target_path = annotation.target.split("#", 1)[0]
         target_section = annotation.target.split("#", 1)[1]
         line = annotation.start_line
 
-        relative_source = Path(source).relative_to(self.config_path)
-
         result = {
-            "source": str(relative_source),
+            "source": source,
             "target_path": target_path,
             "target_section": target_section,
             "line": line,
@@ -280,7 +265,8 @@ class JSONReport:
         self.annotations.append(result)
         return len(self.annotations) - 1
 
-    def _get_dictionary(self) -> dict:
+    def get_dictionary(self) -> dict:
+        """Return final JSON data."""
         result = {
             "blob_link": self.blob_link.__getitem__("url")[0],
             "issue_link": self.issue_link.__getitem__("url")[0],
@@ -291,7 +277,7 @@ class JSONReport:
         }
         return result
 
-    def write_json(self, json_path: str = "duvet-result.json"):
+    def write_json(self, json_path: str = DEFAULT_JSON_PATH):
         """Write json file."""
         with open(json_path, "w+", encoding="utf-8") as json_result:
-            json.dump(self._get_dictionary(), json_result)
+            json.dump(self.get_dictionary(), json_result)

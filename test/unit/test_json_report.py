@@ -2,9 +2,12 @@ import copy
 
 import pytest
 
+from duvet._config import Config
 from duvet.identifiers import AnnotationType, RequirementLevel
 from duvet.json_report import JSONReport
 from duvet.structures import Annotation, Report, Requirement, Section, Specification
+
+from ..utils import populate_file  # isort: skip
 
 pytestmark = [pytest.mark.local, pytest.mark.unit]
 
@@ -18,6 +21,22 @@ VALID_KWARGS: dict = {
     "uri": "test_target.md#target$content",
     "source": "code.py",
 }
+
+SPEC_BLOCK = """[spec.markdown]
+patterns = ["project-specification/**/*.md"]"""
+
+IMPL_BLOCK = """[implementation]
+[implementation.rs]
+patterns = ["src/**/*.rs", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
+comment-style = { meta = "//=", content = "//#" }
+[implementation.dfy]
+patterns = ["src/**/*.dfy", "test/**/*.dfy", "compliance_exceptions/**/*.txt"]"""
+
+REPORT_BLOCK = """[report]
+[report.blob]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/blob/"]
+[report.issue]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
 
 REF_STATUS: dict = {
     "spec": bool,
@@ -80,18 +99,26 @@ def citation() -> Annotation:
 @pytest.fixture
 def actual_section() -> Section:
     section = Section("target", "test_target.md#target", 1, 3)
-    section.lines = ["#target", "content"]
+    section.lines = ["1. target", "content"]
     return section
 
 
 @pytest.fixture
-def actual_json():
-    return JSONReport()
+def actual_config(tmp_path) -> Config:
+    actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
+    with pytest.warns(UserWarning):
+        actual_config = Config.parse(str(actual_path.resolve()))
+    return actual_config
+
+
+@pytest.fixture
+def actual_json(actual_report: Report, actual_config: Config):
+    return JSONReport.create(actual_report, actual_config)
 
 
 class TestJSONReport:
     def test_from_annotation(self, actual_json, actual_section, citation):
-        actual_index = actual_json.from_annotation(citation)
+        actual_index = actual_json._process_annotation(citation)
 
         assert actual_index == 0
         assert actual_json.annotations == [
@@ -105,7 +132,7 @@ class TestJSONReport:
         ]
 
     def test_from_requirement(self, actual_json, actual_section, actual_requirement):
-        actual_index = actual_json.from_requirement(actual_requirement, actual_section, [])
+        actual_index = actual_json._process_requirement(actual_requirement, actual_section, [])
 
         # Verify requirement is added to annotation.
         assert actual_json.annotations == [
@@ -122,16 +149,16 @@ class TestJSONReport:
         assert actual_index == 0
 
     def test_from_section(self, actual_json, actual_section):
-        assert actual_json._from_section(actual_section) == {
+        assert actual_json._process_section(actual_section) == {
             "id": "target",
-            "lines": ["#target", "content"],
+            "lines": ["1. target", "content"],
             "title": "target",
         }
 
     def test_from_sections(self, actual_json, actual_specification, actual_section, actual_requirement):
         actual_section.add_requirement(actual_requirement)
         actual_specification.add_section(actual_section)
-        sections, requirements = actual_json._from_sections(actual_specification.sections)
+        sections, requirements = actual_json._process_sections(actual_specification.sections)
 
         assert len(sections) == 3
         assert len(requirements) == 1
@@ -141,18 +168,8 @@ class TestJSONReport:
         actual_section.add_requirement(actual_requirement)
         actual_specification.add_section(actual_section)
 
-        actual_json.from_specification(actual_specification)
+        actual_json._process_specification(actual_specification)
         specification_dict = actual_json.specifications.get(actual_specification.source)
 
         assert len(specification_dict.get("sections")) == 3
         assert len(specification_dict.get("requirements")) == 1
-
-    def test_from_report(self, actual_json, actual_specification, actual_section, actual_requirement):
-        # Setup specification for test.
-        actual_section.add_requirement(actual_requirement)
-        actual_specification.add_section(actual_section)
-        actual_report = Report()
-        actual_report.add_specification(actual_specification)
-
-        # print(actual_report)
-        actual_json.from_report(actual_report)
