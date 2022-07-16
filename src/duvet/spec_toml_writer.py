@@ -11,7 +11,7 @@ from pathlib import Path
 import toml
 from attr import define
 
-from duvet.spec_toml_parser import TOML_REQ_CONTENT_KEY, TOML_REQ_LEVEL_KEY, TOML_SPEC_KEY, TOML_URI_KEY
+from duvet.identifiers import TOML_REQ_CONTENT_KEY, TOML_REQ_LEVEL_KEY, TOML_SPEC_KEY, TOML_URI_KEY
 from duvet.structures import Report, Section, Specification
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,19 +23,19 @@ class TomlRequirementWriter:
     """TOML specifications writer."""
 
     @staticmethod
-    def _process_section(section: Section, parent_path: Path) -> list[Path]:
+    def _process_section(section: Section, parent_path: Path, file_type: str = "RFC") -> list[Path]:
         """Write TOML from Section."""
 
         section_path: Path = parent_path.joinpath(section.title + ".toml")
 
         with open(section_path, mode="w+", encoding="utf-8") as section_file:
-            # This is for markdown, commented out.
-            # heading = section.uri.rsplit(".", 1)
-            # heading = section.uri
-            # target = section.uri + "#" + heading[len(heading) - 1]
+            if file_type == "MARKDOWN":
+                target = section.uri + "#" + section.uri.rsplit(".", 1)[1]
 
-            # This is for rfc.
-            target = section.uri
+            # Process rfc title.
+            if file_type == "RFC":
+                target = section.uri
+
             requirements: list[dict] = []
             for requirement in section.requirements.values():
                 temp_dict = {
@@ -49,7 +49,7 @@ class TomlRequirementWriter:
         return [section_path]
 
     @staticmethod
-    def _process_specification(specification: Specification, parent_path: Path) -> list[Path]:
+    def _process_specification(specification: Specification, parent_path: Path, file_type: str = "RFC") -> list[Path]:
         """Write TOML from Specification."""
 
         specification_path: Path = parent_path.joinpath(specification.title.split("#", 1)[0])
@@ -58,15 +58,15 @@ class TomlRequirementWriter:
         section_paths: list[Path] = []
 
         for section in specification.sections.values():
-            section_paths.extend(TomlRequirementWriter._process_section(section, specification_path))
+            section_paths.extend(TomlRequirementWriter._process_section(section, specification_path, file_type))
         return section_paths
 
     @staticmethod
-    def process_report(report: Report, directory: Path) -> list[Path]:
+    def process_report(report: Report, directory: Path, file_type: str = "RFC") -> list[Path]:
         """Write TOML from Report."""
 
         section_paths: list[Path] = []
         for specification in report.specifications.values():
-            section_paths.extend(TomlRequirementWriter._process_specification(specification, directory))
+            section_paths.extend(TomlRequirementWriter._process_specification(specification, directory, file_type))
 
         return section_paths

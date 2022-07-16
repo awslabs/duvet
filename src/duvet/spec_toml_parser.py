@@ -10,16 +10,10 @@ import toml
 from attr import define
 
 from duvet.formatter import clean_content
-from duvet.identifiers import RequirementLevel
+from duvet.identifiers import TOML_REQ_CONTENT_KEY, TOML_REQ_LEVEL_KEY, TOML_SPEC_KEY, TOML_URI_KEY, RequirementLevel
 from duvet.structures import Report, Requirement, Section, Specification
 
 _LOGGER = logging.getLogger(__name__)
-__all__ = ["TomlRequirementParser", "TOML_URI_KEY", "TOML_SPEC_KEY", "TOML_REQ_LEVEL_KEY", "TOML_REQ_CONTENT_KEY"]
-
-TOML_URI_KEY: str = "target"
-TOML_SPEC_KEY: str = "spec"
-TOML_REQ_LEVEL_KEY: str = "level"
-TOML_REQ_CONTENT_KEY: str = "quote"
 
 
 @define
