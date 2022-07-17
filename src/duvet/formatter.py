@@ -12,12 +12,12 @@ SUFFIXES = r"(Inc|Ltd|Jr|Sr|Co)"
 STARTERS = r"(Mr|Mrs|Ms|Dr|He\s|She\s|It\s|They\s|Their\s|Our\s|We\s|But\s|However\s|That\s|This\s|Wherever)"
 ACRONYMS = r"([A-Z][.][A-Z][.](?:[A-Z][.])?)"
 WEBSITES = r"[.](com|net|org|io|gov)"
-STOP_SIGN = "<stop>"
+STOP_SIGN = "<STOP>"
 
 
 def preprocess_text(inline_text: str) -> str:
     """Take a chunk of inline requirement string and return a labeled string."""
-    processed_text = "<stop> " + inline_text + "  <stop>"
+    processed_text = " ".join([STOP_SIGN, inline_text, STOP_SIGN])
     processed_text = processed_text.replace("\n", " ")
     processed_text = re.sub(PREFIXES, "\\1<prd>", processed_text)
     processed_text = re.sub(WEBSITES, "<prd>\\1", processed_text)
@@ -40,15 +40,14 @@ def preprocess_text(inline_text: str) -> str:
         processed_text = processed_text.replace('!"', '"!')
     if "?" in processed_text:
         processed_text = processed_text.replace('?"', '"?')
-    processed_text = (
-        processed_text.replace(". ", ". <stop>")
-        .replace("? ", "? <stop>")
-        .replace("! ", "! <stop>")
-        .replace(".\n", ".\n<stop>")
-        .replace("?\n", "?\n<stop>")  # noqa: E131
-        .replace("!\n", "!\n<stop>")
-        .replace("<prd>", ".")
-    )
+    processed_text = processed_text.replace(". ", ". " + STOP_SIGN)
+    processed_text = processed_text.replace("? ", "? " + STOP_SIGN)
+    processed_text = processed_text.replace("! ", "! " + STOP_SIGN)
+    processed_text = processed_text.replace(".\n", ".\n" + STOP_SIGN)
+    processed_text = processed_text.replace("?\n", "?\n" + STOP_SIGN)
+    processed_text = processed_text.replace("!\n", "!\n" + STOP_SIGN)
+    processed_text = processed_text.replace("<prd>", ".")
+
     return processed_text
 
 
@@ -57,3 +56,10 @@ def clean_content(content: str) -> str:
 
     cleaned_content = content.replace("\n", " ").strip()
     return cleaned_content
+
+
+def remove_stop(content: str) -> str:
+    """Remove stop string."""
+
+    removed = content.replace(STOP_SIGN, " ")
+    return clean_content(removed)

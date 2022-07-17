@@ -217,7 +217,7 @@ def test_extract_requirements_with_lists_wrapped():
         (Span(start=168, end=449), "INLINE"),
     ]
 
-    actual_kwargs = RequirementParser.process_section(
+    actual_kwargs = RequirementParser._process_section(
         TEST_REQUIREMENT_STR_WITH_LIST, actual_spans, ALL_MARKDOWN_LIST_ENTRY_REGEX
     )
 
