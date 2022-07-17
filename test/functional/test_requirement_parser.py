@@ -25,14 +25,11 @@ VALID_RFC = """2.  Duvet specification
 2.1.  Introduction
 
    Duvet is an application to build confidence that your software is
-   correct.
-   
-   Sublists MUST be
+   correct. Sublists MUST be
    treated as if the parent item were terminated by the sublist.  List
    elements MAY contain a period (.) or exclamation point (!) and this
    punctuation MUST NOT terminate the requirement by excluding the
    following elements from the list of requirements.
-
 """
 
 
