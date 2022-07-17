@@ -3,3 +3,4 @@ toml~=0.10.2
 tabulate
 anytree
 click
+anytree

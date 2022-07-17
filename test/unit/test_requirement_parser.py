@@ -3,7 +3,8 @@
 """Unit tests for ``duvet.requirement_parser``."""
 import pytest
 
-from duvet.identifiers import RequirementLevel
+from duvet.formatter import clean_content
+from duvet.identifiers import ALL_MARKDOWN_LIST_ENTRY_REGEX, ALL_RFC_LIST_ENTRY_REGEX, RequirementLevel
 from duvet.requirement_parser import RequirementParser
 from duvet.specification_parser import Span
 
@@ -54,9 +55,10 @@ TEST_VALID_WRAPPED_MARKDOWN_LIST = (
 
 
 def test_extract_valid_md_list():
-    test_parser = RequirementParser(TEST_VALID_MARKDOWN_LIST)
     test_span = Span(0, len(TEST_VALID_MARKDOWN_LIST))
-    temp_list_req: dict = test_parser.process_list_block(test_span)[0]
+    temp_list_req: dict = RequirementParser._process_list_block(
+        TEST_VALID_MARKDOWN_LIST, test_span, ALL_MARKDOWN_LIST_ENTRY_REGEX
+    )[0]
     # Verify the extract_list function by checking the number of children it extracts
     assert temp_list_req.get("parent") == Span(start=0, end=58)
     assert len(temp_list_req.get("children")) == 5
@@ -70,11 +72,10 @@ def test_extract_valid_md_list():
 
 
 # Pass
-def test_extract_invalid_md_list():
-    test_parser = RequirementParser(TEST_INVALID_STR)
+def test_process_invalid_md_list():
     test_span = Span(0, len(TEST_INVALID_STR))
     try:
-        test_parser.process_list_block(test_span)
+        RequirementParser._process_list_block(TEST_INVALID_STR, test_span, ALL_MARKDOWN_LIST_ENTRY_REGEX)
     except ValueError as error:
         # Verify the extract_list function by checking the error message.
         assert repr(error) == (
@@ -83,22 +84,32 @@ def test_extract_invalid_md_list():
         )
 
 
-# def test_extract_rfc_list():
-#     temp_list_req = ListRequirements.from_line(TEST_RFC_STR, ALL_RFC_LIST_ENTRY_REGEX)
-#     assert temp_list_req.list_parent == "We MUST strive for consistency within:"
-#     # Verify the extract_list function by checking the number of children it extracts
-#     assert len(temp_list_req.list_elements) == 3
-#     assert temp_list_req.list_elements == [
-#         "the document,",
-#         " a cluster of documents [CLUSTER], and",
-#         " the series of RFCs on the subject matter.",
-#     ]
-#     # Verify the to_string_list function by checking the content of it creates.
-#     assert temp_list_req.to_string_list(False) == [
-#         "We MUST strive for consistency within: the document,",
-#         "We MUST strive for consistency within:  a cluster of documents [CLUSTER], and",
-#         "We MUST strive for consistency within:  the series of RFCs on the subject matter.",
-#     ]
+def test_process_rfc_list():
+    quote_span = Span(0, len(TEST_RFC_STR))
+    temp_list_req = RequirementParser._process_list_block(TEST_RFC_STR, quote_span, ALL_RFC_LIST_ENTRY_REGEX)
+
+    actual_span = temp_list_req[0]["parent"]
+    assert clean_content(TEST_RFC_STR[actual_span.start : actual_span.end]) == "We MUST strive for consistency within:"
+
+    # Verify the extract_list function by checking the number of children it extracts
+    children = temp_list_req[0].get("children")
+
+    assert len(children) == 3
+
+    list_req = [clean_content(TEST_RFC_STR[child.start : child.end]) for child in children]
+
+    assert list_req == [
+        "the document,",
+        "a cluster of documents [CLUSTER], and",
+        "the series of RFCs on the subject matter.",
+    ]
+
+    # Verify the to_string_list function by checking the content of it creates.
+    assert [req.get("content") for req in RequirementParser._process_list(TEST_RFC_STR, temp_list_req[0], False)] == [
+        "We MUST strive for consistency within: the document,",
+        "We MUST strive for consistency within: a cluster of documents [CLUSTER], and",
+        "We MUST strive for consistency within: the series of RFCs on the subject matter.",
+    ]
 
 
 VALID_LIST_LINES = """This is a MUST requirement has lists
@@ -111,7 +122,6 @@ This is a sentence after the list"""
 
 
 def test_process_list():
-    actual_parser = RequirementParser(TEST_VALID_MARKDOWN_LIST)
     actual_dict = {
         "parent": Span(start=0, end=58),
         "children": [
@@ -123,7 +133,8 @@ def test_process_list():
         ],
     }
     # default
-    req = actual_parser.process_list(actual_dict)
+    req = RequirementParser._process_list(TEST_VALID_MARKDOWN_LIST, actual_dict, False)
+
     assert req == [
         {
             "content": "A requirement MUST be terminated by one of the following period " "(.)",
@@ -163,17 +174,11 @@ TEST_REQUIREMENT_WITH_INVALID_STR = (
 )
 
 
-@pytest.fixture
-def under_test(tmp_path) -> RequirementParser:
-    return RequirementParser(tmp_path)
-
-
 def test_process_inline():
-    actual_parser = RequirementParser(TEST_REQUIREMENT_STR)
     actual_span = Span(0, len(TEST_REQUIREMENT_STR) - 1)
 
     # Test valid inline text
-    assert actual_parser.process_inline(actual_span) == [
+    assert RequirementParser._process_inline(TEST_REQUIREMENT_STR, actual_span) == [
         {
             "content": "Duvet MUST implement every requirement.",
             "requirement_level": RequirementLevel.MUST,
@@ -201,15 +206,21 @@ to group text into requirements.
 
 def test_extract_requirements_with_lists_wrapped():
     """Test complicated requirement with list wrapped by inline requirements."""
-    actual_parser = RequirementParser(TEST_REQUIREMENT_STR_WITH_LIST)
-    actual_spans = actual_parser.extract_block(Span(0, len(TEST_REQUIREMENT_STR_WITH_LIST)))
+
+    quote_span = Span(0, len(TEST_REQUIREMENT_STR_WITH_LIST))
+    actual_spans = RequirementParser._process_block(
+        TEST_REQUIREMENT_STR_WITH_LIST, quote_span, ALL_MARKDOWN_LIST_ENTRY_REGEX
+    )
     assert actual_spans == [
         (Span(start=0, end=54), "INLINE"),
         (Span(start=54, end=168), "LIST_BLOCK"),
         (Span(start=168, end=449), "INLINE"),
     ]
 
-    actual_kwargs = actual_parser.extract_requirements(actual_spans)
+    actual_kwargs = RequirementParser._process_section(
+        TEST_REQUIREMENT_STR_WITH_LIST, actual_spans, ALL_MARKDOWN_LIST_ENTRY_REGEX
+    )
+
     assert actual_kwargs == [
         {
             "content": "A requirement MAY contain multiple RFC 2119 keywords.",
