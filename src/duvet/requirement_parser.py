@@ -114,13 +114,12 @@ class RequirementParser:
             if right_punc != -1:
                 sentence_span.end = identifier_span.end + right_punc
             if left_punc != -1 and right_punc != -1:
-                req = (
-                    quotes[sentence_span.start: sentence_span.end]
-                        .strip("\n")
-                        .replace("\n", " ")
-                        .replace(STOP_SIGN, "")
-                        .strip()
-                )
+                req = quotes[sentence_span.start: sentence_span.end]
+                req = req.strip("\n")
+                req = req.replace("\n", " ")
+                req = req.replace(STOP_SIGN, "")
+                req = req.strip()
+
                 if req.endswith((".", "!")):
                     req_kwarg = {
                         "content": req,
