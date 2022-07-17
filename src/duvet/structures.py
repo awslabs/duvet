@@ -170,13 +170,14 @@ class Section:
     end_line: int = -1
     has_requirements: bool = field(init=False, default=False)
     requirements: dict = field(init=False, default=attr.Factory(dict))
-    lines: list = field(init=False, default=attr.Factory(list))
+    lines: list = field(default=attr.Factory(list))
 
     def add_requirement(self, requirement: Requirement):
         """Add requirement to Section."""
-        new_dict = {requirement.uri: requirement}
         self.has_requirements = True
-        self.requirements.update(new_dict)
+        if requirement.uri not in self.requirements.keys():
+            new_dict = {requirement.uri: requirement}
+            self.requirements.update(new_dict)
 
     def to_github_url(self, spec_dir, spec_github_url, branch_or_commit="master"):
         """URL for Section on GitHub."""

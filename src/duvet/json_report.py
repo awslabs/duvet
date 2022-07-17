@@ -115,33 +115,35 @@ class JSONReport:
         """Given a span of content, return a list of key word arguments of requirement."""
         requirements: list = []
         requirement_dict: dict = {}
-        new_lines: list = []
+        # new_lines: list = []
+        #
+        # # Find requirement in the quotes.
+        # prev = 0
+        # index = 0
+        # while index < len(lines):
+        #     line = lines[index]
+        #     start = quotes.find(line[0][2])
+        #     end = start + len(line[0][2])
+        #     requirement = Span(start, end)
+        #     requirements.append(requirement)
+        #     requirement_dict[requirement.start] = index
+        #     index += 1
+        #
+        # # print(requirements)
+        #
+        # for requirement in requirements:
+        #     if requirement.start <= prev:
+        #         new_lines.append(lines[requirement_dict[requirement.start]])
+        #     else:
+        #         new_lines.append(clean_content(quotes[prev: requirement.start]))
+        #         new_lines.append(lines[requirement_dict[requirement.start]])
+        #     prev = requirement.end
+        # if prev < len(quotes) - 1:
+        #     new_lines.append(clean_content(quotes[prev: len(quotes) - 1]))
+        # # print(new_lines)
+        # return new_lines
 
-        # Find requirement in the quotes.
-        prev = 0
-        index = 0
-        while index < len(lines):
-            line = lines[index]
-            start = quotes.find(line[0][2])
-            end = start + len(line[0][2])
-            requirement = Span(start, end)
-            requirements.append(requirement)
-            requirement_dict[requirement.start] = index
-            index += 1
-
-        # print(requirements)
-
-        for requirement in requirements:
-            if requirement.start <= prev:
-                new_lines.append(lines[requirement_dict[requirement.start]])
-            else:
-                new_lines.append(clean_content(quotes[prev: requirement.start]))
-                new_lines.append(lines[requirement_dict[requirement.start]])
-            prev = requirement.end
-        if prev < len(quotes) - 1:
-            new_lines.append(clean_content(quotes[prev: len(quotes) - 1]))
-        # print(new_lines)
-        return new_lines
+        return lines
 
     def _process_section(self, section: Section) -> dict:
         # Half basked section dictionary.
@@ -155,7 +157,7 @@ class JSONReport:
         lines: list = []
         section_lines = [line[1:] for line in section.lines[1:]]
         quotes = "".join(section_lines)
-        quotes = clean_content(quotes)
+        quotes = quotes
 
         title_line = section.lines[0]
         number, title = title_line.rsplit(maxsplit=1)
@@ -183,7 +185,7 @@ class JSONReport:
             sections.append(section_dict)
             requirements.extend(section_dict.get("requirements", []))
 
-        sections.extend([CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES])
+        # sections.extend([CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES])
         sections = sorted(sections, key=lambda d: d["id"])
         return [sections, requirements]
 
@@ -226,7 +228,7 @@ class JSONReport:
 
         # Add reference index to line.
         line_requirement.append(self.refs.index(new_ref.get_dict()))
-        line_requirement.append(requirement.content)
+        line_requirement.append(" ".join(requirement.content.split()))
         line.append(line_requirement)
         lines.append(line)
 
@@ -271,8 +273,8 @@ class JSONReport:
     def get_dictionary(self) -> dict:
         """Return final JSON data."""
         result = {
-            "blob_link": self.blob_link.__getitem__("url")[0],
-            "issue_link": self.issue_link.__getitem__("url")[0],
+            "blob_link": self.blob_link,
+            "issue_link": self.issue_link,
             "specifications": self.specifications,
             "annotations": self.annotations,
             "statuses": self.statuses,

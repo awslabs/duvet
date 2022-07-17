@@ -46,15 +46,32 @@ class RFCHeader(SpecificationHeader):
         assert RFCHeader.is_header(line), f"line is not an RFC header: {line}"
         # str.split will split on whitespace, breaking digits from everything else
         number, title = line.split(maxsplit=1)
-        level = len(number.split("."))
+        level = number.count(".")
         return RFCHeader(level=level, title=title.strip(), number=number)
 
     @staticmethod
     def from_match(match: re.Match) -> RFCHeaderT:
         """Generate an RFC Header from a match."""
-        cls: RFCHeaderT = RFCHeader.from_line(match.string[match.start() : match.end()])
+        cls: RFCHeaderT = RFCHeader.from_line(match.string[match.start(): match.end()])
         cls.title_span = Span.from_match(match)
         return cls
+
+    # def get_url(self) -> str:
+    #     """Prefixes parent titles to this title.
+    #
+    #     Titles are transformed as follows:
+    #     - spaces are replaced with "-"
+    #     - "." are replaced with "_"
+    #     """
+    #     url: str = self.title.replace(" ", "-")
+    #     header_cursor: SpecificationHeader = self.parent
+    #     cursor_url = header_cursor.title
+    #     while header_cursor is not None:
+    #         url = ".".join([cursor_url, url])
+    #         header_cursor = header_cursor.parent
+    #
+    #     url = url.split(".",maxsplit=1)[0]
+    #     return "#".join([cursor_url, self.number])
 
 
 @define
@@ -79,7 +96,7 @@ class RFCSpecification(ParsedSpecification):
     @staticmethod
     def is_file_format(filename: str) -> bool:
         """Detect RFC File."""
-        return filename.rsplit(".", maxsplit=1)[-1] == "txt"
+        return filename.endswith("txt")
 
     def _match_headers(self) -> Iterator[re.Match]:
         return ALL_HEADERS_REGEX.finditer(self.content)

@@ -3,11 +3,15 @@
 """Run the checks."""
 import click  # type : ignore[import]
 
+from duvet.markdown_requirement_parser import MarkdownRequirementParser
+from duvet.requirement_parser import RequirementParser
+
 from duvet._config import Config
 from duvet.annotation_parser import AnnotationParser
 from duvet.html import HTMLReport
 from duvet.json_report import JSONReport
 from duvet.spec_toml_parser import TomlRequirementParser
+from duvet.structures import Report
 from duvet.summary import SummaryReport
 
 __all__ = ("run",)
@@ -16,9 +20,13 @@ __all__ = ("run",)
 def run(*, config: Config) -> bool:
     """Run all specification checks."""
     # Extractions
+    # test_report = extract_rfc(config)
+
+    test_report = extract_markdown(config)
+
     # Because we currently got only toml parser, let's give a try.
-    toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
-    test_report = TomlRequirementParser().extract_toml_specs(toml_files)
+    # toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
+    # test_report = TomlRequirementParser().extract_toml_specs(toml_files)
 
     # Extract all annotations.
     all_annotations: list = []
@@ -48,7 +56,7 @@ def run(*, config: Config) -> bool:
     #           click.echo(summary.report_section(summary.analyze_stats(section)))
 
     # Covert report into JSON format
-    actual_json = JSONReport.create(test_report,config)
+    actual_json = JSONReport.create(test_report, config)
     json_report = actual_json.get_dictionary()
     actual_json.write_json()
 
@@ -59,3 +67,19 @@ def run(*, config: Config) -> bool:
     click.echo(f"""Writing HTML report to {html_report.write_html()}""")
 
     return test_report.report_pass
+
+
+def extract_rfc(config: Config) -> Report:
+    """Extract rfc files"""
+    rfc_files = [rfc_spec for rfc_spec in config.specs if rfc_spec.suffix == ".txt"]
+    test_report = RequirementParser.process_specifications(rfc_files)
+    click.echo(test_report)
+    return test_report
+
+
+def extract_markdown(config: Config) -> Report:
+    """Extract rfc files"""
+    markdown_files: list = [markdown_spec for markdown_spec in config.specs if markdown_spec.suffix == ".md"]
+    test_report = MarkdownRequirementParser.process_specifications(markdown_files)
+    click.echo(test_report)
+    return test_report

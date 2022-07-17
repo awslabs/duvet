@@ -97,8 +97,8 @@ class ConfigParser:
             implementation_configs,
             spec_configs,
             legacy,
-            parsed.get("report", {}).get("blob"),
-            parsed.get("report", {}).get("issue"),
+            parsed.get("report", {}).get("blob", {}).get("url", "Github Blob URL Placeholder"),
+            parsed.get("report", {}).get("issue", {}).get("url", "Github Issue URL Placeholder"),
         )
 
     def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[pathlib.Path]:
@@ -137,7 +137,6 @@ class ConfigParser:
                 )
             impl_config_list.append(temp_impl_config)
         return impl_config_list
-
 
 # //= compliance/duvet-specification.txt#2.3.1
 # //# This identifier of meta parts MUST be configurable.

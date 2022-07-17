@@ -2,12 +2,14 @@
 [implementation.py]
 patterns = ["src/**/*.py", "test/**/*.py"]
 comment-style = { meta = "# //=", content = "# //#" }
-[spec.toml]
-patterns = ["hello-world-specification/compliance/**/*.toml"]
+#[spec.toml]
+#patterns = ["hello-world-specification/compliance/**/*.toml"]
+[spec.txt]
+patterns = ["hello-world-specification/compliance/hello-world.txt"]
 [report]
 [report.blob]
-url = ["https://github.com/awslabs/duvet/blob/"]
+url = "https://github.com/awslabs/duvet/blob/"
 [report.issue]
-url = ["https://github.com/awslabs/duvet/issues"]
+url = "https://github.com/awslabs/duvet/issues"
 [mode]
 legacy = false
