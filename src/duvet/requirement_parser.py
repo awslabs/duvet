@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, STOP_SIGN, clean_content, preprocess_text
-from duvet.identifiers import REGEX_DICT, REQUIREMENT_IDENTIFIER_REGEX, RequirementLevel, ALL_RFC_LIST_ENTRY_REGEX
+from duvet.identifiers import ALL_RFC_LIST_ENTRY_REGEX, REGEX_DICT, REQUIREMENT_IDENTIFIER_REGEX, RequirementLevel
 from duvet.rfc import RFCSpecification
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
@@ -58,7 +58,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
         list_match = search(list_entry_regex, quotes)
 
         # Handover to process_inline if no list identifier found.
@@ -76,7 +76,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        right_punc = quotes[span.end:].find("\n\n")
+        right_punc = quotes[span.end :].find("\n\n")
         if right_punc != -1:
             list_block.end = span.end + right_punc
 
@@ -95,7 +95,7 @@ class RequirementParser:
     def _process_inline(body: str, quote_span: Span) -> list[dict]:
         """Given a span of content, return a list of key word arguments of requirement."""
 
-        quotes: str = preprocess_text(body[quote_span.start: quote_span.end])
+        quotes: str = preprocess_text(body[quote_span.start : quote_span.end])
         requirement_candidates: list = []
         req_kwargs: list = []
 
@@ -110,11 +110,11 @@ class RequirementParser:
             left_punc = quotes[: identifier_span.start].rfind(STOP_SIGN)
             if left_punc != -1:
                 sentence_span.start = left_punc
-            right_punc = quotes[identifier_span.end:].find(STOP_SIGN)
+            right_punc = quotes[identifier_span.end :].find(STOP_SIGN)
             if right_punc != -1:
                 sentence_span.end = identifier_span.end + right_punc
             if left_punc != -1 and right_punc != -1:
-                req = quotes[sentence_span.start: sentence_span.end]
+                req = quotes[sentence_span.start : sentence_span.end]
                 req = req.strip("\n")
                 req = req.replace("\n", " ")
                 req = req.replace(STOP_SIGN, "")
@@ -134,7 +134,7 @@ class RequirementParser:
     @staticmethod
     def _process_list_block(body, quote_span: Span, _list_entry_regex) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the "\n\n".
@@ -293,7 +293,9 @@ class RequirementParser:
     @staticmethod
     def _process_requirements(quotes, section, file_type: str = "RFC") -> Section:
         req_kwargs: List[dict] = RequirementParser._process_section(  # type:ignore[arg-type]
-            quotes, [(0, len(quotes))], REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
+            quotes,
+            [(0, len(quotes))],
+            REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
             # We can ignore this because we define REGEX ourselves in identifiers.
             # Which would be subject to user input.
         )
@@ -304,6 +306,7 @@ class RequirementParser:
                 section.add_requirement(Requirement(**kwarg))
 
         return section
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication
