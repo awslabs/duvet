@@ -55,6 +55,11 @@ IMPLEMENTED_TYPES = [
 ATTESTED_TYPES = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
 EXCEPTED_TYPES = [AnnotationType.EXCEPTION]
 
+TOML_URI_KEY: str = "target"
+TOML_SPEC_KEY: str = "spec"
+TOML_REQ_LEVEL_KEY: str = "level"
+TOML_REQ_CONTENT_KEY: str = "quote"
+
 MARKDOWN_LIST_MEMBER_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))"
 # Match All List identifiers
 ALL_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX, re.MULTILINE)

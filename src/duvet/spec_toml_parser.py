@@ -11,6 +11,7 @@ import toml
 from attr import define
 
 from duvet.formatter import clean_content
+from duvet.identifiers import TOML_REQ_CONTENT_KEY, TOML_REQ_LEVEL_KEY, TOML_SPEC_KEY, TOML_URI_KEY, RequirementLevel
 from duvet.identifiers import RequirementLevel
 from duvet.rfc import RFCHeader
 from duvet.structures import Report, Requirement, Section, Specification
