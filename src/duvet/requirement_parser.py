@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
 import logging
-import os
 from pathlib import Path
 from re import Match, Pattern, finditer, search
 from typing import Dict, List, Optional, Tuple
@@ -232,7 +231,7 @@ class RequirementParser:
         return {"requirement_level": level}
 
     @staticmethod
-    def process_specifications(patterns: str, path: Path, report: Optional[Report] = None) -> Report:
+    def process_specifications(filepaths: list[Path], report: Optional[Report] = None) -> Report:
         """Given pattern and filepath of markdown specs.
 
         Return or create a report.
@@ -241,7 +240,7 @@ class RequirementParser:
             report = Report()
 
         specifications: list[Specification] = []
-        for filepath in Path(path).glob(patterns):
+        for filepath in filepaths:
             specifications.append(RequirementParser._process_specification(filepath))
 
         for specification in specifications:
@@ -257,7 +256,7 @@ class RequirementParser:
         """
 
         parser: RFCSpecification = RFCSpecification.parse(specification_source)
-        specification = Specification(specification_source.name, str(os.path.relpath(specification_source, Path.cwd())))
+        specification = Specification(specification_source.name, str(specification_source.resolve()))
 
         for section in RequirementParser._process_sections(parser, specification_source):
             if specification is not None:
@@ -271,8 +270,6 @@ class RequirementParser:
         sections: list[Section] = []
 
         for descendant in parser.descendants:
-            # descendant.body_span
-            # print( descendant.body_span)
             start_line = parser.content[: descendant.body_span.start].count("\n")
             end_line = parser.content[: descendant.body_span.end].count("\n")
             quotes = descendant.get_body()
@@ -281,7 +278,7 @@ class RequirementParser:
                 "title": descendant.get_url(),
                 "start_line": start_line,
                 "end_line": end_line,
-                "quotes": quotes,
+                # "quotes": quotes,
                 "uri": "#".join([str(filepath.resolve()), descendant.get_url()]),
             }
 
@@ -292,11 +289,11 @@ class RequirementParser:
 
     @staticmethod
     def _process_requirements(quotes, section, file_type: str = "RFC") -> Section:
+
         req_kwargs: List[dict] = RequirementParser._process_section(
-            quotes,
-            [(0, len(quotes))],
-            REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
+            quotes, [(0, len(quotes))], REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
         )
+
         for kwarg in req_kwargs:
             content: Optional[str] = kwarg.get("content")
             if content is not None:
