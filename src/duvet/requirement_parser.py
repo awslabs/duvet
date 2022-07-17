@@ -292,12 +292,10 @@ class RequirementParser:
 
     @staticmethod
     def _process_requirements(quotes, section, file_type: str = "RFC") -> Section:
-        req_kwargs: List[dict] = RequirementParser._process_section(  # type:ignore[arg-type]
+        req_kwargs: List[dict] = RequirementParser._process_section(
             quotes,
             [(0, len(quotes))],
             REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
-            # We can ignore this because we define REGEX ourselves in identifiers.
-            # Which would be subject to user input.
         )
         for kwarg in req_kwargs:
             content: Optional[str] = kwarg.get("content")
