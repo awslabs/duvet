@@ -93,8 +93,8 @@ class ConfigParser:
             implementation_configs,
             spec_configs,
             legacy,
-            parsed.get("report", {}).get("blob"),
-            parsed.get("report", {}).get("issue"),
+            parsed.get("report", {}).get("blob", {}).get("url", "Github Blob URL Placeholder"),
+            parsed.get("report", {}).get("issue", {}).get("url", "Github Issue URL Placeholder"),
         )
 
     def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[pathlib.Path]:
