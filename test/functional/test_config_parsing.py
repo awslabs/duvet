@@ -61,19 +61,19 @@ def test_config_parse(tmpdir, contents: str):
 
 def test_missing_keys(tmp_path):
     try:
-        Config.parse(populate_file(tmp_path, IMPL_BLOCK, "duvet_config.toml"))
+        Config.parse(populate_file(tmp_path, IMPL_BLOCK, "duvet.toml"))
     except ValueError as error:
         # Verify the config function by checking the error message.
         assert repr(error) == ("ValueError('Specification Config not found.')")
 
     try:
-        Config.parse(populate_file(tmp_path, SPEC_BLOCK, "duvet_config.toml"))
+        Config.parse(populate_file(tmp_path, SPEC_BLOCK, "duvet.toml"))
     except ValueError as error:
         # Verify the config function by checking the error message.
         assert repr(error) == ("ValueError('Implementation Config not found.')")
 
     try:
-        Config.parse(populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK]), "duvet_config.toml"))
+        Config.parse(populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK]), "duvet.toml"))
     except ValueError as error:
         # Verify the config function by checking the error message.
         assert repr(error) == ("ValueError('Report Config not found.')")
@@ -88,7 +88,7 @@ def test_valid_files(tmp_path):
     populate_file(tmp_path, "# spec2", "src/spec2.rs")
     populate_file(tmp_path, "# spec3", "test/test_spec1.dfy")
 
-    actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
+    actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet.toml")
     with pytest.warns(UserWarning) as record:
         actual_config = Config.parse(actual_path)
     assert len(record) == 3

@@ -6,8 +6,8 @@ comment-style = { meta = "#//=", content = "#//#" }
 patterns = ["duvet-specification/duvet-specification.md"]
 [report]
 [report.blob]
-url = ["https://github.com/awslabs/duvet/blob/"]
+url = "https://github.com/awslabs/duvet/blob/"
 [report.issue]
-url = ["https://github.com/awslabs/duvet/issues"]
+url = "https://github.com/awslabs/duvet/issues"
 [mode]
 legacy = false
