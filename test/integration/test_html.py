@@ -36,9 +36,8 @@ def test_against_duvet(pytestconfig, caplog, tmp_path):
     html_report = HTMLReport.from_json_report(actual_json)
 
     actual_json.write_json(f"{tmp_path}/duvet-report.json")
-    html_json = HTMLReport.from_json_file(f"{tmp_path}/duvet-report.json")
 
-    assert html_json == html_report
+    assert HTMLReport.from_json_file(f"{tmp_path}/duvet-report.json") == html_report
 
     html_path = html_report.write_html(f"{tmp_path}/duvet-report.html")
     assert html_path.endswith(".html")
