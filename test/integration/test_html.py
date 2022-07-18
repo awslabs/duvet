@@ -64,6 +64,6 @@ def test_hello_world(pytestconfig, caplog, tmp_path):
     actual_config = Config.parse(str(pytestconfig.rootpath.joinpath("examples/hello-world/duvet.toml").resolve()))
 
     actual_json = JSONReport.create(test_report, actual_config)
-    html_report = HTMLReport().from_json_report(actual_json)
+    html_report = HTMLReport.from_json_report(actual_json)
     html_path = html_report.write_html(f"{tmp_path}/duvet-report.html")
     assert html_path.endswith(".html")
