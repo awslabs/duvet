@@ -23,14 +23,12 @@ class HTMLReport:
     def from_json_file(cls, json_path=DEFAULT_JSON_PATH):
         """Load data from JSON file."""
         with open(json_path, "r+", encoding="utf-8") as json_file:
-            cls.data = json.load(json_file)
-            return cls()
+            return cls(json.load(json_file))
 
     @classmethod
     def from_json_report(cls, json_report: JSONReport):
         """Load data from JSONReport."""
-        cls.data = json_report.get_dictionary()
-        return cls()
+        return cls(json_report.get_dictionary())
 
     def write_html(self, html_path=DEFAULT_HTML_PATH) -> str:
         """Write HTML report."""
