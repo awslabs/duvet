@@ -33,7 +33,13 @@ def test_against_duvet(pytestconfig, caplog, tmp_path):
     actual_config = Config.parse(str(pytestconfig.rootpath.joinpath("duvet_config.toml").resolve()))
 
     actual_json = JSONReport.create(test_report, actual_config)
-    html_report = HTMLReport().from_json_report(actual_json)
+    html_report = HTMLReport.from_json_report(actual_json)
+
+    actual_json.write_json(f"{tmp_path}/duvet-report.json")
+    html_json = HTMLReport.from_json_file(f"{tmp_path}/duvet-report.json")
+
+    assert html_json == html_report
+
     html_path = html_report.write_html(f"{tmp_path}/duvet-report.html")
     assert html_path.endswith(".html")
 
