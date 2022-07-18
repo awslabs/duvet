@@ -22,9 +22,9 @@ patterns = ["src/**/*.dfy", "test/**/*.dfy", "compliance_exceptions/**/*.txt"]""
 
 REPORT_BLOCK = """[report]
 [report.blob]
-url = ["https://github.com/aws/aws-encryption-sdk-dafny/blob/"]
+url = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
 [report.issue]
-url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
+url = "https://github.com/aws/aws-encryption-sdk-dafny/issues" """
 
 
 def _config_test_cases():

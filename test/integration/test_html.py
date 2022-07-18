@@ -11,36 +11,10 @@ from duvet.html import HTMLReport
 from duvet.json_report import JSONReport
 from duvet.spec_toml_parser import TomlRequirementParser
 
-from ..utils import populate_file  # isort: skip
-
 pytestmark = [pytest.mark.integ]
 
-SPEC_BLOCK = """[spec.markdown]
-patterns = ["project-specification/**/*.md"]"""
 
-IMPL_BLOCK = """[implementation]
-[implementation.rs]
-patterns = ["src/**/*.rs", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
-comment-style = { meta = "//=", content = "//#" }
-[implementation.dfy]
-patterns = ["src/**/*.dfy", "test/**/*.dfy", "compliance_exceptions/**/*.txt"]"""
-
-REPORT_BLOCK = """[report]
-[report.blob]
-url = ["https://github.com/aws/aws-encryption-sdk-dafny/blob/"]
-[report.issue]
-url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
-
-
-@pytest.fixture
-def actual_config(tmp_path) -> Config:
-    actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet_config.toml")
-    with pytest.warns(UserWarning):
-        actual_config = Config.parse(str(actual_path.resolve()))
-    return actual_config
-
-
-def test_against_duvet(pytestconfig, caplog, tmp_path, actual_config):
+def test_against_duvet(pytestconfig, caplog, tmp_path):
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
     test_report = TomlRequirementParser().extract_toml_specs("compliance/**/*.toml", filepath)
 
@@ -56,14 +30,15 @@ def test_against_duvet(pytestconfig, caplog, tmp_path, actual_config):
     assert counter > 0
     test_report.analyze_annotations()
 
+    actual_config = Config.parse(str(pytestconfig.rootpath.joinpath("duvet_config.toml").resolve()))
+
     actual_json = JSONReport.create(test_report, actual_config)
-    html_report = HTMLReport()
-    html_report.data = actual_json.get_dictionary()
+    html_report = HTMLReport().from_json_report(actual_json)
     html_path = html_report.write_html(f"{tmp_path}/duvet-report.html")
     assert html_path.endswith(".html")
 
 
-def test_hello_world(pytestconfig, caplog, tmp_path, actual_config):
+def test_hello_world(pytestconfig, caplog, tmp_path):
     # Parse specifications from toml files.
     filepath = pytestconfig.rootpath.joinpath("examples/hello-world/hello-world-specification")
     caplog.set_level(logging.INFO)
@@ -80,8 +55,9 @@ def test_hello_world(pytestconfig, caplog, tmp_path, actual_config):
     assert counter > 0
     test_report.analyze_annotations()
 
+    actual_config = Config.parse(str(pytestconfig.rootpath.joinpath("examples/hello-world/duvet.toml").resolve()))
+
     actual_json = JSONReport.create(test_report, actual_config)
-    html_report = HTMLReport()
-    html_report.data = actual_json.get_dictionary()
+    html_report = HTMLReport().from_json_report(actual_json)
     html_path = html_report.write_html(f"{tmp_path}/duvet-report.html")
     assert html_path.endswith(".html")

@@ -10,18 +10,27 @@ import click
 from attrs import define, field
 
 from duvet.identifiers import DEFAULT_HTML_PATH, DEFAULT_JSON_PATH
+from duvet.json_report import JSONReport
 
 
 @define
 class HTMLReport:
     """Container of the HTML report."""
 
-    data: dict = field(init=False, default=attr.Factory(dict))
+    data: dict = field(init=True, default=attr.Factory(dict))
 
-    def process_json(self, json_path=DEFAULT_JSON_PATH):
-        """Serialize data from JSON file."""
+    @classmethod
+    def from_json_file(cls, json_path=DEFAULT_JSON_PATH):
+        """Load data from JSON file."""
         with open(json_path, "r+", encoding="utf-8") as json_file:
-            self.data = json.load(json_file)
+            cls.data = json.load(json_file)
+            return cls()
+
+    @classmethod
+    def from_json_report(cls, json_report: JSONReport):
+        """Load data from JSONReport."""
+        cls.data = json_report.get_dictionary()
+        return cls()
 
     def write_html(self, html_path=DEFAULT_HTML_PATH) -> str:
         """Write HTML report."""

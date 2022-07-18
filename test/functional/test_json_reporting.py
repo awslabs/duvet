@@ -74,7 +74,9 @@ def test_hello_world(pytestconfig, caplog):
     anno_content_style = "# //#"
 
     parser = AnnotationParser(actual_paths, anno_meta_style, anno_content_style)
-    parser.process_all()
+    annotations = parser.process_all()
+    bool_list = [test_report.add_annotation(annotation) for annotation in annotations]
+    assert bool_list.count(True) > 0
     test_report.analyze_annotations()
 
     actual_json = JSONReport.create(test_report, actual_config)
@@ -83,4 +85,4 @@ def test_hello_world(pytestconfig, caplog):
     actual_specification = actual_json.specifications.get("compliance/hello-world.txt")
     assert len(actual_specification.get("sections")) == 3
     assert len(actual_specification.get("requirements")) == 2
-    assert len(actual_json.annotations) == 2
+    assert len(actual_json.annotations) == 3
