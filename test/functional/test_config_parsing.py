@@ -38,9 +38,10 @@ comment-style = { meta = "//=", content = "//#" }
 patterns = ["src/**/*.dfy", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
 [spec.markdown]
 patterns = ["project-specification/**/*.md"]
-[report]
-blob = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
-issue = "https://github.com/aws/aws-encryption-sdk-dafny/issues"
+[report.blob]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/tree/0361e467b455e7ac4c94f28d5652a4c809c8762e"]
+[report.issue]
+url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]
 [mode]
 legacy = true
         """
