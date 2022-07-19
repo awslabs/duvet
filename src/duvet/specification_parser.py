@@ -7,7 +7,7 @@ from re import Match
 from typing import Iterator, TypeVar, Union
 
 # We don't really need to check the type of third party library.
-import anytree  # type: ignore[import] # pylint: disable=E0401
+from anytree import NodeMixin # type: ignore[import]
 from attrs import define, field
 
 MAX_HEADER_LEVELS: str = str(4)
@@ -42,11 +42,11 @@ class Span:
 
     def to_string(self, quotes: str) -> str:
         """Get string from span."""
-        return quotes[self.start : self.end]
+        return quotes[self.start: self.end]
 
 
 @define
-class SpecificationElement(anytree.NodeMixin):
+class SpecificationElement(NodeMixin):
     """Either a Specification file or header in a Specification file."""
 
     level: int = field(init=True, repr=False)
@@ -92,7 +92,7 @@ class SpecificationHeader(SpecificationElement, metaclass=ABCMeta):
         """Get the body of the header."""
         assert hasattr(self.root, "content"), "Cannot call get_body if self.root has no content attribute"
         assert isinstance(self.body_span, Span), "Cannot call get_body if self.body_span is not set"
-        return self.root.content[self.body_span.start : self.body_span.end]
+        return self.root.content[self.body_span.start: self.body_span.end]
 
     def get_url(self) -> str:
         """Prefixes parent titles to this title.
@@ -126,7 +126,7 @@ class ParsedSpecification(SpecificationElement, metaclass=ABCMeta):
     Creates a tree from the file's headers,
     with itself as the root of the tree.
 
-    ParsedSpecification extends anytree.NodeMixin,
+    ParsedSpecification extends NodeMixin,
     so all tree walking methods from anytree are supported.
     In particular, to view all the headers, use `descendants`.
     To check just the top level headers, use `children`.
