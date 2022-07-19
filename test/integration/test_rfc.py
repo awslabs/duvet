@@ -14,7 +14,7 @@ pytestmark = [pytest.mark.integ]
 
 class TestRFCSpecificationAgainstESDK:
     def test(self):
-        esdk_path: Path = get_path_to_esdk_dafny
+        esdk_path: Path = get_path_to_esdk_dafny()
         esdk_specs = [
             RFCSpecification.parse(file) for pattern in ESDK_SPEC_RFC_PATTERNS for file in esdk_path.glob(pattern)
         ]

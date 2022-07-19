@@ -2,8 +2,8 @@
 [implementation.py]
 patterns = ["src/**/*.py", "test/**/*.py"]
 comment-style = { meta = "#//=", content = "#//#" }
-[spec.markdown]
-patterns = ["duvet-specification/duvet-specification.md"]
+[spec.txt]
+patterns = ["duvet-specification/compliance/duvet-specification.txt"]
 [report]
 [report.blob]
 url = "https://github.com/awslabs/duvet/blob/"

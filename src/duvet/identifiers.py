@@ -59,8 +59,13 @@ ALL_RFC_LIST_ENTRY_REGEX: re.Pattern = re.compile(RFC_LIST_MEMBER_REGEX, re.MULT
 REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
 
 # Match end of list for both rfc and markdown.
+# Previous line has next line                                  :: [\r\n]
+# This line starts with next line                              :: [\r\n]
+# Followed by zero or many space                               :: [\s]
+# Followed by capital words                                    :: [\s]
+# Or followed by end of string                                 :: [$]
+# Or followed by digits but could not be end with period       :: [\d](!\.)
 END_OF_LIST: re.Pattern = re.compile(r"(?:[\r\n])^(?:[\r\n])+[\s]*([A-Z]|$|[\d](!\.))", re.MULTILINE)
-
 
 FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))(.*?)", re.MULTILINE)
 

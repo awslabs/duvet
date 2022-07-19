@@ -79,7 +79,7 @@ class RFCSpecification(ParsedSpecification):
     @staticmethod
     def is_file_format(filename: str) -> bool:
         """Detect RFC File."""
-        return filename.rsplit(".", maxsplit=1)[-1] == "txt"
+        return filename.endswith("txt")
 
     def _match_headers(self) -> Iterator[re.Match]:
         return ALL_HEADERS_REGEX.finditer(self.content)
@@ -91,5 +91,5 @@ class RFCSpecification(ParsedSpecification):
 __all__ = ("RFCHeader", "RFCSpecification")
 
 # //= compliance/duvet-specification.txt#2.2.4
-# //= type=TODO
-# //# Duvet MUST be able to parse specifications formatted as:
+# //= type=citation
+# //# Duvet MUST be able to parse specifications formatted as: IETF

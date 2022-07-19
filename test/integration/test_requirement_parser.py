@@ -13,7 +13,10 @@ pytestmark = [pytest.mark.integ]
 class TestRFCParserAgainstESDKDafny:
     def test_extract_dafny_implementation_annotation(self, pytestconfig):
         dfy_path = get_path_to_esdk_dafny()
-        actual_paths = list(dfy_path.glob("aws-encryption-sdk-specification/compliance/**/*.txt"))
+
+        filepath = dfy_path.joinpath("aws-encryption-sdk-specification")
+
+        actual_paths = list(filepath.glob("compliance/**/*.txt"))
 
         report = RequirementParser.process_specifications(actual_paths)
 

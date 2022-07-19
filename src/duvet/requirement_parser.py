@@ -70,7 +70,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
         list_match = search(list_entry_regex, quotes)
 
         # Handover to process_inline if no list identifier found.
@@ -91,7 +91,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        end_of_list_match = search(END_OF_LIST, quotes[span.end:])
+        end_of_list_match = search(END_OF_LIST, quotes[span.end :])
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
@@ -115,7 +115,7 @@ class RequirementParser:
     def _process_inline(body: str, quote_span: Span) -> list[dict]:
         """Given a span of content, return a list of key word arguments of requirement."""
 
-        quotes: str = preprocess_text(body[quote_span.start: quote_span.end])
+        quotes: str = preprocess_text(body[quote_span.start : quote_span.end])
         # body[quote_span.start: quote_span.end]
         # preprocess_text(body[quote_span.start: quote_span.end])
         requirement_candidates: list = []
@@ -132,11 +132,11 @@ class RequirementParser:
             left_punc = quotes[: identifier_span.start].rfind(STOP_SIGN)
             if left_punc != -1:
                 sentence_span.start = left_punc
-            right_punc = quotes[identifier_span.end:].find(STOP_SIGN)
+            right_punc = quotes[identifier_span.end :].find(STOP_SIGN)
             if right_punc != -1:
                 sentence_span.end = identifier_span.end + right_punc
             if left_punc != -1 and right_punc != -1:
-                req = copy.deepcopy(quotes[sentence_span.start: sentence_span.end])
+                req = copy.deepcopy(quotes[sentence_span.start : sentence_span.end])
                 req = req.strip("\n")
                 req = req.replace("\n", " ")
                 req = req.replace(STOP_SIGN, "")
@@ -158,7 +158,7 @@ class RequirementParser:
     @staticmethod
     def _process_list_block(body, quote_span: Span, _list_entry_regex) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the "\n\n".
@@ -169,7 +169,7 @@ class RequirementParser:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
 
-            quotes = body[quote_span.start: quote_span.start + end_of_list]
+            quotes = body[quote_span.start : quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
         list_entry: Optional[Match[str]] = search(_list_entry_regex, quotes)
@@ -359,6 +359,7 @@ class RequirementParser:
                 section.add_requirement(Requirement(**kwarg))
 
         return section
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication
