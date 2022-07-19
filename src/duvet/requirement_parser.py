@@ -7,7 +7,6 @@ from pathlib import Path
 from re import Match, Pattern, finditer, search
 from typing import Dict, List, Optional, Tuple
 
-import attr
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, STOP_SIGN, clean_content, preprocess_text
