@@ -7,7 +7,7 @@ from re import Match
 from typing import Iterator, TypeVar, Union
 
 # We don't really need to check the type of third party library.
-from anytree import NodeMixin # type: ignore[import]
+from anytree import NodeMixin  # type: ignore[import]
 from attrs import define, field
 
 MAX_HEADER_LEVELS: str = str(4)
