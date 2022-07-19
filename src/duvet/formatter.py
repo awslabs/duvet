@@ -54,7 +54,7 @@ def preprocess_text(inline_text: str) -> str:
 def clean_content(content: str) -> str:
     """Create clean content string."""
 
-    cleaned_content = content.replace("\n", " ").strip()
+    cleaned_content = " ".join(content.split())
     return cleaned_content
 
 

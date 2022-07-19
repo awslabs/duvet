@@ -57,7 +57,11 @@ RFC_LIST_MEMBER_REGEX = r"(^(?:(\s)*((?:(\-|\*))|(?:(\d)+\.)|(?:[a-z]+\.)) ))"
 ALL_RFC_LIST_ENTRY_REGEX: re.Pattern = re.compile(RFC_LIST_MEMBER_REGEX, re.MULTILINE)
 # Match common List identifiers
 REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
-END_OF_LIST = r"\n\n"
+
+# Match end of list for both rfc and markdown.
+END_OF_LIST: re.Pattern = re.compile(r"(?:[\r\n])^(?:[\r\n])+[\s]*([A-Z]|$|[\d](!\.))", re.MULTILINE)
+
+
 FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))(.*?)", re.MULTILINE)
 
 REGEX_DICT: dict = {"RFC": ALL_RFC_LIST_ENTRY_REGEX}

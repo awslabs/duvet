@@ -1,15 +1,18 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
+import copy
 import logging
 from pathlib import Path
 from re import Match, Pattern, finditer, search
 from typing import Dict, List, Optional, Tuple
 
+import attr
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, STOP_SIGN, clean_content, preprocess_text
-from duvet.identifiers import ALL_RFC_LIST_ENTRY_REGEX, REGEX_DICT, REQUIREMENT_IDENTIFIER_REGEX, RequirementLevel
+from duvet.identifiers import ALL_RFC_LIST_ENTRY_REGEX, REGEX_DICT, REQUIREMENT_IDENTIFIER_REGEX, RequirementLevel, \
+    END_OF_LIST
 from duvet.rfc import RFCSpecification
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
@@ -32,7 +35,13 @@ class RequirementParser:
                 result.extend(RequirementParser._process_inline(body, annotated_span[0]))
 
             if annotated_span[1] == "LIST_BLOCK":
-                result.extend(RequirementParser._process_list_block(body, annotated_span[0], list_entry_regex))
+                lists = []
+                blocks = RequirementParser._process_list_block(body, annotated_span[0], list_entry_regex)
+                for block in blocks:
+                    lists.extend(RequirementParser._process_list(body, block, False))
+                result.extend(lists)
+
+        # print(result)
         return result
 
     @staticmethod
@@ -57,17 +66,20 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
         list_match = search(list_entry_regex, quotes)
 
         # Handover to process_inline if no list identifier found.
         if list_match is None:
             result.append((quote_span, "INLINE"))
+            # print(quote_span)
             return result
 
         # Identify start of the list block.
         span: Span = Span.from_match(list_match)
-        list_block: Span = Span(0, len(quotes) - 1)
+        list_block: Span = Span(0, len(quotes))
+
+        # print("why the heck there is a list in " + quotes[span.start: span.end])
 
         for end_sentence_punc in SENTENCE_DIVIDER:
             left_punc = quotes[: span.start].rfind(end_sentence_punc)
@@ -75,9 +87,10 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        right_punc = quotes[span.end :].find("\n\n")
-        if right_punc != -1:
-            list_block.end = span.end + right_punc
+        end_of_list_match = search(END_OF_LIST, quotes[span.end:])
+        if end_of_list_match != None:
+            end_of_list_span = Span.from_match(end_of_list_match)
+            list_block.end = span.end + end_of_list_span.start
 
         # First, add requirement string before list.
         result.append((Span(0, list_block.start + 2).add_start(quote_span), "INLINE"))
@@ -86,15 +99,21 @@ class RequirementParser:
         result.append((Span(list_block.start + 2, list_block.end + 2).add_start(quote_span), "LIST_BLOCK"))
 
         # Third, add requirement string after list.
-        new_span = Span(list_block.end + 2, quote_span.end).add_start(quote_span)
-        result.extend(RequirementParser._process_block(quotes, new_span, list_entry_regex))
+        if list_block.end + 2 < quote_span.end:
+            new_span = Span(list_block.end + 2, quote_span.end).add_start(quote_span)
+            result.extend(RequirementParser._process_block(quotes, new_span, list_entry_regex))
+
+        # print(result)
+
         return result
 
     @staticmethod
     def _process_inline(body: str, quote_span: Span) -> list[dict]:
         """Given a span of content, return a list of key word arguments of requirement."""
 
-        quotes: str = preprocess_text(body[quote_span.start : quote_span.end])
+        quotes: str = preprocess_text(body[quote_span.start: quote_span.end])
+        # body[quote_span.start: quote_span.end]
+        # preprocess_text(body[quote_span.start: quote_span.end])
         requirement_candidates: list = []
         req_kwargs: list = []
 
@@ -104,23 +123,23 @@ class RequirementParser:
 
         for candidate in requirement_candidates:
             identifier_span = Span(candidate[0], candidate[1])
-            sentence_span = Span(0, len(quotes) - 1)
+            sentence_span = Span(0, len(quotes))
 
             left_punc = quotes[: identifier_span.start].rfind(STOP_SIGN)
             if left_punc != -1:
                 sentence_span.start = left_punc
-            right_punc = quotes[identifier_span.end :].find(STOP_SIGN)
+            right_punc = quotes[identifier_span.end:].find(STOP_SIGN)
             if right_punc != -1:
                 sentence_span.end = identifier_span.end + right_punc
             if left_punc != -1 and right_punc != -1:
-                req = quotes[sentence_span.start : sentence_span.end]
+                req = copy.deepcopy(quotes[sentence_span.start: sentence_span.end])
                 req = req.strip("\n")
                 req = req.replace("\n", " ")
                 req = req.replace(STOP_SIGN, "")
                 req = req.strip()
 
                 if req.endswith((".", "!")):
-                    req_kwarg = {
+                    req_kwarg: attr.Factory(dict) = {
                         "content": req,
                         "span": sentence_span.add_start(quote_span),
                     }
@@ -128,16 +147,25 @@ class RequirementParser:
                     if req_kwarg not in req_kwargs:
                         req_kwargs.append(req_kwarg)
 
+                        # print(req_kwarg)
+
         return req_kwargs
 
     @staticmethod
     def _process_list_block(body, quote_span: Span, _list_entry_regex) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the "\n\n".
-        end_of_list = quotes.rfind("\n\n") + 2
+        # end_of_list = quotes.rfind("\n\n") + 2
+        end_of_list = len(quotes) - 1
+        end_of_list_match = search(END_OF_LIST, quotes)
+        if end_of_list_match != None:
+            end_of_list_span = Span.from_match(end_of_list_match)
+            end_of_list = end_of_list_span.start + 2
+
+            quotes = body[quote_span.start:quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
         list_entry: Optional[Match[str]] = search(_list_entry_regex, quotes)
@@ -158,6 +186,7 @@ class RequirementParser:
                 matched_span.append(temp)
 
         # Append the last element of the list
+        # print((prev + quote_span.start, end_of_list + quote_span.start))
         matched_span.append(Span(prev, end_of_list).add_start(quote_span))
 
         result.append({"parent": list_parent, "children": matched_span})
@@ -178,15 +207,20 @@ class RequirementParser:
 
         # Parent MUST NOT be None
         parent: Span = kwargs.get("parent")  # type: ignore[assignment]
+        parent_string: str = parent.to_string(body)
+        parent_level = RequirementParser._process_requirement_level(parent_string)
+
+        if parent_level.get("requirement_level") is None:
+            return []
 
         # There MUST be parent.
         if is_legacy:
-            quotes = parent.to_string(body)
+            # quotes = parent.to_string(body)
             req_kwarg: dict = {
-                "content": clean_content(quotes),
+                "content": clean_content(parent_string),
                 "span": parent,
             }
-            req_kwarg.update(RequirementParser._process_requirement_level(quotes))
+            req_kwarg.update(RequirementParser._process_requirement_level(parent_string))
             req_list.append(req_kwarg)
             return req_list
 
@@ -196,9 +230,8 @@ class RequirementParser:
         # There MUST be children.
         for child in children:
             quotes = " ".join([clean_content(parent.to_string(body)), clean_content(child.to_string(body))])
-
             child_kwarg: dict = {"span": child, "content": clean_content(quotes)}
-            child_kwarg.update(RequirementParser._process_requirement_level(quotes))
+            child_kwarg.update(parent_level)
 
             req_list.append(child_kwarg)
         return req_list
@@ -256,7 +289,8 @@ class RequirementParser:
         """
 
         parser: RFCSpecification = RFCSpecification.parse(specification_source)
-        specification = Specification(specification_source.name, str(specification_source.resolve()))
+        specification = Specification(specification_source.name,
+                                      str(specification_source.relative_to(specification_source.parent.parent)))
 
         for section in RequirementParser._process_sections(parser, specification_source):
             if specification is not None:
@@ -272,36 +306,54 @@ class RequirementParser:
         for descendant in parser.descendants:
             start_line = parser.content[: descendant.body_span.start].count("\n")
             end_line = parser.content[: descendant.body_span.end].count("\n")
-            quotes = descendant.get_body()
+            quotes: str = copy.deepcopy(descendant.get_body())
+
+            lines = quotes.splitlines()
+            lines[0] = "   ".join([descendant.number, descendant.title])
 
             section_kwarg: dict = {
-                "title": descendant.get_url(),
+                "title": descendant.number.rstrip(". "),
                 "start_line": start_line,
                 "end_line": end_line,
-                # "quotes": quotes,
-                "uri": "#".join([str(filepath.resolve()), descendant.get_url()]),
+                "lines": lines,
+                "uri": "#".join([str(filepath.relative_to(filepath.parent.parent)), descendant.number.rstrip(". ")]),
             }
 
             section = Section(**section_kwarg)
-            sections.append(RequirementParser._process_requirements(quotes, section))
+
+            section_with_requirements: list[Section] = []
+            if filepath.suffix == ".txt":
+                section_with_requirements.append(RequirementParser._process_requirements(quotes, section))
+
+            if filepath.suffix == ".md":
+                section_with_requirements.append(RequirementParser._process_requirements(quotes, section, "MARKDOWN"))
+
+            sections.extend(section_with_requirements)
 
         return sections
 
     @staticmethod
     def _process_requirements(quotes, section, file_type: str = "RFC") -> Section:
 
+        blocks = RequirementParser._process_block(quotes,
+                                                  Span(0, len(quotes)),
+                                                  REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX))
+        # print(blocks)
+
         req_kwargs: List[dict] = RequirementParser._process_section(
-            quotes, [(0, len(quotes))], REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
+            quotes, blocks, REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
         )
 
         for kwarg in req_kwargs:
             content: Optional[str] = kwarg.get("content")
             if content is not None:
+                # print(kwarg)
                 kwarg.setdefault("uri", "$".join([section.uri, content]))
+                if "span" in kwarg.keys():
+                    kwarg.pop("span")
                 section.add_requirement(Requirement(**kwarg))
 
         return section
-
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication
