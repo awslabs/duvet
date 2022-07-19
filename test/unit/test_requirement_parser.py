@@ -195,14 +195,14 @@ class TestProcessList:
 class TestProcessInline:
     @staticmethod
     def test_process_inline():
-        actual_span = Span(0, len(TEST_REQUIREMENT_STR) - 1)
+        actual_span = Span(0, len(TEST_REQUIREMENT_STR))
 
         # Test valid inline text
         assert RequirementParser._process_inline(TEST_REQUIREMENT_STR, actual_span) == [
             {
                 "content": "Duvet MUST implement every requirement.",
                 "requirement_level": RequirementLevel.MUST,
-                "span": Span(start=28, end=74),
+                "span": Span(21, end=61),
             }
         ]
 

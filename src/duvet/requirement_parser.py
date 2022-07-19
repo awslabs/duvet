@@ -3,20 +3,14 @@
 """Requirement Parser used by duvet-python."""
 import copy
 import logging
+import re
 from pathlib import Path
-from re import Match, Pattern, finditer, search
 from typing import Dict, List, Optional, Tuple
 
 from attrs import define
 
-from duvet.formatter import SENTENCE_DIVIDER, STOP_SIGN, clean_content, preprocess_text
-from duvet.identifiers import (
-    ALL_RFC_LIST_ENTRY_REGEX,
-    END_OF_LIST,
-    REGEX_DICT,
-    REQUIREMENT_IDENTIFIER_REGEX,
-    RequirementLevel,
-)
+from duvet.formatter import SENTENCE_DIVIDER, clean_content
+from duvet.identifiers import ALL_RFC_LIST_ENTRY_REGEX, END_OF_LIST, END_OF_SENTENCE, REGEX_DICT, RequirementLevel
 from duvet.rfc import RFCSpecification
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
@@ -27,7 +21,7 @@ class RequirementParser:
     """The parser of a requirement in a block."""
 
     @staticmethod
-    def _process_section(body: str, annotated_spans: List[Tuple], list_entry_regex: Pattern) -> List[dict]:
+    def _process_section(body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern) -> List[dict]:
         """Take a chunk of string in section.
 
         Return a list of span and types.
@@ -45,11 +39,10 @@ class RequirementParser:
                     lists.extend(RequirementParser._process_list(body, block, False))
                 result.extend(lists)
 
-        # print(result)
         return result
 
     @staticmethod
-    def _process_block(body, quote_span: Span, list_entry_regex: Pattern) -> List[Tuple]:
+    def _process_block(body, quote_span: Span, list_entry_regex: re.Pattern) -> List[Tuple]:
         """Take a chunk of string in section.
 
         Create a list of sentences containing RFC2019 keywords.
@@ -71,19 +64,16 @@ class RequirementParser:
         """
         result: List = []
         quotes = body[quote_span.start : quote_span.end]
-        list_match = search(list_entry_regex, quotes)
+        list_match = re.search(list_entry_regex, quotes)
 
         # Handover to process_inline if no list identifier found.
         if list_match is None:
             result.append((quote_span, "INLINE"))
-            # print(quote_span)
             return result
 
         # Identify start of the list block.
         span: Span = Span.from_match(list_match)
         list_block: Span = Span(0, len(quotes))
-
-        # print("why the heck there is a list in " + quotes[span.start: span.end])
 
         for end_sentence_punc in SENTENCE_DIVIDER:
             left_punc = quotes[: span.start].rfind(end_sentence_punc)
@@ -91,7 +81,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        end_of_list_match = search(END_OF_LIST, quotes[span.end :])
+        end_of_list_match = re.search(END_OF_LIST, quotes[span.end :])
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
@@ -107,64 +97,62 @@ class RequirementParser:
             new_span = Span(list_block.end + 2, quote_span.end).add_start(quote_span)
             result.extend(RequirementParser._process_block(quotes, new_span, list_entry_regex))
 
-        # print(result)
-
         return result
 
     @staticmethod
     def _process_inline(body: str, quote_span: Span) -> list[dict]:
-        """Given a span of content, return a list of key word arguments of requirement."""
+        # Split sentences.
+        quotes: str = quote_span.to_string(body)
+        matches: list = list(re.finditer(END_OF_SENTENCE, quotes))
 
-        quotes: str = preprocess_text(body[quote_span.start : quote_span.end])
-        # body[quote_span.start: quote_span.end]
-        # preprocess_text(body[quote_span.start: quote_span.end])
-        requirement_candidates: list = []
-        req_kwargs: list = []
+        if matches is None:
+            return []
 
-        # Find requirement identifiers in the quotes.
-        for match in finditer(REQUIREMENT_IDENTIFIER_REGEX, quotes):
-            requirement_candidates.append(match.span())
+        spans: list = [Span.from_match(match) for match in matches]
+        sentences: list = []
 
-        for candidate in requirement_candidates:
-            identifier_span = Span(candidate[0], candidate[1])
-            sentence_span = Span(0, len(quotes))
+        prev = 0
+        for span in spans:
+            sentences.append(Span(prev, span.end))
+            prev = span.end
 
-            left_punc = quotes[: identifier_span.start].rfind(STOP_SIGN)
-            if left_punc != -1:
-                sentence_span.start = left_punc
-            right_punc = quotes[identifier_span.end :].find(STOP_SIGN)
-            if right_punc != -1:
-                sentence_span.end = identifier_span.end + right_punc
-            if left_punc != -1 and right_punc != -1:
-                req = copy.deepcopy(quotes[sentence_span.start : sentence_span.end])
-                req = req.strip("\n")
-                req = req.replace("\n", " ")
-                req = req.replace(STOP_SIGN, "")
-                req = req.strip()
+        # Append end of the quotes
+        if prev < len(quotes) - 1:
+            sentences.append(Span(prev, len(quotes) - 1))
 
-                if req.endswith((".", "!")):
-                    req_kwarg: dict = {
-                        "content": req,
-                        "span": sentence_span.add_start(quote_span),
-                    }
-                    req_kwarg.update(RequirementParser._process_requirement_level(quotes))
-                    if req_kwarg not in req_kwargs:
-                        req_kwargs.append(req_kwarg)
+        req_kwargs: list[dict] = []
 
-                        # print(req_kwarg)
+        # Determine which sentence could be a requirement.
+        for sentence in sentences:
+            words: str = sentence.to_string(quotes)
+
+            level: Optional[RequirementLevel] = RequirementParser._process_requirement_level(words).get(
+                "requirement_level"
+            )
+
+            if level is None:
+                continue
+
+            if clean_content(words).endswith((".", "!")):
+                req_kwarg: dict = {
+                    "content": clean_content(words),
+                    "span": sentence.add_start(quote_span),
+                    "requirement_level": level,
+                }
+                if req_kwarg not in req_kwargs:
+                    req_kwargs.append(req_kwarg)
 
         return req_kwargs
 
     @staticmethod
-    def _process_list_block(body, quote_span: Span, _list_entry_regex) -> list[Dict]:
+    def _process_list_block(body: str, quote_span: Span, list_entry_regex: re.Pattern) -> list[Dict]:
         """Create list requirements from a chunk of string."""
         quotes = body[quote_span.start : quote_span.end]
         result: list[Dict] = []
 
-        # Find the end of the list using the "\n\n".
-        # end_of_list = quotes.rfind("\n\n") + 2
+        # Find the end of the list using the END OF LIST.
         end_of_list = len(quotes) - 1
-        end_of_list_match = search(END_OF_LIST, quotes)
+        end_of_list_match = re.search(END_OF_LIST, quotes)
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
@@ -172,7 +160,12 @@ class RequirementParser:
             quotes = body[quote_span.start : quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
-        list_entry: Optional[Match[str]] = search(_list_entry_regex, quotes)
+
+        # //= compliance/duvet-specification.txt#2.2.2
+        # //# List elements MAY contain a period (.) or exclamation point (!)
+        # //# and this punctuation MUST NOT terminate the requirement by excluding the following
+        # //# elements from the list of requirements.
+        list_entry: Optional[re.Match[str]] = re.search(list_entry_regex, quotes)
         if list_entry is None:
             logging.warning("Requirement list syntax is not valid in %s", quotes)
             return result
@@ -183,14 +176,13 @@ class RequirementParser:
         # Extract children.
         matched_span = []
         prev = first_list_identifier.end
-        for match in finditer(_list_entry_regex, quotes):
+        for match in re.finditer(list_entry_regex, quotes):
             if prev < match.span()[0]:
                 temp = Span(prev, match.span()[0]).add_start(quote_span)
                 prev = match.span()[1]
                 matched_span.append(temp)
 
         # Append the last element of the list
-        # print((prev + quote_span.start, end_of_list + quote_span.start))
         matched_span.append(Span(prev, end_of_list).add_start(quote_span))
 
         result.append({"parent": list_parent, "children": matched_span})
@@ -343,7 +335,6 @@ class RequirementParser:
         blocks = RequirementParser._process_block(
             quotes, Span(0, len(quotes)), REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
         )
-        # print(blocks)
 
         req_kwargs: List[dict] = RequirementParser._process_section(
             quotes, blocks, REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
@@ -352,7 +343,6 @@ class RequirementParser:
         for kwarg in req_kwargs:
             content: Optional[str] = kwarg.get("content")
             if content is not None:
-                # print(kwarg)
                 kwarg.setdefault("uri", "$".join([section.uri, content]))
                 if "span" in kwarg.keys():
                     kwarg.pop("span")
@@ -374,10 +364,6 @@ class RequirementParser:
 # //= type=implication
 # //# List elements MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.
 
-# //= compliance/duvet-specification.txt#2.2.2
-# //# List elements MAY contain a period (.) or exclamation point (!)
-# //# and this punctuation MUST NOT terminate the requirement by excluding the following
-# //# elements from the list of requirements.
 
 # //= compliance/duvet-specification.txt#2.3.6
 # //= type=implication
