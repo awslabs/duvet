@@ -42,7 +42,7 @@ class Span:
 
     def to_string(self, quotes: str) -> str:
         """Get string from span."""
-        return quotes[self.start: self.end]
+        return quotes[self.start : self.end]
 
 
 @define
@@ -92,7 +92,7 @@ class SpecificationHeader(SpecificationElement, metaclass=ABCMeta):
         """Get the body of the header."""
         assert hasattr(self.root, "content"), "Cannot call get_body if self.root has no content attribute"
         assert isinstance(self.body_span, Span), "Cannot call get_body if self.body_span is not set"
-        return self.root.content[self.body_span.start: self.body_span.end]
+        return self.root.content[self.body_span.start : self.body_span.end]
 
     def get_url(self) -> str:
         """Prefixes parent titles to this title.
