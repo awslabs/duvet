@@ -1,9 +1,21 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Unique identifiers used by duvet-python."""
+import re
 from enum import Enum
 
 __version__ = "0.0.1"
+
+MARKDOWN_LIST_MEMBER_REGEX = r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))"
+# Match All List identifiers
+ALL_MARKDOWN_LIST_ENTRY_REGEX = re.compile(MARKDOWN_LIST_MEMBER_REGEX, re.MULTILINE)
+
+RFC_LIST_MEMBER_REGEX = r"(^(?:(\s)*((?:(\-|\*))|(?:(\d)+\.)|(?:[a-z]+\.)) ))"
+# Match All List identifier
+ALL_RFC_LIST_ENTRY_REGEX = re.compile(RFC_LIST_MEMBER_REGEX, re.MULTILINE)
+# Match common List identifiers
+REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
+FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))(.*?)", re.MULTILINE)
 
 
 class AnnotationType(Enum):
@@ -46,3 +58,18 @@ IMPLEMENTED_TYPES = [
 ]
 ATTESTED_TYPES = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
 EXCEPTED_TYPES = [AnnotationType.EXCEPTION]
+
+# Match end of list for both rfc and markdown.
+# Previous line has next line                                  :: [\r\n]
+# This line starts with next line                              :: [\r\n]
+# Followed by zero or many space                               :: [\s]
+# Followed by capital words                                    :: [\s]
+# Or followed by end of string                                 :: [$]
+# Or followed by digits but could not be end with period       :: [\d](!\.)
+END_OF_LIST: re.Pattern = re.compile(r"(?:[\r\n])^(?:[\r\n])+[\s]*([A-Z]|$|[\d](!\.))", re.MULTILINE)
+
+FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))(.*?)", re.MULTILINE)
+
+REGEX_DICT: dict = {"RFC": ALL_RFC_LIST_ENTRY_REGEX}
+
+END_OF_SENTENCE: re.Pattern = re.compile(r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)(\\n|\s)", re.MULTILINE)
