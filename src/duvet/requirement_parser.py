@@ -11,8 +11,13 @@ import attr
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, STOP_SIGN, clean_content, preprocess_text
-from duvet.identifiers import ALL_RFC_LIST_ENTRY_REGEX, REGEX_DICT, REQUIREMENT_IDENTIFIER_REGEX, RequirementLevel, \
-    END_OF_LIST
+from duvet.identifiers import (
+    ALL_RFC_LIST_ENTRY_REGEX,
+    END_OF_LIST,
+    REGEX_DICT,
+    REQUIREMENT_IDENTIFIER_REGEX,
+    RequirementLevel,
+)
 from duvet.rfc import RFCSpecification
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
@@ -88,8 +93,8 @@ class RequirementParser:
 
         # Identify end of the list block.
         end_of_list_match = search(END_OF_LIST, quotes[span.end:])
-        if end_of_list_match != None:
-            end_of_list_span = Span.from_match(end_of_list_match)
+        if end_of_list_match is not None:
+            end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
 
         # First, add requirement string before list.
@@ -139,7 +144,7 @@ class RequirementParser:
                 req = req.strip()
 
                 if req.endswith((".", "!")):
-                    req_kwarg: attr.Factory(dict) = {
+                    req_kwarg: dict = {
                         "content": req,
                         "span": sentence_span.add_start(quote_span),
                     }
@@ -161,11 +166,11 @@ class RequirementParser:
         # end_of_list = quotes.rfind("\n\n") + 2
         end_of_list = len(quotes) - 1
         end_of_list_match = search(END_OF_LIST, quotes)
-        if end_of_list_match != None:
-            end_of_list_span = Span.from_match(end_of_list_match)
+        if end_of_list_match is not None:
+            end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
 
-            quotes = body[quote_span.start:quote_span.start + end_of_list]
+            quotes = body[quote_span.start: quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
         list_entry: Optional[Match[str]] = search(_list_entry_regex, quotes)
@@ -289,8 +294,9 @@ class RequirementParser:
         """
 
         parser: RFCSpecification = RFCSpecification.parse(specification_source)
-        specification = Specification(specification_source.name,
-                                      str(specification_source.relative_to(specification_source.parent.parent)))
+        specification = Specification(
+            specification_source.name, str(specification_source.relative_to(specification_source.parent.parent))
+        )
 
         for section in RequirementParser._process_sections(parser, specification_source):
             if specification is not None:
@@ -335,9 +341,9 @@ class RequirementParser:
     @staticmethod
     def _process_requirements(quotes, section, file_type: str = "RFC") -> Section:
 
-        blocks = RequirementParser._process_block(quotes,
-                                                  Span(0, len(quotes)),
-                                                  REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX))
+        blocks = RequirementParser._process_block(
+            quotes, Span(0, len(quotes)), REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
+        )
         # print(blocks)
 
         req_kwargs: List[dict] = RequirementParser._process_section(

@@ -89,14 +89,14 @@ def test_process_rfc_list():
     temp_list_req = RequirementParser._process_list_block(TEST_RFC_STR, quote_span, ALL_RFC_LIST_ENTRY_REGEX)
 
     actual_span = temp_list_req[0]["parent"]
-    assert clean_content(TEST_RFC_STR[actual_span.start: actual_span.end]) == "We MUST strive for consistency within:"
+    assert clean_content(TEST_RFC_STR[actual_span.start : actual_span.end]) == "We MUST strive for consistency within:"
 
     # Verify the extract_list function by checking the number of children it extracts
     children = temp_list_req[0].get("children")
 
     assert len(children) == 3
 
-    list_req = [clean_content(TEST_RFC_STR[child.start: child.end]) for child in children]
+    list_req = [clean_content(TEST_RFC_STR[child.start : child.end]) for child in children]
 
     assert list_req == [
         "the document,",
@@ -228,7 +228,7 @@ def test_extract_requirements_with_lists_wrapped():
         "A requirement SHOULD be terminated by one of the following: table",
         "In the case of requirement terminated by a list, the text "
         "proceeding the list MUST be concatenated with each element of "
-        "the list to form a requirement."
+        "the list to form a requirement.",
     ]
 
     actual_content = [kwargs["content"] for kwargs in actual_kwargs]

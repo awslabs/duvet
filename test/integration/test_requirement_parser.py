@@ -3,7 +3,6 @@
 """Integration test suite for duvet RFC Parser."""
 import pytest
 
-from duvet.annotation_parser import AnnotationParser
 from duvet.requirement_parser import RequirementParser
 
 from .integration_test_utils import get_path_to_esdk_dafny  # isort: skip
