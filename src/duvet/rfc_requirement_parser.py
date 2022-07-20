@@ -8,8 +8,8 @@ from typing import List, Optional
 from attrs import define
 
 from duvet.identifiers import ALL_RFC_LIST_ENTRY_REGEX
-from duvet.rfc import RFCSpecification
 from duvet.requirement_parser import RequirementParser
+from duvet.rfc import RFCSpecification
 from duvet.structures import Report, Section, Specification
 
 
@@ -79,11 +79,13 @@ class RFCRequirementParser(RequirementParser):
             section_with_requirements: list[Section] = []
             if filepath.suffix == ".txt":
                 section_with_requirements.append(
-                    RFCRequirementParser._process_requirements(quotes, section, ALL_RFC_LIST_ENTRY_REGEX))
+                    RFCRequirementParser._process_requirements(quotes, section, ALL_RFC_LIST_ENTRY_REGEX)
+                )
 
             sections.extend(section_with_requirements)
 
         return sections
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication
