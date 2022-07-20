@@ -72,3 +72,5 @@ FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)
 REGEX_DICT: dict = {"RFC": ALL_RFC_LIST_ENTRY_REGEX}
 
 END_OF_SENTENCE: re.Pattern = re.compile(r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)(\\n|\s)", re.MULTILINE)
+
+TABLE_DIVIDER: re.Pattern = re.compile(r"[^\n][\s]*.*(\+)[\n]", re.MULTILINE)

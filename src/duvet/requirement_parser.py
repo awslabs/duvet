@@ -10,7 +10,14 @@ from typing import Dict, List, Optional, Tuple
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, clean_content
-from duvet.identifiers import ALL_RFC_LIST_ENTRY_REGEX, END_OF_LIST, END_OF_SENTENCE, REGEX_DICT, RequirementLevel
+from duvet.identifiers import (
+    ALL_RFC_LIST_ENTRY_REGEX,
+    END_OF_LIST,
+    END_OF_SENTENCE,
+    REGEX_DICT,
+    TABLE_DIVIDER,
+    RequirementLevel,
+)
 from duvet.rfc import RFCSpecification
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
@@ -63,7 +70,22 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
+
+        # Find and skip table.
+        table_match = re.finditer(TABLE_DIVIDER, quotes)
+        table_match_list: list[Span] = [Span.from_match(match) for match in table_match]
+        if len(table_match_list) > 0:
+            table_match_list = [Span.from_match(match) for match in table_match]
+            new_span = Span(table_match_list[0].start, table_match_list[-1].end)
+            result.append((new_span.add_start(quote_span), "TABLE"))
+            result.extend(
+                RequirementParser._process_block(
+                    quotes, Span(new_span.end + quote_span.start, quote_span.end), list_entry_regex
+                )
+            )
+            return result
+
         list_match = re.search(list_entry_regex, quotes)
 
         # Handover to process_inline if no list identifier found.
@@ -81,7 +103,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        end_of_list_match = re.search(END_OF_LIST, quotes[span.end :])
+        end_of_list_match = re.search(END_OF_LIST, quotes[span.end:])
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
@@ -147,7 +169,7 @@ class RequirementParser:
     @staticmethod
     def _process_list_block(body: str, quote_span: Span, list_entry_regex: re.Pattern) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the END OF LIST.
@@ -157,7 +179,7 @@ class RequirementParser:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
 
-            quotes = body[quote_span.start : quote_span.start + end_of_list]
+            quotes = body[quote_span.start: quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
 
@@ -297,7 +319,6 @@ class RequirementParser:
 
     @staticmethod
     def _process_sections(parser, filepath) -> List[Section]:
-
         sections: list[Section] = []
 
         for descendant in parser.descendants:
@@ -331,7 +352,6 @@ class RequirementParser:
 
     @staticmethod
     def _process_requirements(quotes, section, file_type: str = "RFC") -> Section:
-
         blocks = RequirementParser._process_block(
             quotes, Span(0, len(quotes)), REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
         )
@@ -350,46 +370,43 @@ class RequirementParser:
 
         return section
 
+    # //= compliance/duvet-specification.txt#2.2.2
+    # //= type=implication
+    # //# A requirement MUST be terminated by one of the following:
 
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=implication
-# //# A requirement MUST be terminated by one of the following:
+    # //= compliance/duvet-specification.txt#2.2.2
+    # //= type=implication
+    # //# In the case of requirement terminated by a list, the text proceeding the list MUST be concatenated with each
+    # //# element of the list to form a requirement.
 
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=implication
-# //# In the case of requirement terminated by a list, the text proceeding the list MUST be concatenated with each
-# //# element of the list to form a requirement.
+    # //= compliance/duvet-specification.txt#2.2.2
+    # //= type=implication
+    # //# List elements MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.
 
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=implication
-# //# List elements MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.
+    # //= compliance/duvet-specification.txt#2.3.6
+    # //= type=implication
+    # //# A one or more line meta part MUST be followed by at least a one line content part.
 
+    # //= compliance/duvet-specification.txt#2.2.2
+    # //= type=TODO
+    # //# Sublists MUST be treated as if the parent item were terminated by the sublist.
 
-# //= compliance/duvet-specification.txt#2.3.6
-# //= type=implication
-# //# A one or more line meta part MUST be followed by at least a one line content part.
+    # //= compliance/duvet-specification.txt#2.2.1
+    # //# The name of the sections MUST NOT be nested.
 
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=TODO
-# //# Sublists MUST be treated as if the parent item were terminated by the sublist.
+    # //= compliance/duvet-specification.txt#2.2.1
+    # //= type=exception
+    # //# A requirements section MUST be the top level containing header.
 
+    # //= compliance/duvet-specification.txt#2.2.1
+    # //= type=implication
+    # //# A header MUST NOT itself be a requirement.
 
-# //= compliance/duvet-specification.txt#2.2.1
-# //# The name of the sections MUST NOT be nested.
+    # //= compliance/duvet-specification.txt#2.2.1
+    # //= type=TODO
+    # //# A section MUST be indexable by combining different levels of naming.
 
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=exception
-# //# A requirements section MUST be the top level containing header.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=implication
-# //# A header MUST NOT itself be a requirement.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=TODO
-# //# A section MUST be indexable by combining different levels of naming.
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=TODO
-# //# Sublists MUST be treated as if the parent item were
-# //# terminated by the sublist.
+    # //= compliance/duvet-specification.txt#2.2.2
+    # //= type=TODO
+    # //# Sublists MUST be treated as if the parent item were
+    # //# terminated by the sublist.
