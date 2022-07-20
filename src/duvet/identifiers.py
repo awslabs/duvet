@@ -11,6 +11,8 @@ class AnnotationType(Enum):
     """definition of type of annotation."""
 
     CITATION = 1
+    # //= compliance/duvet-specification.txt#2.3.3
+    # //# The type MUST    be a valid annotation type string: test
     TEST = 2
     UNTESTABLE = 3
     DEVIATION = 4

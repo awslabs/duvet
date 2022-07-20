@@ -52,10 +52,15 @@ class RequirementParser:
         list block is considered as a block of string. It starts with a sentence, followed by ordered
         or unordered lists. It ends with two nextline signs
 
-        Method Logic determines if a list is present in the quote_span.
+        If a TABLE is present in the quote_span.
+        mark the span of it.
+
+        If a list is present in the quote_span.
+
         If there is a list, it determines where the list starts and ends,
         and then invokes helper methods to process the list block into
         requirement keywords. It then invokes itself.
+
         If there is no list detected,
         it invokes a helper method to convert the quote_span into
         requirement keywords.
