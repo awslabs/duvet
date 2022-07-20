@@ -4,6 +4,7 @@
 import re
 from pathlib import Path
 from typing import Iterator, TypeVar
+
 from attr import define
 
 from duvet.specification_parser import MAX_HEADER_LEVELS, ParsedSpecification, Span, SpecificationHeader
@@ -46,7 +47,7 @@ class MarkdownHeader(SpecificationHeader):
     @staticmethod
     def from_match(match: re.Match) -> MarkdownHeaderT:
         """Generate a Markdown Header from a re.Match."""
-        cls: MarkdownHeaderT = MarkdownHeader.from_line(match.string[match.start(): match.end()])
+        cls: MarkdownHeaderT = MarkdownHeader.from_line(match.string[match.start() : match.end()])
         cls.title_span = Span.from_match(match)
         return cls
 

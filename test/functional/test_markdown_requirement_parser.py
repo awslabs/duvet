@@ -20,8 +20,7 @@ def test_extract_duvet_specification(pytestconfig):
     expected_title = "duvet-specification.md"
 
     assert actual_spec.title == expected_title
-    # print(new_spec.get_spec())
-    # print(new_spec)
+
 
 
 def test_valid_requirement_block(tmp_path):
