@@ -168,9 +168,9 @@ class Section:
     uri: str = ""
     start_line: int = -1
     end_line: int = -1
+    lines: list = attr.Factory(list)
     has_requirements: bool = field(init=False, default=False)
     requirements: dict = field(init=False, default=attr.Factory(dict))
-    lines: list = field(init=False, default=attr.Factory(list))
 
     def add_requirement(self, requirement: Requirement):
         """Add requirement to Section."""

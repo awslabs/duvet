@@ -3,7 +3,7 @@
 """Unit tests for ``duvet.requirement_parser``."""
 import pytest
 
-from duvet.identifiers import RequirementLevel, ALL_MARKDOWN_LIST_ENTRY_REGEX
+from duvet.identifiers import ALL_MARKDOWN_LIST_ENTRY_REGEX, RequirementLevel
 from duvet.requirement_parser import RequirementParser
 from duvet.specification_parser import Span
 
@@ -87,13 +87,12 @@ TEST_REQUIREMENT_WITH_INVALID_STR = (
 
 
 class TestMarkdownProcessList:
-
     @staticmethod
     def test_extract_valid_md_list():
         actual_span = Span(0, len(TEST_VALID_MARKDOWN_LIST))
-        test_parser = RequirementParser._process_list_block(TEST_VALID_MARKDOWN_LIST,
-                                                            actual_span,
-                                                            ALL_MARKDOWN_LIST_ENTRY_REGEX)
+        test_parser = RequirementParser._process_list_block(
+            TEST_VALID_MARKDOWN_LIST, actual_span, ALL_MARKDOWN_LIST_ENTRY_REGEX
+        )
 
         actual_list_requirement_dict: dict = test_parser[0]
 
@@ -111,9 +110,9 @@ class TestMarkdownProcessList:
     @staticmethod
     def test_extract_invalid_md_list():
         actual_span = Span(0, len(TEST_INVALID_STR))
-        test_parser = RequirementParser._process_list_block(TEST_INVALID_STR,
-                                                            actual_span,
-                                                            ALL_MARKDOWN_LIST_ENTRY_REGEX)
+        test_parser = RequirementParser._process_list_block(
+            TEST_INVALID_STR, actual_span, ALL_MARKDOWN_LIST_ENTRY_REGEX
+        )
         assert not test_parser
 
 
@@ -164,7 +163,6 @@ class TestProcessInline:
 
 
 class TestComplicatedRequirements:
-
     @staticmethod
     def test_extract_requirements_with_lists_wrapped():
         """Test complicated requirement with list wrapped by inline requirements."""

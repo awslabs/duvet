@@ -1,18 +1,16 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
-import copy
 import logging
 import re
+from abc import abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, clean_content
-from duvet.identifiers import ALL_MARKDOWN_LIST_ENTRY_REGEX, END_OF_LIST, END_OF_SENTENCE, REGEX_DICT, RequirementLevel, \
-    ALL_RFC_LIST_ENTRY_REGEX
-from duvet.markdown import MarkdownSpecification
+from duvet.identifiers import END_OF_LIST, END_OF_SENTENCE, RequirementLevel
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
 
@@ -261,92 +259,11 @@ class RequirementParser:
         return {"requirement_level": level}
 
     @staticmethod
-    def process_specifications(filepaths: list[Path], report: Optional[Report] = None) -> Report:
-        """Given pattern and filepath of markdown specs.
-
-        Return or create a report.
-        """
-        if report is None:
-            report = Report()
-
-        specifications: list[Specification] = []
-        for filepath in filepaths:
-            specifications.append(RequirementParser._process_specification(filepath))
-
-        for specification in specifications:
-            report.add_specification(specification)
-
-        return report
-
-    @staticmethod
-    def _process_specification(specification_source: Path) -> Specification:  # pylint:disable=R0914
-        """Given a filepath of a markdown spec.
-
-        Return a specification or none.
-        """
-
-        # if specification_source.suffix == ".txt":
-        #     parser: RFCSpecification = RFCSpecification.parse(specification_source)
-
-        parser: Union[None, MarkdownSpecification] = None
-
-        if specification_source.endswith(".md"):
-            parser = MarkdownSpecification.parse(specification_source)
-
-        specification = Specification(
-            specification_source.name, str(specification_source.relative_to(specification_source.parent.parent))
-        )
-
-        for section in RequirementParser._process_sections(parser, specification_source):
-            if specification is not None:
-                specification.add_section(section)
-
-        return specification
-
-    @staticmethod
-    def _process_sections(parser, filepath) -> List[Section]:
-
-        sections: list[Section] = []
-
-        for descendant in parser.descendants:
-            start_line = parser.content[: descendant.body_span.start].count("\n")
-            end_line = parser.content[: descendant.body_span.end].count("\n")
-            quotes: str = copy.deepcopy(descendant.get_body())
-
-            lines = quotes.splitlines()
-            lines[0] = "   ".join([descendant.number, descendant.title])
-
-            section_kwarg: dict = {
-                "title": descendant.number.rstrip(". "),
-                "start_line": start_line,
-                "end_line": end_line,
-                "lines": lines,
-                "uri": "#".join([str(filepath.relative_to(filepath.parent.parent)), descendant.number.rstrip(". ")]),
-            }
-
-            section = Section(**section_kwarg)
-
-            section_with_requirements: list[Section] = []
-            # if filepath.suffix == ".txt":
-            #     section_with_requirements.append(RequirementParser._process_requirements(quotes, section,
-            #                                                                              ALL_RFC_LIST_ENTRY_REGEX)
-
-            if filepath.suffix == ".md":
-                section_with_requirements.append(
-                    RequirementParser._process_requirements(quotes, section, ALL_MARKDOWN_LIST_ENTRY_REGEX))
-
-            sections.extend(section_with_requirements)
-
-        return sections
-
-    @staticmethod
     def _process_requirements(quotes, section, regex: re.Pattern) -> Section:
 
-        blocks = RequirementParser._process_block(
-            quotes, Span(0, len(quotes)), regex)
+        blocks = RequirementParser._process_block(quotes, Span(0, len(quotes)), regex)
 
-        req_kwargs: List[dict] = RequirementParser._process_section(
-            quotes, blocks, regex)
+        req_kwargs: List[dict] = RequirementParser._process_section(quotes, blocks, regex)
 
         for kwarg in req_kwargs:
             content: Optional[str] = kwarg.get("content")
@@ -357,6 +274,30 @@ class RequirementParser:
             section.add_requirement(Requirement(**kwarg))
 
         return section
+
+    @staticmethod
+    @abstractmethod
+    def process_specifications(filepaths: list[Path], report: Optional[Report] = None) -> Report:
+        """Given pattern and filepath of markdown specs.
+
+        Return or create a report.
+        """
+
+    @staticmethod
+    @abstractmethod
+    def _process_specification(specification_source: Path) -> Specification:  # pylint:disable=R0914
+        """Given a filepath of a markdown spec.
+
+        Return a specification or none.
+        """
+
+    @staticmethod
+    @abstractmethod
+    def _process_sections(parser, filepath) -> List[Section]:
+        """Given a filepath of a markdown spec.
+
+        Return a list of sections.
+        """
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication

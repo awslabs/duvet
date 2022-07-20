@@ -1,10 +1,10 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-"""Constants for functional tests"""
+"""Functional testing for requirement parsing"""
 
-DUVET_SPEC_SECTION_COUNT = 27
-DUVET_SPEC_FIRST_HEADER_TITLE = "Duvet specification"
-DUVET_SPEC_FIRST_HEADER_BODY = "\n\n"
+import pytest
+
+pytestmark = [pytest.mark.local, pytest.mark.functional]
 
 REQUIREMENT_BLOCK = """# Duvet specification
 
