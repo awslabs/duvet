@@ -22,7 +22,6 @@ def test_extract_duvet_specification(pytestconfig):
     assert actual_spec.title == expected_title
 
 
-
 def test_valid_requirement_block(tmp_path):
     path = populate_file(tmp_path, REQUIREMENT_BLOCK, "valid-md-spec.md")
     actual_report = MarkdownRequirementParser.process_specifications([path])
