@@ -152,6 +152,9 @@ class RequirementParser:
             if level is None:
                 continue
 
+            # //= compliance/duvet-specification.txt#2.2.2
+            # //= type=implication
+            # //# A requirement MUST be terminated by one of the following:
             if clean_content(words).endswith((".", "!")):
                 req_kwarg: dict = {
                     "content": clean_content(words),
@@ -230,11 +233,16 @@ class RequirementParser:
 
         # There MUST be parent.
         if is_legacy:
-            # quotes = parent.to_string(body)
             req_kwarg: dict = {
                 "content": clean_content(parent_string),
                 "span": parent,
             }
+
+            # //= compliance/duvet-specification.txt#2.2.2
+            # //= type=implication
+            # //# List elements MAY have RFC 2119 keywords,
+            # //# this is the same as regular sentences with multiple keywords.
+
             req_kwarg.update(RequirementParser._process_requirement_level(parent_string))
             req_list.append(req_kwarg)
             return req_list
@@ -321,44 +329,11 @@ class RequirementParser:
 
 
 # //= compliance/duvet-specification.txt#2.2.2
-# //= type=implication
-# //# A requirement MUST be terminated by one of the following:
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=implication
-# //# In the case of requirement terminated by a list, the text proceeding the list MUST be concatenated with each
-# //# element of the list to form a requirement.
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=implication
-# //# List elements MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.
-
-
-# //= compliance/duvet-specification.txt#2.3.6
-# //= type=implication
-# //# A one or more line meta part MUST be followed by at least a one line content part.
-
-# //= compliance/duvet-specification.txt#2.2.2
 # //= type=TODO
 # //# Sublists MUST be treated as if the parent item were terminated by the sublist.
 
 
-# //= compliance/duvet-specification.txt#2.2.1
-# //# The name of the sections MUST NOT be nested.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=exception
-# //# A requirements section MUST be the top level containing header.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=implication
-# //# A header MUST NOT itself be a requirement.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=TODO
-# //# A section MUST be indexable by combining different levels of naming.
-
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=TODO
-# //# Sublists MUST be treated as if the parent item were
+# //# Sublist MUST be treated as if the parent item were
 # //# terminated by the sublist.
