@@ -236,3 +236,5 @@ class TestProcessInline:
 
         actual_content = [kwargs["content"] for kwargs in actual_kwargs]
         assert actual_content == expected_content
+
+
