@@ -1,9 +1,9 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """cli used by duvet-python."""
+import logging
 import os
 from typing import Optional
-import logging
 
 import click  # type : ignore[import]
 
@@ -76,6 +76,3 @@ def cli(config: Optional[str], verbose: int = 0):
         # //# Duvet SHOULD print a success message.
         click.echo("Duvet: PASS. Congratulations :)")
         return 0
-
-
-cli()
