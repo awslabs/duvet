@@ -5,7 +5,9 @@
 from typing import Optional
 
 from attrs import define, field
+
 # from tabulate import tabulate
+from tabulate import tabulate
 
 from duvet._config import Config
 from duvet.identifiers import RequirementLevel
@@ -55,10 +57,10 @@ class SummaryReport:
         # Return table of analysis
         return [list(level_dict.values()) for level_dict in section_analysis]
 
-    # @staticmethod
-    # def report_section(table: list[list]) -> str:
-    #     """Report Section stats."""
-    #     return tabulate(table, HEADERS, tablefmt="simple")
+    @staticmethod
+    def report_section(table: list[list]) -> str:
+        """Report Section stats."""
+        return tabulate(table, HEADERS, tablefmt="simple")
 
 
 # //= compliance/duvet-specification.txt#2.5

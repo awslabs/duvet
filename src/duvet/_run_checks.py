@@ -6,18 +6,16 @@ from typing import Optional
 import click  # type : ignore[import]
 from attr import define
 
-from duvet.markdown_requirement_parser import MarkdownRequirementParser
-from duvet.requirement_parser import RequirementParser
-
 from duvet._config import Config
 from duvet.annotation_parser import AnnotationParser
 from duvet.html import HTMLReport
 from duvet.json_report import JSONReport
+from duvet.markdown_requirement_parser import MarkdownRequirementParser
+from duvet.requirement_parser import RequirementParser
+from duvet.rfc_requirement_parser import RFCRequirementParser
 from duvet.spec_toml_parser import TomlRequirementParser
 from duvet.structures import Report
 from duvet.summary import SummaryReport
-
-__all__ = ("run")
 
 
 def run(*, config: Config) -> bool:
@@ -25,7 +23,11 @@ def run(*, config: Config) -> bool:
     # Extractions
     # report = extract_rfc(config)
 
-    report = DuvetController.extract_markdown(config)
+    # report = Report()
+
+    report = DuvetController.extract_rfc(config)
+
+    # DuvetController.extract_markdown(config, report)
 
     # Because we currently got only toml parser, let's give a try.
     # toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
@@ -51,7 +53,7 @@ class DuvetController:
         rfc_files = [rfc_spec for rfc_spec in config.specs if rfc_spec.suffix == ".txt"]
 
         if report is None:
-            report = RequirementParser.process_specifications(rfc_files)
+            report = RFCRequirementParser.process_specifications(rfc_files)
 
         return report
 
@@ -97,12 +99,10 @@ class DuvetController:
 
         # Covert report into JSON format
         actual_json = JSONReport.create(report, config)
-        json_report = actual_json.get_dictionary()
 
         # Covert JSON report into HTML
-        html_report = HTMLReport.from_json(json_report)
+        html_report = HTMLReport.from_json_report(actual_json)
 
-        html_report.write_html()
         click.echo(f"""Writing HTML report to {html_report.write_html()}""")
 
         return report

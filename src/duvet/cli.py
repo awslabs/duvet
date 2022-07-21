@@ -8,8 +8,8 @@ import click
 
 from duvet._config import Config
 from duvet._run_checks import run
+from duvet.identifiers import __version__
 
-__version__ = "1.0.0"
 _DEBUG = "INPUT_DEBUG"
 _CONFIG_FILE = "INPUT_CONFIG-FILE"
 
@@ -27,8 +27,8 @@ _CONFIG_FILE = "INPUT_CONFIG-FILE"
 @click.version_option(version=f"duvet version {__version__}")
 def cli(config: Optional[str], verbose: int) -> int:
     """Duvet runs checks against specs and implementations."""
-    if _DEBUG in os.environ:
-        verbose += 1
+    # if _DEBUG in os.environ:
+    #     verbose += 1
 
     if config is None:
         try:
@@ -36,7 +36,7 @@ def cli(config: Optional[str], verbose: int) -> int:
         except KeyError as error:
             raise click.exceptions.BadOptionUsage(
                 option_name="config",
-                message="Config file must provided.",
+                message="Config file must be provided.",
             ) from error
         if not os.path.isfile(config):
             raise click.BadOptionUsage(

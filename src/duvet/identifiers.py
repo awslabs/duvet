@@ -80,3 +80,9 @@ DEFAULT_HTML_PATH = "specification_compliance_report.html"
 DEFAULT_JSON_PATH = "duvet-result.json"
 
 END_OF_SENTENCE: re.Pattern = re.compile(r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)(\\n|\s)", re.MULTILINE)
+
+# //= compliance/duvet-specification.txt#2.3.6
+# //= type=implication
+# //# The default identifier for the content part in software documents MUST be "//#" followed by a single space.
+DEFAULT_META_STYLE = "//="
+DEFAULT_CONTENT_STYLE = "//#"
