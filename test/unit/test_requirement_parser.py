@@ -123,8 +123,7 @@ class TestProcessList:
 
         actual_span = temp_list_req[0]["parent"]
         assert (
-                clean_content(
-                    TEST_RFC_STR[actual_span.start: actual_span.end]) == "We MUST strive for consistency within:"
+            clean_content(TEST_RFC_STR[actual_span.start : actual_span.end]) == "We MUST strive for consistency within:"
         )
 
         # Verify the extract_list function by checking the number of children it extracts
@@ -132,7 +131,7 @@ class TestProcessList:
 
         assert len(children) == 3
 
-        list_req = [clean_content(TEST_RFC_STR[child.start: child.end]) for child in children]
+        list_req = [clean_content(TEST_RFC_STR[child.start : child.end]) for child in children]
 
         assert list_req == [
             "the document,",
@@ -142,13 +141,13 @@ class TestProcessList:
 
         # Verify the to_string_list function by checking the content of it creates.
         assert [
-                   clean_content(req.get("content")) for req in
-                   RequirementParser._process_list(TEST_RFC_STR, temp_list_req[0], False)
-               ] == [
-                   "We MUST strive for consistency within: the document,",
-                   "We MUST strive for consistency within: a cluster of documents [CLUSTER], and",
-                   "We MUST strive for consistency within: the series of RFCs on the subject matter.",
-               ]
+            clean_content(req.get("content"))
+            for req in RequirementParser._process_list(TEST_RFC_STR, temp_list_req[0], False)
+        ] == [
+            "We MUST strive for consistency within: the document,",
+            "We MUST strive for consistency within: a cluster of documents [CLUSTER], and",
+            "We MUST strive for consistency within: the series of RFCs on the subject matter.",
+        ]
 
     @staticmethod
     def test_process_list():

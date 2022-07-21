@@ -15,12 +15,12 @@ from typing import List, Optional
 
 import attr
 from attrs import define, field
-from duvet.specification_parser import Span
 
 from duvet._config import Config
 from duvet.formatter import clean_content
-from duvet.identifiers import AnnotationType, DEFAULT_JSON_PATH
+from duvet.identifiers import DEFAULT_JSON_PATH, AnnotationType
 from duvet.refs_json import CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES, REFS_JSON
+from duvet.specification_parser import Span
 from duvet.structures import Annotation, Report, Requirement, Section, Specification
 
 

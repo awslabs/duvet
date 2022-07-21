@@ -8,13 +8,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 from attrs import define
-from duvet.rfc import RFCSpecification
 
-from duvet.identifiers import (
-    ALL_MARKDOWN_LIST_ENTRY_REGEX,
-)
+from duvet.identifiers import ALL_MARKDOWN_LIST_ENTRY_REGEX
 from duvet.markdown import MarkdownSpecification
 from duvet.requirement_parser import RequirementParser
+from duvet.rfc import RFCSpecification
 from duvet.structures import Report, Requirement, Section, Specification
 
 
@@ -88,6 +86,7 @@ class RFCRequirementParser(RequirementParser):
             sections.extend(section_with_requirements)
 
         return sections
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication

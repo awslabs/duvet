@@ -283,7 +283,6 @@ class RequirementParser:
     def _process_sections(parser, filepath) -> List[Section]:
         pass
 
-
     @staticmethod
     def _process_requirements(quotes, section, file_type: str = "RFC") -> Section:
 

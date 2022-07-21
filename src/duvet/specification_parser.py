@@ -122,7 +122,6 @@ class SpecificationHeader(SpecificationElement, metaclass=ABCMeta):
         print(url)
         return url
 
-
     def validate(self) -> bool:
         """Check that all needed fields are set and reasonable."""
         # fmt: off

@@ -9,9 +9,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from attrs import define
 
-from duvet.identifiers import (
-    ALL_MARKDOWN_LIST_ENTRY_REGEX,
-)
+from duvet.identifiers import ALL_MARKDOWN_LIST_ENTRY_REGEX
 from duvet.markdown import MarkdownSpecification
 from duvet.requirement_parser import RequirementParser
 from duvet.structures import Report, Requirement, Section, Specification
@@ -83,7 +81,8 @@ class MarkdownRequirementParser(RequirementParser):
                 "end_line": end_line,
                 "lines": lines,
                 "uri": "#".join(
-                    [str(filepath.relative_to(filepath.parent.parent)), descendant.get_number().rstrip(". ")]),
+                    [str(filepath.relative_to(filepath.parent.parent)), descendant.get_number().rstrip(". ")]
+                ),
             }
 
             print(section_kwarg)
@@ -100,6 +99,7 @@ class MarkdownRequirementParser(RequirementParser):
             sections.extend(section_with_requirements)
 
         return sections
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication
