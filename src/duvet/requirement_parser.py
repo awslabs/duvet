@@ -8,6 +8,7 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import click
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, clean_content
@@ -84,9 +85,9 @@ class RequirementParser:
 
         table_match = re.finditer(TABLE_DIVIDER, quotes)
         table_match_list: list[Span] = [Span.from_match(match) for match in table_match]
+        click.echo(table_match_list)
         if len(table_match_list) > 0:
-            table_match_list = [Span.from_match(match) for match in table_match]
-            new_span = Span(table_match_list[0].start, table_match_list[-1].end)
+            new_span = Span(table_match_list[0].start, table_match_list[- 1].end)
             result.append((new_span.add_start(quote_span), "TABLE"))
             result.extend(
                 RequirementParser._process_block(
