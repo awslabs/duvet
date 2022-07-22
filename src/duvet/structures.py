@@ -190,30 +190,34 @@ class Section:
         return all(req.analyze_annotations() for req in self.requirements.values())
 
     def _white_space_stripped_match(self, annotation: Annotation) -> bool:
+        """Remove space and compare keys in requirements and annotations."""
 
-        # Compare by splitting space to list.
         for key in list(self.requirements.keys()):
-            if str(key).split() == annotation.uri.split():
-                return self.requirements[key].add_annotation(annotation)
-
-        # Compare by getting rid of all space
-        for key in self.requirements.keys():
             temp_key: str = "".join(str(key).split())
             temp_uri: str = "".join(annotation.uri.split())
+
+            # Compare by splitting space to list.
+            if temp_key == temp_uri:
+                return self.requirements[key].add_annotation(annotation)
+
+            # Compare by getting rid of all space
             if temp_key == temp_uri:
                 return self.requirements[key].add_annotation(annotation)
 
         return False
 
     def _substring_match(self, annotation: Annotation) -> bool:
+        """Determine whether annotation is a substring of requirement keys.
 
-        # Find substring
+        Or  requirement keys is a substring of annotation.
+        """
+
+        # Find substring with the original string.
         for key in list(self.requirements.keys()):
             if str(key).find(annotation.uri) != -1 or annotation.uri.find(key) != -1:
                 return self.requirements[key].add_annotation(annotation)
 
-        # Find substring after getting rid of all space
-        for key in list(self.requirements.keys()):
+            # Find substring after removing all spaces.
             temp_key: str = "".join(str(key).split())
             temp_uri: str = "".join(annotation.uri.split())
             if temp_key.find(temp_uri) != -1 or temp_uri.find(temp_key) != -1:
