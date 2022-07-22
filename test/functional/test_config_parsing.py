@@ -5,6 +5,7 @@
 import pytest
 
 from duvet._config import Config, ImplConfig
+from duvet.exceptions import ConfigError
 
 from ..utils import populate_file  # isort: skip
 
@@ -38,9 +39,10 @@ comment-style = { meta = "//=", content = "//#" }
 patterns = ["src/**/*.dfy", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
 [spec.markdown]
 patterns = ["project-specification/**/*.md"]
-[report]
-blob = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
-issue = "https://github.com/aws/aws-encryption-sdk-dafny/issues"
+[report.blob]
+url = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
+[report.issue]
+url = "https://github.com/awslabs/duvet/issues"
 [mode]
 legacy = true
         """
@@ -61,22 +63,22 @@ def test_config_parse(tmpdir, contents: str):
 
 def test_missing_keys(tmp_path):
     try:
-        Config.parse(populate_file(tmp_path, IMPL_BLOCK, "duvet_config.toml"))
-    except ValueError as error:
+        Config.parse(populate_file(tmp_path, IMPL_BLOCK, "duvet.toml"))
+    except ConfigError as error:
         # Verify the config function by checking the error message.
-        assert repr(error) == ("ValueError('Specification Config not found.')")
+        assert repr(error) == ("ConfigError('Specification Config not found.')")
 
     try:
-        Config.parse(populate_file(tmp_path, SPEC_BLOCK, "duvet_config.toml"))
-    except ValueError as error:
+        Config.parse(populate_file(tmp_path, SPEC_BLOCK, "duvet.toml"))
+    except ConfigError as error:
         # Verify the config function by checking the error message.
-        assert repr(error) == ("ValueError('Implementation Config not found.')")
+        assert repr(error) == ("ConfigError('Implementation Config not found.')")
 
     try:
-        Config.parse(populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK]), "duvet_config.toml"))
-    except ValueError as error:
+        Config.parse(populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK]), "duvet.toml"))
+    except ConfigError as error:
         # Verify the config function by checking the error message.
-        assert repr(error) == ("ValueError('Report Config not found.')")
+        assert repr(error) == ("ConfigError('Report Config not found.')")
 
 
 def test_valid_files(tmp_path):

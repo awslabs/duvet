@@ -46,3 +46,9 @@ IMPLEMENTED_TYPES = [
 ]
 ATTESTED_TYPES = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
 EXCEPTED_TYPES = [AnnotationType.EXCEPTION]
+
+# //= compliance/duvet-specification.txt#2.3.6
+# //= type=implication
+# //# The default identifier for the content part in software documents MUST be "//#" followed by a single space.
+DEFAULT_META_STYLE = "//="
+DEFAULT_CONTENT_STYLE = "//#"
