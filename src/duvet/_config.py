@@ -58,6 +58,7 @@ class Config:
     legacy: bool = field(init=True, default=False)
     blob_url: str = field(init=True, default="Github Blob URL Placeholder")
     issue_url: str = field(init=True, default="Github Issue URL Placeholder")
+    specification_path: str = ""
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -86,8 +87,10 @@ class ConfigParser:
             pass
         else:
             legacy = parsed.get("mode", {}).get("legacy", False)
+
         implementation_configs = self._validate_implementation(parsed.get("implementation", {}))
         spec_configs = self._validate_specification(parsed.get("spec", {}))
+        specification_path = parsed.get("spec",{}).get("path","")
 
         return Config(
             self.config_file_path.parent,
@@ -96,6 +99,7 @@ class ConfigParser:
             legacy,
             parsed.get("report", {}).get("blob", {}).get("url", "Github Blob URL Placeholder"),
             parsed.get("report", {}).get("issue", {}).get("url", "Github Issue URL Placeholder"),
+            specification_path
         )
 
     def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[Path]:

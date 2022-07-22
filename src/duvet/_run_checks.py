@@ -11,7 +11,6 @@ from duvet.annotation_parser import AnnotationParser
 from duvet.html import HTMLReport
 from duvet.json_report import JSONReport
 from duvet.markdown_requirement_parser import MarkdownRequirementParser
-from duvet.requirement_parser import RequirementParser
 from duvet.rfc_requirement_parser import RFCRequirementParser
 from duvet.structures import Report
 from duvet.summary import SummaryReport
@@ -21,7 +20,6 @@ from duvet.toml_requirement_parser import TomlRequirementParser
 def run(*, config: Config) -> bool:
     """Run all specification checks."""
     # Extractions
-    # report = extract_rfc(config)
 
     # report = Report()
 
@@ -51,9 +49,8 @@ class DuvetController:
     def extract_rfc(config: Config, report: Optional[Report] = None) -> Report:
         """Extract rfc files."""
         rfc_files = [rfc_spec for rfc_spec in config.specs if rfc_spec.suffix == ".txt"]
-
         if report is None:
-            report = RFCRequirementParser.process_specifications(rfc_files)
+            report = RFCRequirementParser.process_specifications(rfc_files, is_legacy=config.legacy)
 
         return report
 
