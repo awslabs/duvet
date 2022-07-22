@@ -39,5 +39,5 @@ def test_valid_requirement_block(tmp_path):
     actual_spec = actual_report.specifications.get(f"{path.parent.name}/valid-md-spec.txt")
     expected_title = "valid-md-spec.txt"
     assert actual_spec.title == expected_title
-    # Expected 4, Duvet specification, Introduction, Specification, Section.
+    # Expected 2, Duvet specification, Introduction
     assert len(actual_spec.sections) == 2
