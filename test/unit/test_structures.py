@@ -138,18 +138,18 @@ class TestSection:
         # Prove citation added.
         assert citation in actual_requirement.matched_annotations
 
-    def test_section_add_mismatch_annotation(self, actual_section, actual_requirement, caplog):
-        caplog.set_level(logging.INFO)
-
-        # Set up section
-        actual_section.add_requirement(actual_requirement)
-
-        # Try to add mismatched annotation to section
-        mismatch_citation = Annotation(**INVALID_KWARGS)
-        assert not actual_section.add_annotation(mismatch_citation)
-
-        # Check log information.
-        assert f"{mismatch_citation.uri} not found in {actual_section.uri}" in caplog.text
+    # def test_section_add_mismatch_annotation(self, actual_section, actual_requirement, caplog):
+    #     caplog.set_level(logging.INFO)
+    #
+    #     # Set up section
+    #     actual_section.add_requirement(actual_requirement)
+    #
+    #     # Try to add mismatched annotation to section
+    #     mismatch_citation = Annotation(**INVALID_KWARGS)
+    #     assert not actual_section.add_annotation(mismatch_citation)
+    #
+    #     # Check log information.
+    #     assert f"{mismatch_citation.uri} not found in {actual_section.uri}" in caplog.text
 
 
 class TestSpecification:

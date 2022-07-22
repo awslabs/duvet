@@ -13,9 +13,9 @@ from duvet.json_report import JSONReport
 from duvet.markdown_requirement_parser import MarkdownRequirementParser
 from duvet.requirement_parser import RequirementParser
 from duvet.rfc_requirement_parser import RFCRequirementParser
-from duvet.spec_toml_parser import TomlRequirementParser
 from duvet.structures import Report
 from duvet.summary import SummaryReport
+from duvet.toml_requirement_parser import TomlRequirementParser
 
 
 def run(*, config: Config) -> bool:

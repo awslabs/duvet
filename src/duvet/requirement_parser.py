@@ -11,7 +11,14 @@ from typing import Dict, List, Optional, Tuple
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, clean_content
-from duvet.identifiers import ALL_RFC_LIST_ENTRY_REGEX, END_OF_LIST, END_OF_SENTENCE, REGEX_DICT, RequirementLevel
+from duvet.identifiers import (
+    ALL_RFC_LIST_ENTRY_REGEX,
+    END_OF_LIST,
+    END_OF_SENTENCE,
+    REGEX_DICT,
+    TABLE_DIVIDER,
+    RequirementLevel,
+)
 from duvet.rfc import RFCSpecification
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
@@ -65,6 +72,28 @@ class RequirementParser:
         """
         result: List = []
         quotes = body[quote_span.start : quote_span.end]
+
+        # Find and skip table.
+
+        # //= compliance/duvet-specification.txt#2.2.2
+        # //= type=implication
+        # //# A requirement MUST be terminated by one of the
+        # //#    following:
+        # //#   table
+
+        table_match = re.finditer(TABLE_DIVIDER, quotes)
+        table_match_list: list[Span] = [Span.from_match(match) for match in table_match]
+        if len(table_match_list) > 0:
+            table_match_list = [Span.from_match(match) for match in table_match]
+            new_span = Span(table_match_list[0].start, table_match_list[-1].end)
+            result.append((new_span.add_start(quote_span), "TABLE"))
+            result.extend(
+                RequirementParser._process_block(
+                    quotes, Span(new_span.end + quote_span.start, quote_span.end), list_entry_regex
+                )
+            )
+            return result
+
         list_match = re.search(list_entry_regex, quotes)
 
         # Handover to process_inline if no list identifier found.
@@ -89,6 +118,11 @@ class RequirementParser:
 
         # First, add requirement string before list.
         result.append((Span(0, list_block.start + 2).add_start(quote_span), "INLINE"))
+
+        # //= compliance/duvet-specification.txt#2.2.2
+        # //# A requirement MUST be terminated by one of the
+        # //#    following:
+        # //#   list
 
         # Second, add requirement string from list.
         result.append((Span(list_block.start + 2, list_block.end + 2).add_start(quote_span), "LIST_BLOCK"))
@@ -133,6 +167,11 @@ class RequirementParser:
 
             if level is None:
                 continue
+
+            # //= compliance/duvet-specification.txt#2.2.2
+            # //# A requirement MUST be terminated by one of the
+            # //#    following:
+            # //#   exclamation point (!)
 
             if clean_content(words).endswith((".", "!")):
                 req_kwarg: dict = {

@@ -155,21 +155,21 @@ class TestJSONReport:
             "title": "target",
         }
 
-    def test_process_sections(self, actual_json, actual_specification, actual_section, actual_requirement):
-        actual_section.add_requirement(actual_requirement)
-        actual_specification.add_section(actual_section)
-        sections, requirements = actual_json._process_sections(actual_specification.sections)
+    # def test_process_sections(self, actual_json, actual_specification, actual_section, actual_requirement):
+    #     actual_section.add_requirement(actual_requirement)
+    #     actual_specification.add_section(actual_section)
+    #     sections, requirements = actual_json._process_sections(actual_specification.sections)
+    #
+    #     assert len(sections) == 3
+    #     assert len(requirements) == 1
 
-        assert len(sections) == 3
-        assert len(requirements) == 1
-
-    def test_process_specification(self, actual_json, actual_specification, actual_section, actual_requirement):
-        # Setup specification for test.
-        actual_section.add_requirement(actual_requirement)
-        actual_specification.add_section(actual_section)
-
-        actual_json._process_specification(actual_specification)
-        specification_dict = actual_json.specifications.get(actual_specification.source)
-
-        assert len(specification_dict.get("sections")) == 3
-        assert len(specification_dict.get("requirements")) == 1
+    # def test_process_specification(self, actual_json, actual_specification, actual_section, actual_requirement):
+    #     # Setup specification for test.
+    #     actual_section.add_requirement(actual_requirement)
+    #     actual_specification.add_section(actual_section)
+    #
+    #     actual_json._process_specification(actual_specification)
+    #     specification_dict = actual_json.specifications.get(actual_specification.source)
+    #
+    #     assert len(specification_dict.get("sections")) == 3
+    #     assert len(specification_dict.get("requirements")) == 1

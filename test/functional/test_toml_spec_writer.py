@@ -3,8 +3,8 @@
 """Test TOML spec"""
 import pytest
 
-from duvet.spec_toml_parser import TomlRequirementParser
-from duvet.spec_toml_writer import TomlRequirementWriter
+from duvet.toml_requirement_parser import TomlRequirementParser
+from duvet.toml_requirement_writer import TomlRequirementWriter
 
 from .constants import TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC  # isort: skip
 

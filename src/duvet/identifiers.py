@@ -69,8 +69,10 @@ RFC_LIST_MEMBER_REGEX = r"(^(?:(\s)*((?:(\-|\*))|(?:(\d)+\.)|(?:[a-z]\.)) ))"
 ALL_RFC_LIST_ENTRY_REGEX: re.Pattern = re.compile(RFC_LIST_MEMBER_REGEX, re.MULTILINE)
 # Match common List identifiers
 REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
-
+# Match end of List identifiers
 END_OF_LIST: re.Pattern = re.compile(r"(?:[\r\n])^(?:[\r\n])+[\s]*([A-Z]|$|[\d](!\.))", re.MULTILINE)
+
+TABLE_DIVIDER: re.Pattern = re.compile(r"[^\n][\s]*.*(\+)[\n]", re.MULTILINE)
 
 FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))(.*?)", re.MULTILINE)
 

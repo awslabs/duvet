@@ -6,8 +6,8 @@ import logging
 import pytest
 
 from duvet.annotation_parser import AnnotationParser
-from duvet.spec_toml_parser import TomlRequirementParser
 from duvet.summary import SummaryReport
+from duvet.toml_requirement_parser import TomlRequirementParser
 
 from .integration_test_utils import get_path_to_esdk_dafny  # isort: skip
 

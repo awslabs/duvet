@@ -17,7 +17,6 @@ from duvet.identifiers import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel("ERROR")
 
 
 @define
