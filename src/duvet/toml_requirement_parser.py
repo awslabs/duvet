@@ -27,7 +27,7 @@ class TomlRequirementParser:
     """Parser for requirements in toml format."""
 
     @staticmethod
-    def extract_toml_specs(patterns: str, path: Path, toml_report: Optional[Report] = None) -> Report:
+    def extract_toml_specs(filenames: list[Path], toml_report: Optional[Report] = None) -> Report:
         """Take the patterns of the toml.
 
         Return a Report object containing all the specs.
@@ -36,7 +36,7 @@ class TomlRequirementParser:
         # We will create a Report object to contain all the specs.
         if toml_report is None:
             toml_report = Report()
-        for temp_toml in Path(path).glob(patterns):
+        for temp_toml in filenames:
             # Parse the attributes in section.
 
             sec_dict: Dict = toml.load(temp_toml)
@@ -77,7 +77,8 @@ class TomlRequirementParser:
 
 
 def _parse_requirement_attributes(
-    requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section, filepath: Path
+        requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section,
+        filepath: Path
 ):
     # Parse the attributes in Requirement.
     # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme

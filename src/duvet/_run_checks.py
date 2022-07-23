@@ -21,9 +21,13 @@ def run(*, config: Config) -> bool:
     """Run all specification checks."""
     # Extractions
 
-    # report = Report()
+    report = Report()
 
-    report = DuvetController.extract_rfc(config)
+    report = DuvetController.extract_rfc(config, report)
+
+    report = DuvetController.extract_markdown(config, report)
+
+    report = DuvetController.extract_toml(config, report)
 
     # DuvetController.extract_markdown(config, report)
 
@@ -63,13 +67,11 @@ class DuvetController:
         return test_report
 
     @staticmethod
-    def extract_toml(config: Config, report: Optional[Report] = None) -> Report:
+    def extract_toml(config: Config, report: Report) -> Report:
         """Extract TOML files."""
-        if report is None:
-            report = Report()
-
+        print(config.specification_path)
         toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
-        report = TomlRequirementParser.extract_toml_specs(toml_files)
+        report = TomlRequirementParser.extract_toml_specs(toml_files, report)
 
         return report
 
