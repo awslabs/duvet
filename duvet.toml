@@ -9,15 +9,18 @@ comment-style = { meta = "//=", content = "//#" }
 patterns = ["compliance_exceptions/exception.txt"]
 comment-style = { meta = "//=", content = "//#" }
 #[spec.toml]
-#patterns = ["duvet-specification/compliance/**/*.toml"]
+#path = "duvet-specification"
+#patterns = ["compliance/**/*.toml"]
 [spec.txt]
-patterns = ["duvet-specification/compliance/duvet-specification.txt"]
+path = "duvet-specification"
+patterns = ["compliance/duvet-specification.txt"]
 #[spec.md]
-#patterns = ["duvet-specification/duvet-specification.md"]
+#path = "duvet-specification"
+#patterns = ["duvet-specification.md"]
 [report]
 [report.blob]
 url = "https://github.com/awslabs/duvet/tree/sprint-demo/"
 [report.issue]
 url = "https://github.com/awslabs/duvet/issues"
 [mode]
-legacy = false
+legacy = true

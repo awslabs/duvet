@@ -11,7 +11,6 @@ from duvet.annotation_parser import AnnotationParser
 from duvet.html import HTMLReport
 from duvet.json_report import JSONReport
 from duvet.markdown_requirement_parser import MarkdownRequirementParser
-from duvet.requirement_parser import RequirementParser
 from duvet.rfc_requirement_parser import RFCRequirementParser
 from duvet.structures import Report
 from duvet.summary import SummaryReport
@@ -21,11 +20,14 @@ from duvet.toml_requirement_parser import TomlRequirementParser
 def run(*, config: Config) -> bool:
     """Run all specification checks."""
     # Extractions
-    # report = extract_rfc(config)
 
-    # report = Report()
+    report = Report()
 
-    report = DuvetController.extract_rfc(config)
+    report = DuvetController.extract_rfc(config, report)
+
+    report = DuvetController.extract_markdown(config, report)
+
+    report = DuvetController.extract_toml(config, report)
 
     # DuvetController.extract_markdown(config, report)
 
@@ -37,8 +39,9 @@ def run(*, config: Config) -> bool:
     DuvetController.extract_implementation(config, report)
 
     # Analyze report
-    DuvetController.write_html(config, report)
     DuvetController.write_summary(config, report)
+
+    DuvetController.write_html(config, report)
 
     return report.report_pass
 
@@ -48,31 +51,27 @@ class DuvetController:
     """Controller of Duvet's behavior"""
 
     @staticmethod
-    def extract_rfc(config: Config, report: Optional[Report] = None) -> Report:
+    def extract_rfc(config: Config, report: Report) -> Report:
         """Extract rfc files."""
         rfc_files = [rfc_spec for rfc_spec in config.specs if rfc_spec.suffix == ".txt"]
-
-        if report is None:
-            report = RFCRequirementParser.process_specifications(rfc_files)
-
+        report = RFCRequirementParser.process_specifications(rfc_files, report, is_legacy=config.legacy)
+        click.echo(report.specifications.keys())
         return report
 
     @staticmethod
     def extract_markdown(config: Config, report: Optional[Report] = None) -> Report:
         """Extract markdown files."""
         markdown_files: list = [markdown_spec for markdown_spec in config.specs if markdown_spec.suffix == ".md"]
-        test_report = MarkdownRequirementParser.process_specifications(markdown_files)
-        click.echo(test_report)
-        return test_report
+        report = MarkdownRequirementParser.process_specifications(markdown_files, report)
+        return report
 
     @staticmethod
-    def extract_toml(config: Config, report: Optional[Report] = None) -> Report:
+    def extract_toml(config: Config, report: Report) -> Report:
         """Extract TOML files."""
-        if report is None:
-            report = Report()
-
+        # print(config.specification_path)
+        # print("---------------------------")
         toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
-        report = TomlRequirementParser.extract_toml_specs(toml_files)
+        report = TomlRequirementParser.extract_toml_specs(toml_files, report)
 
         return report
 
@@ -96,6 +95,7 @@ class DuvetController:
 
     @staticmethod
     def write_html(config: Config, report: Report) -> Report:
+        """Write HTML."""
 
         # Covert report into JSON format
         actual_json = JSONReport.create(report, config)
@@ -109,6 +109,7 @@ class DuvetController:
 
     @staticmethod
     def write_summary(config: Config, report: Report):
+        """Write Summary."""
 
         summary = SummaryReport(report, config)
         summary.analyze_report()

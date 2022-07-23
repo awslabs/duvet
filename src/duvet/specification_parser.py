@@ -110,16 +110,16 @@ class SpecificationHeader(SpecificationElement, metaclass=ABCMeta):
         return url
 
     def get_number(self) -> str:
-        # print(self.children)
+        """Get number"""
         url: str = str(list(self.parent.children).index(self))
-        print(list(self.parent.children))
+        # print(list(self.parent.children))
         header_cursor: SpecificationHeader = self.parent
         while header_cursor is not self.root:
             cursor_url = str(list(header_cursor.parent.children).index(self))
             url = ".".join([cursor_url, url])
             header_cursor = header_cursor.parent
 
-        print(url)
+        # print(url)
         return url
 
     def validate(self) -> bool:

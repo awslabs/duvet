@@ -17,10 +17,8 @@ import attr
 from attrs import define, field
 
 from duvet._config import Config
-from duvet.formatter import clean_content
 from duvet.identifiers import DEFAULT_JSON_PATH, AnnotationType
-from duvet.refs_json import CONVENTIONS_AND_DEFINITIONS, NORMATIVE_REFERENCES, REFS_JSON
-from duvet.specification_parser import Span
+from duvet.refs_json import REFS_JSON
 from duvet.structures import Annotation, Report, Requirement, Section, Specification
 
 
@@ -113,8 +111,8 @@ class JSONReport:
     @staticmethod
     def _process_lines(quotes, lines) -> list[list]:
         """Given a span of content, return a list of key word arguments of requirement."""
-        requirements: list = []
-        requirement_dict: dict = {}
+        # requirements: list = []
+        # requirement_dict: dict = {}
         # new_lines: list = []
         #
         # # Find requirement in the quotes.
@@ -159,8 +157,13 @@ class JSONReport:
         quotes = "".join(section_lines)
         quotes = quotes
 
-        title_line = section.lines[0]
-        number, title = title_line.rsplit(maxsplit=1)
+        print(section_dict)
+
+        if len(section.lines) != 0:
+            title_line = section.lines[0]
+            number, title = title_line.rsplit(maxsplit=1)
+        else:
+            number, title = section_dict.get("id"), section_dict.get("title")
         # print(title)
         section_dict["title"] = title
 

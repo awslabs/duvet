@@ -1,13 +1,13 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
-import copy
 import logging
 import re
 from abc import abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import click
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, clean_content
@@ -19,7 +19,6 @@ from duvet.identifiers import (
     TABLE_DIVIDER,
     RequirementLevel,
 )
-from duvet.rfc import RFCSpecification
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
 
@@ -29,7 +28,9 @@ class RequirementParser:
     """The parser of a requirement in a block."""
 
     @staticmethod
-    def _process_section(body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern) -> List[dict]:
+    def _process_section(
+            body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False
+    ) -> List[dict]:
         """Take a chunk of string in section.
 
         Return a list of span and types.
@@ -44,7 +45,7 @@ class RequirementParser:
                 lists = []
                 blocks = RequirementParser._process_list_block(body, annotated_span[0], list_entry_regex)
                 for block in blocks:
-                    lists.extend(RequirementParser._process_list(body, block, False))
+                    lists.extend(RequirementParser._process_list(body, block, is_legacy))
                 result.extend(lists)
 
         return result
@@ -71,7 +72,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
 
         # Find and skip table.
 
@@ -83,6 +84,7 @@ class RequirementParser:
 
         table_match = re.finditer(TABLE_DIVIDER, quotes)
         table_match_list: list[Span] = [Span.from_match(match) for match in table_match]
+        click.echo(table_match_list)
         if len(table_match_list) > 0:
             new_span = Span(table_match_list[0].start, table_match_list[-1].end)
             result.append((new_span.add_start(quote_span), "TABLE"))
@@ -110,7 +112,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        end_of_list_match = re.search(END_OF_LIST, quotes[span.end :])
+        end_of_list_match = re.search(END_OF_LIST, quotes[span.end:])
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
@@ -186,7 +188,7 @@ class RequirementParser:
     @staticmethod
     def _process_list_block(body: str, quote_span: Span, list_entry_regex: re.Pattern) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the END OF LIST.
@@ -196,7 +198,7 @@ class RequirementParser:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
 
-            quotes = body[quote_span.start : quote_span.start + end_of_list]
+            quotes = body[quote_span.start: quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
 
@@ -238,6 +240,9 @@ class RequirementParser:
         Return:
             [ "parent_sentence child1", "parent_sentence child2" ]
         """
+
+        # print(is_legacy)
+        # print("list")
         req_list: list[Dict] = []
 
         # Parent MUST NOT be None
@@ -305,7 +310,6 @@ class RequirementParser:
 
         Return or create a report.
         """
-        pass
 
     @staticmethod
     @abstractmethod
@@ -314,22 +318,21 @@ class RequirementParser:
 
         Return a specification or none.
         """
-        pass
 
     @staticmethod
     @abstractmethod
-    def _process_sections(parser, filepath) -> List[Section]:
-        pass
+    def _process_sections(parser, filepath, is_legacy) -> List[Section]:
+        """Process sections."""
 
     @staticmethod
-    def _process_requirements(quotes, section, file_type: str = "RFC") -> Section:
+    def _process_requirements(quotes, section, file_type, is_legacy) -> Section:
 
         blocks = RequirementParser._process_block(
             quotes, Span(0, len(quotes)), REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
         )
 
         req_kwargs: List[dict] = RequirementParser._process_section(
-            quotes, blocks, REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
+            quotes, blocks, REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX), is_legacy
         )
 
         for kwarg in req_kwargs:
@@ -341,7 +344,6 @@ class RequirementParser:
                 section.add_requirement(Requirement(**kwarg))
 
         return section
-
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication

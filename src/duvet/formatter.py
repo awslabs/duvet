@@ -58,11 +58,6 @@ def clean_content(content: str) -> str:
     return cleaned_content
 
 
-def remove_stop(content: str) -> str:
-    """Remove stop string."""
-
-    removed = content.replace(STOP_SIGN, " ")
-    return clean_content(removed)
 
 
 def split_long(para: str) -> list[str]:

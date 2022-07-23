@@ -185,7 +185,6 @@ class AnnotationParser:
             annotations.extend(self.process_file(filepath))
         return annotations
 
-
 # //= compliance/duvet-specification.txt#2.3.1
 # //= type=implication
 # //# The default identifier for the meta part in source documents MUST be //= followed by a single space.
@@ -220,7 +219,8 @@ class AnnotationParser:
 # //# content MUST exist in the specification's section identified by the annotation's meta location URL.
 
 # //= compliance/duvet-specification.txt#2.4.1
-# //# The match between the annotation content and the specification text MUST be case-sensitive but MUST NOT be white space sensitive and MUST uniquely identify text in the specification.
+# //# The match between the annotation content and the specification text MUST be case-sensitive
+# //# but MUST NOT be white space sensitive and MUST uniquely identify text in the specification.
 
 # //= compliance/duvet-specification.txt#2.4.1
 # //# Elements of a list MUST NOT be matched by their order within the list.

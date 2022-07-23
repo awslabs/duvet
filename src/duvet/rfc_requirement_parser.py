@@ -2,18 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
 import copy
-import logging
-import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional
 
 from attrs import define
 
-from duvet.identifiers import ALL_MARKDOWN_LIST_ENTRY_REGEX
-from duvet.markdown import MarkdownSpecification
 from duvet.requirement_parser import RequirementParser
 from duvet.rfc import RFCSpecification
-from duvet.structures import Report, Requirement, Section, Specification
+from duvet.structures import Report, Section, Specification
 
 
 @define
@@ -21,7 +17,8 @@ class RFCRequirementParser(RequirementParser):
     """The parser of a requirement in a block."""
 
     @staticmethod
-    def process_specifications(filepaths: list[Path], report: Optional[Report] = None) -> Report:
+    def process_specifications(filepaths: list[Path], specification_path: Path, report: Optional[Report] = None,
+                               is_legacy=False) -> Report:
         """Given pattern and filepath of markdown specs.
 
         Return or create a report.
@@ -31,34 +28,40 @@ class RFCRequirementParser(RequirementParser):
 
         specifications: list[Specification] = []
         for filepath in filepaths:
-            specifications.append(RFCRequirementParser._process_specification(filepath))
+            specifications.append(RFCRequirementParser._process_specification(filepath, specification_path, is_legacy))
 
         for specification in specifications:
             report.add_specification(specification)
 
+        print(report)
+
         return report
 
     @staticmethod
-    def _process_specification(specification_source: Path) -> Specification:  # pylint:disable=R0914
+    def _process_specification(specification_source: Path, specification_path: Path,
+                               is_legacy=False) -> Specification:  # pylint:disable=R0914
         """Given a filepath of a markdown spec.
 
         Return a specification or none.
         """
 
         parser: RFCSpecification = RFCSpecification.parse(specification_source)
+
+        # print(specification_source.relative_to(
+        #     specification_path.joinpath("aws-encryption-sdk-specification")))
         specification = Specification(
-            specification_source.name, str(specification_source.relative_to(specification_source.parent.parent))
+            specification_source.name, str(specification_source.relative_to(
+                specification_path))
         )
 
-        for section in RFCRequirementParser._process_sections(parser, specification_source):
+        for section in RFCRequirementParser._process_sections(parser, specification_source, is_legacy):
             if specification is not None:
                 specification.add_section(section)
 
         return specification
 
     @staticmethod
-    def _process_sections(parser, filepath) -> List[Section]:
-
+    def _process_sections(parser, filepath, is_legacy) -> List[Section]:
         sections: list[Section] = []
 
         for descendant in parser.descendants:
@@ -81,12 +84,13 @@ class RFCRequirementParser(RequirementParser):
 
             section_with_requirements: list[Section] = []
             if filepath.suffix == ".txt":
-                section_with_requirements.append(RFCRequirementParser._process_requirements(quotes, section))
+                section_with_requirements.append(
+                    RFCRequirementParser._process_requirements(quotes, section, "RFC", is_legacy)
+                )
 
             sections.extend(section_with_requirements)
 
         return sections
-
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication

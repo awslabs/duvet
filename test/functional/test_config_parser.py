@@ -12,6 +12,7 @@ from ..utils import populate_file  # isort: skip
 pytestmark = [pytest.mark.local, pytest.mark.functional]
 
 SPEC_BLOCK = """[spec.markdown]
+path = "project-specification"
 patterns = ["project-specification/**/*.md"]"""
 
 IMPL_BLOCK = """[implementation]
@@ -38,6 +39,7 @@ comment-style = { meta = "//=", content = "//#" }
 [implementation.dfy]
 patterns = ["src/**/*.dfy", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
 [spec.markdown]
+path = "project-specification"
 patterns = ["project-specification/**/*.md"]
 [report]
 blob = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
