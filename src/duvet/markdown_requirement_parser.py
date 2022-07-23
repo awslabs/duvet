@@ -93,13 +93,13 @@ class MarkdownRequirementParser(RequirementParser):
 
             if filepath.suffix == ".md":
                 section_with_requirements.append(
-                    MarkdownRequirementParser._process_requirements(quotes, section, ALL_MARKDOWN_LIST_ENTRY_REGEX)
+                    MarkdownRequirementParser._process_requirements(quotes, section, ALL_MARKDOWN_LIST_ENTRY_REGEX,
+                                                                    False)
                 )
 
             sections.extend(section_with_requirements)
 
         return sections
-
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication

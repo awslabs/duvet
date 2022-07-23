@@ -36,6 +36,8 @@ class RFCRequirementParser(RequirementParser):
         for specification in specifications:
             report.add_specification(specification)
 
+        print(report)
+
         return report
 
     @staticmethod

@@ -94,7 +94,7 @@ class ConfigParser:
 
         implementation_configs = self._validate_implementation(parsed.get("implementation", {}))
         # spec_configs = self._validate_specification(parsed.get("spec", {}))
-        specification_path = parsed.get("spec", {}).get("path", "")
+        specification_path = parsed.get("spec", {}).get("path", self.config_file_path.parent)
 
         return Config(
             self.config_file_path.parent,
@@ -125,7 +125,7 @@ class ConfigParser:
 
         specifications: list = []
         for entry_key in spec.keys():
-            specification_path = self.config_file_path.parent.joinpath(spec.get(entry_key).get("path"))
+            specification_path = self.config_file_path.parent.joinpath(spec.get(entry_key).get("path"), "")
             filenames = ConfigParser._validate_patterns(specification_path, spec, entry_key, "Specification")
             specifications.extend(filenames)
         return specification_path, specifications

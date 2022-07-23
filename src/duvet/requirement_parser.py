@@ -1,7 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
-import copy
 import logging
 import re
 from abc import abstractmethod
@@ -20,7 +19,6 @@ from duvet.identifiers import (
     TABLE_DIVIDER,
     RequirementLevel,
 )
-from duvet.rfc import RFCSpecification
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
 
@@ -242,8 +240,8 @@ class RequirementParser:
             [ "parent_sentence child1", "parent_sentence child2" ]
         """
 
-        print(is_legacy)
-        print("list")
+        # print(is_legacy)
+        # print("list")
         req_list: list[Dict] = []
 
         # Parent MUST NOT be None
@@ -325,13 +323,13 @@ class RequirementParser:
     @staticmethod
     @abstractmethod
     def _process_sections(parser, filepath, is_legacy) -> List[Section]:
-        print(is_legacy)
+        # print(is_legacy)
         pass
 
     @staticmethod
     def _process_requirements(quotes, section, file_type, is_legacy) -> Section:
 
-        print(" requirements " + str(is_legacy))
+        # print(" requirements " + str(is_legacy))
 
         blocks = RequirementParser._process_block(
             quotes, Span(0, len(quotes)), REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
