@@ -7,11 +7,13 @@ from pathlib import Path
 from typing import List
 
 import attr
+import click
 import toml
 from attr import define, field
 
 from duvet.exceptions import ConfigError
 from duvet.identifiers import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
+
 
 # TODO:  update _config to handle spec.toml # pylint:disable=W0511
 
@@ -53,12 +55,12 @@ class Config:
 
     # This is the directory we kept a record for report generation purpose.
     config_path: Path = field(init=True)
+    specification_path: Path = field(init=True)
     implementation_configs: List[ImplConfig] = field(init=True, default=attr.Factory(list))
     specs: List[Path] = field(init=True, default=attr.Factory(list))
     legacy: bool = field(init=True, default=False)
     blob_url: str = field(init=True, default="Github Blob URL Placeholder")
     issue_url: str = field(init=True, default="Github Issue URL Placeholder")
-    specification_path: str = ""
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -90,16 +92,18 @@ class ConfigParser:
 
         implementation_configs = self._validate_implementation(parsed.get("implementation", {}))
         spec_configs = self._validate_specification(parsed.get("spec", {}))
-        specification_path = parsed.get("spec",{}).get("path","")
+        specification_path = parsed.get("spec").get("txt").get("path")
+        click.echo(specification_path)
+        # click.echo(self.config_file_path.parent.joinpath(specification_path))
 
         return Config(
             self.config_file_path.parent,
+            self.config_file_path.parent.joinpath(specification_path),
             implementation_configs,
             spec_configs,
             legacy,
             parsed.get("report", {}).get("blob", {}).get("url", "Github Blob URL Placeholder"),
             parsed.get("report", {}).get("issue", {}).get("url", "Github Issue URL Placeholder"),
-            specification_path
         )
 
     def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[Path]:

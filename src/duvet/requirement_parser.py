@@ -20,7 +20,6 @@ from duvet.identifiers import (
     TABLE_DIVIDER,
     RequirementLevel,
 )
-from duvet.rfc import RFCSpecification
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
 
@@ -85,7 +84,6 @@ class RequirementParser:
 
         table_match = re.finditer(TABLE_DIVIDER, quotes)
         table_match_list: list[Span] = [Span.from_match(match) for match in table_match]
-        click.echo(table_match_list)
         if len(table_match_list) > 0:
             new_span = Span(table_match_list[0].start, table_match_list[- 1].end)
             result.append((new_span.add_start(quote_span), "TABLE"))
@@ -242,8 +240,6 @@ class RequirementParser:
             [ "parent_sentence child1", "parent_sentence child2" ]
         """
 
-        print(is_legacy)
-        print("list")
         req_list: list[Dict] = []
 
         # Parent MUST NOT be None
@@ -304,14 +300,6 @@ class RequirementParser:
 
         return {"requirement_level": level}
 
-    @staticmethod
-    @abstractmethod
-    def process_specifications(filepaths: list[Path], report: Optional[Report] = None) -> Report:
-        """Given pattern and filepath of markdown specs.
-
-        Return or create a report.
-        """
-        pass
 
     @staticmethod
     @abstractmethod
@@ -325,13 +313,10 @@ class RequirementParser:
     @staticmethod
     @abstractmethod
     def _process_sections(parser, filepath, is_legacy) -> List[Section]:
-        print(is_legacy)
         pass
 
     @staticmethod
     def _process_requirements(quotes, section, file_type, is_legacy) -> Section:
-
-        print(" requirements " + str(is_legacy))
 
         blocks = RequirementParser._process_block(
             quotes, Span(0, len(quotes)), REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)

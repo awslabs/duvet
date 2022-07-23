@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Run the checks."""
 from typing import Optional
+from zipfile import Path
 
 import click  # type : ignore[import]
 from attr import define
@@ -35,8 +36,11 @@ def run(*, config: Config) -> bool:
     DuvetController.extract_implementation(config, report)
 
     # Analyze report
-    DuvetController.write_html(config, report)
     DuvetController.write_summary(config, report)
+    DuvetController.write_html(config, report)
+    # DuvetController.write_summary(config, report)
+
+    click.echo(config)
 
     return report.report_pass
 
@@ -50,7 +54,8 @@ class DuvetController:
         """Extract rfc files."""
         rfc_files = [rfc_spec for rfc_spec in config.specs if rfc_spec.suffix == ".txt"]
         if report is None:
-            report = RFCRequirementParser.process_specifications(rfc_files, is_legacy=config.legacy)
+            report = RFCRequirementParser.process_specifications(rfc_files, config.specification_path,
+                                                                 is_legacy=config.legacy)
 
         return report
 

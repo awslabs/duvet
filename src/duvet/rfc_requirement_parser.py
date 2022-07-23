@@ -21,7 +21,8 @@ class RFCRequirementParser(RequirementParser):
     """The parser of a requirement in a block."""
 
     @staticmethod
-    def process_specifications(filepaths: list[Path], report: Optional[Report] = None, is_legacy=False) -> Report:
+    def process_specifications(filepaths: list[Path], specification_path: Path, report: Optional[Report] = None,
+                               is_legacy=False) -> Report:
         """Given pattern and filepath of markdown specs.
 
         Return or create a report.
@@ -31,7 +32,7 @@ class RFCRequirementParser(RequirementParser):
 
         specifications: list[Specification] = []
         for filepath in filepaths:
-            specifications.append(RFCRequirementParser._process_specification(filepath, is_legacy))
+            specifications.append(RFCRequirementParser._process_specification(filepath, specification_path, is_legacy))
 
         for specification in specifications:
             report.add_specification(specification)
@@ -39,27 +40,30 @@ class RFCRequirementParser(RequirementParser):
         return report
 
     @staticmethod
-    def _process_specification(specification_source: Path, is_legacy=False) -> Specification:  # pylint:disable=R0914
+    def _process_specification(specification_source: Path, specification_path: Path,
+                               is_legacy=False) -> Specification:  # pylint:disable=R0914
         """Given a filepath of a markdown spec.
 
         Return a specification or none.
         """
 
         parser: RFCSpecification = RFCSpecification.parse(specification_source)
+
+        # print(specification_source.relative_to(
+        #     specification_path.joinpath("aws-encryption-sdk-specification")))
         specification = Specification(
-            specification_source.name, str(specification_source.relative_to(specification_source.parent.parent))
+            specification_source.name, str(specification_source.relative_to(
+                specification_path))
         )
 
         for section in RFCRequirementParser._process_sections(parser, specification_source, is_legacy):
             if specification is not None:
                 specification.add_section(section)
-                print(is_legacy)
 
         return specification
 
     @staticmethod
     def _process_sections(parser, filepath, is_legacy) -> List[Section]:
-        print("sections " + str(is_legacy))
         sections: list[Section] = []
 
         for descendant in parser.descendants:
