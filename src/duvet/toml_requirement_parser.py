@@ -27,7 +27,7 @@ class TomlRequirementParser:
     """Parser for requirements in toml format."""
 
     @staticmethod
-    def extract_toml_specs(patterns: str, path: Path, toml_report: Optional[Report] = None) -> Report:
+    def extract_toml_specs(filenames: list[Path], toml_report: Optional[Report] = None) -> Report:
         """Take the patterns of the toml.
 
         Return a Report object containing all the specs.
@@ -36,7 +36,7 @@ class TomlRequirementParser:
         # We will create a Report object to contain all the specs.
         if toml_report is None:
             toml_report = Report()
-        for temp_toml in Path(path).glob(patterns):
+        for temp_toml in filenames:
             # Parse the attributes in section.
 
             sec_dict: Dict = toml.load(temp_toml)

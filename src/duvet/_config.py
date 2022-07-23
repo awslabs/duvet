@@ -7,13 +7,11 @@ from pathlib import Path
 from typing import List
 
 import attr
-import click
 import toml
 from attr import define, field
 
 from duvet.exceptions import ConfigError
 from duvet.identifiers import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
-
 
 # TODO:  update _config to handle spec.toml # pylint:disable=W0511
 
@@ -61,6 +59,7 @@ class Config:
     legacy: bool = field(init=True, default=False)
     blob_url: str = field(init=True, default="Github Blob URL Placeholder")
     issue_url: str = field(init=True, default="Github Issue URL Placeholder")
+    specification_path: str = ""
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -90,15 +89,15 @@ class ConfigParser:
         else:
             legacy = parsed.get("mode", {}).get("legacy", False)
 
+        specification_path, spec_configs = self._validate_specification(parsed.get("spec", {}))
+
         implementation_configs = self._validate_implementation(parsed.get("implementation", {}))
-        spec_configs = self._validate_specification(parsed.get("spec", {}))
-        specification_path = parsed.get("spec").get("txt").get("path")
-        click.echo(specification_path)
-        # click.echo(self.config_file_path.parent.joinpath(specification_path))
+        # spec_configs = self._validate_specification(parsed.get("spec", {}))
+        specification_path = parsed.get("spec", {}).get("path", self.config_file_path.parent)
 
         return Config(
             self.config_file_path.parent,
-            self.config_file_path.parent.joinpath(specification_path),
+            specification_path,
             implementation_configs,
             spec_configs,
             legacy,
@@ -106,32 +105,36 @@ class ConfigParser:
             parsed.get("report", {}).get("issue", {}).get("url", "Github Issue URL Placeholder"),
         )
 
-    def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[Path]:
+    @staticmethod
+    def _validate_patterns(directory: Path, spec: dict, entry_key: str, mode: str) -> List[Path]:
         spec_file_list = []
         entry = spec.get(entry_key, {})
         if "patterns" not in entry.keys():
             raise ValueError("Patterns not found in" + mode + " Config " + entry_key)
         for pattern in entry.get("patterns"):
-            temp_list = list(self.config_file_path.parent.glob(pattern))
+            temp_list = list(directory.glob(pattern))
             if len(temp_list) == 0:
                 warnings.warn("No files found in pattern " + pattern + " in " + mode)
             else:
                 spec_file_list.extend(temp_list)
         return [Path(x) for x in spec_file_list]
 
-    def _validate_specification(self, spec: dict) -> List[Path]:
+    def _validate_specification(self, spec: dict) -> (Path, list):
         """Validate Config specification files."""
-        spec_file_list = []
+
+        specifications: list = []
         for entry_key in spec.keys():
-            spec_file_list.extend(self._validate_patterns(spec, entry_key, "Specification"))
-        return spec_file_list
+            specification_path = self.config_file_path.parent.joinpath(spec.get(entry_key).get("path"), "")
+            filenames = ConfigParser._validate_patterns(specification_path, spec, entry_key, "Specification")
+            specifications.extend(filenames)
+        return specification_path, specifications
 
     def _validate_implementation(self, impl: dict) -> List[ImplConfig]:
         """Validate Config implementation files."""
         impl_config_list = []
         for entry_key in impl.keys():
             entry = impl.get(entry_key, {})
-            impl_file_list = self._validate_patterns(impl, entry_key, "Implementation")
+            impl_file_list = self._validate_patterns(self.config_file_path.parent, impl, entry_key, "Implementation")
             temp_impl_config = ImplConfig(impl_file_list)
             if "comment-style" in entry.keys():
                 comment_style = entry.get("comment-style")

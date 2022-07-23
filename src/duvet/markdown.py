@@ -5,7 +5,6 @@ import re
 from pathlib import Path
 from typing import Iterator, TypeVar
 
-from anytree import Resolver
 from attr import define
 
 from duvet.specification_parser import MAX_HEADER_LEVELS, ParsedSpecification, Span, SpecificationHeader

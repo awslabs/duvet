@@ -2,18 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
 import copy
-import logging
-import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional
 
 from attrs import define
 
-from duvet.identifiers import ALL_MARKDOWN_LIST_ENTRY_REGEX
-from duvet.markdown import MarkdownSpecification
 from duvet.requirement_parser import RequirementParser
 from duvet.rfc import RFCSpecification
-from duvet.structures import Report, Requirement, Section, Specification
+from duvet.structures import Report, Section, Specification
 
 
 @define
@@ -36,6 +32,8 @@ class RFCRequirementParser(RequirementParser):
 
         for specification in specifications:
             report.add_specification(specification)
+
+        print(report)
 
         return report
 
@@ -87,7 +85,8 @@ class RFCRequirementParser(RequirementParser):
             section_with_requirements: list[Section] = []
             if filepath.suffix == ".txt":
                 section_with_requirements.append(
-                    RFCRequirementParser._process_requirements(quotes, section, "RFC", is_legacy))
+                    RFCRequirementParser._process_requirements(quotes, section, "RFC", is_legacy)
+                )
 
             sections.extend(section_with_requirements)
 

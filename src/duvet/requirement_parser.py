@@ -1,7 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
-import copy
 import logging
 import re
 from abc import abstractmethod
@@ -29,8 +28,9 @@ class RequirementParser:
     """The parser of a requirement in a block."""
 
     @staticmethod
-    def _process_section(body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False) -> \
-            List[dict]:
+    def _process_section(
+            body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False
+    ) -> List[dict]:
         """Take a chunk of string in section.
 
         Return a list of span and types.
@@ -84,8 +84,9 @@ class RequirementParser:
 
         table_match = re.finditer(TABLE_DIVIDER, quotes)
         table_match_list: list[Span] = [Span.from_match(match) for match in table_match]
+        click.echo(table_match_list)
         if len(table_match_list) > 0:
-            new_span = Span(table_match_list[0].start, table_match_list[- 1].end)
+            new_span = Span(table_match_list[0].start, table_match_list[-1].end)
             result.append((new_span.add_start(quote_span), "TABLE"))
             result.extend(
                 RequirementParser._process_block(
@@ -240,6 +241,8 @@ class RequirementParser:
             [ "parent_sentence child1", "parent_sentence child2" ]
         """
 
+        # print(is_legacy)
+        # print("list")
         req_list: list[Dict] = []
 
         # Parent MUST NOT be None
@@ -300,6 +303,13 @@ class RequirementParser:
 
         return {"requirement_level": level}
 
+    @staticmethod
+    @abstractmethod
+    def process_specifications(filepaths: list[Path], report: Optional[Report] = None) -> Report:
+        """Given pattern and filepath of markdown specs.
+
+        Return or create a report.
+        """
 
     @staticmethod
     @abstractmethod
@@ -308,12 +318,11 @@ class RequirementParser:
 
         Return a specification or none.
         """
-        pass
 
     @staticmethod
     @abstractmethod
     def _process_sections(parser, filepath, is_legacy) -> List[Section]:
-        pass
+        """Process sections."""
 
     @staticmethod
     def _process_requirements(quotes, section, file_type, is_legacy) -> Section:
