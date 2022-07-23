@@ -29,19 +29,15 @@ def run(*, config: Config) -> bool:
 
     report = DuvetController.extract_toml(config, report)
 
-    # DuvetController.extract_markdown(config, report)
-
-    # Because we currently got only toml parser, let's give a try.
-    # toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
-    # report = TomlRequirementParser().extract_toml_specs(toml_files)
-
     # Extract all annotations.
     DuvetController.extract_implementation(config, report)
 
     # Analyze report
     DuvetController.write_summary(config, report)
-
+    #
     DuvetController.write_html(config, report)
+    #
+    # click.echo(report.specifications.keys())
 
     return report.report_pass
 
@@ -54,12 +50,12 @@ class DuvetController:
     def extract_rfc(config: Config, report: Report) -> Report:
         """Extract rfc files."""
         rfc_files = [rfc_spec for rfc_spec in config.specs if rfc_spec.suffix == ".txt"]
-        report = RFCRequirementParser.process_specifications(rfc_files, report, is_legacy=config.legacy)
-        click.echo(report.specifications.keys())
+        report = RFCRequirementParser.process_specifications(rfc_files, config.specification_path, report,
+                                                             is_legacy=config.legacy)
         return report
 
     @staticmethod
-    def extract_markdown(config: Config, report: Optional[Report] = None) -> Report:
+    def extract_markdown(config: Config, report: Report) -> Report:
         """Extract markdown files."""
         markdown_files: list = [markdown_spec for markdown_spec in config.specs if markdown_spec.suffix == ".md"]
         report = MarkdownRequirementParser.process_specifications(markdown_files, report)
@@ -76,11 +72,8 @@ class DuvetController:
         return report
 
     @staticmethod
-    def extract_implementation(config: Config, report: Optional[Report] = None) -> Report:
+    def extract_implementation(config: Config, report: Report) -> Report:
         """Extract all annotations in implementations."""
-        if report is None:
-            report = Report()
-
         all_annotations: list = []
         for impl_config in config.implementation_configs:
             annotation_parser: AnnotationParser = AnnotationParser(
@@ -89,6 +82,8 @@ class DuvetController:
             all_annotations.extend(annotation_parser.process_all())
 
         all_annotations_added: list[bool] = [report.add_annotation(anno) for anno in all_annotations]
+
+        print(all_annotations)
         click.echo(f"{all_annotations_added.count(True)} of {len(all_annotations_added)} added to the report")
 
         return report
@@ -99,7 +94,7 @@ class DuvetController:
 
         # Covert report into JSON format
         actual_json = JSONReport.create(report, config)
-
+        actual_json.write_json()
         # Covert JSON report into HTML
         html_report = HTMLReport.from_json_report(actual_json)
 

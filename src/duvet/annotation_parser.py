@@ -162,7 +162,6 @@ class AnnotationParser:
                 continue
             kwarg["source"] = str(filepath)
             kwarg["uri"] = "$".join([kwarg["target"], kwarg["content"]])
-            # print(kwarg)
             rtn.append(Annotation(**kwarg))
         return rtn
 
@@ -181,7 +180,6 @@ class AnnotationParser:
 
         annotations: list[Annotation] = []
         for filepath in self.paths:
-            # print("Processing %s", str(filepath.name))
             annotations.extend(self.process_file(filepath))
         return annotations
 

@@ -157,7 +157,7 @@ class JSONReport:
         quotes = "".join(section_lines)
         quotes = quotes
 
-        print(section_dict)
+        # print(section_dict)
 
         if len(section.lines) != 0:
             title_line = section.lines[0]
