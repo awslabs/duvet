@@ -2,17 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Requirement Parser used by duvet-python."""
 import copy
-import logging
-import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Union
 
 from attrs import define
 
 from duvet.identifiers import ALL_MARKDOWN_LIST_ENTRY_REGEX
 from duvet.markdown import MarkdownSpecification
 from duvet.requirement_parser import RequirementParser
-from duvet.structures import Report, Requirement, Section, Specification
+from duvet.structures import Report, Section, Specification
 
 
 @define
@@ -93,8 +91,9 @@ class MarkdownRequirementParser(RequirementParser):
 
             if filepath.suffix == ".md":
                 section_with_requirements.append(
-                    MarkdownRequirementParser._process_requirements(quotes, section, ALL_MARKDOWN_LIST_ENTRY_REGEX,
-                                                                    False)
+                    MarkdownRequirementParser._process_requirements(
+                        quotes, section, ALL_MARKDOWN_LIST_ENTRY_REGEX, False
+                    )
                 )
 
             sections.extend(section_with_requirements)

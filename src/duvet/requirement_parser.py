@@ -28,8 +28,9 @@ class RequirementParser:
     """The parser of a requirement in a block."""
 
     @staticmethod
-    def _process_section(body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False) -> \
-            List[dict]:
+    def _process_section(
+            body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False
+    ) -> List[dict]:
         """Take a chunk of string in section.
 
         Return a list of span and types.
@@ -85,7 +86,7 @@ class RequirementParser:
         table_match_list: list[Span] = [Span.from_match(match) for match in table_match]
         click.echo(table_match_list)
         if len(table_match_list) > 0:
-            new_span = Span(table_match_list[0].start, table_match_list[- 1].end)
+            new_span = Span(table_match_list[0].start, table_match_list[-1].end)
             result.append((new_span.add_start(quote_span), "TABLE"))
             result.extend(
                 RequirementParser._process_block(
@@ -309,7 +310,6 @@ class RequirementParser:
 
         Return or create a report.
         """
-        pass
 
     @staticmethod
     @abstractmethod
@@ -318,18 +318,14 @@ class RequirementParser:
 
         Return a specification or none.
         """
-        pass
 
     @staticmethod
     @abstractmethod
     def _process_sections(parser, filepath, is_legacy) -> List[Section]:
-        # print(is_legacy)
-        pass
+        """Process sections."""
 
     @staticmethod
     def _process_requirements(quotes, section, file_type, is_legacy) -> Section:
-
-        # print(" requirements " + str(is_legacy))
 
         blocks = RequirementParser._process_block(
             quotes, Span(0, len(quotes)), REGEX_DICT.get(file_type, ALL_RFC_LIST_ENTRY_REGEX)
