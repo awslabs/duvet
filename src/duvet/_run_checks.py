@@ -1,8 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Run the checks."""
-from typing import Optional
-
 import click  # type : ignore[import]
 from attrs import define
 
@@ -15,9 +13,11 @@ from duvet.summary import SummaryReport
 
 def run(*, config: Config) -> bool:
     """Run all specification checks."""
+
+    report = Report()
     # Extractions
-    # Because we currently got only toml parser, let's give a try.
-    report = DuvetController.extract_toml(config, None)
+
+    report = DuvetController.extract_toml(config, report)
 
     # Extract all annotations.
     DuvetController.extract_implementation(config, report)
@@ -31,13 +31,11 @@ def run(*, config: Config) -> bool:
 
 @define
 class DuvetController:
-    """Controller of Duvet's behavior"""
+    """Controller of Duvet's behavior."""
 
     @staticmethod
-    def extract_toml(config: Config, report: Optional[Report] = None) -> Report:
+    def extract_toml(config: Config, report: Report) -> Report:
         """Extract TOML files."""
-        if report is None:
-            report = Report()
 
         toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
         report = TomlRequirementParser.extract_toml_specs(toml_files)
@@ -45,10 +43,8 @@ class DuvetController:
         return report
 
     @staticmethod
-    def extract_implementation(config: Config, report: Optional[Report] = None) -> Report:
+    def extract_implementation(config: Config, report: Report) -> Report:
         """Extract all annotations in implementations."""
-        if report is None:
-            report = Report()
 
         all_annotations: list = []
         for impl_config in config.implementation_configs:
@@ -64,7 +60,7 @@ class DuvetController:
 
     @staticmethod
     def write_summary(config: Config, report: Report):
-
+        """Write summary to console."""
         summary = SummaryReport(report, config)
         summary.analyze_report()
 
