@@ -82,4 +82,3 @@ class RFCRequirementParser(RequirementParser):
             sections.extend(section_with_requirements)
 
         return sections
-

@@ -120,7 +120,8 @@ class AnnotationParser:
                 # there may be a reason;
 
                 # //= compliance/duvet-specification.txt#2.5.3
-                # //# A specification requirement MUST be labeled "Excused" and MUST only be labeled "Excused" if there exists
+                # //# A specification requirement MUST be labeled "Excused"
+                # //# and MUST only be labeled "Excused" if there exists
                 # //# a matching annotation of type "exception" and the annotation has a "reason".
 
                 match = self.match_reason.match(lines[index])
@@ -187,7 +188,6 @@ class AnnotationParser:
             annotations.extend(self.process_file(filepath))
         return annotations
 
-
 # //= compliance/duvet-specification.txt#2.3.1
 # //= type=implication
 # //# The default identifier for the meta part in source documents MUST be //= followed by a single space.
@@ -231,4 +231,3 @@ class AnnotationParser:
 # //= compliance/duvet-specification.txt#2.4.1
 # //= type=exception
 # //# This means that an annotation MAY contain a table that is a subset of the rows in the specification.
-
