@@ -118,6 +118,11 @@ class AnnotationParser:
                 del match
 
                 # there may be a reason;
+
+                # //= compliance/duvet-specification.txt#2.5.3
+                # //# A specification requirement MUST be labeled "Excused" and MUST only be labeled "Excused" if there exists
+                # //# a matching annotation of type "exception" and the annotation has a "reason".
+
                 match = self.match_reason.match(lines[index])
                 reason: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
                 index += 1 if reason is not None else 0
@@ -187,10 +192,6 @@ class AnnotationParser:
 # //= type=implication
 # //# The default identifier for the meta part in source documents MUST be //= followed by a single space.
 
-# //= compliance/duvet-specification.txt#2.5.3
-# //= type=TODO
-# //# A specification requirement MUST be labeled "Excused" and MUST only be labeled "Excused" if there exists
-# //# a matching annotation of type "exception" and the annotation has a "reason".
 
 # //= compliance/duvet-specification.txt#2.2.3
 # //= type=implication
@@ -231,6 +232,3 @@ class AnnotationParser:
 # //= type=exception
 # //# This means that an annotation MAY contain a table that is a subset of the rows in the specification.
 
-# //= compliance/duvet-specification.txt#2.6.2
-# //= type=TODO
-# //# For Duvet to pass the Status of every "MUST" and "MUST NOT" requirement MUST be Complete or Excused.

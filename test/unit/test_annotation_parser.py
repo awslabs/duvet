@@ -58,19 +58,19 @@ class TestExtractKwargs:
         "lines, spans, expected_dicts",
         [
             (
-                TEST_STR.splitlines(True),
-                [LineSpan(0, 3)],
-                [deepcopy(VALID_ANNO_KWARGS)],
+                    TEST_STR.splitlines(True),
+                    [LineSpan(0, 3)],
+                    [deepcopy(VALID_ANNO_KWARGS)],
             ),
             (
-                nested_str.splitlines(True),
-                [LineSpan(1, 4)],
-                [_update_valid_kwargs({"start_line": 1, "end_line": 4})],
+                    nested_str.splitlines(True),
+                    [LineSpan(1, 4)],
+                    [_update_valid_kwargs({"start_line": 1, "end_line": 4})],
             ),
             (
-                (TEST_STR + TEST_STR).splitlines(True),
-                [LineSpan(0, 3), LineSpan(3, 6)],
-                [deepcopy(VALID_ANNO_KWARGS), _update_valid_kwargs({"start_line": 3, "end_line": 6})],
+                    (TEST_STR + TEST_STR).splitlines(True),
+                    [LineSpan(0, 3), LineSpan(3, 6)],
+                    [deepcopy(VALID_ANNO_KWARGS), _update_valid_kwargs({"start_line": 3, "end_line": 6})],
             ),
         ],
     )
@@ -86,13 +86,17 @@ class TestProcessKwargs:
         assert len(actual_result) == 0
 
     def test_skip_and_warns_unknown_type(self, under_test, caplog):
+        # //= compliance/duvet-specification.txt#2.4.1
+        # //= type=test
+        # //# For an annotation to match a specification the annotation's content MUST exist
+        # //# in the specification's section identified by the annotation's meta location URL.
+
         kwarg = _update_valid_kwargs({"type": "Anton"})
         with caplog.at_level(logging.WARN):
             actual = under_test._process_anno_kwargs([kwarg], under_test.paths[0])
             assert len(actual) == 0
         assert len(caplog.messages) == 1
         assert "Unknown type: Anton found in lines 0 to 3. Skipping" in caplog.messages[0]
-
 
 # //= compliance/duvet-specification.txt#2.3.4
 # //= type=test
@@ -126,3 +130,8 @@ class TestProcessKwargs:
 # //= compliance/duvet-specification.txt#2.3.3
 # //= type=test
 # //# The type MUST be a valid annotation type string:
+
+# //= compliance/duvet-specification.txt#2.5.3
+# //= type=test
+# //# A specification requirement MUST be labeled "Excused" and MUST only be labeled "Excused"
+# //# if there exists a matching annotation of type "exception" and the annotation has a "reason".

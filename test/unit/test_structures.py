@@ -89,6 +89,12 @@ class TestAnnotation:
         _help_assert_annotation(citation, VALID_KWARGS)
 
     def test_add_annotation(self, actual_requirement, citation):
+
+        # //= compliance/duvet-specification.txt#2.4.1
+        # //= type=test
+        # //# The match between the annotation content and the specification text MUST be case-sensitive
+        # //# but MUST NOT be white space sensitive and MUST uniquely identify text in the specification.
+
         test_annotation = Annotation(**_update_valid_kwargs({"type": AnnotationType.TEST}))
         actual_requirement.add_annotation(citation)
         assert not actual_requirement.analyze_annotations()

@@ -122,7 +122,7 @@ class TestProcessList:
         temp_list_req = RequirementParser._process_list_block(TEST_RFC_STR, quote_span, ALL_RFC_LIST_ENTRY_REGEX)
 
         actual_span = temp_list_req[0]["parent"]
-        actual_content = clean_content(TEST_RFC_STR[actual_span.start : actual_span.end])
+        actual_content = clean_content(TEST_RFC_STR[actual_span.start: actual_span.end])
         assert actual_content == "We MUST strive for consistency within:"
 
         # Verify the extract_list function by checking the number of children it extracts
@@ -130,7 +130,7 @@ class TestProcessList:
 
         assert len(children) == 3
 
-        list_req = [clean_content(TEST_RFC_STR[child.start : child.end]) for child in children]
+        list_req = [clean_content(TEST_RFC_STR[child.start: child.end]) for child in children]
 
         assert list_req == [
             "the document,",
@@ -149,6 +149,10 @@ class TestProcessList:
 
     @staticmethod
     def test_process_list():
+        # //= compliance/duvet-specification.txt#2.4.1
+        # //= type=test
+        # //# Elements of a list MUST NOT be matched by their order within the list.
+
         actual_dict = {
             "parent": Span(start=0, end=58),
             "children": [
@@ -174,6 +178,11 @@ class TestProcessList:
 class TestProcessInline:
     @staticmethod
     def test_process_inline():
+        # //= compliance/duvet-specification.txt#2.2.2
+        # //= type=test
+        # //# List elements MAY contain a period (.) or exclamation point (!) and this punctuation MUST NOT
+        # terminate the requirement by excluding the following elements from the list of requirements.
+
         actual_span = Span(0, len(TEST_REQUIREMENT_STR))
 
         # Test valid inline text

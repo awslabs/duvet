@@ -24,6 +24,11 @@ class TestAnnotationParserAgainstDuvet:
 
 class TestAnnotationParserAgainstESDKDafny:
     def test_extract_dafny_implementation_annotation(self, pytestconfig):
+        # //= compliance/duvet-specification.txt#2.6.1
+        # //= type=test
+        # //# Duvet MUST analyze the matching labels for every requirement;
+        # //# the result of this analysis is the requirement's Status.
+
         dfy_path = get_path_to_esdk_dafny()
         actual_paths = list(dfy_path.glob("src/**/*.dfy"))
         actual_paths.extend(list(dfy_path.glob("test/**/*.dfy")))
@@ -31,11 +36,6 @@ class TestAnnotationParserAgainstESDKDafny:
         actual = parser.process_all()
         assert isinstance(actual, list)
         assert len(actual) > 0
-
-
-# //= compliance/duvet-specification.txt#2.6.1
-# //# Duvet MUST analyze the matching labels for every requirement;
-# //# the result of this analysis is the requirement's Status.
 
 # //= compliance/duvet-specification.txt#2.6.1
 # //= type=test

@@ -26,7 +26,7 @@ class RequirementParser:
 
     @staticmethod
     def _process_section(
-        body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False
+            body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False
     ) -> List[dict]:
         """Take a chunk of string in section.
 
@@ -69,7 +69,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
 
         # Find and skip table.
 
@@ -109,7 +109,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        end_of_list_match = re.search(END_OF_LIST, quotes[span.end :])
+        end_of_list_match = re.search(END_OF_LIST, quotes[span.end:])
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
@@ -171,6 +171,10 @@ class RequirementParser:
             # //#    following:
             # //#   exclamation point (!)
 
+            # //= compliance/duvet-specification.txt#2.2.2
+            # //# List elements MAY contain a period (.) or exclamation point (!) and this punctuation MUST
+            # //# NOT terminate the requirement by excluding the following elements from the list of requirements.
+
             if clean_content(words).endswith((".", "!")):
                 req_kwarg: dict = {
                     "content": words,
@@ -185,7 +189,7 @@ class RequirementParser:
     @staticmethod
     def _process_list_block(body: str, quote_span: Span, list_entry_regex: re.Pattern) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the END OF LIST.
@@ -195,14 +199,10 @@ class RequirementParser:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
 
-            quotes = body[quote_span.start : quote_span.start + end_of_list]
+            quotes = body[quote_span.start: quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
 
-        # //= compliance/duvet-specification.txt#2.2.2
-        # //# List elements MAY contain a period (.) or exclamation point (!)
-        # //# and this punctuation MUST NOT terminate the requirement by excluding the following
-        # //# elements from the list of requirements.
         list_entry: Optional[re.Match[str]] = re.search(list_entry_regex, quotes)
         if list_entry is None:
             logging.warning("Requirement list syntax is not valid in %s", quotes)
@@ -319,7 +319,6 @@ class RequirementParser:
 
         return section
 
-
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication
 # //# A requirement MUST be terminated by one of the following:
@@ -338,11 +337,6 @@ class RequirementParser:
 # //= type=implication
 # //# A one or more line meta part MUST be followed by at least a one line content part.
 
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=TODO
-# //# Sublists MUST be treated as if the parent item were terminated by the sublist.
-
-
 # //= compliance/duvet-specification.txt#2.2.1
 # //# The name of the sections MUST NOT be nested.
 
@@ -353,12 +347,3 @@ class RequirementParser:
 # //= compliance/duvet-specification.txt#2.2.1
 # //= type=implication
 # //# A header MUST NOT itself be a requirement.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=TODO
-# //# A section MUST be indexable by combining different levels of naming.
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=TODO
-# //# Sublists MUST be treated as if the parent item were
-# //# terminated by the sublist.

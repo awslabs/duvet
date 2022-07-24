@@ -15,6 +15,10 @@ pytestmark = [pytest.mark.integ]
 class TestMarkdownSpecificationAgainstESDK:
     @staticmethod
     def test():
+        # //= compliance/duvet-specification.txt#2.2.1
+        # //= type=test
+        # //# A section MUST be indexable by combining different levels of naming.
+
         esdk_path: Path = get_path_to_esdk_spec()
         esdk_specs = [
             MarkdownSpecification.parse(file) for pattern in ESDK_SPEC_MD_PATTERNS for file in esdk_path.glob(pattern)

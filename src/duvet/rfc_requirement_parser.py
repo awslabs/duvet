@@ -76,56 +76,10 @@ class RFCRequirementParser(RequirementParser):
 
             section = Section(**section_kwarg)
 
-            section_with_requirements: list[Section] = []
-
-            section_with_requirements.append(
-                RFCRequirementParser._process_requirements(quotes, section, "RFC", is_legacy)
-            )
+            section_with_requirements: list[Section] = [
+                RFCRequirementParser._process_requirements(quotes, section, "RFC", is_legacy)]
 
             sections.extend(section_with_requirements)
 
         return sections
 
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=implication
-# //# A requirement MUST be terminated by one of the following:
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=implication
-# //# In the case of requirement terminated by a list, the text proceeding the list MUST be concatenated with each
-# //# element of the list to form a requirement.
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=implication
-# //# List elements MAY have RFC 2119 keywords, this is the same as regular sentences with multiple keywords.
-
-
-# //= compliance/duvet-specification.txt#2.3.6
-# //= type=implication
-# //# A one or more line meta part MUST be followed by at least a one line content part.
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=TODO
-# //# Sublists MUST be treated as if the parent item were terminated by the sublist.
-
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //# The name of the sections MUST NOT be nested.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=exception
-# //# A requirements section MUST be the top level containing header.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=implication
-# //# A header MUST NOT itself be a requirement.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=TODO
-# //# A section MUST be indexable by combining different levels of naming.
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=TODO
-# //# Sublists MUST be treated as if the parent item were
-# //# terminated by the sublist.

@@ -46,10 +46,15 @@ ANNOTATION_END_OF_FILE = """
 
 IMPLICATION = "IMPLICATION"
 
+
 # //= compliance/duvet-specification.txt#2.5.2
 # //= type=test
 # //# A specification requirement MUST be labeled "Attested" if there exists at least one matching annotation of type
 
+# //= compliance/duvet-specification.txt#2.5.4
+# //= type=test
+# //# A specification requirement MUST be labeled "Unexcused" and MUST only be labeled "Unexcused"
+# //# if there exists a matching annotation of type "exception" and the annotation does NOT have a "reason".
 
 def test_more_than_one_valid_files(tmp_path):
     actual_path1 = populate_file(tmp_path, TEST_DFY_BLOCK, "src/test-duvet/test-duvet1.dfy")
@@ -79,6 +84,6 @@ def test_annotation_end_a_file(tmp_path):
     assert actual_annotations[1].target == "compliance/data-format/message-body.txt#2.5.2.2.3"
     assert actual_annotations[1].content == ("The IV MUST be a unique IV within the message.")
     assert (
-        actual_annotations[1].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
-        "within the message."
+            actual_annotations[1].uri == "compliance/data-format/message-body.txt#2.5.2.2.3$The IV MUST be a unique IV "
+                                         "within the message."
     )

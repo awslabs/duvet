@@ -32,6 +32,10 @@ class SummaryReport:
 
     def analyze_report(self) -> bool:
         """Return report pass or fail."""
+
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //# For Duvet to pass the Status of every "MUST" and "MUST NOT" requirement MUST be Complete or Excused.
+
         self.report.analyze_annotations()
         return self.report.report_pass
 
@@ -61,7 +65,6 @@ class SummaryReport:
     def report_section(table: list[list]) -> str:
         """Report Section stats."""
         return tabulate(table, HEADERS, tablefmt="simple")
-
 
 # //= compliance/duvet-specification.txt#2.5
 # //# Duvet MUST analyze the matching annotations, generating Matching Labels.

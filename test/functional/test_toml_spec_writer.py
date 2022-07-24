@@ -26,6 +26,11 @@ def test_dogfood(pytestconfig, tmp_path):
 
 def test_extract_spec_toml(tmp_path):
     # We will not throw error is there is no requirements.
+
+    # //= compliance/duvet-specification.txt#2.2.4.1
+    # //= type=test
+    # //# Duvet SHOULD be able to record parsed requirements into Toml Files.
+
     filename = populate_file(
         tmp_path, "\n".join([TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC]), "compliance/spec/section1.toml"
     )

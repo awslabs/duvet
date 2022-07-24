@@ -32,10 +32,8 @@ def run(*, config: Config) -> bool:
 
     # Analyze report
     DuvetController.write_summary(config, report)
-    #
+
     DuvetController.write_html(config, report)
-    #
-    # click.echo(report.specifications.keys())
 
     return report.report_pass
 
@@ -94,7 +92,7 @@ class DuvetController:
         # Covert JSON report into HTML
         html_report = HTMLReport.from_json_report(actual_json)
 
-        click.echo(f"""Writing HTML report to {html_report.write_html()}""")
+        html_report.write_html()
 
         return report
 

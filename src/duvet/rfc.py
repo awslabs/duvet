@@ -33,6 +33,9 @@ RFCHeaderT = TypeVar("RFCHeaderT", bound="RFCHeader")
 class RFCHeader(SpecificationHeader):
     """Represent an RFC Header."""
 
+    # //= compliance/duvet-specification.txt#2.2.4
+    # //# Duvet MUST be able to parse specifications formatted as: RFC
+
     number: str = field(init=True, repr=False)
 
     @staticmethod
@@ -52,7 +55,7 @@ class RFCHeader(SpecificationHeader):
     @staticmethod
     def from_match(match: re.Match) -> RFCHeaderT:
         """Generate an RFC Header from a match."""
-        cls: RFCHeaderT = RFCHeader.from_line(match.string[match.start() : match.end()])
+        cls: RFCHeaderT = RFCHeader.from_line(match.string[match.start(): match.end()])
         cls.title_span = Span.from_match(match)
         return cls
 
@@ -106,7 +109,3 @@ class RFCSpecification(ParsedSpecification):
 
 
 __all__ = ("RFCHeader", "RFCSpecification")
-
-# //= compliance/duvet-specification.txt#2.2.4
-# //= type=TODO
-# //# Duvet MUST be able to parse specifications formatted as:
