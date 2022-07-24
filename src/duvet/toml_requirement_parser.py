@@ -81,8 +81,7 @@ class TomlRequirementParser:
 
 
 def _parse_requirement_attributes(
-        requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section,
-        filepath: Path
+    requirements: List[MutableMapping[str, Any]], sec_dict: MutableMapping[str, Any], temp_sec: Section, filepath: Path
 ):
     # Parse the attributes in Requirement.
     # TODO: refactor to class method to grant access to filepath via self  # pylint: disable=fixme

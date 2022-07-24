@@ -58,19 +58,19 @@ class TestExtractKwargs:
         "lines, spans, expected_dicts",
         [
             (
-                    TEST_STR.splitlines(True),
-                    [LineSpan(0, 3)],
-                    [deepcopy(VALID_ANNO_KWARGS)],
+                TEST_STR.splitlines(True),
+                [LineSpan(0, 3)],
+                [deepcopy(VALID_ANNO_KWARGS)],
             ),
             (
-                    nested_str.splitlines(True),
-                    [LineSpan(1, 4)],
-                    [_update_valid_kwargs({"start_line": 1, "end_line": 4})],
+                nested_str.splitlines(True),
+                [LineSpan(1, 4)],
+                [_update_valid_kwargs({"start_line": 1, "end_line": 4})],
             ),
             (
-                    (TEST_STR + TEST_STR).splitlines(True),
-                    [LineSpan(0, 3), LineSpan(3, 6)],
-                    [deepcopy(VALID_ANNO_KWARGS), _update_valid_kwargs({"start_line": 3, "end_line": 6})],
+                (TEST_STR + TEST_STR).splitlines(True),
+                [LineSpan(0, 3), LineSpan(3, 6)],
+                [deepcopy(VALID_ANNO_KWARGS), _update_valid_kwargs({"start_line": 3, "end_line": 6})],
             ),
         ],
     )
@@ -97,6 +97,7 @@ class TestProcessKwargs:
             assert len(actual) == 0
         assert len(caplog.messages) == 1
         assert "Unknown type: Anton found in lines 0 to 3. Skipping" in caplog.messages[0]
+
 
 # //= compliance/duvet-specification.txt#2.3.4
 # //= type=test

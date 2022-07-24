@@ -66,6 +66,7 @@ class SummaryReport:
         """Report Section stats."""
         return tabulate(table, HEADERS, tablefmt="simple")
 
+
 # //= compliance/duvet-specification.txt#2.5
 # //# Duvet MUST analyze the matching annotations, generating Matching Labels.
 

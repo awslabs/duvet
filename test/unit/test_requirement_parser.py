@@ -122,7 +122,7 @@ class TestProcessList:
         temp_list_req = RequirementParser._process_list_block(TEST_RFC_STR, quote_span, ALL_RFC_LIST_ENTRY_REGEX)
 
         actual_span = temp_list_req[0]["parent"]
-        actual_content = clean_content(TEST_RFC_STR[actual_span.start: actual_span.end])
+        actual_content = clean_content(TEST_RFC_STR[actual_span.start : actual_span.end])
         assert actual_content == "We MUST strive for consistency within:"
 
         # Verify the extract_list function by checking the number of children it extracts
@@ -130,7 +130,7 @@ class TestProcessList:
 
         assert len(children) == 3
 
-        list_req = [clean_content(TEST_RFC_STR[child.start: child.end]) for child in children]
+        list_req = [clean_content(TEST_RFC_STR[child.start : child.end]) for child in children]
 
         assert list_req == [
             "the document,",

@@ -77,7 +77,8 @@ class RFCRequirementParser(RequirementParser):
             section = Section(**section_kwarg)
 
             section_with_requirements: list[Section] = [
-                RFCRequirementParser._process_requirements(quotes, section, "RFC", is_legacy)]
+                RFCRequirementParser._process_requirements(quotes, section, "RFC", is_legacy)
+            ]
 
             sections.extend(section_with_requirements)
 

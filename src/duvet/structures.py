@@ -321,6 +321,7 @@ class Report:
 
         return self.report_pass
 
+
 # //= compliance/duvet-specification.txt#2.2.1
 # //= type=implication
 # //# The name of the sections MUST NOT be nested.

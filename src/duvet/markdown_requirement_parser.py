@@ -63,8 +63,6 @@ class MarkdownRequirementParser(RequirementParser):
         sections: list[Section] = []
 
         for descendant in parser.descendants:
-            start_line = parser.content[: descendant.body_span.start].count("\n")
-            end_line = parser.content[: descendant.body_span.end].count("\n")
             quotes: str = copy.deepcopy(descendant.get_body())
 
             lines = quotes.splitlines()
@@ -72,8 +70,8 @@ class MarkdownRequirementParser(RequirementParser):
 
             section_kwarg: dict = {
                 "title": descendant.get_number().rstrip(". "),
-                "start_line": start_line,
-                "end_line": end_line,
+                "start_line": parser.content[: descendant.body_span.start].count("\n"),
+                "end_line": parser.content[: descendant.body_span.end].count("\n"),
                 "lines": lines,
                 "uri": "#".join(
                     [str(filepath.relative_to(filepath.parent.parent)), descendant.get_number().rstrip(". ")]
@@ -82,9 +80,9 @@ class MarkdownRequirementParser(RequirementParser):
 
             section = Section(**section_kwarg)
 
-            section_with_requirements: list[Section] = [MarkdownRequirementParser._process_requirements(
-                quotes, section, ALL_MARKDOWN_LIST_ENTRY_REGEX, False
-            )]
+            section_with_requirements: list[Section] = [
+                MarkdownRequirementParser._process_requirements(quotes, section, ALL_MARKDOWN_LIST_ENTRY_REGEX, False)
+            ]
 
             sections.extend(section_with_requirements)
 

@@ -37,6 +37,7 @@ class TestAnnotationParserAgainstESDKDafny:
         assert isinstance(actual, list)
         assert len(actual) > 0
 
+
 # //= compliance/duvet-specification.txt#2.6.1
 # //= type=test
 # //# The Requirement Statuses MUST be:
