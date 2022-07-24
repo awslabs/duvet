@@ -48,8 +48,9 @@ class DuvetController:
     def extract_rfc(config: Config, report: Report) -> Report:
         """Extract rfc files."""
         rfc_files = [rfc_spec for rfc_spec in config.specs if rfc_spec.suffix == ".txt"]
-        report = RFCRequirementParser.process_specifications(rfc_files, config.specification_path, report,
-                                                             is_legacy=config.legacy)
+        report = RFCRequirementParser.process_specifications(
+            rfc_files, config.specification_path, report, is_legacy=config.legacy
+        )
         return report
 
     @staticmethod

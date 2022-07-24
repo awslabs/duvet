@@ -69,9 +69,7 @@ class MarkdownRequirementParser(RequirementParser):
             quotes: str = copy.deepcopy(descendant.get_body())
 
             lines = quotes.splitlines()
-            # lines[0] = "   ".join([descendant.number, descendant.title])
             lines[0] = "   ".join([descendant.get_number(), descendant.title])
-            # print(descendant.get_number())
 
             section_kwarg: dict = {
                 "title": descendant.get_number().rstrip(". "),
@@ -82,7 +80,6 @@ class MarkdownRequirementParser(RequirementParser):
                     [str(filepath.relative_to(filepath.parent.parent)), descendant.get_number().rstrip(". ")]
                 ),
             }
-
 
             section = Section(**section_kwarg)
 
@@ -98,6 +95,7 @@ class MarkdownRequirementParser(RequirementParser):
             sections.extend(section_with_requirements)
 
         return sections
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication

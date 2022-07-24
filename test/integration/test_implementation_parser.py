@@ -67,4 +67,5 @@ class TestAnnotationParserAgainstESDKDafny:
 
 # //= compliance/duvet-specification.txt#2.5.1
 # //= type=test
-# //# A specification requirement MUST be labeled "Implemented" if there exists at least one matching annotation of type:
+# //# A specification requirement MUST be labeled "Implemented"
+# //# if there exists at least one matching annotation of type:

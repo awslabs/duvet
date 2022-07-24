@@ -17,8 +17,9 @@ class RFCRequirementParser(RequirementParser):
     """The parser of a requirement in a block."""
 
     @staticmethod
-    def process_specifications(filepaths: list[Path], spec_dir, report: Optional[Report] = None,
-                               is_legacy=False) -> Report:
+    def process_specifications(
+        filepaths: list[Path], spec_dir, report: Optional[Report] = None, is_legacy=False
+    ) -> Report:
         """Given pattern and filepath of markdown specs.
 
         Return or create a report.
@@ -35,8 +36,9 @@ class RFCRequirementParser(RequirementParser):
         return report
 
     @staticmethod
-    def _process_specification(specification_source: Path, spec_dir,
-                               is_legacy=False) -> Specification:  # pylint:disable=R0914
+    def _process_specification(
+        specification_source: Path, spec_dir, is_legacy=False
+    ) -> Specification:  # pylint:disable=R0914
         """Given a filepath of a markdown spec.
 
         Return a specification or none.
@@ -44,9 +46,7 @@ class RFCRequirementParser(RequirementParser):
 
         parser: RFCSpecification = RFCSpecification.parse(specification_source)
         from_spec = specification_source.relative_to(spec_dir)
-        specification = Specification(
-            specification_source.name, str(Path(*from_spec.parts[1:]))
-        )
+        specification = Specification(specification_source.name, str(Path(*from_spec.parts[1:])))
 
         for section in RFCRequirementParser._process_sections(parser, specification.source, is_legacy):
             if specification is not None:
@@ -85,6 +85,7 @@ class RFCRequirementParser(RequirementParser):
             sections.extend(section_with_requirements)
 
         return sections
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication

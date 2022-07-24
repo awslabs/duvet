@@ -17,8 +17,10 @@ import attr
 from attrs import define, field
 
 from duvet._config import Config
+from duvet.formatter import clean_content
 from duvet.identifiers import DEFAULT_JSON_PATH, AnnotationType
 from duvet.refs_json import REFS_JSON
+from duvet.specification_parser import Span
 from duvet.structures import Annotation, Report, Requirement, Section, Specification
 
 
@@ -111,36 +113,33 @@ class JSONReport:
     @staticmethod
     def _process_lines(quotes, lines) -> list[list]:
         """Given a span of content, return a list of key word arguments of requirement."""
-        # requirements: list = []
-        # requirement_dict: dict = {}
-        # new_lines: list = []
-        #
-        # # Find requirement in the quotes.
-        # prev = 0
-        # index = 0
-        # while index < len(lines):
-        #     line = lines[index]
-        #     start = quotes.find(line[0][2])
-        #     end = start + len(line[0][2])
-        #     requirement = Span(start, end)
-        #     requirements.append(requirement)
-        #     requirement_dict[requirement.start] = index
-        #     index += 1
-        #
-        # # print(requirements)
-        #
-        # for requirement in requirements:
-        #     if requirement.start <= prev:
-        #         new_lines.append(lines[requirement_dict[requirement.start]])
-        #     else:
-        #         new_lines.append(clean_content(quotes[prev: requirement.start]))
-        #         new_lines.append(lines[requirement_dict[requirement.start]])
-        #     prev = requirement.end
-        # if prev < len(quotes) - 1:
-        #     new_lines.append(clean_content(quotes[prev: len(quotes) - 1]))
-        # # print(new_lines)
-        # return new_lines
+        requirements: list = []
+        requirement_dict: dict = {}
+        new_lines: list = []
 
+        # Find requirement in the quotes.
+        prev = 0
+        index = 0
+        while index < len(lines):
+            line = lines[index]
+            start = quotes.find(line[0][2])
+            end = start + len(line[0][2])
+            requirement = Span(start, end)
+            requirements.append(requirement)
+            requirement_dict[requirement.start] = index
+            index += 1
+
+        for requirement in requirements:
+            if requirement.start <= prev:
+                new_lines.append(lines[requirement_dict[requirement.start]])
+            else:
+                new_lines.append(clean_content(quotes[prev : requirement.start]))
+                new_lines.append(lines[requirement_dict[requirement.start]])
+            prev = requirement.end
+        if prev < len(quotes) - 1:
+            new_lines.append(clean_content(quotes[prev : len(quotes) - 1]))
+        # print(new_lines)
+        # return new_lines
         return lines
 
     def _process_section(self, section: Section) -> dict:
@@ -155,11 +154,10 @@ class JSONReport:
         lines: list = []
         section_lines = [line[1:] for line in section.lines[1:]]
         quotes = "".join(section_lines)
-        quotes = quotes
 
         if len(section.lines) != 0:
             title_line = section.lines[0]
-            number, title = title_line.rsplit(maxsplit=1)
+            title = title_line.rsplit(maxsplit=1)[1]
         else:
             # number, title = section_dict.get("id"), section_dict.get("title")
             title = section_dict.get("title")

@@ -10,7 +10,6 @@ from duvet._config import Config
 from duvet._run_checks import run
 from duvet.identifiers import __version__
 
-_DEBUG = "INPUT_DEBUG"
 _CONFIG_FILE = "INPUT_CONFIG-FILE"
 
 
@@ -23,12 +22,9 @@ _CONFIG_FILE = "INPUT_CONFIG-FILE"
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True, readable=True),
     help="Path to config file",
 )
-@click.option("-v", "--verbose", count=True)
 @click.version_option(version=f"duvet version {__version__}")
-def cli(config: Optional[str], verbose: int) -> int:
+def cli(config: Optional[str]) -> int:
     """Duvet runs checks against specs and implementations."""
-    # if _DEBUG in os.environ:
-    #     verbose += 1
 
     if config is None:
         try:

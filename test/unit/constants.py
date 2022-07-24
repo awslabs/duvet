@@ -9,6 +9,4 @@ RFC_REQUIREMENT_STR_WITH_LIST = """A requirement MAY contain multiple RFC
    *  an empty blank line
 
    The main distinction between this legacy and regular requirement
-   identification is that there is no sugar for lists or tables.  
-   
-   """
+   identification is that there is no sugar for lists or tables.  """

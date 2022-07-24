@@ -42,24 +42,26 @@ patterns = ["src/**/*.dfy", "test/**/*.rs", "compliance_exceptions/**/*.txt"]
 path = "project-specification"
 patterns = ["project-specification/**/*.md"]
 [report]
-blob = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
-issue = "https://github.com/aws/aws-encryption-sdk-dafny/issues"
+[report.blob]
+url = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
+[report.issue]
+url = "https://github.com/aws/aws-encryption-sdk-dafny/issues"
 [mode]
 legacy = true
         """
     )
 
 
-# @pytest.mark.parametrize("contents", _config_test_cases())
-# def test_config_parse(tmpdir, contents: str):
-#     source = tmpdir.join("source")
-#     source.write(contents)
-#     with pytest.warns(UserWarning) as record:
-#         actual = Config.parse(str(source))
-#     assert len(record) == 7
-#     expected_impl_config = ImplConfig(impl_filenames=[])
-#     assert actual.implementation_configs == [expected_impl_config, expected_impl_config]
-#     assert not actual.specs
+@pytest.mark.parametrize("contents", _config_test_cases())
+def test_config_parse(tmpdir, contents: str):
+    source = tmpdir.join("source")
+    source.write(contents)
+    with pytest.warns(UserWarning) as record:
+        actual = Config.parse(str(source))
+    assert len(record) == 7
+    expected_impl_config = ImplConfig(impl_filenames=[])
+    assert actual.implementation_configs == [expected_impl_config, expected_impl_config]
+    assert not actual.specs
 
 
 def test_missing_keys(tmp_path):
@@ -94,7 +96,7 @@ def test_valid_files(tmp_path):
     actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet.toml")
     with pytest.warns(UserWarning) as record:
         actual_config = Config.parse(actual_path)
-    assert len(record) == 3
+    assert len(record) == 4
     # Verify the correctness of the Config object by checking the length.
     assert len(actual_config.implementation_configs) == 2
-    assert len(actual_config.specs) == 3
+    assert len(actual_config.specs) == 0

@@ -182,6 +182,7 @@ class AnnotationParser:
             annotations.extend(self.process_file(filepath))
         return annotations
 
+
 # //= compliance/duvet-specification.txt#2.3.1
 # //= type=implication
 # //# The default identifier for the meta part in source documents MUST be //= followed by a single space.

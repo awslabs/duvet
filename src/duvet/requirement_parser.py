@@ -26,7 +26,7 @@ class RequirementParser:
 
     @staticmethod
     def _process_section(
-            body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False
+        body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False
     ) -> List[dict]:
         """Take a chunk of string in section.
 
@@ -69,7 +69,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
 
         # Find and skip table.
 
@@ -109,7 +109,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        end_of_list_match = re.search(END_OF_LIST, quotes[span.end:])
+        end_of_list_match = re.search(END_OF_LIST, quotes[span.end :])
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
@@ -185,7 +185,7 @@ class RequirementParser:
     @staticmethod
     def _process_list_block(body: str, quote_span: Span, list_entry_regex: re.Pattern) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the END OF LIST.
@@ -195,7 +195,7 @@ class RequirementParser:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
 
-            quotes = body[quote_span.start: quote_span.start + end_of_list]
+            quotes = body[quote_span.start : quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
 
@@ -318,6 +318,7 @@ class RequirementParser:
                 section.add_requirement(Requirement(**kwarg))
 
         return section
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication
