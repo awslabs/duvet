@@ -83,7 +83,6 @@ class MarkdownRequirementParser(RequirementParser):
                 ),
             }
 
-            print(section_kwarg)
 
             section = Section(**section_kwarg)
 

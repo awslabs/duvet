@@ -32,6 +32,7 @@ class ImplConfig:
     content_style: str = DEFAULT_CONTENT_STYLE
 
     def __attrs_post_init__(self):
+        """Validate annotation comment style."""
         self._check(self.meta_style)
         self._check(self.content_style)
         if self.meta_style == self.content_style:

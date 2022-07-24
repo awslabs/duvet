@@ -47,11 +47,12 @@ class MarkdownHeader(SpecificationHeader):
     @staticmethod
     def from_match(match: re.Match) -> MarkdownHeaderT:
         """Generate a Markdown Header from a re.Match."""
-        cls: MarkdownHeaderT = MarkdownHeader.from_line(match.string[match.start() : match.end()])
+        cls: MarkdownHeaderT = MarkdownHeader.from_line(match.string[match.start(): match.end()])
         cls.title_span = Span.from_match(match)
         return cls
 
     def get_number(self) -> str:
+        """Get the number of markdown."""
         paths = [node.title for node in self.path]
         # We could safely do this because there MUST be a "specification.md"
         # And there MUST be a "#specification"

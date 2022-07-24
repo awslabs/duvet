@@ -58,8 +58,6 @@ def clean_content(content: str) -> str:
     return cleaned_content
 
 
-
-
 def split_long(para: str) -> list[str]:
     """Split long sentences."""
 
