@@ -1,8 +1,6 @@
 # Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 """Run the checks."""
-from typing import Optional
-
 import click  # type : ignore[import]
 from attr import define
 
@@ -44,7 +42,7 @@ def run(*, config: Config) -> bool:
 
 @define
 class DuvetController:
-    """Controller of Duvet's behavior"""
+    """Controller of Duvet's behavior."""
 
     @staticmethod
     def extract_rfc(config: Config, report: Report) -> Report:
@@ -64,8 +62,6 @@ class DuvetController:
     @staticmethod
     def extract_toml(config: Config, report: Report) -> Report:
         """Extract TOML files."""
-        # print(config.specification_path)
-        # print("---------------------------")
         toml_files = [toml_spec for toml_spec in config.specs if toml_spec.suffix == ".toml"]
         report = TomlRequirementParser.extract_toml_specs(toml_files, report)
 
@@ -83,7 +79,6 @@ class DuvetController:
 
         all_annotations_added: list[bool] = [report.add_annotation(anno) for anno in all_annotations]
 
-        print(all_annotations)
         click.echo(f"{all_annotations_added.count(True)} of {len(all_annotations_added)} added to the report")
 
         return report

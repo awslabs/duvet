@@ -157,14 +157,13 @@ class JSONReport:
         quotes = "".join(section_lines)
         quotes = quotes
 
-        # print(section_dict)
 
         if len(section.lines) != 0:
             title_line = section.lines[0]
             number, title = title_line.rsplit(maxsplit=1)
         else:
             number, title = section_dict.get("id"), section_dict.get("title")
-        # print(title)
+
         section_dict["title"] = title
 
         # Add specification index number if section has requirements.

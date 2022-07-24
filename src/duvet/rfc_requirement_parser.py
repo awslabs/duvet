@@ -52,8 +52,6 @@ class RFCRequirementParser(RequirementParser):
             if specification is not None:
                 specification.add_section(section)
 
-        print(specification.source)
-        print("----------------------------------------------")
         return specification
 
     @staticmethod

@@ -3,8 +3,6 @@
 """Requirement Parser used by duvet-python."""
 import logging
 import re
-from abc import abstractmethod
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from attrs import define
@@ -19,7 +17,7 @@ from duvet.identifiers import (
     RequirementLevel,
 )
 from duvet.specification_parser import Span
-from duvet.structures import Report, Requirement, Section, Specification
+from duvet.structures import Requirement, Section
 
 
 @define

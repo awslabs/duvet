@@ -61,6 +61,8 @@ def clean_content(content: str) -> str:
 
 
 def split_long(para: str) -> list[str]:
+    """Split long sentences."""
+
     lines = []
     line = ""
     for sentence in (s.strip() + "." for s in para.split(".")[:-1]):

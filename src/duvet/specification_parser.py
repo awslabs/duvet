@@ -110,7 +110,7 @@ class SpecificationHeader(SpecificationElement, metaclass=ABCMeta):
         return url
 
     def get_number(self) -> str:
-        """Get number"""
+        """Get number."""
         url: str = str(list(self.parent.children).index(self))
         # print(list(self.parent.children))
         header_cursor: SpecificationHeader = self.parent

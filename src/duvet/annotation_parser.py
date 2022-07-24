@@ -167,7 +167,6 @@ class AnnotationParser:
 
     def process_file(self, filepath: Path) -> list[Annotation]:
         """Extract annotations from one file."""
-
         with open(filepath, "r", encoding="utf-8") as implementation_file:
             lines: list[str] = implementation_file.readlines()
 
