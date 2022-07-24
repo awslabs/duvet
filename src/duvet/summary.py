@@ -5,8 +5,6 @@
 from typing import Optional
 
 from attrs import define, field
-
-# from tabulate import tabulate
 from tabulate import tabulate
 
 from duvet._config import Config
