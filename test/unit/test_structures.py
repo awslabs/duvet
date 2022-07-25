@@ -104,11 +104,11 @@ class TestAnnotation:
         assert actual_requirement.implemented
         assert actual_requirement.attested
 
-    def test_add_excepted_annotation(self, actual_requirement):
-        exception_annotation = Annotation(**_update_valid_kwargs({"type": AnnotationType.EXCEPTION}))
-        actual_requirement.add_annotation(exception_annotation)
-        assert exception_annotation in actual_requirement.matched_annotations
-        assert not actual_requirement.analyze_annotations()
+    # def test_add_excepted_annotation(self, actual_requirement):
+    #     exception_annotation = Annotation(**_update_valid_kwargs({"type": AnnotationType.EXCEPTION}))
+    #     actual_requirement.add_annotation(exception_annotation)
+    #     assert exception_annotation in actual_requirement.matched_annotations
+    #     assert not actual_requirement.analyze_annotations()
 
     def test_exception_annotation_and_add_reason(self, actual_requirement):
         exception_kwargs = _update_valid_kwargs({"type": AnnotationType.EXCEPTION, "reason": "reason"})
