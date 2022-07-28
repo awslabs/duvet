@@ -29,7 +29,6 @@ url = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
 url = "https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
 
 
-
 def test_against_duvet(pytestconfig, tmp_path):
     actual_path = pytestconfig.rootpath.joinpath("duvet_config.toml")
     actual_config = Config.parse(str(actual_path.resolve()))
@@ -68,7 +67,6 @@ def test_hello_world(pytestconfig, caplog):
     caplog.set_level(logging.INFO)
     patterns = "compliance/**/*.toml"
     test_report = TomlRequirementParser().extract_toml_specs(list(filepath.glob(patterns)))
-
 
     # Parse annotations from implementation files.
     actual_paths = list(pytestconfig.rootpath.joinpath("examples/hello-world/").glob("src/**/*.py"))
