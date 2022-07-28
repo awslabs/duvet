@@ -29,7 +29,7 @@ url = ["https://github.com/aws/aws-encryption-sdk-dafny/blob/"]
 url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
 
 
-def test_against_duvet(pytestconfig):
+def test_against_duvet(pytestconfig, tmp_path):
     actual_path = pytestconfig.rootpath.joinpath("duvet_config.toml")
     actual_config = Config.parse(str(actual_path.resolve()))
 
@@ -53,7 +53,7 @@ def test_against_duvet(pytestconfig):
     test_report.analyze_annotations()
 
     actual_json = JSONReport.create(test_report, actual_config)
-    actual_json.write_json()
+    actual_json.write_json(tmp_path.joinpath("result.json"))
     assert len(actual_json.specifications.keys()) == 1
 
 
