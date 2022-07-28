@@ -6,6 +6,8 @@ from attrs import define
 
 from duvet._config import Config
 from duvet.annotation_parser import AnnotationParser
+from duvet.html import HTMLReport
+from duvet.json_report import JSONReport
 from duvet.spec_toml_parser import TomlRequirementParser
 from duvet.structures import Report
 from duvet.summary import SummaryReport
@@ -25,6 +27,8 @@ def run(*, config: Config) -> bool:
     # Analyze report
     # Print summary to command line.
     DuvetController.write_summary(config, report)
+
+    DuvetController.write_html(config, report)
 
     return report.report_pass
 
@@ -55,6 +59,20 @@ class DuvetController:
 
         all_annotations_added: list[bool] = [report.add_annotation(anno) for anno in all_annotations]
         click.echo(f"{all_annotations_added.count(True)} of {len(all_annotations_added)} added to the report")
+
+        return report
+
+    @staticmethod
+    def write_html(config: Config, report: Report) -> Report:
+        """Write HTML."""
+
+        # Covert report into JSON format
+        actual_json = JSONReport.create(report, config)
+        actual_json.write_json()
+        # Covert JSON report into HTML
+        html_report = HTMLReport.from_json_report(actual_json)
+
+        html_report.write_html()
 
         return report
 

@@ -4,7 +4,7 @@
 import pathlib
 import re
 import warnings
-from typing import List, Optional
+from typing import List
 
 import attr
 import toml

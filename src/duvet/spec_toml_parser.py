@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, MutableMapping, Optional
 
 import toml
-from attrs import define, field
+from attrs import define
 
 from duvet.formatter import clean_content
 from duvet.identifiers import RequirementLevel

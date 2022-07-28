@@ -24,9 +24,9 @@ patterns = ["src/**/*.dfy", "test/**/*.dfy", "compliance_exceptions/**/*.txt"]""
 
 REPORT_BLOCK = """[report]
 [report.blob]
-url = ["https://github.com/aws/aws-encryption-sdk-dafny/blob/"]
+url = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
 [report.issue]
-url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
+url = "https://github.com/aws/aws-encryption-sdk-dafny/issues"]"""
 
 
 def test_against_duvet(pytestconfig, tmp_path):
@@ -35,7 +35,7 @@ def test_against_duvet(pytestconfig, tmp_path):
 
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
     patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
+    test_report = TomlRequirementParser().extract_toml_specs(list(filepath.glob(patterns)))
 
     # Parse annotations from implementation files.
     actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
@@ -66,7 +66,7 @@ def test_hello_world(pytestconfig, caplog):
     filepath = pytestconfig.rootpath.joinpath("examples/hello-world/hello-world-specification")
     caplog.set_level(logging.INFO)
     patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
+    test_report = TomlRequirementParser().extract_toml_specs(list(filepath.glob(patterns)))
 
     # Parse annotations from implementation files.
     actual_paths = list(pytestconfig.rootpath.joinpath("examples/hello-world/").glob("src/**/*.py"))
