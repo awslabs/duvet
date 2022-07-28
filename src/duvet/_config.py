@@ -4,7 +4,7 @@
 import pathlib
 import re
 import warnings
-from typing import List, Optional
+from typing import List
 
 import attr
 import toml
@@ -56,8 +56,8 @@ class Config:
     implementation_configs: List[ImplConfig] = field(init=True, default=attr.Factory(list))
     specs: List[pathlib.Path] = field(init=True, default=attr.Factory(list))
     legacy: bool = field(init=True, default=False)
-    blob_url: Optional[str] = field(init=True, default="Github Blob URL Placeholder")
-    issue_url: Optional[str] = field(init=True, default="Github Issue URL Placeholder")
+    blob_url: str = field(init=True, default="Github Blob URL Placeholder")
+    issue_url: str = field(init=True, default="Github Issue URL Placeholder")
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -93,8 +93,8 @@ class ConfigParser:
             implementation_configs,
             spec_configs,
             legacy,
-            parsed.get("report", {}).get("blob"),
-            parsed.get("report", {}).get("issue"),
+            parsed.get("report", {}).get("blob", {}).get("url", "Github Blob URL Placeholder"),
+            parsed.get("report", {}).get("issue", {}).get("url", "Github Issue URL Placeholder"),
         )
 
     def _validate_patterns(self, spec: dict, entry_key: str, mode: str) -> List[pathlib.Path]:
