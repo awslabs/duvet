@@ -3,7 +3,7 @@
 patterns = ["src/**/*.py", "test/**/*.py"]
 comment-style = { meta = "# //=", content = "# //#" }
 [spec.toml]
-patterns = ["duvet-specification/compliance/**/*.toml"]
+patterns = ["hello-world-specification/compliance/**/*.toml"]
 [report]
 [report.blob]
 url = "https://github.com/awslabs/duvet/blob/"

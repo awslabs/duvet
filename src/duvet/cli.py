@@ -13,7 +13,6 @@ from duvet.identifiers import __version__
 
 _DEBUG = "INPUT_DEBUG"
 _CONFIG_FILE = "INPUT_CONFIG-FILE"
-__name__ = "DUVET"
 _USAGE_URL: str = "https://github.com/awslabs/duvet/tree/feat-run-checks#usage"
 
 

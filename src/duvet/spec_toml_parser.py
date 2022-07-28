@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, MutableMapping, Optional
 
 import toml
-from attr import define
+from attrs import define
 
 from duvet.formatter import clean_content
 from duvet.identifiers import RequirementLevel
@@ -27,7 +27,8 @@ TOML_REQ_CONTENT_KEY: str = "quote"
 class TomlRequirementParser:
     """Parser for requirements in toml format."""
 
-    def extract_toml_specs(self, toml_paths: list[Path], toml_report: Optional[Report] = None) -> Report:
+    @staticmethod
+    def extract_toml_specs(toml_paths: list[Path], toml_report: Optional[Report] = None) -> Report:
         """Take the patterns of the toml.
 
         Return a Report object containing all the specs.
@@ -76,7 +77,7 @@ class TomlRequirementParser:
 
             requirements = sec_dict.get(TOML_SPEC_KEY)
             if requirements is not None:
-                self._parse_requirement_attributes(requirements, sec_dict, temp_sec, temp_toml)
+                TomlRequirementParser._parse_requirement_attributes(requirements, sec_dict, temp_sec, temp_toml)
             # TODO: use a default dict for Report.specifications  # pylint: disable=fixme
             toml_report.specifications.get(spec_uri).add_section(temp_sec)  # type: ignore[union-attr]
 

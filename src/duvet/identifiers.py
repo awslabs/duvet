@@ -52,3 +52,5 @@ EXCEPTED_TYPES = [AnnotationType.EXCEPTION]
 # //# The default identifier for the content part in software documents MUST be "//#" followed by a single space.
 DEFAULT_META_STYLE = "//="
 DEFAULT_CONTENT_STYLE = "//#"
+DEFAULT_HTML_PATH = "specification_compliance_report.html"
+DEFAULT_JSON_PATH = "duvet-result.json"
