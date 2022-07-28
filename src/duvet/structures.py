@@ -266,3 +266,11 @@ class Report:
             self.report_pass = self.report_pass and specification.analyze_annotations()
 
         return self.report_pass
+
+
+@define
+class Span:
+    """The start and end indexes of sub-string in a block."""
+
+    start: int = field(init=True)
+    end: int = field(init=True)
