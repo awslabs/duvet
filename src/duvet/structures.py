@@ -171,6 +171,7 @@ class Section:
     lines: list = attr.Factory(list)
     has_requirements: bool = field(init=False, default=False)
     requirements: dict = field(init=False, default=attr.Factory(dict))
+    lines: list = field(init=False, default=attr.Factory(list))
 
     def add_requirement(self, requirement: Requirement):
         """Add requirement to Section."""
@@ -297,3 +298,11 @@ class Report:
 # //= compliance/duvet-specification.txt#2.6.1
 # //= type=implication
 # //# Requirement Statuses MUST be exclusive.
+
+@define
+class Span:
+    """The start and end indexes of sub-string in a block."""
+
+    start: int = field(init=True)
+    end: int = field(init=True)
+
