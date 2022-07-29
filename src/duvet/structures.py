@@ -171,7 +171,6 @@ class Section:
     lines: list = attr.Factory(list)
     has_requirements: bool = field(init=False, default=False)
     requirements: dict = field(init=False, default=attr.Factory(dict))
-    lines: list = field(init=False, default=attr.Factory(list))
 
     def add_requirement(self, requirement: Requirement):
         """Add requirement to Section."""
@@ -305,4 +304,3 @@ class Span:
 
     start: int = field(init=True)
     end: int = field(init=True)
-

@@ -78,4 +78,3 @@ TABLE_DIVIDER: re.Pattern = re.compile(r"[^\n][\s]*.*(\+)[\n]", re.MULTILINE)
 
 DEFAULT_HTML_PATH = "specification_compliance_report.html"
 DEFAULT_JSON_PATH = "duvet-result.json"
-
