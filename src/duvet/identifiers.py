@@ -55,4 +55,3 @@ TOML_REQ_CONTENT_KEY: str = "quote"
 
 DEFAULT_HTML_PATH = "specification_compliance_report.html"
 DEFAULT_JSON_PATH = "duvet-result.json"
-
