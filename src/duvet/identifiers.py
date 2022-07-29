@@ -47,7 +47,12 @@ IMPLEMENTED_TYPES = [
 ATTESTED_TYPES = [AnnotationType.TEST, AnnotationType.UNTESTABLE, AnnotationType.IMPLICATION]
 EXCEPTED_TYPES = [AnnotationType.EXCEPTION]
 
+
 TOML_URI_KEY: str = "target"
 TOML_SPEC_KEY: str = "spec"
 TOML_REQ_LEVEL_KEY: str = "level"
 TOML_REQ_CONTENT_KEY: str = "quote"
+
+DEFAULT_HTML_PATH = "specification_compliance_report.html"
+DEFAULT_JSON_PATH = "duvet-result.json"
+

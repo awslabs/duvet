@@ -19,7 +19,7 @@ class TestSummaryReportAgainstDuvet:
         caplog.set_level(logging.INFO)
         filepath = pytestconfig.rootpath.joinpath("duvet-specification")
         patterns = "compliance/**/*.toml"
-        test_report = TomlRequirementParser.extract_toml_specs(patterns, filepath)
+        test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
 
         actual_paths = list(pytestconfig.rootpath.glob("src/**/*.py"))
         actual_paths.extend(list(pytestconfig.rootpath.glob("test/**/*.py")))
@@ -31,7 +31,7 @@ class TestSummaryReportAgainstDuvet:
         for annotation in actual:
             if test_report.add_annotation(annotation):
                 counter += 1
-        assert counter >= 0
+        assert counter > 0
         for record in caplog.records:
             assert record.levelname != "ERROR"
 
@@ -46,7 +46,7 @@ class TestSummaryReportAgainstESDKDafny:
 
         filepath = dfy_path.joinpath("aws-encryption-sdk-specification")
         patterns = "compliance/**/*.toml"
-        test_report = TomlRequirementParser.extract_toml_specs(patterns, filepath)
+        test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
 
         actual_paths = list(dfy_path.glob("src/**/*.dfy"))
         actual_paths.extend(list(dfy_path.glob("test/**/*.dfy")))
@@ -56,7 +56,7 @@ class TestSummaryReportAgainstESDKDafny:
         for annotation in actual:
             if test_report.add_annotation(annotation):
                 counter += 1
-        assert counter >= 0
+        assert counter > 0
         for record in caplog.records:
             assert record.levelname != "ERROR"
         assert not SummaryReport(test_report).analyze_report()
