@@ -213,10 +213,7 @@ class Section:
         Or  requirement keys is a substring of annotation.
         """
 
-        # Find substring with the original string.
         for key in list(self.requirements.keys()):
-            if str(key).find(annotation.uri) != -1 or annotation.uri.find(key) != -1:
-                return self.requirements[key].add_annotation(annotation)
 
             # Find substring after removing all spaces.
             temp_key: str = "".join(str(key).split())
