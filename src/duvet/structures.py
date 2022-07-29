@@ -194,15 +194,15 @@ class Section:
         """Remove space and compare keys in requirements and annotations."""
 
         for key in list(self.requirements.keys()):
-            temp_key: str = "".join(str(key).split())
-            temp_uri: str = "".join(annotation.uri.split())
+            temp_key: list[str] = str(key).split()
+            temp_uri: list[str] = annotation.uri.split()
 
             # Compare by splitting space to list.
             if temp_key == temp_uri:
                 return self.requirements[key].add_annotation(annotation)
 
             # Compare by getting rid of all space
-            if temp_key == temp_uri:
+            if "".join(temp_key) == "".join(temp_uri):
                 return self.requirements[key].add_annotation(annotation)
 
         return False
