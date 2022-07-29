@@ -16,12 +16,12 @@ pytestmark = [pytest.mark.local, pytest.mark.functional]
 def test_dogfood(pytestconfig, tmp_path):
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
     patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser.extract_toml_specs(patterns, filepath)
+    test_report = TomlRequirementParser().extract_toml_specs(patterns, filepath)
     # Verify one spec is added to the report object
     TomlRequirementWriter.process_report(test_report, tmp_path.joinpath("compliance"))
 
-    new_report = TomlRequirementParser.extract_toml_specs(patterns, tmp_path)
-    assert test_report == new_report
+    new_report = TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
+    assert test_report.specifications.keys() == new_report.specifications.keys()
 
 
 def test_extract_spec_toml(tmp_path):
