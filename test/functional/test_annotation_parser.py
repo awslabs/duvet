@@ -46,9 +46,15 @@ ANNOTATION_END_OF_FILE = """
 
 IMPLICATION = "IMPLICATION"
 
+
 # //= compliance/duvet-specification.txt#2.5.2
 # //= type=test
 # //# A specification requirement MUST be labeled "Attested" if there exists at least one matching annotation of type
+
+# //= compliance/duvet-specification.txt#2.5.4
+# //= type=test
+# //# A specification requirement MUST be labeled "Unexcused" and MUST only be labeled "Unexcused"
+# //# if there exists a matching annotation of type "exception" and the annotation does NOT have a "reason".
 
 
 def test_more_than_one_valid_files(tmp_path):

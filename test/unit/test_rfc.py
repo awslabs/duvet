@@ -86,6 +86,9 @@ class TestRFCHeader:
 
 
 class TestRFCSpecification:
+    # //= compliance/duvet-specification.txt#2.2.4
+    # //= type=test
+    # //# Duvet MUST be able to parse specifications formatted as: RFC
     @staticmethod
     @pytest.mark.parametrize(
         "filename, is_rfc",

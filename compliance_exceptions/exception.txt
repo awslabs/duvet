@@ -11,3 +11,15 @@
 //= compliance/duvet-specification.txt#2.2.2
 //= type=exception
 //# Table cells MAY contain a period (.) or exclamation point (!) and this punctuation MUST NOT terminate the requirement by excluding the following rows from the table of requirements.
+
+//= compliance/duvet-specification.txt#2.2.2
+//= type=exception
+//# Sublists MUST be treated as if the parent item were terminated by the sublist.
+
+//= compliance/duvet-specification.txt#2.6.3
+//= type=exception
+//# It MUST have all a link for annotations not associated with any specifications.
+
+//= compliance/duvet-specification.txt#2.6.5
+//= type=exception
+//# It MUST show all text from the section.

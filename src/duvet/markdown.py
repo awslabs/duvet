@@ -52,6 +52,11 @@ class MarkdownHeader(SpecificationHeader):
         return cls
 
     def get_number(self) -> str:
+        """Get the number of markdown."""
+
+        # //= compliance/duvet-specification.txt#2.2.1
+        # //# A section MUST be indexable by combining different levels of naming.
+
         paths = [node.title for node in self.path]
         # We could safely do this because there MUST be a "specification.md"
         # And there MUST be a "#specification"

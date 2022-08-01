@@ -5,8 +5,6 @@
 from typing import Optional
 
 from attrs import define, field
-
-# from tabulate import tabulate
 from tabulate import tabulate
 
 from duvet._config import Config
@@ -32,6 +30,10 @@ class SummaryReport:
 
     def analyze_report(self) -> bool:
         """Return report pass or fail."""
+
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //# For Duvet to pass the Status of every "MUST" and "MUST NOT" requirement MUST be Complete or Excused.
+
         self.report.analyze_annotations()
         return self.report.report_pass
 

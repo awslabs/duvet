@@ -22,6 +22,9 @@ __all__ = ["TomlRequirementWriter"]
 class TomlRequirementWriter:
     """TOML specifications writer."""
 
+    # //= compliance/duvet-specification.txt#2.2.4.1
+    # //# Duvet SHOULD be able to record parsed requirements into Toml Files.
+
     @staticmethod
     def _process_section(section: Section, parent_path: Path, file_type: str = "RFC") -> list[Path]:
         """Write TOML from Section."""

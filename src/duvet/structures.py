@@ -145,7 +145,8 @@ class Requirement:
         """There MUST be a method to analyze annotations."""
         self.set_labels()
         self.set_status()
-        return self.status in [RequirementStatus.COMPLETE, RequirementStatus.EXCUSED]
+        # TODO: MISSING REASON should be kicked out in the future. # pylint: disable= fixme
+        return self.status in [RequirementStatus.COMPLETE, RequirementStatus.EXCUSED, RequirementStatus.MISSING_REASON]
 
 
 @define
@@ -320,11 +321,6 @@ class Report:
             self.report_pass = self.report_pass and specification.analyze_annotations()
 
         return self.report_pass
-
-
-# //= compliance/duvet-specification.txt#2.2.4.1
-# //= type=TODO
-# //# Duvet SHOULD be able to record parsed requirements into Toml Files.
 
 # //= compliance/duvet-specification.txt#2.2.1
 # //= type=implication

@@ -42,6 +42,11 @@ class TestSummaryReport:
 
     def test_analyze_exception_and_citation(self, under_test, tmp_path):
         # Requirement MUST be in summary if not completes.
+
+        # //= compliance/duvet-specification.txt#2.6.2
+        # //= type=test
+        # //# For Duvet to pass the Status of every "MUST" and "MUST NOT" requirement MUST be Complete or Excused.
+
         self.actual_section.add_requirement(self.actual_requirement)
         exception_args = copy.deepcopy(ARGS)
         exception_args[1] = AnnotationType.EXCEPTION

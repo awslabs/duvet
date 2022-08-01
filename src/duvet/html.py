@@ -76,9 +76,6 @@ class HTMLReport:
 # //= type=implication
 # //# It MUST have all a link for annotations that do not match any included specifications.
 
-# //= compliance/duvet-specification.txt#2.6.3
-# //= type=TODO
-# //# It MUST have all a link for annotations not associated with any specifications.
 
 # //= compliance/duvet-specification.txt#2.6.4
 # //= type=implication
@@ -92,10 +89,6 @@ class HTMLReport:
 # //= compliance/duvet-specification.txt#2.6.4
 # //= type=implication
 # //# The table MUST have a column for:
-
-# //= compliance/duvet-specification.txt#2.6.5
-# //= type=TODO
-# //# It MUST show all text from the section.
 
 # //= compliance/duvet-specification.txt#2.6.5
 # //= type=implication

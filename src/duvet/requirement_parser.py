@@ -3,11 +3,8 @@
 """Requirement Parser used by duvet-python."""
 import logging
 import re
-from abc import abstractmethod
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import click
 from attrs import define
 
 from duvet.formatter import SENTENCE_DIVIDER, clean_content
@@ -20,7 +17,7 @@ from duvet.identifiers import (
     RequirementLevel,
 )
 from duvet.specification_parser import Span
-from duvet.structures import Report, Requirement, Section, Specification
+from duvet.structures import Requirement, Section
 
 
 @define
@@ -29,7 +26,7 @@ class RequirementParser:
 
     @staticmethod
     def _process_section(
-            body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False
+        body: str, annotated_spans: List[Tuple], list_entry_regex: re.Pattern, is_legacy=False
     ) -> List[dict]:
         """Take a chunk of string in section.
 
@@ -72,7 +69,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
 
         # Find and skip table.
 
@@ -84,7 +81,7 @@ class RequirementParser:
 
         table_match = re.finditer(TABLE_DIVIDER, quotes)
         table_match_list: list[Span] = [Span.from_match(match) for match in table_match]
-        click.echo(table_match_list)
+
         if len(table_match_list) > 0:
             new_span = Span(table_match_list[0].start, table_match_list[-1].end)
             result.append((new_span.add_start(quote_span), "TABLE"))
@@ -112,7 +109,7 @@ class RequirementParser:
                 list_block.start = max(list_block.start, left_punc)
 
         # Identify end of the list block.
-        end_of_list_match = re.search(END_OF_LIST, quotes[span.end:])
+        end_of_list_match = re.search(END_OF_LIST, quotes[span.end :])
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
@@ -174,6 +171,10 @@ class RequirementParser:
             # //#    following:
             # //#   exclamation point (!)
 
+            # //= compliance/duvet-specification.txt#2.2.2
+            # //# List elements MAY contain a period (.) or exclamation point (!) and this punctuation MUST
+            # //# NOT terminate the requirement by excluding the following elements from the list of requirements.
+
             if clean_content(words).endswith((".", "!")):
                 req_kwarg: dict = {
                     "content": words,
@@ -188,7 +189,7 @@ class RequirementParser:
     @staticmethod
     def _process_list_block(body: str, quote_span: Span, list_entry_regex: re.Pattern) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the END OF LIST.
@@ -198,14 +199,10 @@ class RequirementParser:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
 
-            quotes = body[quote_span.start: quote_span.start + end_of_list]
+            quotes = body[quote_span.start : quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
 
-        # //= compliance/duvet-specification.txt#2.2.2
-        # //# List elements MAY contain a period (.) or exclamation point (!)
-        # //# and this punctuation MUST NOT terminate the requirement by excluding the following
-        # //# elements from the list of requirements.
         list_entry: Optional[re.Match[str]] = re.search(list_entry_regex, quotes)
         if list_entry is None:
             logging.warning("Requirement list syntax is not valid in %s", quotes)
@@ -241,8 +238,6 @@ class RequirementParser:
             [ "parent_sentence child1", "parent_sentence child2" ]
         """
 
-        # print(is_legacy)
-        # print("list")
         req_list: list[Dict] = []
 
         # Parent MUST NOT be None
@@ -304,27 +299,6 @@ class RequirementParser:
         return {"requirement_level": level}
 
     @staticmethod
-    @abstractmethod
-    def process_specifications(filepaths: list[Path], report: Optional[Report] = None) -> Report:
-        """Given pattern and filepath of markdown specs.
-
-        Return or create a report.
-        """
-
-    @staticmethod
-    @abstractmethod
-    def _process_specification(specification_source: Path) -> Specification:  # pylint:disable=R0914
-        """Given a filepath of a markdown spec.
-
-        Return a specification or none.
-        """
-
-    @staticmethod
-    @abstractmethod
-    def _process_sections(parser, filepath, is_legacy) -> List[Section]:
-        """Process sections."""
-
-    @staticmethod
     def _process_requirements(quotes, section, file_type, is_legacy) -> Section:
 
         blocks = RequirementParser._process_block(
@@ -345,6 +319,7 @@ class RequirementParser:
 
         return section
 
+
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=implication
 # //# A requirement MUST be terminated by one of the following:
@@ -363,11 +338,6 @@ class RequirementParser:
 # //= type=implication
 # //# A one or more line meta part MUST be followed by at least a one line content part.
 
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=TODO
-# //# Sublists MUST be treated as if the parent item were terminated by the sublist.
-
-
 # //= compliance/duvet-specification.txt#2.2.1
 # //# The name of the sections MUST NOT be nested.
 
@@ -378,12 +348,3 @@ class RequirementParser:
 # //= compliance/duvet-specification.txt#2.2.1
 # //= type=implication
 # //# A header MUST NOT itself be a requirement.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=TODO
-# //# A section MUST be indexable by combining different levels of naming.
-
-# //= compliance/duvet-specification.txt#2.2.2
-# //= type=TODO
-# //# Sublists MUST be treated as if the parent item were
-# //# terminated by the sublist.

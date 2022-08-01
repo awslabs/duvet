@@ -16,19 +16,25 @@ pytestmark = [pytest.mark.local, pytest.mark.functional]
 def test_dogfood(pytestconfig, tmp_path):
     filepath = pytestconfig.rootpath.joinpath("duvet-specification")
     patterns = "compliance/**/*.toml"
-    test_report = TomlRequirementParser.extract_toml_specs(patterns, filepath)
+    test_report = TomlRequirementParser.extract_toml_specs(filepath.glob(patterns))
     # Verify one spec is added to the report object
     TomlRequirementWriter.process_report(test_report, tmp_path.joinpath("compliance"))
 
-    new_report = TomlRequirementParser.extract_toml_specs(patterns, tmp_path)
+    new_report = TomlRequirementParser.extract_toml_specs(filepath.glob(patterns))
     assert test_report == new_report
 
 
 def test_extract_spec_toml(tmp_path):
     # We will not throw error is there is no requirements.
-    patterns = "compliance/**/*.toml"
-    populate_file(tmp_path, "\n".join([TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC]), "compliance/spec/section1.toml")
-    expected_report = TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
+
+    # //= compliance/duvet-specification.txt#2.2.4.1
+    # //= type=test
+    # //# Duvet SHOULD be able to record parsed requirements into Toml Files.
+
+    filename = populate_file(
+        tmp_path, "\n".join([TEST_SPEC_TOML_TARGET, TEST_SPEC_TOML_SPEC]), "compliance/spec/section1.toml"
+    )
+    expected_report = TomlRequirementParser().extract_toml_specs([filename])
     # Verify requirements is added to the report object
 
     section = expected_report.specifications.get("../duvet-python/spec/spec.txt").sections.get(
@@ -37,5 +43,5 @@ def test_extract_spec_toml(tmp_path):
 
     TomlRequirementWriter._process_section(section, tmp_path)
 
-    actual_report = TomlRequirementParser().extract_toml_specs(patterns, tmp_path)
+    actual_report = TomlRequirementParser().extract_toml_specs([filename])
     assert actual_report == expected_report

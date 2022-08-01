@@ -32,6 +32,10 @@ class TomlRequirementParser:
 
         Return a Report object containing all the specs.
         """
+
+        # //= compliance/duvet-specification.txt#2.2.4.1
+        # //# Duvet SHOULD be able to parse requirements formatted as Toml files.
+
         # Because there are might be a lot of specs in this directory,
         # We will create a Report object to contain all the specs.
         if toml_report is None:

@@ -86,6 +86,11 @@ class TestProcessKwargs:
         assert len(actual_result) == 0
 
     def test_skip_and_warns_unknown_type(self, under_test, caplog):
+        # //= compliance/duvet-specification.txt#2.4.1
+        # //= type=test
+        # //# For an annotation to match a specification the annotation's content MUST exist
+        # //# in the specification's section identified by the annotation's meta location URL.
+
         kwarg = _update_valid_kwargs({"type": "Anton"})
         with caplog.at_level(logging.WARN):
             actual = under_test._process_anno_kwargs([kwarg], under_test.paths[0])
@@ -126,3 +131,8 @@ class TestProcessKwargs:
 # //= compliance/duvet-specification.txt#2.3.3
 # //= type=test
 # //# The type MUST be a valid annotation type string:
+
+# //= compliance/duvet-specification.txt#2.5.3
+# //= type=test
+# //# A specification requirement MUST be labeled "Excused" and MUST only be labeled "Excused"
+# //# if there exists a matching annotation of type "exception" and the annotation has a "reason".

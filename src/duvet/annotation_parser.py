@@ -118,6 +118,12 @@ class AnnotationParser:
                 del match
 
                 # there may be a reason;
+
+                # //= compliance/duvet-specification.txt#2.5.3
+                # //# A specification requirement MUST be labeled "Excused"
+                # //# and MUST only be labeled "Excused" if there exists
+                # //# a matching annotation of type "exception" and the annotation has a "reason".
+
                 match = self.match_reason.match(lines[index])
                 reason: Optional[str] = match.__getitem__(1) if isinstance(match, re.Match) else None
                 index += 1 if reason is not None else 0
@@ -162,13 +168,11 @@ class AnnotationParser:
                 continue
             kwarg["source"] = str(filepath)
             kwarg["uri"] = "$".join([kwarg["target"], kwarg["content"]])
-            # print(kwarg)
             rtn.append(Annotation(**kwarg))
         return rtn
 
     def process_file(self, filepath: Path) -> list[Annotation]:
         """Extract annotations from one file."""
-
         with open(filepath, "r", encoding="utf-8") as implementation_file:
             lines: list[str] = implementation_file.readlines()
 
@@ -181,18 +185,14 @@ class AnnotationParser:
 
         annotations: list[Annotation] = []
         for filepath in self.paths:
-            # print("Processing %s", str(filepath.name))
             annotations.extend(self.process_file(filepath))
         return annotations
+
 
 # //= compliance/duvet-specification.txt#2.3.1
 # //= type=implication
 # //# The default identifier for the meta part in source documents MUST be //= followed by a single space.
 
-# //= compliance/duvet-specification.txt#2.5.3
-# //= type=TODO
-# //# A specification requirement MUST be labeled "Excused" and MUST only be labeled "Excused" if there exists
-# //# a matching annotation of type "exception" and the annotation has a "reason".
 
 # //= compliance/duvet-specification.txt#2.2.3
 # //= type=implication
@@ -232,7 +232,3 @@ class AnnotationParser:
 # //= compliance/duvet-specification.txt#2.4.1
 # //= type=exception
 # //# This means that an annotation MAY contain a table that is a subset of the rows in the specification.
-
-# //= compliance/duvet-specification.txt#2.6.2
-# //= type=TODO
-# //# For Duvet to pass the Status of every "MUST" and "MUST NOT" requirement MUST be Complete or Excused.

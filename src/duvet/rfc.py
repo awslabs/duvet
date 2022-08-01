@@ -33,6 +33,9 @@ RFCHeaderT = TypeVar("RFCHeaderT", bound="RFCHeader")
 class RFCHeader(SpecificationHeader):
     """Represent an RFC Header."""
 
+    # //= compliance/duvet-specification.txt#2.2.4
+    # //# Duvet MUST be able to parse specifications formatted as: RFC
+
     number: str = field(init=True, repr=False)
 
     @staticmethod
@@ -106,7 +109,3 @@ class RFCSpecification(ParsedSpecification):
 
 
 __all__ = ("RFCHeader", "RFCSpecification")
-
-# //= compliance/duvet-specification.txt#2.2.4
-# //= type=TODO
-# //# Duvet MUST be able to parse specifications formatted as:

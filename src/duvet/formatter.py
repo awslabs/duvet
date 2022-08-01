@@ -54,13 +54,13 @@ def preprocess_text(inline_text: str) -> str:
 def clean_content(content: str) -> str:
     """Create clean content string."""
 
-    cleaned_content = content.replace("\n", " ").strip()
+    cleaned_content = " ".join(content.split())
     return cleaned_content
 
 
-
-
 def split_long(para: str) -> list[str]:
+    """Split long sentences."""
+
     lines = []
     line = ""
     for sentence in (s.strip() + "." for s in para.split(".")[:-1]):
@@ -69,3 +69,4 @@ def split_long(para: str) -> list[str]:
             line = sentence
         else:  # can fit on => add a space then this sentence
             line += " " + sentence
+    return lines

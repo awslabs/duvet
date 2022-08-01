@@ -4,7 +4,7 @@
 import re
 import warnings
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 import attr
 import toml
@@ -32,6 +32,7 @@ class ImplConfig:
     content_style: str = DEFAULT_CONTENT_STYLE
 
     def __attrs_post_init__(self):
+        """Validate annotation comment style."""
         self._check(self.meta_style)
         self._check(self.content_style)
         if self.meta_style == self.content_style:
@@ -59,7 +60,6 @@ class Config:
     legacy: bool = field(init=True, default=False)
     blob_url: str = field(init=True, default="Github Blob URL Placeholder")
     issue_url: str = field(init=True, default="Github Issue URL Placeholder")
-    specification_path: str = ""
 
     @classmethod
     def parse(cls, config_file_path: str) -> "Config":
@@ -119,12 +119,12 @@ class ConfigParser:
                 spec_file_list.extend(temp_list)
         return [Path(x) for x in spec_file_list]
 
-    def _validate_specification(self, spec: dict) -> (Path, list):
+    def _validate_specification(self, spec: dict) -> Tuple[Path, list]:
         """Validate Config specification files."""
 
         specifications: list = []
         for entry_key in spec.keys():
-            specification_path = self.config_file_path.parent.joinpath(spec.get(entry_key).get("path"), "")
+            specification_path = self.config_file_path.parent.joinpath(spec.get(entry_key, {}).get("path"), "")
             filenames = ConfigParser._validate_patterns(specification_path, spec, entry_key, "Specification")
             specifications.extend(filenames)
         return specification_path, specifications
