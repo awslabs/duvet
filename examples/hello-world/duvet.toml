@@ -5,6 +5,7 @@ comment-style = { meta = "# //=", content = "# //#" }
 #[spec.toml]
 #patterns = ["hello-world-specification/compliance/**/*.toml"]
 [spec.txt]
+path = "./"
 patterns = ["hello-world-specification/compliance/hello-world.txt"]
 [report]
 [report.blob]

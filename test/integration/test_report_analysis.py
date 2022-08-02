@@ -31,7 +31,7 @@ class TestSummaryReportAgainstDuvet:
         for annotation in actual:
             if test_report.add_annotation(annotation):
                 counter += 1
-        assert counter >= 0
+        assert counter > 0
         for record in caplog.records:
             assert record.levelname != "ERROR"
 
@@ -56,7 +56,7 @@ class TestSummaryReportAgainstESDKDafny:
         for annotation in actual:
             if test_report.add_annotation(annotation):
                 counter += 1
-        assert counter >= 0
+        assert counter > 0
         for record in caplog.records:
             assert record.levelname != "ERROR"
         assert not SummaryReport(test_report).analyze_report()
