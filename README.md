@@ -36,9 +36,9 @@ patterns = ["project-specification/**/*.md"]
 patterns = ["project-specification/**/*.toml"]
 [report]
 [report.blob]
-url = ["https://github.com/aws/aws-encryption-sdk-dafny/blob/"]
+url = "https://github.com/aws/aws-encryption-sdk-dafny/blob/"
 [report.issue]
-url = ["https://github.com/aws/aws-encryption-sdk-dafny/issues"]
+url = "https://github.com/aws/aws-encryption-sdk-dafny/issues"
 [mode]
 legacy = true
 ```
