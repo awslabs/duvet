@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Public data structures for Duvet."""
 import logging
+import re
 from typing import Dict, Optional
 
 import attr
@@ -11,6 +12,7 @@ from duvet.identifiers import (
     ATTESTED_TYPES,
     EXCEPTED_TYPES,
     IMPLEMENTED_TYPES,
+    REQUIREMENT_IDENTIFIER_REGEX,
     AnnotationType,
     RequirementLevel,
     RequirementStatus,
@@ -172,6 +174,7 @@ class Section:
     has_requirements: bool = field(init=False, default=False)
     requirements: dict = field(init=False, default=attr.Factory(dict))
     lines: list = field(default=attr.Factory(list))
+    annotations: list = field(default=attr.Factory(list))
 
     def add_requirement(self, requirement: Requirement):
         """Add requirement to Section."""
@@ -199,6 +202,10 @@ class Section:
         if self._substring_match(annotation):
             return True
 
+        if re.search(REQUIREMENT_IDENTIFIER_REGEX, annotation.content) is not None:
+            self.annotations.append(annotation)
+            return True
+
         _LOGGER.warning("%s not found in %s", annotation.uri, self.uri)
         return False
 
@@ -224,17 +231,13 @@ class Section:
 
     def _substring_match(self, annotation: Annotation) -> bool:
 
-        # Compare by splitting space to list.
-        for key in list(self.requirements.keys()):
-            if str(key).find(annotation.uri) != -1 or annotation.uri.find(key) != -1:
-                return self.requirements[key].add_annotation(annotation)
-
         # Compare by getting rid of all space
-        for key in list(self.requirements.keys()):
-            temp_key = "".join(str(key).split())
-            temp_uri = "".join(annotation.uri.split())
+        for requirement in list(self.requirements.values()):
+            quotes = requirement.content
+            temp_key = "".join(quotes.split())
+            temp_uri = "".join(annotation.content.split())
             if temp_key.find(temp_uri) != -1 or temp_uri.find(temp_key) != -1:
-                return self.requirements[key].add_annotation(annotation)
+                return requirement.add_annotation(annotation)
 
         return False
 
@@ -321,6 +324,7 @@ class Report:
             self.report_pass = self.report_pass and specification.analyze_annotations()
 
         return self.report_pass
+
 
 # //= compliance/duvet-specification.txt#2.2.1
 # //= type=implication
