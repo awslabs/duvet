@@ -146,7 +146,7 @@ class TestSection:
 
         # Try to add mismatched annotation to section
         mismatched_kwargs = copy.deepcopy(VALID_KWARGS)
-        mismatched_kwargs.update({"uri": "test_target.md#target$mismatch"})
+        mismatched_kwargs.update({"uri": "test_target.md#target$mismatch", "content": "mismatch"})
         mismatch_citation = Annotation(**mismatched_kwargs)
         assert not actual_section.add_annotation(mismatch_citation)
 
@@ -160,18 +160,18 @@ class TestSection:
 
         # Add white spaced annotation to section
         white_spaced_kwargs = copy.deepcopy(VALID_KWARGS)
-        white_spaced_kwargs.update({"uri": "test_target.md#target$con tent"})
+        white_spaced_kwargs.update({"uri": "test_target.md#target$con tent", "content": "con tent"})
 
         white_spaced_annotation = Annotation(**white_spaced_kwargs)
         assert actual_section.add_annotation(white_spaced_annotation)
         assert len(actual_requirement.matched_annotations) == 1
 
-        requirement = Requirement(RequirementLevel.MUST, "content", "test_target.md#target$content long")
+        requirement = Requirement(RequirementLevel.MUST, "content   long", "test_target.md#target$content long")
         actual_section.add_requirement(requirement)
 
         # Add white spaced annotation to section
         more_spaced_kwargs = copy.deepcopy(VALID_KWARGS)
-        more_spaced_kwargs.update({"uri": "test_target.md#target$content   long"})
+        more_spaced_kwargs.update({"uri": "test_target.md#target$content   long", "content": "content   long"})
 
         more_spaced_annotation = Annotation(**more_spaced_kwargs)
         assert actual_section.add_annotation(more_spaced_annotation)

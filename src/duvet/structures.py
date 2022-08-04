@@ -191,35 +191,31 @@ class Section:
         return all(req.analyze_annotations() for req in self.requirements.values())
 
     def _white_space_stripped_match(self, annotation: Annotation) -> bool:
-        """Remove space and compare keys in requirements and annotations."""
 
-        for key in list(self.requirements.keys()):
-            temp_key: list[str] = str(key).split()
-            temp_uri: list[str] = annotation.uri.split()
+        # Compare by getting rid of all space
+        for requirement in list(self.requirements.values()):
+            quotes = requirement.content
+            if quotes.split() == annotation.content.split():
+                return requirement.add_annotation(annotation)
 
-            # Compare by splitting space to list.
+            temp_key = "".join(quotes.split())
+            temp_uri = "".join(annotation.content.split())
             if temp_key == temp_uri:
-                return self.requirements[key].add_annotation(annotation)
-
-            # Compare by getting rid of all space
-            if "".join(temp_key) == "".join(temp_uri):
-                return self.requirements[key].add_annotation(annotation)
+                return requirement.add_annotation(annotation)
 
         return False
 
     def _substring_match(self, annotation: Annotation) -> bool:
-        """Determine whether annotation is a substring of requirement keys.
 
-        Or  requirement keys is a substring of annotation.
-        """
-
-        for key in list(self.requirements.keys()):
-
-            # Find substring after removing all spaces.
-            temp_key: str = "".join(str(key).split())
-            temp_uri: str = "".join(annotation.uri.split())
-            if temp_key.find(temp_uri) != -1 or temp_uri.find(temp_key) != -1:
-                return self.requirements[key].add_annotation(annotation)
+        # Compare by getting rid of all space
+        for requirement in list(self.requirements.values()):
+            quotes = requirement.content
+            temp_key = "".join(quotes.split())
+            temp_uri = "".join(annotation.content.split())
+            if temp_key.find(temp_uri) != -1:
+                return requirement.add_annotation(annotation)
+            if temp_uri.find(temp_key) != -1:
+                return requirement.add_annotation(annotation)
 
         return False
 
