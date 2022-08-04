@@ -324,19 +324,6 @@ class Report:
         return self.report_pass
 
 
-# //= compliance/duvet-specification.txt#2.2.4.1
-# //= type=TODO
-# //# Duvet SHOULD be able to record parsed requirements into Toml Files.
-
-# //= compliance/duvet-specification.txt#2.2.1
-# //= type=implication
-# //# The name of the sections MUST NOT be nested.
-
-# //= compliance/duvet-specification.txt#2.6.1
-# //# Duvet MUST analyze the matching labels for every requirement; the result of this analysis
-# //# is the requirement's Status.
-
-
 @define
 class Span:
     """The start and end indexes of sub-string in a block."""

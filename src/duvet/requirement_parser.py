@@ -67,7 +67,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
 
         # Find and skip table.
         table_match = re.finditer(TABLE_DIVIDER, quotes)
@@ -100,7 +100,7 @@ class RequirementParser:
             list_block.start = max(list_block.start, left_punc_span.start - 1)
 
         # Identify end of the list block.
-        end_of_list_match = re.search(END_OF_LIST, quotes[span.end:])
+        end_of_list_match = re.search(END_OF_LIST, quotes[span.end :])
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
@@ -169,7 +169,7 @@ class RequirementParser:
     @staticmethod
     def _process_list_block(body: str, quote_span: Span, list_entry_regex: re.Pattern) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start: quote_span.end]
+        quotes = body[quote_span.start : quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the END OF LIST.
@@ -179,7 +179,7 @@ class RequirementParser:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
 
-            quotes = body[quote_span.start: quote_span.start + end_of_list]
+            quotes = body[quote_span.start : quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
 
@@ -189,6 +189,15 @@ class RequirementParser:
         # //# elements from the list of requirements.
         list_entry: Optional[re.Match[str]] = re.search(list_entry_regex, quotes)
         if list_entry is None:
+
+            # Markdown only support a little syntax to describe list.
+            # If an invalid Markdown list syntax is used,
+            # a warning will be given and do nothing with this list block but parsing other stuff.
+            #
+            # Because we are dealing with list syntax using regular expression.
+            # The (!) and (.) will never in this conversation and it could contain whatever it wants.
+            # So it will not end parsing either.
+
             logging.warning("Requirement list syntax is not valid in %s", quotes)
             return result
 
@@ -266,10 +275,9 @@ class RequirementParser:
         level: Optional[RequirementLevel] = None
 
         # //= compliance/duvet-specification.txt#2.2.2
-        # //= type=implication
         # //# Any complete sentence containing at least one RFC 2119 keyword MUST be treated as a requirement.
+
         # //= compliance/duvet-specification.txt#2.2.2
-        # //= type=implication
         # //# A requirement MAY contain multiple RFC 2119 keywords.
 
         if "MAY" in req_line:
@@ -338,6 +346,7 @@ class RequirementParser:
 
         Return a list of sections.
         """
+
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=TODO

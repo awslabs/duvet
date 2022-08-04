@@ -73,8 +73,7 @@ class MarkdownRequirementParser(RequirementParser):
 
             # //= compliance/duvet-specification.txt#2.2.1
             # //# A section MUST be indexable by combining different levels of naming.
-            # //= compliance/duvet-specification.txt#2.2.1
-            # //# The name of the sections MUST NOT be nested.
+
             section_kwarg: dict = {
                 "title": descendant.get_path(),
                 "start_line": start_line,
