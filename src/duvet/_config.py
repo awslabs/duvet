@@ -7,7 +7,7 @@ import warnings
 from typing import List
 
 import attr
-import toml
+import tomli
 from attr import define, field
 
 __all__ = ["Config", "DEFAULT_META_STYLE", "DEFAULT_CONTENT_STYLE"]
@@ -74,8 +74,8 @@ class ConfigParser:
     def extract_config(self) -> Config:
         """Parse a config file."""
         legacy = False
-        with open(self.config_file_path, "r", encoding="utf-8") as config_file:
-            parsed = toml.load(config_file)
+        with open(self.config_file_path, "rb") as config_file:
+            parsed = tomli.load(config_file)
         if "implementation" not in parsed.keys():
             raise ValueError("Implementation Config not found.")
         if "spec" not in parsed.keys():
