@@ -82,8 +82,7 @@ class TomlRequirementParser:
 
                 requirements = sec_dict.get(TOML_SPEC_KEY)
                 if requirements is not None:
-                    self.toml_path = temp_toml
-                    self._parse_requirement_attributes(requirements, sec_dict, temp_sec)
+                    TomlRequirementParser._parse_requirement_attributes(requirements, sec_dict, temp_sec, temp_toml)
                 # TODO: use a default dict for Report.specifications  # pylint: disable=fixme
                 toml_report.specifications.get(spec_uri).add_section(temp_sec)  # type: ignore[union-attr]
 
