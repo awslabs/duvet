@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List
 
 import attr
-import toml
+import tomli
 from attr import define, field
 
 from duvet.exceptions import ConfigError
@@ -75,8 +75,8 @@ class ConfigParser:
     def extract_config(self) -> Config:
         """Parse a config file."""
         legacy = False
-        with open(self.config_file_path, "r", encoding="utf-8") as config_file:
-            parsed = toml.load(config_file)
+        with open(self.config_file_path, "rb") as config_file:
+            parsed = tomli.load(config_file)
         if "implementation" not in parsed.keys():
             raise ConfigError("Implementation Config not found.")
         if "spec" not in parsed.keys():
