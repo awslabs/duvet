@@ -44,4 +44,14 @@ level = "MUST"
 quote = '''
 A section MUST be indexable by combining different levels of naming.
 '''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The keyring MUST attempt to serialize the decryption materials'
+(structures.md#decryption-materials) encryption context
+(structures.md#encryption-context-1) in the same format as the
+serialization of the message header AAD key value pairs (../data-
+format/message-header.md#key-value-pairs).
+'''
 """

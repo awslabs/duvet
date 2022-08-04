@@ -8,7 +8,7 @@ Assumptions:
 import logging
 from pathlib import Path
 
-import toml
+import tomli_w  # type:ignore[import]
 from attr import define
 
 from duvet.identifiers import TOML_REQ_CONTENT_KEY, TOML_REQ_LEVEL_KEY, TOML_SPEC_KEY, TOML_URI_KEY
@@ -28,7 +28,7 @@ class TomlRequirementWriter:
 
         section_path: Path = parent_path.joinpath(section.title + ".toml")
 
-        with open(section_path, mode="w+", encoding="utf-8") as section_file:
+        with open(section_path, mode="wb") as section_file:
             if file_type == "MARKDOWN":
                 target = section.uri + "#" + section.uri.rsplit(".", 1)[1]
 
@@ -45,7 +45,7 @@ class TomlRequirementWriter:
                 requirements.append(temp_dict)
 
             section_toml = {TOML_URI_KEY: target, TOML_SPEC_KEY: requirements}
-            toml.dump(section_toml, section_file)
+            tomli_w.dump(section_toml, section_file)
         return [section_path]
 
     @staticmethod
