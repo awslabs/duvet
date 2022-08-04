@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 from attrs import define
 
-from duvet.formatter import SENTENCE_DIVIDER, clean_content
+from duvet.formatter import clean_content
 from duvet.identifiers import END_OF_LIST, END_OF_SENTENCE, TABLE_DIVIDER, RequirementLevel
 from duvet.specification_parser import Span
 from duvet.structures import Report, Requirement, Section, Specification
@@ -67,7 +67,7 @@ class RequirementParser:
 
         """
         result: List = []
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
 
         # Find and skip table.
         table_match = re.finditer(TABLE_DIVIDER, quotes)
@@ -94,13 +94,13 @@ class RequirementParser:
         span: Span = Span.from_match(list_match)
         list_block: Span = Span(0, len(quotes))
 
-        for end_sentence_punc in SENTENCE_DIVIDER:
-            left_punc = quotes[: span.start].rfind(end_sentence_punc)
-            if left_punc != -1:
-                list_block.start = max(list_block.start, left_punc)
+        left_punc: Optional[re.Match] = re.search(END_OF_SENTENCE, quotes[: span.start])
+        if left_punc is not None:
+            left_punc_span: Span = Span.from_match(left_punc)
+            list_block.start = max(list_block.start, left_punc_span.start - 1)
 
         # Identify end of the list block.
-        end_of_list_match = re.search(END_OF_LIST, quotes[span.end :])
+        end_of_list_match = re.search(END_OF_LIST, quotes[span.end:])
         if end_of_list_match is not None:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             list_block.end = span.end + end_of_list_span.start
@@ -169,7 +169,7 @@ class RequirementParser:
     @staticmethod
     def _process_list_block(body: str, quote_span: Span, list_entry_regex: re.Pattern) -> list[Dict]:
         """Create list requirements from a chunk of string."""
-        quotes = body[quote_span.start : quote_span.end]
+        quotes = body[quote_span.start: quote_span.end]
         result: list[Dict] = []
 
         # Find the end of the list using the END OF LIST.
@@ -179,7 +179,7 @@ class RequirementParser:
             end_of_list_span: Span = Span.from_match(end_of_list_match)
             end_of_list = end_of_list_span.start + 2
 
-            quotes = body[quote_span.start : quote_span.start + end_of_list]
+            quotes = body[quote_span.start: quote_span.start + end_of_list]
 
         # Find the start of the list using the MARKDOWN_LIST_MEMBER_REGEX.
 
@@ -275,10 +275,22 @@ class RequirementParser:
         if "MAY" in req_line:
             level = RequirementLevel.MAY
 
+        if "OPTIONAL" in req_line:
+            level = RequirementLevel.MAY
+
         if "SHOULD" in req_line:
             level = RequirementLevel.SHOULD
 
+        if "RECOMMENDED" in req_line:
+            level = RequirementLevel.SHOULD
+
         if "MUST" in req_line:
+            level = RequirementLevel.MUST
+
+        if "SHALL" in req_line:
+            level = RequirementLevel.MUST
+
+        if "REQUIRED" in req_line:
             level = RequirementLevel.MUST
 
         if level is None:
@@ -326,7 +338,6 @@ class RequirementParser:
 
         Return a list of sections.
         """
-
 
 # //= compliance/duvet-specification.txt#2.2.2
 # //= type=TODO

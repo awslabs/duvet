@@ -14,7 +14,7 @@ RFC_LIST_MEMBER_REGEX = r"(^(?:(\s)*((?:(\-|\*))|(?:(\d)+\.)|(?:[a-z]+\.)) ))"
 # Match All List identifier
 ALL_RFC_LIST_ENTRY_REGEX = re.compile(RFC_LIST_MEMBER_REGEX, re.MULTILINE)
 # Match common List identifiers
-REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY)", re.MULTILINE)
+REQUIREMENT_IDENTIFIER_REGEX = re.compile(r"(MUST|SHOULD|MAY|REQUIRED|SHALL|RECOMMENDED|OPTIONAL)", re.MULTILINE)
 FIND_ALL_MARKDOWN_LIST_ELEMENT_REGEX = re.compile(r"(^(?:(?:(?:\-|\+|\*)|(?:(\d)+\.)) ))(.*?)", re.MULTILINE)
 
 

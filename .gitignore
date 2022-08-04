@@ -44,3 +44,4 @@ venv/
 /package-lock.json
 /node_modules
 duvet-specification/.refcache
+/src/duvet/specification_compliance_report.html

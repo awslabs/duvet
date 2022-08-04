@@ -118,9 +118,11 @@ class Requirement:
             # //= compliance/duvet-specification.txt#2.6.1
             # //# *  Not started - The requirement MUST NOT have any labels
             self.status = RequirementStatus.NOT_STARTED
-        else:
+        elif labels == [False, True, False, False]:
             # //= compliance/duvet-specification.txt#2.6.1
             # //# *  Missing Implementation - The requirement MUST only have the label "Attested"
+            self.status = RequirementStatus.MISSING_IMPLEMENTATION
+        else:
             self.status = RequirementStatus.DUVET_ERROR
 
     def set_labels(self):
@@ -334,9 +336,6 @@ class Report:
 # //# Duvet MUST analyze the matching labels for every requirement; the result of this analysis
 # //# is the requirement's Status.
 
-# //= compliance/duvet-specification.txt#2.6.1
-# //= type=implication
-# //# Requirement Statuses MUST be exclusive.
 
 @define
 class Span:
