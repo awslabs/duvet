@@ -93,6 +93,10 @@ class Requirement:
         * Not started - The requirement MUST only have no labels at all.
         """
         self.set_labels()
+
+        # //= compliance/duvet-specification.txt#2.6.1
+        # //# Duvet MUST analyze the matching labels for every requirement; the result of this analysis
+        # //# is the requirement's Status.
         self.set_status()
 
     def set_status(self):
@@ -148,7 +152,7 @@ class Requirement:
         self.set_labels()
         self.set_status()
         # TODO: MISSING REASON should be kicked out in the future. # pylint: disable= fixme
-        return self.status in [RequirementStatus.COMPLETE, RequirementStatus.EXCUSED, RequirementStatus.MISSING_REASON]
+        return self.status in [RequirementStatus.COMPLETE, RequirementStatus.EXCUSED]
 
 
 @define
@@ -196,14 +200,14 @@ class Section:
         if annotation.uri in self.requirements.keys():
             return self.requirements[annotation.uri].add_annotation(annotation)
 
+        if re.search(REQUIREMENT_IDENTIFIER_REGEX, annotation.content) is None:
+            self.annotations.append(annotation)
+            return True
+
         if self._white_space_stripped_match(annotation):
             return True
 
         if self._substring_match(annotation):
-            return True
-
-        if re.search(REQUIREMENT_IDENTIFIER_REGEX, annotation.content) is None:
-            self.annotations.append(annotation)
             return True
 
         _LOGGER.warning("%s not found in %s", annotation.uri, self.uri)
@@ -224,7 +228,7 @@ class Section:
             temp_key = "".join(quotes.split())
             temp_uri = "".join(annotation.content.split())
             if temp_key == temp_uri:
-                return self.requirements.add_annotation(annotation)
+                return requirement.add_annotation(annotation)
 
         return False
 
@@ -239,6 +243,7 @@ class Section:
                 return requirement.add_annotation(annotation)
             if temp_uri.find(temp_key) != -1:
                 return requirement.add_annotation(annotation)
+
         return False
 
 
@@ -271,8 +276,7 @@ class Specification:
         """Add Annotation to Specification."""
         section_uri = annotation.target
         if section_uri not in self.sections.keys():
-            print(annotation.source)
-            _LOGGER.warning("%s not found in %s", annotation.target, self.source)
+            _LOGGER.warning("target section %s not found in %s", annotation.target, self.source)
             return False
         else:
             return self.sections[section_uri].add_annotation(annotation)
@@ -326,13 +330,11 @@ class Report:
 
         return self.report_pass
 
+
 # //= compliance/duvet-specification.txt#2.2.1
 # //= type=implication
 # //# The name of the sections MUST NOT be nested.
 
-# //= compliance/duvet-specification.txt#2.6.1
-# //# Duvet MUST analyze the matching labels for every requirement; the result of this analysis
-# //# is the requirement's Status.
 
 # //= compliance/duvet-specification.txt#2.6.1
 # //= type=implication

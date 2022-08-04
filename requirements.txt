@@ -1,5 +1,6 @@
 attrs~=21.4.0
-toml~=0.10.2
+tomli
+tomli-w
 tabulate
 anytree
 click

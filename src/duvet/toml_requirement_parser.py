@@ -6,7 +6,7 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, MutableMapping, Optional
 
-import toml
+import tomli
 from attr import define
 
 from duvet.formatter import clean_content
@@ -43,39 +43,45 @@ class TomlRequirementParser:
         for temp_toml in filenames:
             # Parse the attributes in section.
 
-            sec_dict: Dict = toml.load(temp_toml)
-            if sec_dict is None:
-                warnings.warn(str(temp_toml.resolve()) + " is not a valid TOML file. Skipping file")
-                continue
+            with open(temp_toml, "rb") as tmp_file:
+                sec_dict: Dict = tomli.load(tmp_file)
 
-            section_uri = sec_dict.get(TOML_URI_KEY)
-            if section_uri is None:
-                warnings.warn(f'{str(temp_toml.resolve())}: The key "{TOML_URI_KEY}" is missing. Skipping file.')
-                continue
-            section_uri = clean_content(section_uri)
+                if sec_dict is None:
+                    warnings.warn(str(temp_toml.resolve()) + " is not a valid TOML file. Skipping file")
+                    continue
 
-            title = section_uri.rsplit("#", 1)[-1]
-            if title is None:
-                warnings.warn(f'{str(temp_toml.resolve())}: Could not process the key "{TOML_URI_KEY}". Skipping file.')
-                continue
-            title = clean_content(title)
+                section_uri = sec_dict.get(TOML_URI_KEY)
+                if section_uri is None:
+                    warnings.warn(f'{str(temp_toml.resolve())}: The key "{TOML_URI_KEY}" is missing. Skipping file.')
+                    continue
+                section_uri = clean_content(section_uri)
 
-            spec_uri = section_uri.rsplit("#", 1)[0]
-            # If the spec is not added to the dict yet. We add it to dict here.
-            if spec_uri is None:
-                warnings.warn(f'{str(temp_toml.resolve())}: Could not process the key "{TOML_URI_KEY}". Skipping file.')
-                continue
-            spec_uri = clean_content(spec_uri)
+                title = section_uri.rsplit("#", 1)[-1]
+                if title is None:
+                    warnings.warn(
+                        f'{str(temp_toml.resolve())}: Could not process the key "{TOML_URI_KEY}". Skipping file.'
+                    )
+                    continue
+                title = clean_content(title)
 
-            if toml_report.specifications.get(spec_uri) is None:
-                toml_report.specifications[spec_uri] = Specification(spec_uri.rsplit("/", maxsplit=1)[-1], spec_uri)
+                spec_uri = section_uri.rsplit("#", 1)[0]
+                # If the spec is not added to the dict yet. We add it to dict here.
+                if spec_uri is None:
+                    warnings.warn(
+                        f'{str(temp_toml.resolve())}: Could not process the key "{TOML_URI_KEY}". Skipping file.'
+                    )
+                    continue
+                spec_uri = clean_content(spec_uri)
 
-            temp_sec = Section(title, section_uri)
-            requirements = sec_dict.get(TOML_SPEC_KEY)
-            if requirements is not None:
-                _parse_requirement_attributes(requirements, sec_dict, temp_sec, temp_toml)
-            # TODO: use a default dict for Report.specifications  # pylint: disable=fixme
-            toml_report.specifications.get(spec_uri).add_section(temp_sec)  # type: ignore[union-attr]
+                if toml_report.specifications.get(spec_uri) is None:
+                    toml_report.specifications[spec_uri] = Specification(spec_uri.rsplit("/", maxsplit=1)[-1], spec_uri)
+
+                temp_sec = Section(title, section_uri)
+                requirements = sec_dict.get(TOML_SPEC_KEY)
+                if requirements is not None:
+                    _parse_requirement_attributes(requirements, sec_dict, temp_sec, temp_toml)
+                # TODO: use a default dict for Report.specifications  # pylint: disable=fixme
+                toml_report.specifications.get(spec_uri).add_section(temp_sec)  # type: ignore[union-attr]
 
         return toml_report
 

@@ -96,7 +96,7 @@ def test_valid_files(tmp_path):
     actual_path = populate_file(tmp_path, "\n".join([SPEC_BLOCK, IMPL_BLOCK, REPORT_BLOCK]), "duvet.toml")
     with pytest.warns(UserWarning) as record:
         actual_config = Config.parse(actual_path)
-    assert len(record) == 4
+    assert len(record) == 3
     # Verify the correctness of the Config object by checking the length.
     assert len(actual_config.implementation_configs) == 2
-    assert len(actual_config.specs) == 0
+    assert len(actual_config.specs) == 3

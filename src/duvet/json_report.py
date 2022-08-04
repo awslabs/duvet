@@ -138,8 +138,6 @@ class JSONReport:
             prev = requirement.end
         if prev < len(quotes) - 1:
             new_lines.append(clean_content(quotes[prev : len(quotes) - 1]))
-        # print(new_lines)
-        # return new_lines
         return lines
 
     def _process_section(self, section: Section) -> dict:
@@ -173,6 +171,7 @@ class JSONReport:
             lines = self._process_lines(quotes, lines)
 
             section_dict.update({"requirements": requirement_index, "lines": lines})
+
         return section_dict
 
     def _process_sections(self, sections_dict: dict) -> List[List]:
