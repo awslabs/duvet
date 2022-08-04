@@ -202,7 +202,7 @@ class Section:
         if self._substring_match(annotation):
             return True
 
-        if re.search(REQUIREMENT_IDENTIFIER_REGEX, annotation.content) is not None:
+        if re.search(REQUIREMENT_IDENTIFIER_REGEX, annotation.content) is None:
             self.annotations.append(annotation)
             return True
 
@@ -215,17 +215,16 @@ class Section:
 
     def _white_space_stripped_match(self, annotation: Annotation) -> bool:
 
-        # Compare by splitting space to list.
-        for key in list(self.requirements.keys()):
-            if str(key).split() == annotation.uri.split():
-                return self.requirements[key].add_annotation(annotation)
-
         # Compare by getting rid of all space
-        for key in self.requirements.keys():
-            temp_key = "".join(str(key).split())
-            temp_uri = "".join(annotation.uri.split())
+        for requirement in list(self.requirements.values()):
+            quotes = requirement.content
+            if quotes.split() == annotation.content.split():
+                return requirement.add_annotation(annotation)
+
+            temp_key = "".join(quotes.split())
+            temp_uri = "".join(annotation.content.split())
             if temp_key == temp_uri:
-                return self.requirements[key].add_annotation(annotation)
+                return self.requirements.add_annotation(annotation)
 
         return False
 
@@ -236,9 +235,10 @@ class Section:
             quotes = requirement.content
             temp_key = "".join(quotes.split())
             temp_uri = "".join(annotation.content.split())
-            if temp_key.find(temp_uri) != -1 or temp_uri.find(temp_key) != -1:
+            if temp_key.find(temp_uri) != -1:
                 return requirement.add_annotation(annotation)
-
+            if temp_uri.find(temp_key) != -1:
+                return requirement.add_annotation(annotation)
         return False
 
 
@@ -271,6 +271,7 @@ class Specification:
         """Add Annotation to Specification."""
         section_uri = annotation.target
         if section_uri not in self.sections.keys():
+            print(annotation.source)
             _LOGGER.warning("%s not found in %s", annotation.target, self.source)
             return False
         else:
@@ -309,7 +310,7 @@ class Report:
 
     def add_annotation(self, annotation: Annotation) -> bool:
         """Add Annotation to Report."""
-        specification_uri = annotation.target.split("#")[0]
+        specification_uri = annotation.target.split("#", maxsplit=1)[0]
 
         if specification_uri not in self.specifications.keys():
             _LOGGER.warning("%s not found in report", specification_uri)
@@ -324,7 +325,6 @@ class Report:
             self.report_pass = self.report_pass and specification.analyze_annotations()
 
         return self.report_pass
-
 
 # //= compliance/duvet-specification.txt#2.2.1
 # //= type=implication
