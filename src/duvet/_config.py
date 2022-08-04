@@ -13,7 +13,6 @@ from attr import define, field
 from duvet.exceptions import ConfigError
 from duvet.identifiers import DEFAULT_CONTENT_STYLE, DEFAULT_META_STYLE
 
-
 # TODO:  update _config to handle spec.toml # pylint:disable=W0511
 
 
