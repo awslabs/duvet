@@ -74,7 +74,7 @@ def test_extract_spec_toml(tmp_path):
         .sections.get("../duvet-python/spec/spec.txt#2.2.1")
         .requirements
     )
-    assert len(actual_requirements.keys()) == 4
+    assert len(actual_requirements.keys()) == 5
     assert (
         actual_requirements.get(
             "../duvet-python/spec/spec.txt#2.2.1$The name of the sections MUST NOT be nested."
