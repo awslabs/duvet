@@ -7,6 +7,10 @@ Duvet can then report on every requirement,
 where it is honored in source,
 as well as how that source is tested.
 
+## Support
+This tool is still in beta.
+Interfaces should be considered unstable and may change before the 1.0.0 release.
+
 ## Test
 ```
 cargo test
