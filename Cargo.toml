@@ -1,9 +1,15 @@
 [package]
 name = "duvet"
 version = "0.1.0"
+description = "A code quality tool to help bound correctness."
 authors = ["Cameron Bytheway <bythewc@amazon.com>", "Ryan Emery <ryanemer@amazon.com>"]
 edition = "2018"
 license = "Apache-2.0"
+repository = "https://github.com/awslabs/duvet"
+include = [
+    "/src/**/*.rs",
+    "/www/public",
+]
 
 [dependencies]
 anyhow = "1"
