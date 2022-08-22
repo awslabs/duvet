@@ -53,11 +53,15 @@ input.annotations.forEach((anno, id) => {
     anno.isOk = anno.isComplete || anno.exception === anno.spec;
   }
 
+  function anchorPrefix(id) {
+    return /^[1-9]/.test(id) ? 'section' : 'appendix';
+  }
+
   anno.id = id;
   anno.source = blobLinker(anno);
   anno.specification = specifications[anno.target_path];
   anno.section = anno.specification.sections[`section-${anno.target_section}`];
-  anno.target = `${anno.specification.id}#section-${anno.section.id}`;
+  anno.target = `${anno.specification.id}#${anchorPrefix(anno.section.id)}-${anno.section.id}`;
   anno.features = [];
   anno.tracking_issues = [];
   anno.tags = anno.tags || [];
