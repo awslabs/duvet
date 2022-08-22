@@ -40,9 +40,6 @@ lazy_static! {
     };
     static ref KEY_WORDS_SET: RegexSet =
         RegexSet::new(KEY_WORDS.iter().map(|(r, _)| r.as_str())).unwrap();
-
-    static ref SECTION_ID: Regex = Regex::new(r"^[0-9]+(\.[0-9]+)*$").unwrap();
-    static ref APPENDIX_ID: Regex = Regex::new(r"^[A-Z](\.[0-9]+)*$").unwrap();
 }
 
 #[derive(Debug, StructOpt)]
@@ -356,11 +353,9 @@ fn write_toml<W: std::io::Write>(
 }
 
 fn anchor_prefix(id: &str) -> &str {
-    if let Some(_) = SECTION_ID.captures(id) {
-        &"section-"
-    } else if let Some(_) = APPENDIX_ID.captures(id) {
-        &"appendix-"
-    } else {
-        &""
+    match id.chars().next().unwrap_or('_') {
+        '0'..='9' => "section-",
+        'A'..='Z' | 'a'..='z' => "appendix-",
+        _ => "",
     }
 }

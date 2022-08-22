@@ -54,14 +54,20 @@ input.annotations.forEach((anno, id) => {
   }
 
   function anchorPrefix(id) {
-    return /^[1-9]/.test(id) ? 'section' : 'appendix';
+    const c = id.charCodeAt(0);
+    // 1-9
+    if (c >= 49 && c <= 57) return "section-";
+    // A-Z or a-z
+    if (c >= 65 && c <= 90) return "appendix-";
+    if (c >= 97 && c <= 122) return "appendix-";
+    return "";
   }
 
   anno.id = id;
   anno.source = blobLinker(anno);
   anno.specification = specifications[anno.target_path];
   anno.section = anno.specification.sections[`section-${anno.target_section}`];
-  anno.target = `${anno.specification.id}#${anchorPrefix(anno.section.id)}-${anno.section.id}`;
+  anno.target = `${anno.specification.id}#${anchorPrefix(anno.section.id)}${anno.section.id}`;
   anno.features = [];
   anno.tracking_issues = [];
   anno.tags = anno.tags || [];
