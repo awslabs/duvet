@@ -301,7 +301,7 @@ fn write_rust<W: std::io::Write>(
     section: &Section,
     features: &[Feature],
 ) -> Result<(), std::io::Error> {
-    writeln!(w, "//! {}#{}", target, section.id)?;
+    writeln!(w, "//! {}#section-{}", target, section.id)?;
     writeln!(w, "//!")?;
     writeln!(w, "//! {}", section.full_title)?;
     writeln!(w, "//!")?;
@@ -311,7 +311,7 @@ fn write_rust<W: std::io::Write>(
     writeln!(w)?;
 
     for feature in features {
-        writeln!(w, "//= {}#{}", target, section.id)?;
+        writeln!(w, "//= {}#section-{}", target, section.id)?;
         writeln!(w, "//= type=spec")?;
         writeln!(w, "//= level={}", feature.level)?;
         for line in feature.quote.iter() {
@@ -329,7 +329,7 @@ fn write_toml<W: std::io::Write>(
     section: &Section,
     features: &[Feature],
 ) -> Result<(), std::io::Error> {
-    writeln!(w, "target = \"{}#{}\"", target, section.id)?;
+    writeln!(w, "target = \"{}#section-{}\"", target, section.id)?;
     writeln!(w)?;
     writeln!(w, "# {}", section.full_title)?;
     writeln!(w, "#")?;
