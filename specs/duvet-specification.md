@@ -59,9 +59,9 @@ This behavior is defined in regular human language.
 
 ## Section
 
-The top level header for requirements is the name of a section.
+The top-level header for requirements is the name of a section.
 The name of the sections MUST NOT be nested.
-A requirements' section MUST be the top level containing header.
+After the section's header, follows the body. Requirements defined inside the body MUST be associated to the section in which they are defined.
 A header MUST NOT itself be a requirement.
 
 A section MUST be indexable by combining different levels of naming.
@@ -79,7 +79,7 @@ A requirement MUST be terminated by one of the following:
 - list
 - table
 
-In the case of requirement terminated by a list,
+In the case of the requirement being terminated by a list,
 the text proceeding the list MUST be concatenated
 with each element of the list to form a requirement.
 Taking the above list as an example,
@@ -92,7 +92,7 @@ List elements MAY contain a period (.) or exclamation point (!)
 and this punctuation MUST NOT terminate the requirement by
 excluding the following elements from the list of requirements.
 
-In the case of requirement terminated by a table,
+In the case of the requirement being terminated by a table,
 the text proceeding the table SHOULD be concatenated
 with each row of the table to form a requirement.
 Table cells MAY have RFC 2119 keywords,
@@ -158,7 +158,7 @@ then this content only exists as an annotation.
 Such comments are useful to use Duvet to manage implementation specific requirements
 that do not exist in a specification.
 
-The Meta: Location’s for Annotations targeting specifications
+The Meta: Locations for Annotations targeting specifications
 written in Markdown will NOT be identical to Locations targeting specifications written in IETF.
 
 ### Meta: Type
