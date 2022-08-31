@@ -301,7 +301,7 @@ fn write_rust<W: std::io::Write>(
     section: &Section,
     features: &[Feature],
 ) -> Result<(), std::io::Error> {
-    writeln!(w, "//! {}#{}", target, section.id)?;
+    writeln!(w, "//! {}#{}{}", target, anchor_prefix(section.id.value), section.id)?;
     writeln!(w, "//!")?;
     writeln!(w, "//! {}", section.full_title)?;
     writeln!(w, "//!")?;
@@ -311,7 +311,7 @@ fn write_rust<W: std::io::Write>(
     writeln!(w)?;
 
     for feature in features {
-        writeln!(w, "//= {}#{}", target, section.id)?;
+        writeln!(w, "//= {}#{}{}", target, anchor_prefix(section.id.value), section.id)?;
         writeln!(w, "//= type=spec")?;
         writeln!(w, "//= level={}", feature.level)?;
         for line in feature.quote.iter() {
@@ -329,7 +329,7 @@ fn write_toml<W: std::io::Write>(
     section: &Section,
     features: &[Feature],
 ) -> Result<(), std::io::Error> {
-    writeln!(w, "target = \"{}#{}\"", target, section.id)?;
+    writeln!(w, "target = \"{}#{}{}\"", target, anchor_prefix(section.id.value), section.id)?;
     writeln!(w)?;
     writeln!(w, "# {}", section.full_title)?;
     writeln!(w, "#")?;
@@ -350,4 +350,12 @@ fn write_toml<W: std::io::Write>(
     }
 
     Ok(())
+}
+
+fn anchor_prefix(id: &str) -> &str {
+    match id.chars().next().unwrap_or('_') {
+        '0'..='9' => "section-",
+        'A'..='Z' | 'a'..='z' => "appendix-",
+        _ => "",
+    }
 }
