@@ -32,7 +32,7 @@ lazy_static! {
             .iter()
             .cloned()
             .map(|(pat, l)| {
-                let r = Regex::new(&format!("{}(\")?", pat))?;
+                let r = Regex::new(&format!("\\b{}\\b\"?", pat))?;
                 Ok((r, l))
             })
             .collect::<Result<_, Error>>()
