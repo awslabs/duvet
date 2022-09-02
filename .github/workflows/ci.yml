@@ -1,0 +1,134 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+name: ci
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  RUST_BACKTRACE: 1
+  # Pin the nightly toolchain to prevent breakage.
+  # This should be occasionally updated.
+  RUST_NIGHTLY_TOOLCHAIN: nightly-2022-09-01
+
+jobs:
+  env:
+    runs-on: ubuntu-latest
+    outputs:
+      rust-versions: ${{ steps.definitions.outputs.versions }}
+      msrv: ${{ steps.definitions.outputs.msrv }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Evaluate definitions
+        id: definitions
+        run: |
+          export MSRV=$(cat rust-toolchain | awk '{$1=$1};1')
+          echo "::set-output name=msrv::$MSRV"
+          export RAW_VERSIONS="stable beta $RUST_NIGHTLY_TOOLCHAIN $MSRV"
+          export VERSIONS=$(echo $RAW_VERSIONS | jq -scR 'rtrimstr("\n")|split(" ")|.')
+          echo "::set-output name=versions::$VERSIONS"
+
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions-rs/toolchain@v1
+        id: toolchain
+        with:
+          toolchain: ${{ env.RUST_NIGHTLY_TOOLCHAIN }}
+          profile: minimal
+          override: true
+          components: rustfmt
+
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable, beta]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions-rs/toolchain@v1.0.7
+        id: toolchain
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          profile: minimal
+          override: true
+          components: clippy
+
+      - uses: camshaft/rust-cache@v1
+
+      # TODO translate json reports to in-action warnings
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1.0.3
+        with:
+          command: clippy
+          args: --all-features --all-targets -- -D warnings
+
+  udeps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions-rs/toolchain@v1.0.7
+        id: toolchain
+        with:
+          toolchain: ${{ env.RUST_NIGHTLY_TOOLCHAIN }}
+          profile: minimal
+          override: true
+
+      - uses: camshaft/rust-cache@v1
+
+      - uses: camshaft/install@v1
+        with:
+          crate: cargo-udeps
+
+      - name: Run cargo udeps
+        run: cargo udeps --workspace --all-targets
+        env:
+          RUSTC_WRAPPER: ""
+
+  test:
+    runs-on: ${{ matrix.os }}
+    needs: env
+    strategy:
+      matrix:
+        rust: ${{ fromJson(needs.env.outputs.rust-versions) }}
+        os: [ubuntu-latest, macOS-latest]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+
+      - uses: actions-rs/toolchain@v1
+        id: toolchain
+        with:
+          toolchain: ${{ matrix.rust }}
+          override: true
+
+      - uses: camshaft/rust-cache@v1
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test

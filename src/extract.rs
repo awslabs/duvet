@@ -5,7 +5,7 @@
 
 use crate::{
     annotation::AnnotationLevel,
-    specification::{Format, Section},
+    specification::{Format, Section, Specification},
     target::TargetPath,
     Error,
 };
@@ -15,6 +15,9 @@ use rayon::prelude::*;
 use regex::{Regex, RegexSet};
 use std::{fs::OpenOptions, io::BufWriter, path::PathBuf};
 use structopt::StructOpt;
+
+#[cfg(test)]
+mod tests;
 
 lazy_static! {
     static ref KEY_WORDS: Vec<(Regex, AnnotationLevel)> = {
@@ -60,14 +63,7 @@ impl Extract {
     pub fn exec(&self) -> Result<(), Error> {
         let contents = self.target.load()?;
         let spec = self.format.parse(&contents)?;
-
-        let sections: Vec<_> = spec
-            .sorted_sections()
-            .par_iter()
-            .map(|section| extract_section(section))
-            .filter(|(_section, features)| !features.is_empty())
-            .collect();
-
+        let sections = extract_sections(&spec);
         let local_path = self.target.local();
 
         if self.out.extension().is_some() {
@@ -111,6 +107,14 @@ impl Extract {
 
         Ok(())
     }
+}
+
+fn extract_sections<'a>(spec: &'a Specification) -> Vec<(&'a Section<'a>, Vec<Feature<'a>>)> {
+    spec.sorted_sections()
+        .par_iter()
+        .map(|section| extract_section(section))
+        .filter(|(_section, features)| !features.is_empty())
+        .collect()
 }
 
 fn extract_section<'a>(section: &'a Section<'a>) -> (&'a Section<'a>, Vec<Feature>) {
@@ -301,7 +305,13 @@ fn write_rust<W: std::io::Write>(
     section: &Section,
     features: &[Feature],
 ) -> Result<(), std::io::Error> {
-    writeln!(w, "//! {}#{}{}", target, anchor_prefix(section.id.value), section.id)?;
+    writeln!(
+        w,
+        "//! {}#{}{}",
+        target,
+        anchor_prefix(section.id.value),
+        section.id
+    )?;
     writeln!(w, "//!")?;
     writeln!(w, "//! {}", section.full_title)?;
     writeln!(w, "//!")?;
@@ -311,7 +321,13 @@ fn write_rust<W: std::io::Write>(
     writeln!(w)?;
 
     for feature in features {
-        writeln!(w, "//= {}#{}{}", target, anchor_prefix(section.id.value), section.id)?;
+        writeln!(
+            w,
+            "//= {}#{}{}",
+            target,
+            anchor_prefix(section.id.value),
+            section.id
+        )?;
         writeln!(w, "//= type=spec")?;
         writeln!(w, "//= level={}", feature.level)?;
         for line in feature.quote.iter() {
@@ -329,7 +345,13 @@ fn write_toml<W: std::io::Write>(
     section: &Section,
     features: &[Feature],
 ) -> Result<(), std::io::Error> {
-    writeln!(w, "target = \"{}#{}{}\"", target, anchor_prefix(section.id.value), section.id)?;
+    writeln!(
+        w,
+        "target = \"{}#{}{}\"",
+        target,
+        anchor_prefix(section.id.value),
+        section.id
+    )?;
     writeln!(w)?;
     writeln!(w, "# {}", section.full_title)?;
     writeln!(w, "#")?;
