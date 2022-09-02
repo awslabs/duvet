@@ -2785,13 +2785,4 @@ expression: results
             ],
         },
     ),
-    (
-        "A.4",
-        Feature {
-            level: Must,
-            quote: [
-                "HTTP_1_1_REQUIRED (0x0d):  H3_VERSION_FALLBACK in Section 8.1.",
-            ],
-        },
-    ),
 ]
