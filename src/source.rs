@@ -143,7 +143,17 @@ impl<'a> Exception<'a> {
                 .target
                 .or_else(|| default_target.as_ref().cloned())
                 .ok_or_else(|| anyhow!("missing target"))?,
-            quote: self.quote.trim().replace('\n', " "),
+            quote: self
+                .quote
+                .lines()
+                .fold(String::new(), |mut s, l| {
+                    let l = l.trim();
+                    if !l.is_empty() {
+                        s.push_str(l);
+                        s.push(' ');
+                    }
+                    s
+                }),
             comment: self.reason,
             manifest_dir: source.clone(),
             feature: Default::default(),
@@ -186,7 +196,17 @@ impl<'a> Todo<'a> {
                 .target
                 .or_else(|| default_target.as_ref().cloned())
                 .ok_or_else(|| anyhow!("missing target"))?,
-            quote: self.quote.trim().replace('\n', " "),
+            quote: self
+                .quote
+                .lines()
+                .fold(String::new(), |mut s, l| {
+                    let l = l.trim();
+                    if !l.is_empty() {
+                        s.push_str(l);
+                        s.push(' ');
+                    }
+                    s
+                }),
             comment: self.reason.unwrap_or_default(),
             manifest_dir: source.clone(),
             source,
