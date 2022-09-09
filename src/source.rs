@@ -204,14 +204,12 @@ fn normalize_quote(s: &str) -> String {
         .lines()
         .fold(String::new(), |mut s, l| {
             let l = l.trim();
-            if !l.is_empty() {
-                s.push_str(l);
+            if !l.is_empty() && !s.is_empty() {
                 s.push(' ');
             }
+            s.push_str(l);
             s
         })
-        .trim()
-        .into()
 }
 
 #[cfg(test)]
