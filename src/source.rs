@@ -90,7 +90,7 @@ impl<'a> Spec<'a> {
                 .target
                 .or_else(|| default_target.as_ref().cloned())
                 .ok_or_else(|| anyhow!("missing target"))?,
-            quote: self.quote.trim().replace('\n', " "),
+            quote: normalize_quote(self.quote),
             comment: self.quote.to_string(),
             manifest_dir: source.clone(),
             feature: Default::default(),
@@ -136,7 +136,7 @@ impl<'a> Exception<'a> {
                 .target
                 .or_else(|| default_target.as_ref().cloned())
                 .ok_or_else(|| anyhow!("missing target"))?,
-            quote: self.quote.trim().replace('\n', " "),
+            quote: normalize_quote(self.quote),
             comment: self.reason,
             manifest_dir: source.clone(),
             feature: Default::default(),
@@ -179,7 +179,7 @@ impl<'a> Todo<'a> {
                 .target
                 .or_else(|| default_target.as_ref().cloned())
                 .ok_or_else(|| anyhow!("missing target"))?,
-            quote: self.quote.trim().replace('\n', " "),
+            quote: normalize_quote(self.quote),
             comment: self.reason.unwrap_or_default(),
             manifest_dir: source.clone(),
             source,
@@ -189,5 +189,44 @@ impl<'a> Todo<'a> {
             level: AnnotationLevel::Auto,
             format: Format::Auto,
         })
+    }
+}
+
+fn normalize_quote(s: &str) -> String {
+    s.lines().fold(String::new(), |mut s, l| {
+        let l = l.trim();
+        if !l.is_empty() && !s.is_empty() {
+            s.push(' ');
+        }
+        s.push_str(l);
+        s
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_quote_normalizing() {
+        let sample = r"
+        A
+        B
+        C
+        ";
+        assert_eq!(normalize_quote(sample), "A B C",);
+    }
+
+    #[test]
+    fn test_quote_normalizing_with_empty_lines() {
+        let sample = r"
+            A:
+
+            * B
+
+            * C
+              D
+        ";
+        assert_eq!(normalize_quote(sample), "A: * B * C D",);
     }
 }
