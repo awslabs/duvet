@@ -81,7 +81,7 @@ export function Requirements({ requirements, showSection }) {
         return params.row;
       },
       sortComparator(v1, v2) {
-        return v2.cmp(v1);
+        return v1.cmp(v2);
       },
       renderCell(params) {
         const requirement = params.row;
@@ -120,7 +120,7 @@ export function Requirements({ requirements, showSection }) {
           return (params.value || requirementStatus(params.row))[1];
         },
         sortComparator(v1, v2) {
-          return v2[0] - v1[0];
+          return v1[0] - v2[0];
         },
         cellClassName(params) {
           const cls = (params.value || requirementStatus(params.row))[2];
@@ -194,6 +194,7 @@ export function Requirements({ requirements, showSection }) {
         autoHeight={true}
         rows={requirements}
         columns={columns}
+        sortingOrder={['desc', 'asc', null]}
       />
     </div>
   );
