@@ -1,0 +1,2788 @@
+---
+source: src/extract/tests.rs
+expression: results
+---
+[
+    (
+        "3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Upon receiving a",
+                "server certificate in the TLS handshake, the client MUST verify that",
+                "the certificate is an acceptable match for the URI's origin server",
+                "using the process described in Section 4.3.4 of [HTTP].",
+            ],
+        },
+    ),
+    (
+        "3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "If the",
+                "certificate cannot be verified with respect to the URI's origin",
+                "server, the client MUST NOT consider the server authoritative for",
+                "that origin.",
+            ],
+        },
+    ),
+    (
+        "3.1",
+        Feature {
+            level: May,
+            quote: [
+                "A client MAY attempt access to a resource with an \"https\" URI by",
+                "resolving the host identifier to an IP address, establishing a QUIC",
+                "connection to that address on the indicated port (including",
+                "validation of the server certificate as described above), and sending",
+                "an HTTP/3 request message targeting the URI to the server over that",
+                "secured connection.",
+            ],
+        },
+    ),
+    (
+        "3.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Connectivity problems (e.g., blocking UDP) can result in a failure to",
+                "establish a QUIC connection; clients SHOULD attempt to use TCP-based",
+                "versions of HTTP in this case.",
+            ],
+        },
+    ),
+    (
+        "3.1",
+        Feature {
+            level: May,
+            quote: [
+                "Servers MAY serve HTTP/3 on any UDP port; an alternative service",
+                "advertisement always includes an explicit port, and URIs contain",
+                "either an explicit port or a default port associated with the scheme.",
+            ],
+        },
+    ),
+    (
+        "3.1.1",
+        Feature {
+            level: May,
+            quote: [
+                "On receipt of an Alt-Svc record indicating HTTP/3 support, a client",
+                "MAY attempt to establish a QUIC connection to the indicated host and",
+                "port; if this connection is successful, the client can send HTTP",
+                "requests using the mapping described in this document.",
+            ],
+        },
+    ),
+    (
+        "3.1.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Prior to making requests for an origin whose scheme is not \"https\",",
+                "the client MUST ensure the server is willing to serve that scheme.",
+            ],
+        },
+    ),
+    (
+        "3.2",
+        Feature {
+            level: May,
+            quote: [
+                "The use",
+                "of other QUIC transport versions with HTTP/3 MAY be defined by future",
+                "specifications.",
+            ],
+        },
+    ),
+    (
+        "3.2",
+        Feature {
+            level: Must,
+            quote: [
+                "HTTP/3 clients MUST support a mechanism to indicate the",
+                "target host to the server during the TLS handshake.",
+            ],
+        },
+    ),
+    (
+        "3.2",
+        Feature {
+            level: Must,
+            quote: [
+                "If the server is",
+                "identified by a domain name ([DNS-TERMS]), clients MUST send the",
+                "Server Name Indication (SNI; [RFC6066]) TLS extension unless an",
+                "alternative mechanism to indicate the target host is used.",
+            ],
+        },
+    ),
+    (
+        "3.2",
+        Feature {
+            level: May,
+            quote: [
+                "Support for",
+                "other application-layer protocols MAY be offered in the same",
+                "handshake.",
+            ],
+        },
+    ),
+    (
+        "3.2",
+        Feature {
+            level: Must,
+            quote: [
+                "After the QUIC connection is",
+                "established, a SETTINGS frame MUST be sent by each endpoint as the",
+                "initial frame of their respective HTTP control stream.",
+            ],
+        },
+    ),
+    (
+        "3.3",
+        Feature {
+            level: May,
+            quote: [
+                "Once a connection to a server endpoint exists, this connection MAY be",
+                "reused for requests with multiple different URI authority components.",
+            ],
+        },
+    ),
+    (
+        "3.3",
+        Feature {
+            level: Must,
+            quote: [
+                "To use an existing connection for a new origin, clients MUST validate",
+                "the certificate presented by the server for the new origin server",
+                "using the process described in Section 4.3.4 of [HTTP].",
+            ],
+        },
+    ),
+    (
+        "3.3",
+        Feature {
+            level: Must,
+            quote: [
+                "If the certificate is not acceptable with regard to the new origin",
+                "for any reason, the connection MUST NOT be reused and a new",
+                "connection SHOULD be established for the new origin.",
+            ],
+        },
+    ),
+    (
+        "3.3",
+        Feature {
+            level: Should,
+            quote: [
+                "If the reason",
+                "the certificate cannot be verified might apply to other origins",
+                "already associated with the connection, the client SHOULD revalidate",
+                "the server certificate for those origins.",
+            ],
+        },
+    ),
+    (
+        "3.3",
+        Feature {
+            level: Should,
+            quote: [
+                "Clients SHOULD NOT open more than one HTTP/3 connection to a given IP",
+                "address and UDP port, where the IP address and port might be derived",
+                "from a URI, a selected alternative service ([ALTSVC]), a configured",
+                "proxy, or name resolution of any of these.",
+            ],
+        },
+    ),
+    (
+        "3.3",
+        Feature {
+            level: Should,
+            quote: [
+                "A client MAY open",
+                "multiple HTTP/3 connections to the same IP address and UDP port using",
+                "different transport or TLS configurations but SHOULD avoid creating",
+                "multiple connections with the same configuration.",
+            ],
+        },
+    ),
+    (
+        "3.3",
+        Feature {
+            level: Should,
+            quote: [
+                "When either endpoint chooses to close the HTTP/3",
+                "connection, the terminating endpoint SHOULD first send a GOAWAY frame",
+                "(Section 5.2) so that both endpoints can reliably determine whether",
+                "previously sent frames have been processed and gracefully complete or",
+                "terminate any necessary remaining tasks.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "A",
+                "client MUST send only a single request on a given stream.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "On a given stream, receipt of multiple requests or receipt of an",
+                "additional HTTP response following a final HTTP response MUST be",
+                "treated as malformed.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Receipt of an invalid sequence of frames MUST be treated as a",
+                "connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: May,
+            quote: [
+                "A server MAY send one or more PUSH_PROMISE frames before, after, or",
+                "interleaved with the frames of a response message.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "PUSH_PROMISE frames are not permitted on push streams;",
+                "a pushed response that includes PUSH_PROMISE frames MUST be treated",
+                "as a connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: May,
+            quote: [
+                "Frames of unknown types (Section 9), including reserved frames",
+                "(Section 7.2.8) MAY be sent on a request or push stream before,",
+                "after, or interleaved with other frames described in this section.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Transfer codings (see Section 7 of [HTTP/1.1]) are not defined for",
+                "HTTP/3; the Transfer-Encoding header field MUST NOT be used.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: May,
+            quote: [
+                "A response MAY consist of multiple messages when and only when one or",
+                "more interim responses (1xx; see Section 15.2 of [HTTP]) precede a",
+                "final response to the same request.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "After sending a request, a client MUST",
+                "close the stream for sending.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Unless using the CONNECT method (see",
+                "Section 4.4), clients MUST NOT make stream closure dependent on",
+                "receiving a response to their request.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "After sending a final",
+                "response, the server MUST close the stream for sending.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Because some messages are large or unbounded, endpoints",
+                "SHOULD begin processing partial HTTP messages once enough of the",
+                "message has been received to make progress.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Should,
+            quote: [
+                "If a client-initiated",
+                "stream terminates without enough of the HTTP message to provide a",
+                "complete response, the server SHOULD abort its response stream with",
+                "the error code H3_REQUEST_INCOMPLETE.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: May,
+            quote: [
+                "When the server does",
+                "not need to receive the remainder of the request, it MAY abort",
+                "reading the request stream, send a complete response, and cleanly",
+                "close the sending part of the stream.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Should,
+            quote: [
+                "The error code H3_NO_ERROR",
+                "SHOULD be used when requesting that the client stop sending on the",
+                "request stream.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Clients MUST NOT discard complete responses as a",
+                "result of having their request terminated abruptly, though clients",
+                "can always discard responses at their discretion for other reasons.",
+            ],
+        },
+    ),
+    (
+        "4.1",
+        Feature {
+            level: Should,
+            quote: [
+                "If the server sends a partial or complete response but does not abort",
+                "reading the request, clients SHOULD continue sending the content of",
+                "the request and close the stream normally.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: May,
+            quote: [
+                "Once a request stream has been opened, the request MAY be cancelled",
+                "by either endpoint.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: Should,
+            quote: [
+                "When possible, it is RECOMMENDED that servers",
+                "send an HTTP response with an appropriate status code rather than",
+                "cancelling a request it has already begun processing.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Implementations SHOULD cancel requests by abruptly terminating any",
+                "directions of a stream that are still open.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: Should,
+            quote: [
+                "The server SHOULD",
+                "abort its response stream with the error code H3_REQUEST_REJECTED.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Servers MUST NOT use the H3_REQUEST_REJECTED error code for requests",
+                "that were partially or fully processed.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: Should,
+            quote: [
+                "When a server abandons a",
+                "response after partial processing, it SHOULD abort its response",
+                "stream with the error code H3_REQUEST_CANCELLED.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Client SHOULD use the error code H3_REQUEST_CANCELLED to cancel",
+                "requests.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: May,
+            quote: [
+                "Upon receipt of this error code, a server MAY abruptly",
+                "terminate the response using the error code H3_REQUEST_REJECTED if no",
+                "processing was performed.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Clients MUST NOT use the",
+                "H3_REQUEST_REJECTED error code, except when a server has requested",
+                "closure of the request stream with this error code.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: May,
+            quote: [
+                "If a stream is cancelled after receiving a complete response, the",
+                "client MAY ignore the cancellation and use the response.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: Should,
+            quote: [
+                "However, if",
+                "a stream is cancelled after receiving a partial response, the",
+                "response SHOULD NOT be used.",
+            ],
+        },
+    ),
+    (
+        "4.1.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Only idempotent actions such as GET,",
+                "PUT, or DELETE can be safely retried; a client SHOULD NOT",
+                "automatically retry a request with a non-idempotent method unless it",
+                "has some means to know that the request semantics are idempotent",
+                "independent of the method or some means to detect that the original",
+                "request was never applied.",
+            ],
+        },
+    ),
+    (
+        "4.1.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Intermediaries that process HTTP requests or responses (i.e., any",
+                "intermediary not acting as a tunnel) MUST NOT forward a malformed",
+                "request or response.",
+            ],
+        },
+    ),
+    (
+        "4.1.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Malformed requests or responses that are",
+                "detected MUST be treated as a stream error of type H3_MESSAGE_ERROR.",
+            ],
+        },
+    ),
+    (
+        "4.1.2",
+        Feature {
+            level: May,
+            quote: [
+                "For malformed requests, a server MAY send an HTTP response indicating",
+                "the error prior to closing or resetting the stream.",
+            ],
+        },
+    ),
+    (
+        "4.1.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Clients MUST NOT",
+                "accept a malformed response.",
+            ],
+        },
+    ),
+    (
+        "4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Characters in field names MUST be",
+                "converted to lowercase prior to their encoding.",
+            ],
+        },
+    ),
+    (
+        "4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "A request or",
+                "response containing uppercase characters in field names MUST be",
+                "treated as malformed.",
+            ],
+        },
+    ),
+    (
+        "4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST NOT generate",
+                "an HTTP/3 field section containing connection-specific fields; any",
+                "message containing connection-specific fields MUST be treated as",
+                "malformed.",
+            ],
+        },
+    ),
+    (
+        "4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST NOT generate",
+                "an HTTP/3 field section containing connection-specific fields; any",
+                "message containing connection-specific fields MUST be treated as",
+                "malformed.",
+            ],
+        },
+    ),
+    (
+        "4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "The only exception to this is the TE header field, which MAY be",
+                "present in an HTTP/3 request header; when it is, it MUST NOT contain",
+                "any value other than \"trailers\".",
+            ],
+        },
+    ),
+    (
+        "4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "An intermediary transforming an HTTP/1.x message to HTTP/3 MUST",
+                "remove connection-specific header fields as discussed in",
+                "Section 7.6.1 of [HTTP], or their messages will be treated by other",
+                "HTTP/3 endpoints as malformed.",
+            ],
+        },
+    ),
+    (
+        "4.2.1",
+        Feature {
+            level: May,
+            quote: [
+                "To allow for better compression efficiency, the Cookie header field",
+                "([COOKIES]) MAY be split into separate field lines, each with one or",
+                "more cookie-pairs, before compression.",
+            ],
+        },
+    ),
+    (
+        "4.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "If a decompressed field",
+                "section contains multiple cookie field lines, these MUST be",
+                "concatenated into a single byte string using the two-byte delimiter",
+                "of \"; \" (ASCII 0x3b, 0x20) before being passed into a context other",
+                "than HTTP/2 or HTTP/3, such as an HTTP/1.1 connection, or a generic",
+                "HTTP server application.",
+            ],
+        },
+    ),
+    (
+        "4.2.2",
+        Feature {
+            level: May,
+            quote: [
+                "An HTTP/3 implementation MAY impose a limit on the maximum size of",
+                "the message header it will accept on an individual HTTP message.",
+            ],
+        },
+    ),
+    (
+        "4.2.2",
+        Feature {
+            level: Should,
+            quote: [
+                "An implementation that",
+                "has received this parameter SHOULD NOT send an HTTP message header",
+                "that exceeds the indicated size, as the peer will likely refuse to",
+                "process it.",
+            ],
+        },
+    ),
+    (
+        "4.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST NOT",
+                "generate pseudo-header fields other than those defined in this",
+                "document.",
+            ],
+        },
+    ),
+    (
+        "4.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Pseudo-header fields defined for requests MUST NOT appear",
+                "in responses; pseudo-header fields defined for responses MUST NOT",
+                "appear in requests.",
+            ],
+        },
+    ),
+    (
+        "4.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Pseudo-header fields defined for requests MUST NOT appear",
+                "in responses; pseudo-header fields defined for responses MUST NOT",
+                "appear in requests.",
+            ],
+        },
+    ),
+    (
+        "4.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Pseudo-header fields MUST NOT appear in trailer",
+                "sections.",
+            ],
+        },
+    ),
+    (
+        "4.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST treat a request or response that contains",
+                "undefined or invalid pseudo-header fields as malformed.",
+            ],
+        },
+    ),
+    (
+        "4.3",
+        Feature {
+            level: Must,
+            quote: [
+                "All pseudo-header fields MUST appear in the header section before",
+                "regular header fields.",
+            ],
+        },
+    ),
+    (
+        "4.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Any request or response that contains a",
+                "pseudo-header field that appears in a header section after a regular",
+                "header field MUST be treated as malformed.",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "The authority MUST NOT include the",
+                "deprecated userinfo subcomponent for URIs of scheme \"http\" or",
+                "\"https\".",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "To ensure that the HTTP/1.1 request line can be reproduced",
+                "accurately, this pseudo-header field MUST be omitted when",
+                "translating from an HTTP/1.1 request that has a request target in",
+                "a method-specific form; see Section 7.1 of [HTTP].",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Clients that",
+                "generate HTTP/3 requests directly SHOULD use the :authority",
+                "pseudo-header field instead of the Host header field.",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "An",
+                "intermediary that converts an HTTP/3 request to HTTP/1.1 MUST",
+                "create a Host field if one is not present in a request by copying",
+                "the value of the :authority pseudo-header field.",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "This pseudo-header field MUST NOT be empty for \"http\" or \"https\"",
+                "URIs; \"http\" or \"https\" URIs that do not contain a path component",
+                "MUST include a value of / (ASCII 0x2f).",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "This pseudo-header field MUST NOT be empty for \"http\" or \"https\"",
+                "URIs; \"http\" or \"https\" URIs that do not contain a path component",
+                "MUST include a value of / (ASCII 0x2f).",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "All HTTP/3 requests MUST include exactly one value for the :method,",
+                ":scheme, and :path pseudo-header fields, unless the request is a",
+                "CONNECT request; see Section 4.4.",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "If the :scheme pseudo-header field identifies a scheme that has a",
+                "mandatory authority component (including \"http\" and \"https\"), the",
+                "request MUST contain either an :authority pseudo-header field or a",
+                "Host header field.",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "If these fields are present, they MUST NOT be",
+                "empty.",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "If both fields are present, they MUST contain the same value.",
+            ],
+        },
+    ),
+    (
+        "4.3.1",
+        Feature {
+            level: Must,
+            quote: [
+                "If the scheme does not have a mandatory authority component and none",
+                "is provided in the request target, the request MUST NOT contain the",
+                ":authority pseudo-header or Host header fields.",
+            ],
+        },
+    ),
+    (
+        "4.3.2",
+        Feature {
+            level: Must,
+            quote: [
+                "This pseudo-",
+                "header field MUST be included in all responses; otherwise, the",
+                "response is malformed (see Section 4.1.2).",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Must,
+            quote: [
+                "A CONNECT request MUST be constructed as follows:",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: May,
+            quote: [
+                "Extension frames MAY be used if",
+                "specifically permitted by the definition of the extension.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Must,
+            quote: [
+                "Receipt",
+                "of any other known frame type MUST be treated as a connection error",
+                "of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Should,
+            quote: [
+                "TCP connections that remain half closed in a single",
+                "direction are not invalid, but are often handled poorly by servers,",
+                "so clients SHOULD NOT close a stream for sending while they still",
+                "expect to receive data from the target of the CONNECT.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Must,
+            quote: [
+                "Correspondingly, if a proxy detects an error with the stream or the",
+                "QUIC connection, it MUST close the TCP connection.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Must,
+            quote: [
+                "If the proxy",
+                "detects that the client has reset the stream or aborted reading from",
+                "the stream, it MUST close the TCP connection.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Should,
+            quote: [
+                "If the stream is reset",
+                "or reading is aborted by the client, a proxy SHOULD perform the same",
+                "operation on the other direction in order to ensure that both",
+                "directions of the stream are cancelled.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Should,
+            quote: [
+                "In all these cases, if the",
+                "underlying TCP implementation permits it, the proxy SHOULD send a TCP",
+                "segment with the RST bit set.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Should,
+            quote: [
+                "Since CONNECT creates a tunnel to an arbitrary server, proxies that",
+                "support CONNECT SHOULD restrict its use to a set of known ports or a",
+                "list of safe request targets; see Section 9.3.6 of [HTTP] for more",
+                "details.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Should,
+            quote: [
+                "A server SHOULD use push IDs sequentially, beginning from",
+                "zero.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST treat receipt of a push stream as a connection",
+                "error of type H3_ID_ERROR when no MAX_PUSH_ID frame has been sent or",
+                "when the stream references a push ID that is greater than the maximum",
+                "push ID.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Must,
+            quote: [
+                "When the",
+                "same push ID is promised on multiple request streams, the",
+                "decompressed request field sections MUST contain the same fields in",
+                "the same order, and both the name and the value in each field MUST be",
+                "identical.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Must,
+            quote: [
+                "When the",
+                "same push ID is promised on multiple request streams, the",
+                "decompressed request field sections MUST contain the same fields in",
+                "the same order, and both the name and the value in each field MUST be",
+                "identical.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: May,
+            quote: [
+                "A server MAY push requests that have",
+                "the following properties:",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Must,
+            quote: [
+                "The server MUST include a value in the :authority pseudo-header field",
+                "for which the server is authoritative.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Must,
+            quote: [
+                "If the client has not yet",
+                "validated the connection for the origin indicated by the pushed",
+                "request, it MUST perform the same verification process it would do",
+                "before sending a request for that origin on the connection; see",
+                "Section 3.3.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Must,
+            quote: [
+                "If this verification fails, the client MUST NOT",
+                "consider the server authoritative for that origin.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Should,
+            quote: [
+                "Clients SHOULD send a CANCEL_PUSH frame upon receipt of a",
+                "PUSH_PROMISE frame carrying a request that is not cacheable, is not",
+                "known to be safe, that indicates the presence of request content, or",
+                "for which it does not consider the server authoritative.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Must,
+            quote: [
+                "Any",
+                "corresponding responses MUST NOT be used or cached.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: May,
+            quote: [
+                "These",
+                "associations do not affect the operation of the protocol, but they",
+                "MAY be considered by user agents when deciding how to use pushed",
+                "resources.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Should,
+            quote: [
+                "The server SHOULD send PUSH_PROMISE frames",
+                "prior to sending HEADERS or DATA frames that reference the promised",
+                "responses.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Should,
+            quote: [
+                "Clients SHOULD abort reading and discard data",
+                "already read from push streams if no corresponding PUSH_PROMISE frame",
+                "is processed in a reasonable amount of time.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: Must,
+            quote: [
+                "Pushed responses that are not cacheable MUST NOT be stored by any",
+                "HTTP cache.",
+            ],
+        },
+    ),
+    (
+        "4.6",
+        Feature {
+            level: May,
+            quote: [
+                "They MAY be made available to the application",
+                "separately.",
+            ],
+        },
+    ),
+    (
+        "5.1",
+        Feature {
+            level: Should,
+            quote: [
+                "HTTP/3 implementations will need to open a new HTTP/3",
+                "connection for new requests if the existing connection has been idle",
+                "for longer than the idle timeout negotiated during the QUIC",
+                "handshake, and they SHOULD do so if approaching the idle timeout; see",
+                "Section 10.1 of [QUIC-TRANSPORT].",
+            ],
+        },
+    ),
+    (
+        "5.1",
+        Feature {
+            level: May,
+            quote: [
+                "A gateway MAY",
+                "maintain connections in anticipation of need rather than incur the",
+                "latency cost of connection establishment to servers.",
+            ],
+        },
+    ),
+    (
+        "5.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Servers SHOULD",
+                "NOT actively keep connections open.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: May,
+            quote: [
+                "This",
+                "identifier MAY be zero if no requests or pushes were processed.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: Should,
+            quote: [
+                "Upon sending a GOAWAY frame, the endpoint",
+                "SHOULD explicitly cancel (see Sections 4.1.1 and 7.2.3) any requests",
+                "or pushes that have identifiers greater than or equal to the one",
+                "indicated, in order to clean up transport state for the affected",
+                "streams.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: Should,
+            quote: [
+                "The endpoint SHOULD continue to do so as more requests or",
+                "pushes arrive.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST NOT initiate new requests or promise new pushes on the",
+                "connection after receipt of a GOAWAY frame from the peer.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: May,
+            quote: [
+                "Clients",
+                "MAY establish a new connection to send additional requests.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: May,
+            quote: [
+                "Servers MAY reject individual requests on streams below the",
+                "indicated ID if these requests were not processed.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: Should,
+            quote: [
+                "Servers SHOULD send a GOAWAY frame when the closing of a connection",
+                "is known in advance, even if the advance notice is small, so that the",
+                "remote peer can know whether or not a request has been partially",
+                "processed.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MAY send multiple GOAWAY frames indicating different",
+                "identifiers, but the identifier in each frame MUST NOT be greater",
+                "than the identifier in any previous frame, since clients might",
+                "already have retried unprocessed requests on another HTTP connection.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Receiving a GOAWAY containing a larger identifier than previously",
+                "received MUST be treated as a connection error of type H3_ID_ERROR.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: May,
+            quote: [
+                "Like the server,",
+                "the client MAY send subsequent GOAWAY frames so long as the specified",
+                "push ID is no greater than any previously sent value.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: May,
+            quote: [
+                "Once all accepted requests and pushes have been processed, the",
+                "endpoint can permit the connection to become idle, or it MAY initiate",
+                "an immediate closure of the connection.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: Should,
+            quote: [
+                "An endpoint that completes a",
+                "graceful shutdown SHOULD use the H3_NO_ERROR error code when closing",
+                "the connection.",
+            ],
+        },
+    ),
+    (
+        "5.3",
+        Feature {
+            level: May,
+            quote: [
+                "Before closing the connection, a GOAWAY frame MAY be sent to allow",
+                "the client to retry some requests.",
+            ],
+        },
+    ),
+    (
+        "5.4",
+        Feature {
+            level: Must,
+            quote: [
+                "If a connection terminates without a GOAWAY frame, clients MUST",
+                "assume that any request that was sent, whether in whole or in part,",
+                "might have been processed.",
+            ],
+        },
+    ),
+    (
+        "6.1",
+        Feature {
+            level: Should,
+            quote: [
+                "In order to",
+                "permit these streams to open, an HTTP/3 server SHOULD configure non-",
+                "zero minimum values for the number of permitted streams and the",
+                "initial stream flow-control window.",
+            ],
+        },
+    ),
+    (
+        "6.1",
+        Feature {
+            level: Should,
+            quote: [
+                "So as to not unnecessarily limit",
+                "parallelism, at least 100 request streams SHOULD be permitted at a",
+                "time.",
+            ],
+        },
+    ),
+    (
+        "6.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Clients MUST treat",
+                "receipt of a server-initiated bidirectional stream as a connection",
+                "error of type H3_STREAM_CREATION_ERROR unless such an extension has",
+                "been negotiated.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Therefore, the transport parameters sent by both clients",
+                "and servers MUST allow the peer to create at least three",
+                "unidirectional streams.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Should,
+            quote: [
+                "These transport parameters SHOULD also",
+                "provide at least 1,024 bytes of flow-control credit to each",
+                "unidirectional stream.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Should,
+            quote: [
+                "Endpoints SHOULD create the HTTP control stream as well as the",
+                "unidirectional streams required by mandatory extensions (such as the",
+                "QPACK encoder and decoder streams) first, and then create additional",
+                "streams as allowed by their peer.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Recipients of unknown stream types MUST",
+                "either abort reading of the stream or discard incoming data without",
+                "further processing.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Should,
+            quote: [
+                "If reading is aborted, the recipient SHOULD use",
+                "the H3_STREAM_CREATION_ERROR error code or a reserved error code",
+                "(Section 8.1).",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Must,
+            quote: [
+                "The recipient MUST NOT consider unknown stream types",
+                "to be a connection error of any kind.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Should,
+            quote: [
+                "As certain stream types can affect connection state, a recipient",
+                "SHOULD NOT discard data from incoming unidirectional streams prior to",
+                "reading the stream type.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: May,
+            quote: [
+                "Implementations MAY send stream types before knowing whether the peer",
+                "supports them.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Must,
+            quote: [
+                "However, stream types that could modify the state or",
+                "semantics of existing protocol components, including QPACK or other",
+                "extensions, MUST NOT be sent until the peer is known to support them.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Must,
+            quote: [
+                "A receiver MUST tolerate unidirectional streams being",
+                "closed or reset prior to the reception of the unidirectional stream",
+                "header.",
+            ],
+        },
+    ),
+    (
+        "6.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Each side MUST initiate a single control stream at the beginning of",
+                "the connection and send its SETTINGS frame as the first frame on this",
+                "stream.",
+            ],
+        },
+    ),
+    (
+        "6.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "If the first frame of the control stream is any other frame",
+                "type, this MUST be treated as a connection error of type",
+                "H3_MISSING_SETTINGS.",
+            ],
+        },
+    ),
+    (
+        "6.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Only one control stream per peer is permitted;",
+                "receipt of a second stream claiming to be a control stream MUST be",
+                "treated as a connection error of type H3_STREAM_CREATION_ERROR.",
+            ],
+        },
+    ),
+    (
+        "6.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "The",
+                "sender MUST NOT close the control stream, and the receiver MUST NOT",
+                "request that the sender close the control stream.",
+            ],
+        },
+    ),
+    (
+        "6.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "The",
+                "sender MUST NOT close the control stream, and the receiver MUST NOT",
+                "request that the sender close the control stream.",
+            ],
+        },
+    ),
+    (
+        "6.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "If either control",
+                "stream is closed at any point, this MUST be treated as a connection",
+                "error of type H3_CLOSED_CRITICAL_STREAM.",
+            ],
+        },
+    ),
+    (
+        "6.2.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Because the contents of the control stream are used to manage the",
+                "behavior of other streams, endpoints SHOULD provide enough flow-",
+                "control credit to keep the peer's control stream from becoming",
+                "blocked.",
+            ],
+        },
+    ),
+    (
+        "6.2.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Only servers can push; if a server receives a client-initiated push",
+                "stream, this MUST be treated as a connection error of type",
+                "H3_STREAM_CREATION_ERROR.",
+            ],
+        },
+    ),
+    (
+        "6.2.2",
+        Feature {
+            level: Should,
+            quote: [
+                "A client SHOULD NOT abort reading on a push stream prior to reading",
+                "the push stream header, as this could lead to disagreement between",
+                "client and server on which push IDs have already been consumed.",
+            ],
+        },
+    ),
+    (
+        "6.2.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Each push ID MUST only be used once in a push stream header.",
+            ],
+        },
+    ),
+    (
+        "6.2.2",
+        Feature {
+            level: Must,
+            quote: [
+                "If a",
+                "client detects that a push stream header includes a push ID that was",
+                "used in another push stream header, the client MUST treat this as a",
+                "connection error of type H3_ID_ERROR.",
+            ],
+        },
+    ),
+    (
+        "6.2.3",
+        Feature {
+            level: May,
+            quote: [
+                "They MAY also be",
+                "sent on connections where no data is currently being transferred.",
+            ],
+        },
+    ),
+    (
+        "6.2.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST NOT consider these streams to have any meaning upon",
+                "receipt.",
+            ],
+        },
+    ),
+    (
+        "6.2.3",
+        Feature {
+            level: May,
+            quote: [
+                "When sending a reserved stream type,",
+                "the implementation MAY either terminate the stream cleanly or reset",
+                "it.",
+            ],
+        },
+    ),
+    (
+        "6.2.3",
+        Feature {
+            level: Should,
+            quote: [
+                "When resetting the stream, either the H3_NO_ERROR error code or",
+                "a reserved error code (Section 8.1) SHOULD be used.",
+            ],
+        },
+    ),
+    (
+        "7.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Each frame's payload MUST contain exactly the fields identified in",
+                "its description.",
+            ],
+        },
+    ),
+    (
+        "7.1",
+        Feature {
+            level: Must,
+            quote: [
+                "A frame payload that contains additional bytes",
+                "after the identified fields or a frame payload that terminates before",
+                "the end of the identified fields MUST be treated as a connection",
+                "error of type H3_FRAME_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.1",
+        Feature {
+            level: Must,
+            quote: [
+                "In particular, redundant length",
+                "encodings MUST be verified to be self-consistent; see Section 10.8.",
+            ],
+        },
+    ),
+    (
+        "7.1",
+        Feature {
+            level: Must,
+            quote: [
+                "When a stream terminates cleanly, if the last frame on the stream was",
+                "truncated, this MUST be treated as a connection error of type",
+                "H3_FRAME_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "DATA frames MUST be associated with an HTTP request or response.",
+            ],
+        },
+    ),
+    (
+        "7.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "If",
+                "a DATA frame is received on a control stream, the recipient MUST",
+                "respond with a connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.2",
+        Feature {
+            level: Must,
+            quote: [
+                "If a HEADERS frame is received on a control stream, the recipient",
+                "MUST respond with a connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: Should,
+            quote: [
+                "The server SHOULD",
+                "abort sending the resource, but the mechanism to do so depends on the",
+                "state of the corresponding push stream.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: Should,
+            quote: [
+                "If the push stream is",
+                "open, the server SHOULD abruptly terminate that stream.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: May,
+            quote: [
+                "If the push",
+                "stream has already ended, the server MAY still abruptly terminate the",
+                "stream or MAY take no action.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: May,
+            quote: [
+                "If the push",
+                "stream has already ended, the server MAY still abruptly terminate the",
+                "stream or MAY take no action.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: Should,
+            quote: [
+                "Regardless of",
+                "whether a push stream has been opened, a server SHOULD send a",
+                "CANCEL_PUSH frame when it determines that promise will not be",
+                "fulfilled.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: Should,
+            quote: [
+                "A client SHOULD NOT send a CANCEL_PUSH frame",
+                "when it has already received a corresponding push stream.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: Should,
+            quote: [
+                "The",
+                "client SHOULD abort reading the stream with an error code of",
+                "H3_REQUEST_CANCELLED.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Receiving a",
+                "CANCEL_PUSH frame on a stream other than the control stream MUST be",
+                "treated as a connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: Must,
+            quote: [
+                "If a CANCEL_PUSH frame is received that",
+                "references a push ID greater than currently allowed on the",
+                "connection, this MUST be treated as a connection error of type",
+                "H3_ID_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.3",
+        Feature {
+            level: Must,
+            quote: [
+                "If a server receives a CANCEL_PUSH frame for a push",
+                "ID that has not yet been mentioned by a PUSH_PROMISE frame, this MUST",
+                "be treated as a connection error of type H3_ID_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "A SETTINGS frame MUST be sent as the first frame of",
+                "each control stream (see Section 6.2.1) by each peer, and it MUST NOT",
+                "be sent subsequently.",
+            ],
+        },
+    ),
+    (
+        "7.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "A SETTINGS frame MUST be sent as the first frame of",
+                "each control stream (see Section 6.2.1) by each peer, and it MUST NOT",
+                "be sent subsequently.",
+            ],
+        },
+    ),
+    (
+        "7.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "If an endpoint receives a second SETTINGS",
+                "frame on the control stream, the endpoint MUST respond with a",
+                "connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "SETTINGS frames MUST NOT be sent on any stream other than the control",
+                "stream.",
+            ],
+        },
+    ),
+    (
+        "7.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "If an endpoint receives a SETTINGS frame on a different",
+                "stream, the endpoint MUST respond with a connection error of type",
+                "H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "The same setting identifier MUST NOT occur more than once in the",
+                "SETTINGS frame.",
+            ],
+        },
+    ),
+    (
+        "7.2.4",
+        Feature {
+            level: May,
+            quote: [
+                "A receiver MAY treat the presence of duplicate",
+                "setting identifiers as a connection error of type H3_SETTINGS_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "An implementation MUST ignore any parameter with an identifier it",
+                "does not understand.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Endpoints SHOULD include at least one such setting in their",
+                "SETTINGS frame.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST NOT consider such settings to have",
+                "any meaning upon receipt.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "These reserved settings MUST NOT be sent, and",
+                "their receipt MUST be treated as a connection error of type",
+                "H3_SETTINGS_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "These reserved settings MUST NOT be sent, and",
+                "their receipt MUST be treated as a connection error of type",
+                "H3_SETTINGS_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "An HTTP implementation MUST NOT send frames or requests that would be",
+                "invalid based on its current understanding of the peer's settings.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Should,
+            quote: [
+                "Each endpoint SHOULD use",
+                "these initial values to send messages before the peer's SETTINGS",
+                "frame has arrived, as packets carrying the settings can be lost or",
+                "delayed.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST NOT require any data to be received from",
+                "the peer prior to sending the SETTINGS frame; settings MUST be sent",
+                "as soon as the transport is ready to send data.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST NOT require any data to be received from",
+                "the peer prior to sending the SETTINGS frame; settings MUST be sent",
+                "as soon as the transport is ready to send data.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Should,
+            quote: [
+                "Clients SHOULD",
+                "NOT wait indefinitely for SETTINGS to arrive before sending requests,",
+                "but they SHOULD process received datagrams in order to increase the",
+                "likelihood of processing SETTINGS before sending the first request.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Should,
+            quote: [
+                "Clients SHOULD",
+                "NOT wait indefinitely for SETTINGS to arrive before sending requests,",
+                "but they SHOULD process received datagrams in order to increase the",
+                "likelihood of processing SETTINGS before sending the first request.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Should,
+            quote: [
+                "Clients",
+                "SHOULD store the settings the server provided in the HTTP/3",
+                "connection where resumption information was provided, but they MAY",
+                "opt not to store settings in certain cases (e.g., if the session",
+                "ticket is received before the SETTINGS frame).",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST comply",
+                "with stored settings -- or default values if no values are stored --",
+                "when attempting 0-RTT.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Once a server has provided new settings,",
+                "clients MUST comply with those values.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "If the",
+                "server cannot determine that the settings remembered by a client are",
+                "compatible with its current settings, it MUST NOT accept 0-RTT data.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: May,
+            quote: [
+                "A server MAY accept 0-RTT and subsequently provide different settings",
+                "in its SETTINGS frame.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "If 0-RTT data is accepted by the server, its",
+                "SETTINGS frame MUST NOT reduce any limits or alter any values that",
+                "might be violated by the client with its 0-RTT data.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "The server MUST",
+                "include all settings that differ from their default values.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "If a",
+                "server accepts 0-RTT but then sends settings that are not compatible",
+                "with the previously specified settings, this MUST be treated as a",
+                "connection error of type H3_SETTINGS_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "If a server accepts",
+                "0-RTT but then sends a SETTINGS frame that omits a setting value that",
+                "the client understands (apart from reserved setting identifiers) that",
+                "was previously specified to have a non-default value, this MUST be",
+                "treated as a connection error of type H3_SETTINGS_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Must,
+            quote: [
+                "A server MUST NOT use a push ID that is larger than the client has",
+                "provided in a MAX_PUSH_ID frame (Section 7.2.7).",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST treat",
+                "receipt of a PUSH_PROMISE frame that contains a larger push ID than",
+                "the client has advertised as a connection error of H3_ID_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: May,
+            quote: [
+                "A server MAY use the same push ID in multiple PUSH_PROMISE frames.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Must,
+            quote: [
+                "If so, the decompressed request header sets MUST contain the same",
+                "fields in the same order, and both the name and the value in each",
+                "field MUST be exact matches.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Must,
+            quote: [
+                "If so, the decompressed request header sets MUST contain the same",
+                "fields in the same order, and both the name and the value in each",
+                "field MUST be exact matches.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Should,
+            quote: [
+                "Clients SHOULD compare the request",
+                "header sections for resources promised multiple times.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Must,
+            quote: [
+                "If a client",
+                "receives a push ID that has already been promised and detects a",
+                "mismatch, it MUST respond with a connection error of type",
+                "H3_GENERAL_PROTOCOL_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Should,
+            quote: [
+                "If the decompressed field sections match",
+                "exactly, the client SHOULD associate the pushed content with each",
+                "stream on which a PUSH_PROMISE frame was received.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Should,
+            quote: [
+                "A server SHOULD",
+                "avoid reusing a push ID over a long period.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Must,
+            quote: [
+                "If a PUSH_PROMISE frame is received on the control stream, the client",
+                "MUST respond with a connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST NOT send a PUSH_PROMISE frame.",
+            ],
+        },
+    ),
+    (
+        "7.2.5",
+        Feature {
+            level: Must,
+            quote: [
+                "A server MUST treat the",
+                "receipt of a PUSH_PROMISE frame as a connection error of type",
+                "H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.6",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST treat receipt of a GOAWAY frame containing a stream ID",
+                "of any other type as a connection error of type H3_ID_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.6",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST treat a GOAWAY frame on a stream other than",
+                "the control stream as a connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.7",
+        Feature {
+            level: Must,
+            quote: [
+                "Receipt",
+                "of a MAX_PUSH_ID frame on any other stream MUST be treated as a",
+                "connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.7",
+        Feature {
+            level: Must,
+            quote: [
+                "A server MUST NOT send a MAX_PUSH_ID frame.",
+            ],
+        },
+    ),
+    (
+        "7.2.7",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST treat the",
+                "receipt of a MAX_PUSH_ID frame as a connection error of type",
+                "H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.7",
+        Feature {
+            level: Must,
+            quote: [
+                "A MAX_PUSH_ID frame cannot reduce the maximum push",
+                "ID; receipt of a MAX_PUSH_ID frame that contains a smaller value than",
+                "previously received MUST be treated as a connection error of type",
+                "H3_ID_ERROR.",
+            ],
+        },
+    ),
+    (
+        "7.2.8",
+        Feature {
+            level: May,
+            quote: [
+                "These frames have no semantics, and",
+                "they MAY be sent on any stream where frames are allowed to be sent.",
+            ],
+        },
+    ),
+    (
+        "7.2.8",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST",
+                "NOT consider these frames to have any meaning upon receipt.",
+            ],
+        },
+    ),
+    (
+        "7.2.8",
+        Feature {
+            level: Must,
+            quote: [
+                "These frame",
+                "types MUST NOT be sent, and their receipt MUST be treated as a",
+                "connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "7.2.8",
+        Feature {
+            level: Must,
+            quote: [
+                "These frame",
+                "types MUST NOT be sent, and their receipt MUST be treated as a",
+                "connection error of type H3_FRAME_UNEXPECTED.",
+            ],
+        },
+    ),
+    (
+        "8",
+        Feature {
+            level: May,
+            quote: [
+                "An endpoint MAY choose to treat a stream error as a connection error",
+                "under certain circumstances, closing the entire connection in",
+                "response to a condition on a single stream.",
+            ],
+        },
+    ),
+    (
+        "8",
+        Feature {
+            level: Must,
+            quote: [
+                "Because new error codes can be defined without negotiation (see",
+                "Section 9), use of an error code in an unexpected context or receipt",
+                "of an unknown error code MUST be treated as equivalent to",
+                "H3_NO_ERROR.",
+            ],
+        },
+    ),
+    (
+        "8.1",
+        Feature {
+            level: Should,
+            quote: [
+                "Implementations SHOULD select an error code from this space with some",
+                "probability when they would have sent H3_NO_ERROR.",
+            ],
+        },
+    ),
+    (
+        "9",
+        Feature {
+            level: Must,
+            quote: [
+                "Implementations MUST ignore unknown or unsupported values in all",
+                "extensible protocol elements.",
+            ],
+        },
+    ),
+    (
+        "9",
+        Feature {
+            level: Must,
+            quote: [
+                "Implementations MUST discard data or",
+                "abort reading on unidirectional streams that have unknown or",
+                "unsupported types.",
+            ],
+        },
+    ),
+    (
+        "9",
+        Feature {
+            level: Should,
+            quote: [
+                "However, where a known frame type is required to be in",
+                "a specific location, such as the SETTINGS frame as the first frame of",
+                "the control stream (see Section 6.2.1), an unknown frame type does",
+                "not satisfy that requirement and SHOULD be treated as an error.",
+            ],
+        },
+    ),
+    (
+        "9",
+        Feature {
+            level: Must,
+            quote: [
+                "Extensions that could change the semantics of existing protocol",
+                "components MUST be negotiated before being used.",
+            ],
+        },
+    ),
+    (
+        "9",
+        Feature {
+            level: Must,
+            quote: [
+                "If a setting is used for extension negotiation, the default",
+                "value MUST be defined in such a fashion that the extension is",
+                "disabled if the setting is omitted.",
+            ],
+        },
+    ),
+    (
+        "10.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Requests or responses containing invalid field names MUST be treated",
+                "as malformed.",
+            ],
+        },
+    ),
+    (
+        "10.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Any request or response that contains a",
+                "character not permitted in a field value MUST be treated as",
+                "malformed.",
+            ],
+        },
+    ),
+    (
+        "10.4",
+        Feature {
+            level: Must,
+            quote: [
+                "Where multiple tenants share space on the same server, that server",
+                "MUST ensure that tenants are not able to push representations of",
+                "resources that they do not have authority over.",
+            ],
+        },
+    ),
+    (
+        "10.5",
+        Feature {
+            level: Should,
+            quote: [
+                "A client that accepts server push SHOULD limit the number",
+                "of push IDs it issues at a time.",
+            ],
+        },
+    ),
+    (
+        "10.5",
+        Feature {
+            level: Should,
+            quote: [
+                "Implementations SHOULD track the",
+                "use of these features and set limits on their use.",
+            ],
+        },
+    ),
+    (
+        "10.5",
+        Feature {
+            level: May,
+            quote: [
+                "An endpoint MAY",
+                "treat activity that is suspicious as a connection error of type",
+                "H3_EXCESSIVE_LOAD, but false positives will result in disrupting",
+                "valid connections and requests.",
+            ],
+        },
+    ),
+    (
+        "10.5.1",
+        Feature {
+            level: May,
+            quote: [
+                "This setting is only advisory, so",
+                "endpoints MAY choose to send field sections that exceed this limit",
+                "and risk having the request or response being treated as malformed.",
+            ],
+        },
+    ),
+    (
+        "10.6",
+        Feature {
+            level: Must,
+            quote: [
+                "Implementations communicating on a secure channel MUST NOT compress",
+                "content that includes both confidential and attacker-controlled data",
+                "unless separate compression contexts are used for each source of",
+                "data.",
+            ],
+        },
+    ),
+    (
+        "10.6",
+        Feature {
+            level: Must,
+            quote: [
+                "Compression MUST NOT be used if the source of data cannot be",
+                "reliably determined.",
+            ],
+        },
+    ),
+    (
+        "10.8",
+        Feature {
+            level: Must,
+            quote: [
+                "An implementation MUST ensure that the length of a",
+                "frame exactly matches the length of the fields it contains.",
+            ],
+        },
+    ),
+    (
+        "10.9",
+        Feature {
+            level: Must,
+            quote: [
+                "The anti-replay mitigations in [HTTP-REPLAY] MUST be applied when",
+                "using HTTP/3 with 0-RTT.",
+            ],
+        },
+    ),
+    (
+        "11.2.1",
+        Feature {
+            level: Should,
+            quote: [
+                "If an entry is present in",
+                "only one registry, every effort SHOULD be made to avoid assigning the",
+                "corresponding value to an unrelated operation.",
+            ],
+        },
+    ),
+    (
+        "11.2.1",
+        Feature {
+            level: May,
+            quote: [
+                "Expert reviewers MAY",
+                "reject unrelated registrations that would conflict with the same",
+                "value in the corresponding registry.",
+            ],
+        },
+    ),
+    (
+        "11.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "In addition to common fields as described in Section 11.2, permanent",
+                "registrations in this registry MUST include the following field:",
+            ],
+        },
+    ),
+    (
+        "11.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Specifications of frame types MUST include a description of the frame",
+                "layout and its semantics, including any parts of the frame that are",
+                "conditionally present.",
+            ],
+        },
+    ),
+    (
+        "11.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
+                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
+                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
+                "assigned values.",
+            ],
+        },
+    ),
+    (
+        "11.2.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
+                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
+                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
+                "assigned values.",
+            ],
+        },
+    ),
+    (
+        "11.2.2",
+        Feature {
+            level: Should,
+            quote: [
+                "If an entry is present in only one registry, every",
+                "effort SHOULD be made to avoid assigning the corresponding value to",
+                "an unrelated operation.",
+            ],
+        },
+    ),
+    (
+        "11.2.2",
+        Feature {
+            level: May,
+            quote: [
+                "Expert reviewers MAY reject unrelated",
+                "registrations that would conflict with the same value in the",
+                "corresponding registry.",
+            ],
+        },
+    ),
+    (
+        "11.2.2",
+        Feature {
+            level: Must,
+            quote: [
+                "In addition to common fields as described in Section 11.2, permanent",
+                "registrations in this registry MUST include the following fields:",
+            ],
+        },
+    ),
+    (
+        "11.2.2",
+        Feature {
+            level: Should,
+            quote: [
+                "A",
+                "default SHOULD be the most restrictive possible value.",
+            ],
+        },
+    ),
+    (
+        "11.2.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
+                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
+                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
+                "assigned values.",
+            ],
+        },
+    ),
+    (
+        "11.2.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
+                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
+                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
+                "assigned values.",
+            ],
+        },
+    ),
+    (
+        "11.2.3",
+        Feature {
+            level: May,
+            quote: [
+                "Use of values that are registered in the \"HTTP/2 Error Code\" registry",
+                "is discouraged, and expert reviewers MAY reject such registrations.",
+            ],
+        },
+    ),
+    (
+        "11.2.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Permanent registrations in",
+                "this registry MUST include the following field:",
+            ],
+        },
+    ),
+    (
+        "11.2.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
+                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
+                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
+                "assigned values.",
+            ],
+        },
+    ),
+    (
+        "11.2.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
+                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
+                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
+                "assigned values.",
+            ],
+        },
+    ),
+    (
+        "11.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "In addition to common fields as described in Section 11.2, permanent",
+                "registrations in this registry MUST include the following fields:",
+            ],
+        },
+    ),
+    (
+        "11.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "Specifications for permanent registrations MUST include a description",
+                "of the stream type, including the layout and semantics of the stream",
+                "contents.",
+            ],
+        },
+    ),
+    (
+        "11.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
+                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
+                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
+                "assigned values.",
+            ],
+        },
+    ),
+    (
+        "11.2.4",
+        Feature {
+            level: Must,
+            quote: [
+                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
+                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
+                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
+                "assigned values.",
+            ],
+        },
+    ),
+]
