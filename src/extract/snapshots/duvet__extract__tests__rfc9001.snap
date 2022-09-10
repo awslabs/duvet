@@ -1,0 +1,1368 @@
+---
+source: src/extract/tests.rs
+expression: results
+---
+[
+    (
+        "4",
+        Feature {
+            level: Must,
+            quote: [
+                "If QUIC needs to retransmit that data, it MUST use",
+                "the same keys even if TLS has already updated to newer keys.",
+            ],
+        },
+    ),
+    (
+        "4",
+        Feature {
+            level: Should,
+            quote: [
+                "When packets of different types need to be sent,",
+                "endpoints SHOULD use coalesced packets to send them in the same UDP",
+                "datagram.",
+            ],
+        },
+    ),
+    (
+        "4.1.2",
+        Feature {
+            level: Must,
+            quote: [
+                "The server MUST send a",
+                "HANDSHAKE_DONE frame as soon as the handshake is complete.",
+            ],
+        },
+    ),
+    (
+        "4.1.2",
+        Feature {
+            level: May,
+            quote: [
+                "Additionally, a client MAY consider the handshake to be confirmed",
+                "when it receives an acknowledgment for a 1-RTT packet.",
+            ],
+        },
+    ),
+    (
+        "4.1.3",
+        Feature {
+            level: Must,
+            quote: [
+                "*  If the packet is from a previously installed encryption level, it",
+                "MUST NOT contain data that extends past the end of previously",
+                "received data in that flow.",
+            ],
+        },
+    ),
+    (
+        "4.1.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Implementations MUST treat any",
+                "violations of this requirement as a connection error of type",
+                "PROTOCOL_VIOLATION.",
+            ],
+        },
+    ),
+    (
+        "4.1.3",
+        Feature {
+            level: Must,
+            quote: [
+                "When TLS",
+                "provides keys for a higher encryption level, if there is data from",
+                "a previous encryption level that TLS has not consumed, this MUST",
+                "be treated as a connection error of type PROTOCOL_VIOLATION.",
+            ],
+        },
+    ),
+    (
+        "4.1.4",
+        Feature {
+            level: Should,
+            quote: [
+                "While waiting for TLS processing to",
+                "complete, an endpoint SHOULD buffer received packets if they might be",
+                "processed using keys that are not yet available.",
+            ],
+        },
+    ),
+    (
+        "4.1.4",
+        Feature {
+            level: Should,
+            quote: [
+                "An endpoint SHOULD",
+                "continue to respond to packets that can be processed during this",
+                "time.",
+            ],
+        },
+    ),
+    (
+        "4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Clients MUST NOT offer TLS versions older than 1.3.",
+            ],
+        },
+    ),
+    (
+        "4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST terminate the connection if a",
+                "version of TLS older than 1.3 is negotiated.",
+            ],
+        },
+    ),
+    (
+        "4.3",
+        Feature {
+            level: May,
+            quote: [
+                "To",
+                "avoid this, servers MAY use the Retry feature (see Section 8.1 of",
+                "[QUIC-TRANSPORT]) to only buffer partial ClientHello messages from",
+                "clients with a validated address.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST authenticate the identity of the server.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: May,
+            quote: [
+                "A server MAY request that the client authenticate during the",
+                "handshake.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: May,
+            quote: [
+                "A server MAY refuse a connection if the client is unable",
+                "to authenticate when requested.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Must,
+            quote: [
+                "A server MUST NOT use post-handshake client authentication (as",
+                "defined in Section 4.6.2 of [TLS13]) because the multiplexing offered",
+                "by QUIC prevents clients from correlating the certificate request",
+                "with the application-level event that triggered it (see",
+                "[HTTP2-TLS13]).",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Must,
+            quote: [
+                "More specifically, servers MUST NOT send post-",
+                "handshake TLS CertificateRequest messages, and clients MUST treat",
+                "receipt of such messages as a connection error of type",
+                "PROTOCOL_VIOLATION.",
+            ],
+        },
+    ),
+    (
+        "4.4",
+        Feature {
+            level: Must,
+            quote: [
+                "More specifically, servers MUST NOT send post-",
+                "handshake TLS CertificateRequest messages, and clients MUST treat",
+                "receipt of such messages as a connection error of type",
+                "PROTOCOL_VIOLATION.",
+            ],
+        },
+    ),
+    (
+        "4.5",
+        Feature {
+            level: Should,
+            quote: [
+                "Clients SHOULD NOT reuse tickets as",
+                "that allows entities other than the server to correlate connections;",
+                "see Appendix C.4 of [TLS13].",
+            ],
+        },
+    ),
+    (
+        "4.6.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Servers MUST NOT send the early_data extension with a",
+                "max_early_data_size field set to any value other than 0xffffffff.",
+            ],
+        },
+    ),
+    (
+        "4.6.1",
+        Feature {
+            level: Must,
+            quote: [
+                "A",
+                "client MUST treat receipt of a NewSessionTicket that contains an",
+                "early_data extension with any other value as a connection error of",
+                "type PROTOCOL_VIOLATION.",
+            ],
+        },
+    ),
+    (
+        "4.6.2",
+        Feature {
+            level: Must,
+            quote: [
+                "When rejecting 0-RTT, a server MUST NOT",
+                "process any 0-RTT packets, even if it could.",
+            ],
+        },
+    ),
+    (
+        "4.6.2",
+        Feature {
+            level: Should,
+            quote: [
+                "When 0-RTT was",
+                "rejected, a client SHOULD treat receipt of an acknowledgment for a",
+                "0-RTT packet as a connection error of type PROTOCOL_VIOLATION, if it",
+                "is able to detect the condition.",
+            ],
+        },
+    ),
+    (
+        "4.6.2",
+        Feature {
+            level: Must,
+            quote: [
+                "The client therefore MUST reset the state of all",
+                "streams, including application state bound to those streams.",
+            ],
+        },
+    ),
+    (
+        "4.6.2",
+        Feature {
+            level: May,
+            quote: [
+                "A client MAY reattempt 0-RTT if it receives a Retry or Version",
+                "Negotiation packet.",
+            ],
+        },
+    ),
+    (
+        "4.7",
+        Feature {
+            level: Should,
+            quote: [
+                "Although it is in principle possible to use this feature",
+                "for address verification, QUIC implementations SHOULD instead use the",
+                "Retry feature; see Section 8.1 of [QUIC-TRANSPORT].",
+            ],
+        },
+    ),
+    (
+        "4.8",
+        Feature {
+            level: Must,
+            quote: [
+                "As QUIC provides",
+                "alternative mechanisms for connection termination and the TLS",
+                "connection is only closed if an error is encountered, a QUIC endpoint",
+                "MUST treat any alert from TLS as if it were at the \"fatal\" level.",
+            ],
+        },
+    ),
+    (
+        "4.8",
+        Feature {
+            level: May,
+            quote: [
+                "Endpoints MAY use a generic",
+                "error code to avoid possibly exposing confidential information.",
+            ],
+        },
+    ),
+    (
+        "4.9",
+        Feature {
+            level: Must,
+            quote: [
+                "If packets from a lower encryption level contain",
+                "CRYPTO frames, frames that retransmit that data MUST be sent at the",
+                "same encryption level.",
+            ],
+        },
+    ),
+    (
+        "4.9",
+        Feature {
+            level: Must,
+            quote: [
+                "Though an endpoint might retain older keys, new data MUST be sent at",
+                "the highest currently available encryption level.",
+            ],
+        },
+    ),
+    (
+        "4.9",
+        Feature {
+            level: May,
+            quote: [
+                "These packets MAY also include PADDING frames.",
+            ],
+        },
+    ),
+    (
+        "4.9.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Thus, a client MUST discard Initial keys when it first sends a",
+                "Handshake packet and a server MUST discard Initial keys when it first",
+                "successfully processes a Handshake packet.",
+            ],
+        },
+    ),
+    (
+        "4.9.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Thus, a client MUST discard Initial keys when it first sends a",
+                "Handshake packet and a server MUST discard Initial keys when it first",
+                "successfully processes a Handshake packet.",
+            ],
+        },
+    ),
+    (
+        "4.9.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST NOT send",
+                "Initial packets after this point.",
+            ],
+        },
+    ),
+    (
+        "4.9.2",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST discard its Handshake keys when the TLS handshake is",
+                "confirmed (Section 4.1.2).",
+            ],
+        },
+    ),
+    (
+        "4.9.3",
+        Feature {
+            level: Should,
+            quote: [
+                "Therefore, a client SHOULD discard 0-RTT keys as soon as it installs",
+                "1-RTT keys as they have no use after that moment.",
+            ],
+        },
+    ),
+    (
+        "4.9.3",
+        Feature {
+            level: May,
+            quote: [
+                "Additionally, a server MAY discard 0-RTT keys as soon as it receives",
+                "a 1-RTT packet.",
+            ],
+        },
+    ),
+    (
+        "4.9.3",
+        Feature {
+            level: May,
+            quote: [
+                "Servers MAY temporarily retain",
+                "0-RTT keys to allow decrypting reordered packets without requiring",
+                "their contents to be retransmitted with 1-RTT keys.",
+            ],
+        },
+    ),
+    (
+        "4.9.3",
+        Feature {
+            level: Must,
+            quote: [
+                "After receiving",
+                "a 1-RTT packet, servers MUST discard 0-RTT keys within a short time;",
+                "the RECOMMENDED time period is three times the Probe Timeout (PTO,",
+                "see [QUIC-RECOVERY]).",
+            ],
+        },
+    ),
+    (
+        "4.9.3",
+        Feature {
+            level: May,
+            quote: [
+                "A server MAY discard 0-RTT keys earlier if it",
+                "determines that it has received all 0-RTT packets, which can be done",
+                "by keeping track of missing packet numbers.",
+            ],
+        },
+    ),
+    (
+        "5.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Other versions of TLS MUST provide a similar function in order to be",
+                "used with QUIC.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: Should,
+            quote: [
+                "Future versions of QUIC SHOULD generate a new salt value, thus",
+                "ensuring that the keys are different for each version of QUIC.",
+            ],
+        },
+    ),
+    (
+        "5.2",
+        Feature {
+            level: Must,
+            quote: [
+                "The HKDF-Expand-Label function defined in TLS 1.3 MUST be used for",
+                "Initial packets even where the TLS versions offered do not include",
+                "TLS 1.3.",
+            ],
+        },
+    ),
+    (
+        "5.3",
+        Feature {
+            level: Must,
+            quote: [
+                "A cipher suite MUST NOT be",
+                "negotiated unless a header protection scheme is defined for the",
+                "cipher suite.",
+            ],
+        },
+    ),
+    (
+        "5.3",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST NOT reject a ClientHello that offers a cipher suite",
+                "that it does not support, or it would be impossible to deploy a new",
+                "cipher suite.",
+            ],
+        },
+    ),
+    (
+        "5.3",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST initiate a key update",
+                "(Section 6) prior to exceeding any limit set for the AEAD that is in",
+                "use.",
+            ],
+        },
+    ),
+    (
+        "5.4.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Before a TLS cipher suite can be used with QUIC, a header protection",
+                "algorithm MUST be specified for the AEAD used with that cipher suite.",
+            ],
+        },
+    ),
+    (
+        "5.4.2",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST discard packets that are not long enough to contain",
+                "a complete sample.",
+            ],
+        },
+    ),
+    (
+        "5.5",
+        Feature {
+            level: Must,
+            quote: [
+                "Once an endpoint successfully receives a packet with a given packet",
+                "number, it MUST discard all packets in the same packet number space",
+                "with higher packet numbers if they cannot be successfully unprotected",
+                "with either the same key, or -- if there is a key update -- a",
+                "subsequent packet protection key; see Section 6.",
+            ],
+        },
+    ),
+    (
+        "5.5",
+        Feature {
+            level: Must,
+            quote: [
+                "Similarly, a packet",
+                "that appears to trigger a key update but cannot be unprotected",
+                "successfully MUST be discarded.",
+            ],
+        },
+    ),
+    (
+        "5.6",
+        Feature {
+            level: Must,
+            quote: [
+                "A client",
+                "therefore MUST NOT use 0-RTT for application data unless specifically",
+                "requested by the application that is in use.",
+            ],
+        },
+    ),
+    (
+        "5.6",
+        Feature {
+            level: Must,
+            quote: [
+                "An application protocol that uses QUIC MUST include a profile that",
+                "defines acceptable use of 0-RTT; otherwise, 0-RTT can only be used to",
+                "carry QUIC frames that do not carry application data.",
+            ],
+        },
+    ),
+    (
+        "5.6",
+        Feature {
+            level: May,
+            quote: [
+                "A client MAY wish to apply additional restrictions on what data it",
+                "sends prior to the completion of the TLS handshake.",
+            ],
+        },
+    ),
+    (
+        "5.6",
+        Feature {
+            level: Should,
+            quote: [
+                "A client SHOULD stop sending 0-RTT data",
+                "if it receives an indication that 0-RTT data has been rejected.",
+            ],
+        },
+    ),
+    (
+        "5.6",
+        Feature {
+            level: Must,
+            quote: [
+                "A server MUST NOT use 0-RTT keys to protect packets; it uses 1-RTT",
+                "keys to protect acknowledgments of 0-RTT packets.",
+            ],
+        },
+    ),
+    (
+        "5.6",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST NOT",
+                "attempt to decrypt 0-RTT packets it receives and instead MUST discard",
+                "them.",
+            ],
+        },
+    ),
+    (
+        "5.6",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST NOT",
+                "attempt to decrypt 0-RTT packets it receives and instead MUST discard",
+                "them.",
+            ],
+        },
+    ),
+    (
+        "5.6",
+        Feature {
+            level: Must,
+            quote: [
+                "Once a client has installed 1-RTT keys, it MUST NOT send any more",
+                "0-RTT packets.",
+            ],
+        },
+    ),
+    (
+        "5.7",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints in either role MUST NOT decrypt 1-RTT packets from",
+                "their peer prior to completing the handshake.",
+            ],
+        },
+    ),
+    (
+        "5.7",
+        Feature {
+            level: Must,
+            quote: [
+                "A server MUST NOT process",
+                "incoming 1-RTT protected packets before the TLS handshake is",
+                "complete.",
+            ],
+        },
+    ),
+    (
+        "5.7",
+        Feature {
+            level: May,
+            quote: [
+                "Received",
+                "packets protected with 1-RTT keys MAY be stored and later decrypted",
+                "and used once the handshake is complete.",
+            ],
+        },
+    ),
+    (
+        "5.7",
+        Feature {
+            level: May,
+            quote: [
+                "The server MAY retain these packets for",
+                "later decryption in anticipation of receiving a ClientHello.",
+            ],
+        },
+    ),
+    (
+        "5.7",
+        Feature {
+            level: Must,
+            quote: [
+                "Even if it has 1-RTT secrets, a client MUST NOT",
+                "process incoming 1-RTT protected packets before the TLS handshake is",
+                "complete.",
+            ],
+        },
+    ),
+    (
+        "6",
+        Feature {
+            level: May,
+            quote: [
+                "Once the handshake is confirmed (see Section 4.1.2), an endpoint MAY",
+                "initiate a key update.",
+            ],
+        },
+    ),
+    (
+        "6",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints",
+                "MUST NOT send a TLS KeyUpdate message.",
+            ],
+        },
+    ),
+    (
+        "6",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST treat the",
+                "receipt of a TLS KeyUpdate message as a connection error of type",
+                "0x010a, equivalent to a fatal TLS alert of unexpected_message; see",
+                "Section 4.8.",
+            ],
+        },
+    ),
+    (
+        "6.1",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST NOT initiate a key update prior to having confirmed",
+                "the handshake (Section 4.1.2).",
+            ],
+        },
+    ),
+    (
+        "6.1",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST NOT initiate a",
+                "subsequent key update unless it has received an acknowledgment for a",
+                "packet that was sent protected with keys from the current key phase.",
+            ],
+        },
+    ),
+    (
+        "6.1",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint MUST retain old keys until it has successfully",
+                "unprotected a packet sent using the new keys.",
+            ],
+        },
+    ),
+    (
+        "6.1",
+        Feature {
+            level: Should,
+            quote: [
+                "An endpoint SHOULD",
+                "retain old keys for some time after unprotecting a packet sent using",
+                "the new keys.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Must,
+            quote: [
+                "The endpoint MUST update its",
+                "send keys to the corresponding key phase in response, as described in",
+                "Section 6.1.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Sending keys MUST be updated before sending an",
+                "acknowledgment for the packet that was received with updated keys.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: May,
+            quote: [
+                "An endpoint",
+                "MAY treat such consecutive key updates as a connection error of type",
+                "KEY_UPDATE_ERROR.",
+            ],
+        },
+    ),
+    (
+        "6.2",
+        Feature {
+            level: May,
+            quote: [
+                "An endpoint that receives an acknowledgment that is carried in a",
+                "packet protected with old keys where any acknowledged packet was",
+                "protected with newer keys MAY treat that as a connection error of",
+                "type KEY_UPDATE_ERROR.",
+            ],
+        },
+    ),
+    (
+        "6.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints responding to an apparent key update MUST NOT generate a",
+                "timing side-channel signal that might indicate that the Key Phase bit",
+                "was invalid (see Section 9.5).",
+            ],
+        },
+    ),
+    (
+        "6.3",
+        Feature {
+            level: May,
+            quote: [
+                "An endpoint MAY",
+                "generate new keys as part of packet processing, but this creates a",
+                "timing signal that could be used by an attacker to learn when key",
+                "updates happen and thus leak the value of the Key Phase bit.",
+            ],
+        },
+    ),
+    (
+        "6.3",
+        Feature {
+            level: May,
+            quote: [
+                "For a short period after a key",
+                "update completes, up to the PTO, endpoints MAY defer generation of",
+                "the next set of receive packet protection keys.",
+            ],
+        },
+    ),
+    (
+        "6.3",
+        Feature {
+            level: Should,
+            quote: [
+                "Once generated, the next set of packet protection keys SHOULD be",
+                "retained, even if the packet that was received was subsequently",
+                "discarded.",
+            ],
+        },
+    ),
+    (
+        "6.3",
+        Feature {
+            level: Must,
+            quote: [
+                "For this reason, endpoints MUST be able to retain two sets of packet",
+                "protection keys for receiving packets: the current and the next.",
+            ],
+        },
+    ),
+    (
+        "6.4",
+        Feature {
+            level: Must,
+            quote: [
+                "Packets with higher packet numbers MUST be protected with either the",
+                "same or newer packet protection keys than packets with lower packet",
+                "numbers.",
+            ],
+        },
+    ),
+    (
+        "6.4",
+        Feature {
+            level: Must,
+            quote: [
+                "An endpoint that successfully removes protection with old",
+                "keys when newer keys were used for packets with lower packet numbers",
+                "MUST treat this as a connection error of type KEY_UPDATE_ERROR.",
+            ],
+        },
+    ),
+    (
+        "6.5",
+        Feature {
+            level: May,
+            quote: [
+                "An endpoint MAY allow a period of approximately the Probe Timeout",
+                "(PTO; see [QUIC-RECOVERY]) after promoting the next set of receive",
+                "keys to be current before it creates the subsequent set of packet",
+                "protection keys.",
+            ],
+        },
+    ),
+    (
+        "6.5",
+        Feature {
+            level: May,
+            quote: [
+                "These updated keys MAY replace the previous keys at",
+                "that time.",
+            ],
+        },
+    ),
+    (
+        "6.5",
+        Feature {
+            level: Should,
+            quote: [
+                "Endpoints SHOULD wait three times",
+                "the PTO before initiating a key update after receiving an",
+                "acknowledgment that confirms that the previous key update was",
+                "received.",
+            ],
+        },
+    ),
+    (
+        "6.5",
+        Feature {
+            level: Should,
+            quote: [
+                "An endpoint SHOULD retain old read keys for no more than three times",
+                "the PTO after having received a packet protected using the new keys.",
+            ],
+        },
+    ),
+    (
+        "6.5",
+        Feature {
+            level: Should,
+            quote: [
+                "After this period, old read keys and their corresponding secrets",
+                "SHOULD be discarded.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST count the number of encrypted packets for each set of",
+                "keys.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: Must,
+            quote: [
+                "If the total number of encrypted packets with the same key",
+                "exceeds the confidentiality limit for the selected AEAD, the endpoint",
+                "MUST stop using those keys.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST initiate a key update",
+                "before sending more protected packets than the confidentiality limit",
+                "for the selected AEAD permits.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: Must,
+            quote: [
+                "If a key update is not possible or",
+                "integrity limits are reached, the endpoint MUST stop using the",
+                "connection and only send stateless resets in response to receiving",
+                "packets.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: Should,
+            quote: [
+                "It is RECOMMENDED that endpoints immediately close the",
+                "connection with a connection error of type AEAD_LIMIT_REACHED before",
+                "reaching a state where key updates are not possible.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: Must,
+            quote: [
+                "In addition to counting packets sent, endpoints MUST count the number",
+                "of received packets that fail authentication during the lifetime of a",
+                "connection.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: Must,
+            quote: [
+                "If the total number of received packets that fail",
+                "authentication within the connection, across all keys, exceeds the",
+                "integrity limit for the selected AEAD, the endpoint MUST immediately",
+                "close the connection with a connection error of type",
+                "AEAD_LIMIT_REACHED and not process any more packets.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: May,
+            quote: [
+                "Endpoints that limit the size of packets MAY use higher",
+                "confidentiality and integrity limits; see Appendix B for details.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: May,
+            quote: [
+                "Future analyses and specifications MAY relax confidentiality or",
+                "integrity limits for an AEAD.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: Must,
+            quote: [
+                "Any TLS cipher suite that is specified for use with QUIC MUST define",
+                "limits on the use of the associated AEAD function that preserves",
+                "margins for confidentiality and integrity.",
+            ],
+        },
+    ),
+    (
+        "6.6",
+        Feature {
+            level: Must,
+            quote: [
+                "That is, limits MUST be",
+                "specified for the number of packets that can be authenticated and for",
+                "the number of packets that can fail authentication.",
+            ],
+        },
+    ),
+    (
+        "7",
+        Feature {
+            level: Should,
+            quote: [
+                "Implementations",
+                "SHOULD use caution in relying on any data that is contained in",
+                "Initial packets that is not otherwise authenticated.",
+            ],
+        },
+    ),
+    (
+        "8.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Unless another",
+                "mechanism is used for agreeing on an application protocol, endpoints",
+                "MUST use ALPN for this purpose.",
+            ],
+        },
+    ),
+    (
+        "8.1",
+        Feature {
+            level: Must,
+            quote: [
+                "When using ALPN, endpoints MUST immediately close a connection (see",
+                "Section 10.2 of [QUIC-TRANSPORT]) with a no_application_protocol TLS",
+                "alert (QUIC error code 0x0178; see Section 4.8) if an application",
+                "protocol is not negotiated.",
+            ],
+        },
+    ),
+    (
+        "8.1",
+        Feature {
+            level: Must,
+            quote: [
+                "While [ALPN] only specifies that servers",
+                "use this alert, QUIC clients MUST use error 0x0178 to terminate a",
+                "connection when ALPN negotiation fails.",
+            ],
+        },
+    ),
+    (
+        "8.1",
+        Feature {
+            level: May,
+            quote: [
+                "An application protocol MAY restrict the QUIC versions that it can",
+                "operate over.",
+            ],
+        },
+    ),
+    (
+        "8.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Servers MUST select an application protocol compatible",
+                "with the QUIC version that the client has selected.",
+            ],
+        },
+    ),
+    (
+        "8.1",
+        Feature {
+            level: Must,
+            quote: [
+                "The server MUST",
+                "treat the inability to select a compatible application protocol as a",
+                "connection error of type 0x0178 (no_application_protocol).",
+            ],
+        },
+    ),
+    (
+        "8.1",
+        Feature {
+            level: Must,
+            quote: [
+                "Similarly, a client MUST treat the selection of an incompatible",
+                "application protocol by a server as a connection error of type",
+                "0x0178.",
+            ],
+        },
+    ),
+    (
+        "8.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints",
+                "MUST send the quic_transport_parameters extension; endpoints that",
+                "receive ClientHello or EncryptedExtensions messages without the",
+                "quic_transport_parameters extension MUST close the connection with an",
+                "error of type 0x016d (equivalent to a fatal TLS missing_extension",
+                "alert, see Section 4.8).",
+            ],
+        },
+    ),
+    (
+        "8.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints",
+                "MUST send the quic_transport_parameters extension; endpoints that",
+                "receive ClientHello or EncryptedExtensions messages without the",
+                "quic_transport_parameters extension MUST close the connection with an",
+                "error of type 0x016d (equivalent to a fatal TLS missing_extension",
+                "alert, see Section 4.8).",
+            ],
+        },
+    ),
+    (
+        "8.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST NOT send this extension in a TLS connection that does",
+                "not use QUIC (such as the use of TLS with TCP defined in [TLS13]).",
+            ],
+        },
+    ),
+    (
+        "8.2",
+        Feature {
+            level: Must,
+            quote: [
+                "A",
+                "fatal unsupported_extension alert MUST be sent by an implementation",
+                "that supports this extension if the extension is received when the",
+                "transport is not QUIC.",
+            ],
+        },
+    ),
+    (
+        "8.3",
+        Feature {
+            level: Must,
+            quote: [
+                "Clients MUST NOT send the EndOfEarlyData message.",
+            ],
+        },
+    ),
+    (
+        "8.3",
+        Feature {
+            level: Must,
+            quote: [
+                "A server MUST",
+                "treat receipt of a CRYPTO frame in a 0-RTT packet as a connection",
+                "error of type PROTOCOL_VIOLATION.",
+            ],
+        },
+    ),
+    (
+        "8.4",
+        Feature {
+            level: Must,
+            quote: [
+                "A client MUST NOT request the use of the",
+                "TLS 1.3 compatibility mode.",
+            ],
+        },
+    ),
+    (
+        "8.4",
+        Feature {
+            level: Should,
+            quote: [
+                "A server SHOULD treat the receipt of a",
+                "TLS ClientHello with a non-empty legacy_session_id field as a",
+                "connection error of type PROTOCOL_VIOLATION.",
+            ],
+        },
+    ),
+    (
+        "9.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Endpoints MUST implement and use the replay protections described in",
+                "[TLS13], however it is recognized that these protections are",
+                "imperfect.",
+            ],
+        },
+    ),
+    (
+        "9.2",
+        Feature {
+            level: Must,
+            quote: [
+                "These MUST NOT be",
+                "used to communicate application semantics between endpoints; clients",
+                "MUST treat them as opaque values.",
+            ],
+        },
+    ),
+    (
+        "9.2",
+        Feature {
+            level: Must,
+            quote: [
+                "These MUST NOT be",
+                "used to communicate application semantics between endpoints; clients",
+                "MUST treat them as opaque values.",
+            ],
+        },
+    ),
+    (
+        "9.2",
+        Feature {
+            level: Must,
+            quote: [
+                "An application",
+                "protocol that uses QUIC MUST describe how the protocol uses 0-RTT and",
+                "the measures that are employed to protect against replay attack.",
+            ],
+        },
+    ),
+    (
+        "9.2",
+        Feature {
+            level: Must,
+            quote: [
+                "QUIC extensions MUST either describe how replay attacks affect their",
+                "operation or prohibit the use of the extension in 0-RTT.",
+            ],
+        },
+    ),
+    (
+        "9.2",
+        Feature {
+            level: Must,
+            quote: [
+                "Application",
+                "protocols MUST either prohibit the use of extensions that carry",
+                "application semantics in 0-RTT or provide replay mitigation",
+                "strategies.",
+            ],
+        },
+    ),
+    (
+        "9.3",
+        Feature {
+            level: Must,
+            quote: [
+                "First, the packet",
+                "containing a ClientHello MUST be padded to a minimum size.",
+            ],
+        },
+    ),
+    (
+        "9.4",
+        Feature {
+            level: Must,
+            quote: [
+                "Future header protection variants based on this construction MUST use",
+                "a PRF to ensure equivalent security guarantees.",
+            ],
+        },
+    ),
+    (
+        "9.5",
+        Feature {
+            level: Must,
+            quote: [
+                "For authentication to be",
+                "free from side channels, the entire process of header protection",
+                "removal, packet number recovery, and packet protection removal MUST",
+                "be applied together without timing and other side channels.",
+            ],
+        },
+    ),
+    (
+        "9.5",
+        Feature {
+            level: Must,
+            quote: [
+                "For the sending of packets, construction and protection of packet",
+                "payloads and packet numbers MUST be free from side channels that",
+                "would reveal the packet number or its encoded size.",
+            ],
+        },
+    ),
+    (
+        "9.5",
+        Feature {
+            level: Should,
+            quote: [
+                "After",
+                "receiving a key update, an endpoint SHOULD generate and save the next",
+                "set of receive packet protection keys, as described in Section 6.3.",
+            ],
+        },
+    ),
+    (
+        "9.6",
+        Feature {
+            level: Should,
+            quote: [
+                "To preserve this separation, a new version of QUIC SHOULD define new",
+                "labels for key derivation for packet protection key and IV, plus the",
+                "header protection keys.",
+            ],
+        },
+    ),
+    (
+        "9.6",
+        Feature {
+            level: Should,
+            quote: [
+                "New QUIC versions SHOULD define a new salt value used in",
+                "calculating initial secrets.",
+            ],
+        },
+    ),
+]
