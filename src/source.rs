@@ -193,16 +193,14 @@ impl<'a> Todo<'a> {
 }
 
 fn normalize_quote(s: &str) -> String {
-    s
-        .lines()
-        .fold(String::new(), |mut s, l| {
-            let l = l.trim();
-            if !l.is_empty() && !s.is_empty() {
-                s.push(' ');
-            }
-            s.push_str(l);
-            s
-        })
+    s.lines().fold(String::new(), |mut s, l| {
+        let l = l.trim();
+        if !l.is_empty() && !s.is_empty() {
+            s.push(' ');
+        }
+        s.push_str(l);
+        s
+    })
 }
 
 #[cfg(test)]
@@ -216,10 +214,7 @@ mod tests {
         B
         C
         ";
-        assert_eq!(
-            normalize_quote(sample),
-            "A B C",
-        );
+        assert_eq!(normalize_quote(sample), "A B C",);
     }
 
     #[test]
@@ -232,9 +227,6 @@ mod tests {
             * C
               D
         ";
-        assert_eq!(
-            normalize_quote(sample),
-            "A: * B * C D",
-        );
+        assert_eq!(normalize_quote(sample), "A: * B * C D",);
     }
 }
