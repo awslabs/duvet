@@ -78,12 +78,10 @@ export function Requirements({ requirements, showSection }) {
       field: "section",
       headerName: "Section",
       valueGetter(params) {
-        return params.row.section.id;
+        return params.row;
       },
       sortComparator(v1, v2) {
-        v1 = v1.split('.').map((s) => s.length === 1 ? '0' + s : s).join('.');
-        v2 = v2.split('.').map((s) => s.length === 1 ? '0' + s : s).join('.');
-        return v1.localeCompare(v2);
+        return v2.cmp(v1);
       },
       renderCell(params) {
         const requirement = params.row;
@@ -115,14 +113,14 @@ export function Requirements({ requirements, showSection }) {
         field: "status",
         headerName: "Status",
         width: 150,
-        sortComparator(v1, v2) {
-          return v2[0] - v1[0];
-        },
         valueGetter(params) {
           return requirementStatus(params.row) || [];
         },
         valueFormatter(params) {
           return (params.value || requirementStatus(params.row))[1];
+        },
+        sortComparator(v1, v2) {
+          return v2[0] - v1[0];
         },
         cellClassName(params) {
           const cls = (params.value || requirementStatus(params.row))[2];
