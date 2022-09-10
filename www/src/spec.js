@@ -80,8 +80,10 @@ export function Requirements({ requirements, showSection }) {
       valueGetter(params) {
         return params.row.section.id;
       },
-      sortComparator(v1, v2, row1, row2) {
-        return row1.row.cmp(row2.row);
+      sortComparator(v1, v2) {
+        v1 = v1.split('.').map((s) => s.length === 1 ? '0' + s : s).join('.');
+        v2 = v2.split('.').map((s) => s.length === 1 ? '0' + s : s).join('.');
+        return v1.localeCompare(v2);
       },
       renderCell(params) {
         const requirement = params.row;
@@ -113,10 +115,8 @@ export function Requirements({ requirements, showSection }) {
         field: "status",
         headerName: "Status",
         width: 150,
-        sortComparator(v1, v2, row1, row2) {
-          const a = requirementStatus(row1.row)[0];
-          const b = requirementStatus(row2.row)[0];
-          return b - a;
+        sortComparator(v1, v2) {
+          return v2[0] - v1[0];
         },
         valueGetter(params) {
           return requirementStatus(params.row) || [];
@@ -135,7 +135,7 @@ export function Requirements({ requirements, showSection }) {
   function listColumn(params) {
     columns.push({
       width: 150,
-      sortComparator(v1, v2, row1, row2) {
+      sortComparator(v1, v2) {
         const a = v1.join(", ");
         const b = v2.join(", ");
         return a.localeCompare(b);
@@ -259,14 +259,16 @@ function StatsRow({ title, stats, ...props }) {
 }
 
 function requirementStatus(requirement) {
-  if (requirement.isComplete) return [1, "Complete", "success"];
-  if (requirement.isOk) return [2, "Exception", "info"];
-
+  if (requirement.isComplete)
+    return [1, "Complete", "success"];
+  if (requirement.isOk)
+    return [2, "Exception", "info"];
   if (requirement.spec === requirement.citation)
     return [4, "Missing test", "missingTest"];
   if (requirement.spec === requirement.test)
     return [5, "Missing citation", "missingCitation"];
-  if (requirement.todo) return [7, "Not started", "error"];
+  if (requirement.todo)
+    return [7, "Not started", "error"];
   if (requirement.incomplete === requirement.spec)
     return [8, "Unknown", "error"];
 
