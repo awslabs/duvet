@@ -1,0 +1,35 @@
+name: dependencies
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '.github/workflows/dependencies.yml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '.github/workflows/dependencies.yml'
+
+  schedule:
+    # run every morning at 10am Pacific Time
+    - cron: '0 17 * * *'
+
+jobs:
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Remove rust-toolchain"
+        run: rm rust-toolchain
+
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check --config .github/config/cargo-deny.toml
