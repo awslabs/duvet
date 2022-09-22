@@ -12,6 +12,7 @@ use core::{
 use std::collections::HashMap;
 
 pub mod ietf;
+pub mod markdown;
 
 #[derive(Default)]
 pub struct Specification<'a> {
@@ -45,6 +46,7 @@ impl<'a> Specification<'a> {
 pub enum Format {
     Auto,
     Ietf,
+    Markdown,
 }
 
 impl Default for Format {
@@ -55,10 +57,37 @@ impl Default for Format {
 
 impl Format {
     pub fn parse(self, contents: &str) -> Result<Specification, Error> {
-        match self {
-            Self::Auto => ietf::parse(contents),
+        let spec = match self {
+            Self::Auto => {
+                if contents.trim().starts_with('#') {
+                    markdown::parse(contents)
+                } else {
+                    ietf::parse(contents)
+                }
+            }
             Self::Ietf => ietf::parse(contents),
+            Self::Markdown => markdown::parse(contents),
+        }?;
+
+        if cfg!(debug_assertions) {
+            for section in spec.sections.values() {
+                for content in &section.lines {
+                    assert_eq!(
+                        content.value,
+                        &contents[content.range()],
+                        "ranges are incorrect expected {:?}, actual {:?}",
+                        {
+                            let start =
+                                (content.value.as_ptr() as usize) - (contents.as_ptr() as usize);
+                            start..(start + content.value.len())
+                        },
+                        content.range(),
+                    );
+                }
+            }
         }
+
+        Ok(spec)
     }
 }
 
@@ -69,6 +98,7 @@ impl FromStr for Format {
         match v {
             "AUTO" => Ok(Self::Auto),
             "IETF" => Ok(Self::Ietf),
+            "MARKDOWN" => Ok(Self::Markdown),
             _ => Err(anyhow!(format!("Invalid spec type {:?}", v))),
         }
     }

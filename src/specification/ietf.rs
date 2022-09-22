@@ -24,24 +24,6 @@ pub fn parse(contents: &str) -> Result<Specification, Error> {
 
     let spec = parser.done()?;
 
-    if cfg!(debug_assertions) {
-        for section in spec.sections.values() {
-            for content in &section.lines {
-                assert_eq!(
-                    content.value,
-                    &contents[content.range()],
-                    "ranges are incorrect expected {:?}, actual {:?}",
-                    {
-                        let start =
-                            (content.value.as_ptr() as usize) - (contents.as_ptr() as usize);
-                        start..(start + content.value.len())
-                    },
-                    content.range(),
-                );
-            }
-        }
-    }
-
     Ok(spec)
 }
 

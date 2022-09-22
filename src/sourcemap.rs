@@ -119,6 +119,12 @@ impl<'a> Deref for Str<'a> {
     }
 }
 
+impl<'a> From<Str<'a>> for &'a str {
+    fn from(s: Str<'a>) -> Self {
+        s.value
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
