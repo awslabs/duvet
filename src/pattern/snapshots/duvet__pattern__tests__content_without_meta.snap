@@ -1,0 +1,7 @@
+---
+source: src/pattern/tests.rs
+expression: "parse(\"//=,//#\", r#\"\n    //# This is some content without meta\n    \"#)"
+---
+Ok(
+    [],
+)
