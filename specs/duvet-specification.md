@@ -30,7 +30,7 @@ The first step in correct software is to document what correct behavior is.
 This document is called a specification.
 A specification can be a design document or an RFC.
 This specification document describes an application’s behaviors.
-What steps are important, in what order and why.
+It includes which steps are important, in what order, and why.
 Duvet lets you annotate your code with text from your specification.
 This helps clarify what a specific implementation should be doing and why.
 Any part of the specification can be an annotation.
@@ -60,8 +60,9 @@ This behavior is defined in regular human language.
 ## Section
 
 The top-level header for requirements is the name of a section.
-The name of the sections MUST NOT be nested.
-After the section's header, follows the body. Requirements defined inside the body MUST be associated to the section in which they are defined.
+After the section's header, follows the body.
+Requirements defined inside the body MUST be associated to the immediate section in which they are defined.
+This means requirements have one and only one section that they are associated with.
 A header MUST NOT itself be a requirement.
 
 A section MUST be indexable by combining different levels of naming.
@@ -161,10 +162,16 @@ that do not exist in a specification.
 The Meta: Locations for Annotations targeting specifications
 written in Markdown will NOT be identical to Locations targeting specifications written in IETF.
 
+### Meta: Key/Values parsing
+
+After the [Meta: Location](#meta-location) all additional meta data is a series of name/value pairs.
+The name MUST be the characters between the meta identifier and the first `=`.
+The value MUST be all characters after the first `=`.
+If consecutive duplicate names exist in a meta section
+the values MUST be concatenated with a `\n`.
 ### Meta: Type
 
 If the meta part is a single line then the type MUST be citation.
-If a second meta line exists it MUST start with `type=`.
 The type MUST be a valid annotation type string:
 
 - citation
@@ -176,9 +183,7 @@ The type MUST be a valid annotation type string:
 
 ### Meta: Reason
 
-A third meta line MAY exist: Reason. It MUST start with `reason=`.
-The rest of this line and the following meta lines MUST be parsed
-as the annotation’s reason until there are no more meta lines.
+The reason tag MUST start with `reason=`.
 
 ### Annotation Types
 
