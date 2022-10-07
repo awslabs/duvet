@@ -12,7 +12,7 @@ use anyhow::anyhow;
 use core::fmt;
 use rayon::prelude::*;
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
 };
 use structopt::StructOpt;
@@ -285,7 +285,7 @@ impl Report {
 
 #[derive(Debug)]
 pub struct ReportResult<'a> {
-    pub targets: HashMap<&'a Target, TargetReport<'a>>,
+    pub targets: BTreeMap<&'a Target, TargetReport<'a>>,
     pub annotations: &'a AnnotationSet,
     pub blob_link: Option<&'a str>,
     pub issue_link: Option<&'a str>,
