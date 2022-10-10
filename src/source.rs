@@ -29,7 +29,7 @@ impl<'a> SourceFile<'a> {
                 Ok(annotations)
             }
             Self::Spec(file) => {
-                let text = std::fs::read_to_string(&file)?;
+                let text = std::fs::read_to_string(file)?;
                 let specs = toml::from_str::<Specs>(&text)?;
                 for anno in specs.specs {
                     annotations.insert(anno.into_annotation(file.clone(), &specs.target)?);
