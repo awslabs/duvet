@@ -74,6 +74,13 @@ jobs:
 
       - uses: camshaft/rust-cache@v1
 
+      - name: Cache node_modules
+        uses: actions/cache@v3.0.3
+        continue-on-error: true
+        with:
+          path: www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
+
       - name: Build script.js
         run: |
           make www/public/script.js
@@ -105,6 +112,13 @@ jobs:
         with:
           crate: cargo-udeps
 
+      - name: Cache node_modules
+        uses: actions/cache@v3.0.3
+        continue-on-error: true
+        with:
+          path: www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
+
       - name: Build script.js
         run: |
           make www/public/script.js
@@ -135,6 +149,13 @@ jobs:
       - uses: camshaft/rust-cache@v1
         with:
           key: ${{ matrix.target }}
+
+      - name: Cache node_modules
+        uses: actions/cache@v3.0.3
+        continue-on-error: true
+        with:
+          path: www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
 
       - name: Build script.js
         run: |
