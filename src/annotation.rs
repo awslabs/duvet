@@ -116,8 +116,8 @@ impl Annotation {
 
         let mut manifest_dir = self.manifest_dir.clone();
         loop {
-            if manifest_dir.join(&file).is_file() {
-                return Ok(manifest_dir.join(&file));
+            if manifest_dir.join(file).is_file() {
+                return Ok(manifest_dir.join(file));
             }
 
             if !manifest_dir.pop() {

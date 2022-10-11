@@ -44,7 +44,7 @@ macro_rules! record {
 }
 
 pub fn report(report: &ReportResult, dir: &Path) -> Result<(), Error> {
-    std::fs::create_dir_all(&dir)?;
+    std::fs::create_dir_all(dir)?;
     let lcov_dir = dir.canonicalize()?;
     report
         .targets
