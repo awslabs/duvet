@@ -102,7 +102,7 @@ Table cells MAY contain a period (.) or exclamation point (!)
 and this punctuation MUST NOT terminate the requirement
 by excluding the following rows from the table of requirements.
 
-### Legacy Requirement
+### Restrictive Requirement Parsing 
 
 Older versions of Duvet were more restrictive in parsing requirements.
 They did not treat elements of lists or rows in a table as individual elements.
@@ -156,8 +156,11 @@ The URL MUST contain a URL fragment that uniquely identifies
 the section that contains this content.
 If the URL only contains a URL fragment
 then this content only exists as an annotation.
-Such comments are useful to use Duvet to manage implementation specific requirements
-that do not exist in a specification.
+The scope of such a fragment
+is defined by all the files given to Duvet analyze.
+Formatting such comments for Duvet
+lets Duvet track these implementation specific requirements
+and require tests/evidence of their correctness.
 
 The Meta: Locations for Annotations targeting specifications
 written in Markdown will NOT be identical to Locations targeting specifications written in IETF.
@@ -207,6 +210,8 @@ Each type is listed here with its intended usage.
   In a static strongly typed language the arguments of a function can not change.
   So an implication could be a good choice to express that the implementation satisfies this requirement.
 - TODO: The suggested location for the implementation.
+- feature
+- tracking-issue
 
 ### Content
 
