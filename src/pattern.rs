@@ -10,6 +10,9 @@ use crate::{
 use anyhow::anyhow;
 use std::path::Path;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct Pattern<'a> {
     meta: &'a str,
@@ -46,57 +49,24 @@ impl<'a> Pattern<'a> {
     ) -> Result<(), Error> {
         let mut state = ParserState::Search;
 
-        for Str {
-            value: line,
-            line: line_no,
-            ..
-        } in LinesIter::new(source)
-        {
-            let content = line.trim_start();
-
-            match core::mem::replace(&mut state, ParserState::Search) {
-                ParserState::Search => {
-                    let content = if let Some(content) = content.strip_prefix(self.meta) {
-                        content
-                    } else {
-                        continue;
-                    };
-
-                    if content.is_empty() {
-                        continue;
-                    }
-
-                    let indent = line.len() - content.len();
-                    let mut capture = Capture::new(line_no, indent);
-                    capture.push_meta(content)?;
-
-                    state = ParserState::CapturingMeta(capture);
-                }
-                ParserState::CapturingMeta(mut capture) => {
-                    if let Some(meta) = content.strip_prefix(self.meta) {
-                        capture.push_meta(meta)?;
-                        state = ParserState::CapturingMeta(capture);
-                    } else if let Some(content) = content.strip_prefix(self.content) {
-                        capture.push_content(content);
-                        state = ParserState::CapturingContent(capture);
-                    } else {
-                        annotations.insert(capture.done(line_no, path)?);
-                    }
-                }
-                ParserState::CapturingContent(mut capture) => {
-                    if content.starts_with(self.meta) {
-                        return Err(anyhow!("cannot set metadata while parsing content"));
-                    } else if let Some(content) = content.strip_prefix(self.content) {
-                        capture.push_content(content);
-                        state = ParserState::CapturingContent(capture);
-                    } else {
-                        annotations.insert(capture.done(line_no, path)?);
-                    }
-                }
-            }
+        let mut last_line = 0;
+        for Str { value, line, .. } in LinesIter::new(source) {
+            state.on_line(path, annotations, self, value, line)?;
+            last_line = line;
         }
 
+        // make sure we finish off the state machine
+        state.on_line(path, annotations, self, "", last_line)?;
+
         Ok(())
+    }
+
+    fn try_meta<'b>(&self, line: &'b str) -> Option<&'b str> {
+        line.strip_prefix(self.meta)
+    }
+
+    fn try_content<'b>(&self, line: &'b str) -> Option<&'b str> {
+        line.strip_prefix(self.content)
     }
 }
 
@@ -104,6 +74,62 @@ enum ParserState<'a> {
     Search,
     CapturingMeta(Capture<'a>),
     CapturingContent(Capture<'a>),
+}
+
+impl<'a> ParserState<'a> {
+    fn on_line(
+        &mut self,
+        path: &Path,
+        annotations: &mut AnnotationSet,
+        pattern: &Pattern,
+        line: &'a str,
+        line_no: usize,
+    ) -> Result<(), Error> {
+        let content = line.trim_start();
+
+        match core::mem::replace(self, ParserState::Search) {
+            ParserState::Search => {
+                let content = if let Some(content) = pattern.try_meta(content) {
+                    content
+                } else {
+                    return Ok(());
+                };
+
+                if content.is_empty() {
+                    return Ok(());
+                }
+
+                let indent = line.len() - content.len();
+                let mut capture = Capture::new(line_no, indent);
+                capture.push_meta(content)?;
+
+                *self = ParserState::CapturingMeta(capture);
+            }
+            ParserState::CapturingMeta(mut capture) => {
+                if let Some(meta) = pattern.try_meta(content) {
+                    capture.push_meta(meta)?;
+                    *self = ParserState::CapturingMeta(capture);
+                } else if let Some(content) = pattern.try_content(content) {
+                    capture.push_content(content);
+                    *self = ParserState::CapturingContent(capture);
+                } else {
+                    annotations.insert(capture.done(line_no, path)?);
+                }
+            }
+            ParserState::CapturingContent(mut capture) => {
+                if pattern.try_meta(content).is_some() {
+                    return Err(anyhow!("cannot set metadata while parsing content"));
+                } else if let Some(content) = pattern.try_content(content) {
+                    capture.push_content(content);
+                    *self = ParserState::CapturingContent(capture);
+                } else {
+                    annotations.insert(capture.done(line_no, path)?);
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]

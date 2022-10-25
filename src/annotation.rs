@@ -71,7 +71,7 @@ impl Annotation {
     }
 
     pub fn target_path(&self) -> &str {
-        self.target.splitn(2, '#').next().unwrap()
+        self.target_parts().0
     }
 
     // The JSON file needs to index the specification
@@ -92,12 +92,20 @@ impl Annotation {
     }
 
     pub fn target_section(&self) -> Option<&str> {
-        self.target.splitn(2, '#').nth(1).map(|section| {
+        self.target_parts().1.map(|section| {
             // allow references to specify a #section-123 instead of #123
             section
                 .trim_start_matches("section-")
                 .trim_start_matches("appendix-")
         })
+    }
+
+    fn target_parts(&self) -> (&str, Option<&str>) {
+        self.target
+            .split_once('#')
+            .map_or((&self.target, None), |(path, section)| {
+                (path, Some(section))
+            })
     }
 
     pub fn resolve_file(&self, file: &Path) -> Result<PathBuf, Error> {
@@ -108,8 +116,8 @@ impl Annotation {
 
         let mut manifest_dir = self.manifest_dir.clone();
         loop {
-            if manifest_dir.join(&file).is_file() {
-                return Ok(manifest_dir.join(&file));
+            if manifest_dir.join(file).is_file() {
+                return Ok(manifest_dir.join(file));
             }
 
             if !manifest_dir.pop() {
@@ -156,7 +164,7 @@ impl fmt::Display for AnnotationType {
             Self::Citation => "CITATION",
             Self::Exception => "EXCEPTION",
             Self::Todo => "TODO",
-            Self::Implication => "IMPLICATION"
+            Self::Implication => "IMPLICATION",
         })
     }
 }

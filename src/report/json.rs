@@ -197,7 +197,7 @@ pub fn report_writer<Output: Write>(
                                 }
                                 status!(spec);
                                 status!(incomplete);
-                                status!(citation); 
+                                status!(citation);
                                 status!(implication);
                                 status!(test);
                                 status!(exception);

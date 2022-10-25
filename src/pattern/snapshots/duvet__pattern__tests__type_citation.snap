@@ -1,0 +1,26 @@
+---
+source: src/pattern/tests.rs
+expression: "parse(\"//=,//#\",\n    r#\"\n    //= https://example.com/spec.txt\n    //# Here is my citation\n    \"#)"
+---
+Ok(
+    [
+        Annotation {
+            source: "file.rs",
+            anno_line: 2,
+            anno_column: 7,
+            item_line: 4,
+            item_column: 0,
+            path: "",
+            anno: Citation,
+            target: "https://example.com/spec.txt",
+            quote: "Here is my citation",
+            comment: "",
+            manifest_dir: "/",
+            level: Auto,
+            format: Auto,
+            tracking_issue: "",
+            feature: "",
+            tags: {},
+        },
+    ],
+)

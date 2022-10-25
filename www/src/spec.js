@@ -1,5 +1,5 @@
 import { makeStyles } from "@material-ui/core/styles";
-import { DataGrid } from "@material-ui/data-grid";
+import { DataGrid } from "@mui/x-data-grid";
 import Table from "@material-ui/core/Table";
 import TableBody from "@material-ui/core/TableBody";
 import TableCell from "@material-ui/core/TableCell";
@@ -78,10 +78,10 @@ export function Requirements({ requirements, showSection }) {
       field: "section",
       headerName: "Section",
       valueGetter(params) {
-        return params.row.section.id;
+        return params.row;
       },
-      sortComparator(v1, v2, row1, row2) {
-        return row1.row.cmp(row2.row);
+      sortComparator(v1, v2) {
+        return v1.cmp(v2);
       },
       renderCell(params) {
         const requirement = params.row;
@@ -113,16 +113,14 @@ export function Requirements({ requirements, showSection }) {
         field: "status",
         headerName: "Status",
         width: 150,
-        sortComparator(v1, v2, row1, row2) {
-          const a = requirementStatus(row1.row)[0];
-          const b = requirementStatus(row2.row)[0];
-          return b - a;
-        },
         valueGetter(params) {
           return requirementStatus(params.row) || [];
         },
         valueFormatter(params) {
           return (params.value || requirementStatus(params.row))[1];
+        },
+        sortComparator(v1, v2) {
+          return v1[0] - v2[0];
         },
         cellClassName(params) {
           const cls = (params.value || requirementStatus(params.row))[2];
@@ -135,7 +133,7 @@ export function Requirements({ requirements, showSection }) {
   function listColumn(params) {
     columns.push({
       width: 150,
-      sortComparator(v1, v2, row1, row2) {
+      sortComparator(v1, v2) {
         const a = v1.join(", ");
         const b = v2.join(", ");
         return a.localeCompare(b);
@@ -196,6 +194,7 @@ export function Requirements({ requirements, showSection }) {
         autoHeight={true}
         rows={requirements}
         columns={columns}
+        sortingOrder={['desc', 'asc', null]}
       />
     </div>
   );
@@ -259,14 +258,16 @@ function StatsRow({ title, stats, ...props }) {
 }
 
 function requirementStatus(requirement) {
-  if (requirement.isComplete) return [1, "Complete", "success"];
-  if (requirement.isOk) return [2, "Exception", "info"];
-
+  if (requirement.isComplete)
+    return [1, "Complete", "success"];
+  if (requirement.isOk)
+    return [2, "Exception", "info"];
   if (requirement.spec === requirement.citation)
     return [4, "Missing test", "missingTest"];
   if (requirement.spec === requirement.test)
     return [5, "Missing citation", "missingCitation"];
-  if (requirement.todo) return [7, "Not started", "error"];
+  if (requirement.todo)
+    return [7, "Not started", "error"];
   if (requirement.incomplete === requirement.spec)
     return [8, "Unknown", "error"];
 
