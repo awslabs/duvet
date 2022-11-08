@@ -59,7 +59,11 @@ impl Format {
     pub fn parse(self, contents: &str) -> Result<Specification, Error> {
         let spec = match self {
             Self::Auto => {
-                if contents.trim().starts_with('#') {
+                // Markdown MAY start with a header (#),
+                // but it also MAY start with a license/copyright.
+                // In which case it is probably start something like
+                // [//]: "Copyright Foo"
+                if contents.trim().starts_with('#') || contents.trim().starts_with("[//]:") {
                     markdown::parse(contents)
                 } else {
                     ietf::parse(contents)
