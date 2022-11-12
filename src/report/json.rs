@@ -5,6 +5,7 @@ use super::{Reference, ReportResult, TargetReport};
 use crate::{
     annotation::{AnnotationLevel, AnnotationType},
     sourcemap::Str,
+    specification::Line,
 };
 use rayon::prelude::*;
 use std::{
@@ -309,20 +310,22 @@ pub fn report_source<Output: Write>(
                                 s!("lines"),
                                 arr!(|arr| {
                                     for line in &section.lines {
-                                        item!(
-                                            arr,
-                                            if let Some(refs) = references.get(&line.line) {
-                                                report_references(
-                                                    line,
-                                                    refs,
-                                                    &mut requirements,
-                                                    output,
-                                                )?;
-                                            } else {
-                                                // the line has no annotations so just print it
-                                                s!(line);
-                                            }
-                                        )
+                                        if let Line::Str(line) = line {
+                                            item!(
+                                                arr,
+                                                if let Some(refs) = references.get(&line.line) {
+                                                    report_references(
+                                                        line,
+                                                        refs,
+                                                        &mut requirements,
+                                                        output,
+                                                    )?;
+                                                } else {
+                                                    // the line has no annotations so just print it
+                                                    s!(line);
+                                                }
+                                            )
+                                        }
                                     }
                                 })
                             );

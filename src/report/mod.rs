@@ -138,19 +138,19 @@ impl Report {
                 let mut results = vec![];
 
                 if let Some(section_id) = section_id {
-                    if let Some(section) = spec.sections.get(section_id) {
+                    if let Some(section) = spec.sections.get(*section_id) {
                         let contents = section.contents();
 
                         for (annotation_id, annotation) in annotations {
                             if annotation.quote.is_empty() {
                                 // empty quotes don't count towards coverage but are still
                                 // references
-                                let title = section.title;
-                                let range = title.range();
+                                let line = section.full_title.line;
+                                let range = section.full_title.range();
                                 results.push(Ok((
                                     target,
                                     Reference {
-                                        line: title.line,
+                                        line,
                                         start: range.start,
                                         end: range.end,
                                         annotation,

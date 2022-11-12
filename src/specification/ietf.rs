@@ -50,6 +50,7 @@ impl<'a> Default for ParserState<'a> {
 }
 
 fn section_header(line: Str) -> Option<(Str, Section)> {
+    let full_title = line;
     if let Some(info) = SECTION_HEADER_RE.captures(&line) {
         let id = info.get(1)?;
         let title = info.get(3)?;
@@ -59,14 +60,14 @@ fn section_header(line: Str) -> Option<(Str, Section)> {
         }
 
         let id = line.slice(id.range()).trim_end_matches('.');
-        let title = line.slice(title.range());
+        let title = line.slice(title.range()).to_string();
 
         Some((
             id,
             Section {
-                id,
+                id: id.to_string(),
                 title,
-                full_title: line.trim(),
+                full_title,
                 lines: vec![],
             },
         ))
@@ -79,14 +80,14 @@ fn section_header(line: Str) -> Option<(Str, Section)> {
         }
 
         let id = line.slice(id.range()).trim_end_matches('.');
-        let title = line.slice(title.range());
+        let title = line.slice(title.range()).to_string();
 
         Some((
             id,
             Section {
-                id,
+                id: id.to_string(),
                 title,
-                full_title: line.trim(),
+                full_title,
                 lines: vec![],
             },
         ))
@@ -123,7 +124,7 @@ impl<'a> Parser<'a> {
                 if line_indent == line.len()
                     && section.lines.last().map(|l| !l.is_empty()).unwrap_or(false)
                 {
-                    section.lines.push(line.trim());
+                    section.lines.push(line.trim().into());
 
                     // most likely the footer/header
                     self.state = ParserState::Section {
@@ -155,7 +156,7 @@ impl<'a> Parser<'a> {
                     return Ok(());
                 }
 
-                section.lines.push(line);
+                section.lines.push(line.into());
 
                 self.state = ParserState::Section {
                     id,
@@ -170,9 +171,11 @@ impl<'a> Parser<'a> {
 
     fn on_section(&mut self, id: Str<'a>, mut section: Section<'a>, indent: usize) {
         for content in &mut section.lines {
-            if !content.is_empty() {
-                let range = indent..content.len();
-                *content = content.slice(range);
+            if let super::Line::Str(content) = content {
+                if !content.is_empty() {
+                    let range = indent..content.len();
+                    *content = content.slice(range);
+                }
             }
         }
 
@@ -181,7 +184,7 @@ impl<'a> Parser<'a> {
             section.lines.pop();
         }
 
-        self.spec.sections.insert(id.value, section);
+        self.spec.sections.insert(id.to_string(), section);
     }
 
     pub fn done(mut self) -> Result<Specification<'a>, Error> {

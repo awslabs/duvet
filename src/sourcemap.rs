@@ -85,6 +85,21 @@ impl<'a> Str<'a> {
         }
     }
 
+    pub fn substr(&self, other: &str) -> Option<Self> {
+        let s_start = self.value.as_ptr() as usize;
+        let o_start = other.as_ptr() as usize;
+
+        let start = o_start.checked_sub(s_start)?;
+        let end = start.checked_add(other.len())?;
+        let range = start..end;
+
+        if self.range().end < end {
+            return None;
+        }
+
+        Some(self.slice(range))
+    }
+
     pub fn range(&self) -> Range<usize> {
         let pos = self.pos;
         pos..(pos + self.value.len())

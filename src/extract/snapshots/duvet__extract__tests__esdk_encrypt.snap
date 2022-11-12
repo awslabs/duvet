@@ -1,0 +1,1119 @@
+---
+source: src/extract/tests.rs
+expression: results
+---
+[
+    (
+        "overview",
+        Feature {
+            level: Must,
+            quote: [
+                "Any client provided by the AWS Encryption SDK that performs encryption of caller plaintext MUST follow",
+                "this specification for encryption.",
+            ],
+        },
+    ),
+    (
+        "input",
+        Feature {
+            level: Must,
+            quote: [
+                "The following inputs to this behavior are REQUIRED:",
+            ],
+        },
+    ),
+    (
+        "input",
+        Feature {
+            level: Must,
+            quote: [
+                "The following inputs to this behavior MUST be OPTIONAL:",
+            ],
+        },
+    ),
+    (
+        "input",
+        Feature {
+            level: May,
+            quote: [
+                "If the [plaintext ](#plaintext) is of unknown length, the caller MAY also input a",
+                "[Plaintext Length Bound](#plaintext-length-bound).",
+            ],
+        },
+    ),
+    (
+        "input",
+        Feature {
+            level: Should,
+            quote: [
+                "Implementations SHOULD ensure that a caller is not able to specify both a [plaintext ](#plaintext)",
+                "with known length and a [Plaintext Length Bound](#plaintext-length-bound) by construction.",
+            ],
+        },
+    ),
+    (
+        "input",
+        Feature {
+            level: Must,
+            quote: [
+                "If a caller is able to specify both an input [plaintext ](#plaintext) with known length and",
+                "a [Plaintext Length Bound](#plaintext-length-bound),",
+                "the [Plaintext Length Bound](#plaintext-length-bound) MUST NOT be used during the Encrypt operation",
+                "and MUST be ignored.",
+            ],
+        },
+    ),
+    (
+        "input",
+        Feature {
+            level: Must,
+            quote: [
+                "If a caller is able to specify both an input [plaintext ](#plaintext) with known length and",
+                "a [Plaintext Length Bound](#plaintext-length-bound),",
+                "the [Plaintext Length Bound](#plaintext-length-bound) MUST NOT be used during the Encrypt operation",
+                "and MUST be ignored.",
+            ],
+        },
+    ),
+    (
+        "plaintext",
+        Feature {
+            level: Must,
+            quote: [
+                "This MUST be a sequence of bytes.",
+            ],
+        },
+    ),
+    (
+        "plaintext",
+        Feature {
+            level: May,
+            quote: [
+                "This input MAY be [streamed](streaming.md) to this operation.",
+            ],
+        },
+    ),
+    (
+        "plaintext",
+        Feature {
+            level: Should,
+            quote: [
+                "If an implementation requires holding the input entire plaintext in memory in order to perform this operation,",
+                "that implementation SHOULD NOT provide an API that allows this input to be streamed.",
+            ],
+        },
+    ),
+    (
+        "frame-length",
+        Feature {
+            level: Must,
+            quote: [
+                "This value MUST be greater than 0 and MUST NOT exceed the value 2^32 - 1.",
+            ],
+        },
+    ),
+    (
+        "frame-length",
+        Feature {
+            level: Must,
+            quote: [
+                "This value MUST be greater than 0 and MUST NOT exceed the value 2^32 - 1.",
+            ],
+        },
+    ),
+    (
+        "frame-length",
+        Feature {
+            level: Must,
+            quote: [
+                "This value MUST default to 4096 bytes.",
+            ],
+        },
+    ),
+    (
+        "plaintext-length-bound",
+        Feature {
+            level: Must,
+            quote: [
+                "If this input is provided, this operation MUST NOT encrypt a plaintext with length",
+                "greater than this value.",
+            ],
+        },
+    ),
+    (
+        "output",
+        Feature {
+            level: Must,
+            quote: [
+                "This behavior MUST output the following if the behavior is successful:",
+            ],
+        },
+    ),
+    (
+        "output",
+        Feature {
+            level: Should,
+            quote: [
+                "The client SHOULD return as an output:",
+            ],
+        },
+    ),
+    (
+        "encrypted-message",
+        Feature {
+            level: Must,
+            quote: [
+                "This MUST be a sequence of bytes",
+                "and conform to the [message format specification](../data-format/message.md).",
+            ],
+        },
+    ),
+    (
+        "encrypted-message",
+        Feature {
+            level: May,
+            quote: [
+                "This operation MAY [stream](streaming.md) the encrypted message.",
+            ],
+        },
+    ),
+    (
+        "encrypted-message",
+        Feature {
+            level: Should,
+            quote: [
+                "If an implementation requires holding the entire input plaintext in memory in order to perform this operation,",
+                "that implementation SHOULD NOT provide an API that allows this output to be streamed.",
+            ],
+        },
+    ),
+    (
+        "encryption-context",
+        Feature {
+            level: May,
+            quote: [
+                "This output MAY be satisfied by outputting a [parsed header](#parsed-header) containing this value.",
+            ],
+        },
+    ),
+    (
+        "algorithm-suite",
+        Feature {
+            level: May,
+            quote: [
+                "This output MAY be satisfied by outputting a [parsed header](#parsed-header) containing this value.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "- If the [encryption materials gathered](#get-the-encryption-materials) has a algorithm suite",
+                "including a [signature algorithm](../framework/algorithm-suites.md#signature-algorithm),",
+                "the encrypt operation MUST perform this step.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "Otherwise the encrypt operation MUST NOT perform this step.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST perform all the above steps unless otherwise specified,",
+                "and it MUST perform them in the above order.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST perform all the above steps unless otherwise specified,",
+                "and it MUST perform them in the above order.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "Any data that is not specified within the [message format](../data-format/message.md)",
+                "MUST NOT be added to the output message.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "If any of these steps fails, this operation MUST halt and indicate a failure to the caller.",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "If an [input algorithm suite](#algorithm-suite) is provided",
+                "that is not supported by the [commitment policy](client.md#commitment-policy)",
+                "configured in the [client](client.md) encrypt MUST yield an error.",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "To construct the [encrypted message](#encrypted-message),",
+                "some fields MUST be constructed using information obtained",
+                "from a set of valid [encryption materials](../framework/structures.md#encryption-materials).",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST obtain this set of [encryption materials](../framework/structures.md#encryption-materials)",
+                "by calling [Get Encryption Materials](../framework/cmm-interface.md#get-encryption-materials) on a [CMM](../framework/cmm-interface.md).",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "The CMM used MUST be the input CMM, if supplied.",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "If instead the caller supplied a [keyring](../framework/keyring-interface.md),",
+                "this behavior MUST use a [default CMM](../framework/default-cmm.md)",
+                "constructed using the caller-supplied keyring as input.",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "The call to [Get Encryption Materials](../framework/cmm-interface.md#get-encryption-materials)",
+                "on that CMM MUST be constructed as follows:",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "- Max Plaintext Length: If the [input plaintext](#plaintext) has known length,",
+                "this length MUST be used.",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "The [algorithm suite](../framework/algorithm-suites.md) used in all aspects of this operation",
+                "MUST be the algorithm suite in the [encryption materials](../framework/structures.md#encryption-materials)",
+                "returned from the [Get Encryption Materials](../framework/cmm-interface.md#get-encryption-materials) call.",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: May,
+            quote: [
+                "Note that the algorithm suite in the retrieved encryption materials MAY be different",
+                "from the [input algorithm suite](#algorithm-suite).",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "If this [algorithm suite](../framework/algorithm-suites.md) is not supported by the [commitment policy](client.md#commitment-policy)",
+                "configured in the [client](client.md) encrypt MUST yield an error.",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "If the number of [encrypted data keys](../framework/structures.md#encrypted-data-keys) on the [encryption materials](../framework/structures.md#encryption-materials)",
+                "is greater than the [maximum number of encrypted data keys](client.md#maximum-number-of-encrypted-data-keys) configured in the [client](client.md) encrypt MUST yield an error.",
+            ],
+        },
+    ),
+    (
+        "get-the-encryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "The algorithm used to derive a data key from the plaintext data key MUST be",
+                "the [key derivation algorithm](../framework/algorithm-suites.md#key-derivation-algorithm) included in the",
+                "[algorithm suite](../framework/algorithm-suites.md) defined above.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "Before encrypting input plaintext,",
+                "this operation MUST serialize the [message header body](../data-format/message-header.md).",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "The [message format version](../data-format/message-header.md#supported-versions) MUST be associated with the [algorithm suite](../framework/algorithm-suites.md#supported-algorithm-suites).",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "If the message format version associated with the [algorithm suite](../framework/algorithm-suites.md#supported-algorithm-suites) is 2.0",
+                "then the [message header body](../data-format/message-header.md#header-body-version-1-0) MUST be serialized with the following specifics:",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Version](../data-format/message-header.md#version-1): MUST have a value corresponding to",
+                "[2.0](../data-format/message-header.md#supported-versions)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Algorithm Suite ID](../data-format/message-header.md#algorithm-suite-id): MUST correspond to",
+                "the [algorithm suite](../framework/algorithm-suites.md) used in this behavior",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Message ID](../data-format/message-header.md#message-id): The process used to generate",
+                "this identifier MUST use a good source of randomness to make the chance of duplicate identifiers negligible.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [AAD](../data-format/message-header.md#aad): MUST be the serialization of the [encryption context](../framework/structures.md#encryption-context)",
+                "in the [encryption materials](../framework/structures.md#encryption-materials)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Encrypted Data Keys](../data-format/message-header.md#encrypted-data-key-entries): MUST be the serialization of the",
+                "[encrypted data keys](../framework/structures.md#encrypted-data-keys) in the [encryption materials](../framework/structures.md#encryption-materials)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Content Type](../data-format/message-header.md#content-type): MUST be [02](../data-format/message-header.md#supported-content-types)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Frame Length](../data-format/message-header.md#frame-length): MUST be the value of the frame size determined above.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Algorithm Suite Data](../data-format/message-header.md#algorithm-suite-data): MUST be the value of the [commit key](../framework/algorithm-suites.md#commit-key)",
+                "derived according to the [algorithm suites commit key derivation settings](../framework/algorithm-suites.md#algorithm-suites-commit-key-derivation-settings).",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "If the message format version associated with the [algorithm suite](../framework/algorithm-suites.md#supported-algorithm-suites) is 1.0",
+                "then the [message header body](../data-format/message-header.md#header-body-version-1-0) MUST be serialized with the following specifics:",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Version](../data-format/message-header.md#version-1): MUST have a value corresponding to",
+                "[1.0](../data-format/message-header.md#supported-versions)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Type](../data-format/message-header.md#type): MUST have a value corresponding to",
+                "[Customer Authenticated Encrypted Data](../data-format/message-header.md#supported-types)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Algorithm Suite ID](../data-format/message-header.md#algorithm-suite-id): MUST correspond to",
+                "the [algorithm suite](../framework/algorithm-suites.md) used in this behavior",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Message ID](../data-format/message-header.md#message-id): The process used to generate",
+                "this identifier MUST use a good source of randomness to make the chance of duplicate identifiers negligible.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [AAD](../data-format/message-header.md#aad): MUST be the serialization of the [encryption context](../framework/structures.md#encryption-context)",
+                "in the [encryption materials](../framework/structures.md#encryption-materials)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Encrypted Data Keys](../data-format/message-header.md#encrypted-data-key-entries): MUST be the serialization of the",
+                "[encrypted data keys](../framework/structures.md#encrypted-data-keys) in the [encryption materials](../framework/structures.md#encryption-materials)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Content Type](../data-format/message-header.md#content-type): MUST be [02](../data-format/message-header.md#supported-content-types)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [IV Length](../data-format/message-header.md#iv-length): MUST match the [IV length](../framework/algorithm-suites.md#iv-length)",
+                "specified by the [algorithm suite](../framework/algorithm-suites.md)",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Frame Length](../data-format/message-header.md#frame-length): MUST be the value of the frame size determined above.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "After serializing the message header body,",
+                "this operation MUST calculate an [authentication tag](../data-format/message-header.md#authentication-tag)",
+                "over the message header body.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "The value of this MUST be the output of the [authenticated encryption algorithm](../framework/algorithm-suites.md#encryption-algorithm)",
+                "specified by the [algorithm suite](../framework/algorithm-suites.md), with the following inputs:",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "With the authentication tag calculated,",
+                "if the message format version associated with the [algorithm suite](../framework/algorithm-suites.md#supported-algorithm-suites) is 2.0,",
+                "this operation MUST serialize the [message header authentication](../data-format/message-header.md#header-authentication-version-2-0) with the following specifics:",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Authentication Tag](../data-format/message-header.md#authentication-tag): MUST have the value",
+                "of the authentication tag calculated above.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "If the message format version associated with the [algorithm suite](../framework/algorithm-suites.md#supported-algorithm-suites) is 1.0",
+                "this operation MUST serialize the [message header authentication](../data-format/message-header.md#header-authentication-version-1-0) with the following specifics:",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [IV](../data-format/message-header.md#iv): MUST have the value of the IV used in the calculation above,",
+                "padded to the [IV length](../data-format/message-header.md#iv-length) with 0.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Authentication Tag](../data-format/message-header.md#authentication-tag): MUST have the value",
+                "of the authentication tag calculated above.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "The serialized bytes MUST NOT be released until the entire message header has been serialized",
+                "If this operation is streaming the encrypted message and",
+                "the entire message header has been serialized,",
+                "the serialized message header SHOULD be released.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "The encrypted message output by this operation MUST have a message header equal",
+                "to the message header calculated in this step.",
+            ],
+        },
+    ),
+    (
+        "construct-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "If the algorithm suite contains a signature algorithm and",
+                "this operation is [streaming](streaming.md) the encrypted message output to the caller,",
+                "this operation MUST input the serialized header to the signature algorithm as soon as it is serialized,",
+                "such that the serialized header isn't required to remain in memory to [construct the signature](#construct-the-signature).",
+            ],
+        },
+    ),
+    (
+        "construct-the-body",
+        Feature {
+            level: Must,
+            quote: [
+                "The encrypted message output by this operation MUST have a message body equal",
+                "to the message body calculated in this step.",
+            ],
+        },
+    ),
+    (
+        "construct-the-body",
+        Feature {
+            level: Must,
+            quote: [
+                "If [Plaintext Length Bound](#plaintext-length-bound) was specified on input",
+                "and this operation determines at any time that the plaintext being encrypted",
+                "has a length greater than this value,",
+                "this operation MUST immediately fail.",
+            ],
+        },
+    ),
+    (
+        "construct-the-body",
+        Feature {
+            level: Must,
+            quote: [
+                "Before the end of the input is indicated,",
+                "this operation MUST process as much of the consumable bytes as possible",
+                "by [constructing regular frames](#construct-a-frame).",
+            ],
+        },
+    ),
+    (
+        "construct-the-body",
+        Feature {
+            level: Must,
+            quote: [
+                "When the end of the input is indicated,",
+                "this operation MUST perform the following until all consumable plaintext bytes are processed:",
+            ],
+        },
+    ),
+    (
+        "construct-the-body",
+        Feature {
+            level: Must,
+            quote: [
+                "- If there are exactly enough consumable plaintext bytes to create one regular frame,",
+                "such that creating a regular frame processes all consumable bytes,",
+                "then this operation MUST [construct either a final frame or regular frame](#construct-a-frame)",
+                "with the remaining plaintext.",
+            ],
+        },
+    ),
+    (
+        "construct-the-body",
+        Feature {
+            level: Must,
+            quote: [
+                "- If there are enough input plaintext bytes consumable to create a new regular frame,",
+                "such that creating a regular frame does not processes all consumable bytes,",
+                "then this operation MUST [construct a regular frame](#construct-a-frame)",
+                "using the consumable plaintext bytes.",
+            ],
+        },
+    ),
+    (
+        "construct-the-body",
+        Feature {
+            level: Must,
+            quote: [
+                "- If there are not enough input consumable plaintext bytes to create a new regular frame,",
+                "then this operation MUST [construct a final frame](#construct-a-frame)",
+            ],
+        },
+    ),
+    (
+        "construct-the-body",
+        Feature {
+            level: Must,
+            quote: [
+                "If an end to the input has been indicated, there are no more consumable plaintext bytes to process,",
+                "and a final frame has not yet been constructed,",
+                "this operation MUST [construct an empty final frame](#construct-a-frame).",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "To construct a regular or final frame that represents the next frame in the encrypted message's body,",
+                "this operation MUST calculate the encrypted content and an authentication tag using the",
+                "[authenticated encryption algorithm](../framework/algorithm-suites.md#encryption-algorithm)",
+                "specified by the [algorithm suite](../framework/algorithm-suites.md),",
+                "with the following inputs:",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "If this is the first frame sequentially, this value MUST be 1.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "Otherwise, this value MUST be 1 greater than the value of the sequence number",
+                "of the previous frame.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- The [content length](../data-format/message-body-aad.md#content-length) MUST have a value",
+                "equal to the length of the plaintext being encrypted.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- For a regular frame the length of this plaintext MUST equal the frame length.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- For a final frame this MUST be the length of the remaining plaintext bytes",
+                "which have not yet been encrypted,",
+                "whose length MUST be equal to or less than the frame length.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- For a final frame this MUST be the length of the remaining plaintext bytes",
+                "which have not yet been encrypted,",
+                "whose length MUST be equal to or less than the frame length.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- For a regular frame the length of this plaintext subsequence MUST equal the frame length.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- For a final frame this MUST be the remaining plaintext bytes which have not yet been encrypted,",
+                "whose length MUST be equal to or less than the frame length.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- For a final frame this MUST be the remaining plaintext bytes which have not yet been encrypted,",
+                "whose length MUST be equal to or less than the frame length.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST serialize a regular frame or final frame with the following specifics:",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Sequence Number](../data-format/message-body.md#sequence-number): MUST be the sequence number of this frame,",
+                "as determined above.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- [IV](../data-format/message-body.md#iv): MUST be the IV used when calculating the encrypted content above",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Encrypted Content](../data-format/message-body.md#encrypted-content): MUST be the encrypted content calculated above.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Authentication Tag](../data-format/message-body.md#authentication-tag): MUST be the authentication tag",
+                "output when calculating the encrypted content above.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "The above serialized bytes MUST NOT be released until the entire frame has been serialized.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Should,
+            quote: [
+                "If this operation is streaming the encrypted message and",
+                "the entire frame has been serialized,",
+                "the serialized frame SHOULD be released.",
+            ],
+        },
+    ),
+    (
+        "construct-a-frame",
+        Feature {
+            level: Must,
+            quote: [
+                "If the algorithm suite contains a signature algorithm and",
+                "this operation is [streaming](streaming.md) the encrypted message output to the caller,",
+                "this operation MUST input the serialized frame to the signature algorithm as soon as it is serialized,",
+                "such that the serialized frame isn't required to remain in memory to [construct the signature](#construct-the-signature).",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "If the [algorithm suite](../framework/algorithm-suites.md) contains a [signature algorithm](../framework/algorithm-suites.md#signature-algorithm),",
+                "this operation MUST calculate a signature over the message,",
+                "and the output [encrypted message](#encrypted-message) MUST contain a [message footer](../data-format/message-footer.md).",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "If the [algorithm suite](../framework/algorithm-suites.md) contains a [signature algorithm](../framework/algorithm-suites.md#signature-algorithm),",
+                "this operation MUST calculate a signature over the message,",
+                "and the output [encrypted message](#encrypted-message) MUST contain a [message footer](../data-format/message-footer.md).",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "To calculate a signature, this operation MUST use the [signature algorithm](../framework/algorithm-suites.md#signature-algorithm)",
+                "specified by the [algorithm suite](../framework/algorithm-suites.md), with the following input:",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: May,
+            quote: [
+                "Note that the message header and message body MAY have already been input during previous steps.",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST then serialize a message footer with the following specifics:",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Signature Length](../data-format/message-footer.md#signature-length): MUST be the length of the",
+                "output of the calculation above.",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Signature](../data-format/message-footer.md#signature): MUST be the output of the calculation above.",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "The above serialized bytes MUST NOT be released until the entire message footer has been serialized.",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "Once the entire message footer has been serialized,",
+                "this operation MUST release any previously unreleased serialized bytes from previous steps",
+                "and MUST release the message footer.",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "Once the entire message footer has been serialized,",
+                "this operation MUST release any previously unreleased serialized bytes from previous steps",
+                "and MUST release the message footer.",
+            ],
+        },
+    ),
+    (
+        "construct-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "The encrypted message output by this operation MUST have a message footer equal",
+                "to the message footer calculated in this step.",
+            ],
+        },
+    ),
+    (
+        "un-framed-message-body-encryption",
+        Feature {
+            level: Must,
+            quote: [
+                "Implementations of the AWS Encryption SDK MUST NOT encrypt using the Non-Framed content type.",
+            ],
+        },
+    ),
+    (
+        "un-framed-message-body-encryption",
+        Feature {
+            level: Must,
+            quote: [
+                "- [IV](../data-format/message-body.md#iv): MUST be the [sequence number](../data-format/message-body-aad.md#sequence-number)",
+                "used in the [message body AAD](../data-format/message-body-aad.md).",
+            ],
+        },
+    ),
+    (
+        "un-framed-message-body-encryption",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Encrypted Content](../data-format/message-body.md#encrypted-content): MUST be the output of the [authenticated encryption algorithm](../framework/algorithm-suites.md#encryption-algorithm)",
+                "specified by the [algorithm suite](../framework/algorithm-suites.md), with the following inputs:",
+            ],
+        },
+    ),
+    (
+        "un-framed-message-body-encryption",
+        Feature {
+            level: Must,
+            quote: [
+                "- [Authentication Tag](../data-format/message-body.md#authentication-tag): MUST be the authentication tag returned by the above encryption.",
+            ],
+        },
+    ),
+]

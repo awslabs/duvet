@@ -16,8 +16,8 @@ pub mod markdown;
 
 #[derive(Default)]
 pub struct Specification<'a> {
-    pub title: Option<Str<'a>>,
-    pub sections: HashMap<&'a str, Section<'a>>,
+    pub title: Option<String>,
+    pub sections: HashMap<String, Section<'a>>,
 }
 
 impl<'a> fmt::Debug for Specification<'a> {
@@ -33,10 +33,8 @@ impl<'a> Specification<'a> {
     pub fn sorted_sections(&self) -> Vec<&Section<'a>> {
         let mut sections: Vec<_> = self.sections.values().collect();
 
-        sections.sort_by(|a, b| match a.title.line.cmp(&b.title.line) {
-            Ordering::Equal => a.cmp(b),
-            ordering => ordering,
-        });
+        // rely on the section ordering
+        sections.sort();
 
         sections
     }
@@ -76,17 +74,19 @@ impl Format {
         if cfg!(debug_assertions) {
             for section in spec.sections.values() {
                 for content in &section.lines {
-                    assert_eq!(
-                        content.value,
-                        &contents[content.range()],
-                        "ranges are incorrect expected {:?}, actual {:?}",
-                        {
-                            let start =
-                                (content.value.as_ptr() as usize) - (contents.as_ptr() as usize);
-                            start..(start + content.value.len())
-                        },
-                        content.range(),
-                    );
+                    if let Line::Str(content) = content {
+                        assert_eq!(
+                            content.value,
+                            &contents[content.range()],
+                            "ranges are incorrect expected {:?}, actual {:?}",
+                            {
+                                let start = (content.value.as_ptr() as usize)
+                                    - (contents.as_ptr() as usize);
+                                start..(start + content.value.len())
+                            },
+                            content.range(),
+                        );
+                    }
                 }
             }
         }
@@ -108,12 +108,69 @@ impl FromStr for Format {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Line<'a> {
+    Str(Str<'a>),
+    Break,
+}
+
+impl<'a> Line<'a> {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::Str(s) => s.is_empty(),
+            Self::Break => true,
+        }
+    }
+}
+
+impl<'a> From<Str<'a>> for Line<'a> {
+    fn from(s: Str<'a>) -> Self {
+        Self::Str(s)
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash)]
 pub struct Section<'a> {
-    pub id: Str<'a>,
-    pub title: Str<'a>,
+    pub id: String,
+    pub title: String,
     pub full_title: Str<'a>,
-    pub lines: Vec<Str<'a>>,
+    pub lines: Vec<Line<'a>>,
+}
+
+impl<'a> Ord for Section<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        macro_rules! cmp {
+            ($($tt:tt)*) => {
+                match self.$($tt)*.cmp(&other.$($tt)*) {
+                    Ordering::Equal => {},
+                    other => return other,
+                }
+            }
+        }
+
+        // compare the full title position first to order by appearance
+        cmp!(full_title.pos);
+        cmp!(full_title.value);
+
+        cmp!(id);
+        cmp!(title);
+
+        cmp!(lines);
+
+        Ordering::Equal
+    }
+}
+
+impl<'a> PartialOrd for Section<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> PartialEq for Section<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
 }
 
 impl<'a> Section<'a> {
@@ -130,20 +187,22 @@ pub struct StrView {
 }
 
 impl StrView {
-    pub fn new(contents: &[Str]) -> Self {
+    pub fn new(contents: &[Line]) -> Self {
         let mut value = String::new();
         let mut byte_map = vec![];
         let mut line_map = vec![];
 
         for chunk in contents {
-            let chunk = chunk.trim();
-            if !chunk.is_empty() {
-                value.push_str(chunk.deref());
-                value.push(' ');
-                let mut range = chunk.range();
-                range.end += 1; // account for new line
-                line_map.extend(range.clone().map(|_| chunk.line));
-                byte_map.extend(range);
+            if let Line::Str(chunk) = chunk {
+                let chunk = chunk.trim();
+                if !chunk.is_empty() {
+                    value.push_str(chunk.deref());
+                    value.push(' ');
+                    let mut range = chunk.range();
+                    range.end += 1; // account for new line
+                    line_map.extend(range.clone().map(|_| chunk.line));
+                    byte_map.extend(range);
+                }
             }
         }
 

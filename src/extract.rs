@@ -5,11 +5,10 @@
 
 use crate::{
     annotation::AnnotationLevel,
-    specification::{Format, Section, Specification},
+    specification::{Format, Line, Section, Specification},
     target::TargetPath,
     Error,
 };
-use core::ops::Deref;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::{Regex, RegexSet};
@@ -122,6 +121,12 @@ fn extract_section<'a>(section: &'a Section<'a>) -> (&'a Section<'a>, Vec<Featur
     let lines = &section.lines[..];
 
     for (lineno, line) in lines.iter().enumerate() {
+        let line = if let Line::Str(l) = line {
+            l
+        } else {
+            continue;
+        };
+
         if KEY_WORDS_SET.is_match(line) {
             for (key_word, level) in KEY_WORDS.iter() {
                 for occurance in key_word.find_iter(line) {
@@ -143,20 +148,27 @@ fn extract_section<'a>(section: &'a Section<'a>) -> (&'a Section<'a>, Vec<Featur
                             break;
                         }
 
-                        let mut line = &lines[i][..];
+                        match &lines[i] {
+                            Line::Break => {
+                                continue;
+                            }
+                            Line::Str(line) => {
+                                let mut line = &line[..];
 
-                        if i == end.0 {
-                            line = &line[..end.1];
-                        }
+                                if i == end.0 {
+                                    line = &line[..end.1];
+                                }
 
-                        if i == start.0 {
-                            line = &line[start.1..];
-                        }
+                                if i == start.0 {
+                                    line = &line[start.1..];
+                                }
 
-                        line = line.trim();
+                                line = line.trim();
 
-                        if !line.is_empty() {
-                            quote.push(line);
+                                if !line.is_empty() {
+                                    quote.push(line);
+                                }
+                            }
                         }
                     }
 
@@ -201,11 +213,13 @@ impl<'a> Feature<'a> {
     }
 }
 
-fn find_open<L: Deref<Target = str>>(lines: &[L], lineno: usize, start: usize) -> (usize, usize) {
+fn find_open(lines: &[Line], lineno: usize, start: usize) -> (usize, usize) {
     let line = &lines[lineno];
 
-    if let Some(offset) = find_open_line(&line[..start]) {
-        return (lineno, offset);
+    if let Line::Str(line) = line {
+        if let Some(offset) = find_open_line(&line[..start]) {
+            return (lineno, offset);
+        }
     }
 
     let before = &lines[..lineno];
@@ -217,10 +231,15 @@ fn find_open<L: Deref<Target = str>>(lines: &[L], lineno: usize, start: usize) -
     (lineno, 0)
 }
 
-fn find_next_open<L: Deref<Target = str>>(lines: &[L]) -> (usize, usize) {
+fn find_next_open(lines: &[Line]) -> (usize, usize) {
     let mut open = (lines.len() - 1, 0);
 
     for (lineno, line) in lines.iter().enumerate().rev() {
+        let line = match line {
+            Line::Str(l) => l,
+            Line::Break => return open,
+        };
+
         // if the line is empty we're at the beginning sentence
         if line.is_empty() {
             return open;
@@ -246,11 +265,13 @@ fn find_open_line(line: &str) -> Option<usize> {
     }
 }
 
-fn find_close<L: Deref<Target = str>>(lines: &[L], lineno: usize, end: usize) -> (usize, usize) {
+fn find_close(lines: &[Line], lineno: usize, end: usize) -> (usize, usize) {
     let line = &lines[lineno];
 
-    if let Some(offset) = find_close_line(&line[end..]) {
-        return (lineno, end + offset);
+    if let Line::Str(line) = line {
+        if let Some(offset) = find_close_line(&line[end..]) {
+            return (lineno, end + offset);
+        }
     }
 
     let after = &lines[lineno..];
@@ -265,10 +286,15 @@ fn find_close<L: Deref<Target = str>>(lines: &[L], lineno: usize, end: usize) ->
     (lineno, end)
 }
 
-fn find_next_close<L: Deref<Target = str>>(lines: &[L]) -> (usize, usize) {
+fn find_next_close(lines: &[Line]) -> (usize, usize) {
     let mut end = (0, 0);
 
     for (lineno, line) in lines.iter().enumerate() {
+        let line = match line {
+            Line::Str(l) => l,
+            Line::Break => return (lineno, 0),
+        };
+
         // if the line is empty we're finished with the sentence
         if line.is_empty() {
             return (lineno, 0);
@@ -309,14 +335,16 @@ fn write_rust<W: std::io::Write>(
         w,
         "//! {}#{}{}",
         target,
-        anchor_prefix(section.id.value),
+        anchor_prefix(&section.id),
         section.id
     )?;
     writeln!(w, "//!")?;
     writeln!(w, "//! {}", section.full_title)?;
     writeln!(w, "//!")?;
     for line in &section.lines {
-        writeln!(w, "//! {}", line)?;
+        if let Line::Str(line) = line {
+            writeln!(w, "//! {}", line)?;
+        }
     }
     writeln!(w)?;
 
@@ -325,7 +353,7 @@ fn write_rust<W: std::io::Write>(
             w,
             "//= {}#{}{}",
             target,
-            anchor_prefix(section.id.value),
+            anchor_prefix(&section.id),
             section.id
         )?;
         writeln!(w, "//= type=spec")?;
@@ -349,14 +377,16 @@ fn write_toml<W: std::io::Write>(
         w,
         "target = \"{}#{}{}\"",
         target,
-        anchor_prefix(section.id.value),
+        anchor_prefix(&section.id),
         section.id
     )?;
     writeln!(w)?;
     writeln!(w, "# {}", section.full_title)?;
     writeln!(w, "#")?;
     for line in &section.lines {
-        writeln!(w, "# {}", line)?;
+        if let Line::Str(line) = line {
+            writeln!(w, "# {}", line)?;
+        }
     }
     writeln!(w)?;
 

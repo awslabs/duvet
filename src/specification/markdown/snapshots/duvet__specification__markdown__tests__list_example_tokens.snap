@@ -1,0 +1,126 @@
+---
+source: src/specification/markdown/tests.rs
+assertion_line: 41
+expression: "tokens(r#\"\n# List example\n\nHere is a list:\n* Item 1\n* Item 2\n  * Item 2.1\n* Item 3\n  * Item 3.1\n    * Item 3.1.1\n    * Item 3.1.2\n  * Item 3.2\n\nHere is a numbered list:\n1. Item 1\n2. Item 2\n3. Item 3\n\"#)"
+---
+[
+    Line(
+        Str {
+            value: "",
+            pos: 0,
+            line: 1,
+        },
+    ),
+    Header(
+        Str {
+            value: "# List example",
+            pos: 1,
+            line: 2,
+        },
+    ),
+    Line(
+        Str {
+            value: "",
+            pos: 16,
+            line: 3,
+        },
+    ),
+    Line(
+        Str {
+            value: "Here is a list:",
+            pos: 17,
+            line: 4,
+        },
+    ),
+    Line(
+        Str {
+            value: "* Item 1",
+            pos: 33,
+            line: 5,
+        },
+    ),
+    Line(
+        Str {
+            value: "* Item 2",
+            pos: 42,
+            line: 6,
+        },
+    ),
+    Line(
+        Str {
+            value: "  * Item 2.1",
+            pos: 51,
+            line: 7,
+        },
+    ),
+    Line(
+        Str {
+            value: "* Item 3",
+            pos: 64,
+            line: 8,
+        },
+    ),
+    Line(
+        Str {
+            value: "  * Item 3.1",
+            pos: 73,
+            line: 9,
+        },
+    ),
+    Line(
+        Str {
+            value: "    * Item 3.1.1",
+            pos: 86,
+            line: 10,
+        },
+    ),
+    Line(
+        Str {
+            value: "    * Item 3.1.2",
+            pos: 103,
+            line: 11,
+        },
+    ),
+    Line(
+        Str {
+            value: "  * Item 3.2",
+            pos: 120,
+            line: 12,
+        },
+    ),
+    Line(
+        Str {
+            value: "",
+            pos: 133,
+            line: 13,
+        },
+    ),
+    Line(
+        Str {
+            value: "Here is a numbered list:",
+            pos: 134,
+            line: 14,
+        },
+    ),
+    Line(
+        Str {
+            value: "1. Item 1",
+            pos: 159,
+            line: 15,
+        },
+    ),
+    Line(
+        Str {
+            value: "2. Item 2",
+            pos: 169,
+            line: 16,
+        },
+    ),
+    Line(
+        Str {
+            value: "3. Item 3",
+            pos: 179,
+            line: 17,
+        },
+    ),
+]

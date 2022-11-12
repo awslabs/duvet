@@ -1,0 +1,119 @@
+---
+source: src/extract/tests.rs
+expression: results
+---
+[
+    (
+        "overview",
+        Feature {
+            level: May,
+            quote: [
+                "The AWS Encryption SDK MAY provide APIs that enable streamed [encryption](encrypt.md)",
+                "and [decryption](decrypt.md).",
+            ],
+        },
+    ),
+    (
+        "overview",
+        Feature {
+            level: Should,
+            quote: [
+                "If an implementation requires holding the entire input in memory in order to perform the operation,",
+                "that implementation SHOULD NOT provide an API that allows the caller to stream the operation.",
+            ],
+        },
+    ),
+    (
+        "overview",
+        Feature {
+            level: Should,
+            quote: [
+                "APIs that support streaming of the encrypt or decrypt operation SHOULD allow customers",
+                "to be able to process arbitrarily large inputs with a finite amount of working memory.",
+            ],
+        },
+    ),
+    (
+        "release",
+        Feature {
+            level: Must,
+            quote: [
+                "The decrypt and encrypt operations specify when output bytes MUST NOT be released",
+                "and when they SHOULD be released.",
+            ],
+        },
+    ),
+    (
+        "inputs",
+        Feature {
+            level: Must,
+            quote: [
+                "In order to support streaming, the operation MUST accept some input within a streaming framework.",
+            ],
+        },
+    ),
+    (
+        "inputs",
+        Feature {
+            level: Must,
+            quote: [
+                "- There MUST be a mechanism for input bytes to become consumable.",
+            ],
+        },
+    ),
+    (
+        "inputs",
+        Feature {
+            level: Must,
+            quote: [
+                "- There MUST be a mechanism to indicate that there are no more input bytes.",
+            ],
+        },
+    ),
+    (
+        "outputs",
+        Feature {
+            level: Must,
+            quote: [
+                "In order to support streaming, the operation MUST produce some output within a streaming framework.",
+            ],
+        },
+    ),
+    (
+        "outputs",
+        Feature {
+            level: Must,
+            quote: [
+                "- There MUST be a mechanism for output bytes to be released.",
+            ],
+        },
+    ),
+    (
+        "outputs",
+        Feature {
+            level: Must,
+            quote: [
+                "- There MUST be a mechanism to indicate that the entire output has been released.",
+            ],
+        },
+    ),
+    (
+        "outputs",
+        Feature {
+            level: Must,
+            quote: [
+                "Operations MUST NOT indicate completion or success until an end to the output has been indicated.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "The behavior of the operation specifies how the operation processes consumable bytes,",
+                "and specifies when processed bytes MUST NOT and SHOULD be released.",
+            ],
+        },
+    ),
+]
