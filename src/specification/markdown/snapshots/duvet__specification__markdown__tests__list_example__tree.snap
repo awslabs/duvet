@@ -239,5 +239,6 @@ Ok(
                 ],
             },
         ],
+        format: Markdown,
     },
 )

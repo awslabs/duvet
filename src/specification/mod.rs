@@ -18,6 +18,7 @@ pub mod markdown;
 pub struct Specification<'a> {
     pub title: Option<String>,
     pub sections: HashMap<String, Section<'a>>,
+    pub format: Format,
 }
 
 impl<'a> fmt::Debug for Specification<'a> {
@@ -25,6 +26,7 @@ impl<'a> fmt::Debug for Specification<'a> {
         f.debug_struct("Specification")
             .field("title", &self.title)
             .field("sections", &self.sorted_sections())
+            .field("format", &self.format)
             .finish()
     }
 }
@@ -37,6 +39,28 @@ impl<'a> Specification<'a> {
         sections.sort();
 
         sections
+    }
+
+    pub fn section(&self, id: &str) -> Option<&Section<'a>> {
+        self.sections.get(id).or_else(|| {
+            // special case ietf references
+            if !matches!(self.format, Format::Ietf) {
+                return None;
+            }
+
+            // allow references to drop the section or appendix prefixes
+            let id = id
+                .trim_start_matches("section-")
+                .trim_start_matches("appendix-");
+
+            for prefix in ["section-", "appendix-"] {
+                if let Some(section) = self.sections.get(&format!("{}{}", prefix, id)) {
+                    return Some(section);
+                }
+            }
+
+            None
+        })
     }
 }
 
@@ -100,9 +124,9 @@ impl FromStr for Format {
 
     fn from_str(v: &str) -> Result<Self, Self::Err> {
         match v {
-            "AUTO" => Ok(Self::Auto),
-            "IETF" => Ok(Self::Ietf),
-            "MARKDOWN" => Ok(Self::Markdown),
+            "AUTO" | "auto" => Ok(Self::Auto),
+            "IETF" | "ietf" => Ok(Self::Ietf),
+            "MARKDOWN" | "markdown" | "md" => Ok(Self::Markdown),
             _ => Err(anyhow!(format!("Invalid spec type {:?}", v))),
         }
     }

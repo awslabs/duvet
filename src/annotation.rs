@@ -92,12 +92,7 @@ impl Annotation {
     }
 
     pub fn target_section(&self) -> Option<&str> {
-        self.target_parts().1.map(|section| {
-            // allow references to specify a #section-123 instead of #123
-            section
-                .trim_start_matches("section-")
-                .trim_start_matches("appendix-")
-        })
+        self.target_parts().1
     }
 
     fn target_parts(&self) -> (&str, Option<&str>) {

@@ -92,7 +92,7 @@ export function Requirements({ requirements, showSection }) {
               hash: `#A${requirement.id}`,
             }}
           >
-            {requirement.section.id}
+            {requirement.section.shortId}
           </Link>
         );
       },

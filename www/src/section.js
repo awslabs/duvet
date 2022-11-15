@@ -25,7 +25,7 @@ export function Section({ spec, section }) {
   return (
     <>
       <h2>
-        {section.id} {section.title}
+        {section.shortId} {section.title}
       </h2>
       <pre>
         {section.lines.map((line, i) => (

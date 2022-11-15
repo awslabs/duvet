@@ -138,7 +138,7 @@ impl Report {
                 let mut results = vec![];
 
                 if let Some(section_id) = section_id {
-                    if let Some(section) = spec.sections.get(*section_id) {
+                    if let Some(section) = spec.section(section_id) {
                         let contents = section.contents();
 
                         for (annotation_id, annotation) in annotations {

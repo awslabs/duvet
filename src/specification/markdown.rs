@@ -15,7 +15,9 @@ pub fn parse(contents: &str) -> Result<Specification, Error> {
         parser.on_token(token)?;
     }
 
-    let spec = parser.done()?;
+    let mut spec = parser.done()?;
+
+    spec.format = super::Format::Markdown;
 
     Ok(spec)
 }
