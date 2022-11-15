@@ -74,6 +74,17 @@ jobs:
 
       - uses: camshaft/rust-cache@v1
 
+      - name: Cache node_modules
+        uses: actions/cache@v3.0.3
+        continue-on-error: true
+        with:
+          path: www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
+
+      - name: Build script.js
+        run: |
+          make www/public/script.js
+
       # TODO translate json reports to in-action warnings
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1.0.3
@@ -101,6 +112,17 @@ jobs:
         with:
           crate: cargo-udeps
 
+      - name: Cache node_modules
+        uses: actions/cache@v3.0.3
+        continue-on-error: true
+        with:
+          path: www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
+
+      - name: Build script.js
+        run: |
+          make www/public/script.js
+
       - name: Run cargo udeps
         run: cargo udeps --workspace --all-targets
         env:
@@ -127,6 +149,17 @@ jobs:
       - uses: camshaft/rust-cache@v1
         with:
           key: ${{ matrix.target }}
+
+      - name: Cache node_modules
+        uses: actions/cache@v3.0.3
+        continue-on-error: true
+        with:
+          path: www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
+
+      - name: Build script.js
+        run: |
+          make www/public/script.js
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
