@@ -1,0 +1,149 @@
+---
+source: src/specification/markdown/tests.rs
+assertion_line: 20
+expression: "parse(r#\"\n# This is a test\n\nContent goes here\n\n## This is another test\n\nMore content goes here\n\n### Nested section\n\nTesting 123\n\n## Up one\n\nAnother section\n\"#)"
+---
+Ok(
+    Specification {
+        title: Some(
+            Str {
+                value: "This is a test",
+                pos: 3,
+                line: 2,
+            },
+        ),
+        sections: [
+            Section {
+                id: Str {
+                    value: "This is a test",
+                    pos: 3,
+                    line: 2,
+                },
+                title: Str {
+                    value: "This is a test",
+                    pos: 3,
+                    line: 2,
+                },
+                full_title: Str {
+                    value: "This is a test",
+                    pos: 3,
+                    line: 2,
+                },
+                lines: [
+                    Str {
+                        value: "",
+                        pos: 18,
+                        line: 3,
+                    },
+                    Str {
+                        value: "Content goes here",
+                        pos: 19,
+                        line: 4,
+                    },
+                    Str {
+                        value: "",
+                        pos: 37,
+                        line: 5,
+                    },
+                ],
+            },
+            Section {
+                id: Str {
+                    value: "This is another test",
+                    pos: 41,
+                    line: 6,
+                },
+                title: Str {
+                    value: "This is another test",
+                    pos: 41,
+                    line: 6,
+                },
+                full_title: Str {
+                    value: "This is another test",
+                    pos: 41,
+                    line: 6,
+                },
+                lines: [
+                    Str {
+                        value: "",
+                        pos: 62,
+                        line: 7,
+                    },
+                    Str {
+                        value: "More content goes here",
+                        pos: 63,
+                        line: 8,
+                    },
+                    Str {
+                        value: "",
+                        pos: 86,
+                        line: 9,
+                    },
+                ],
+            },
+            Section {
+                id: Str {
+                    value: "Nested section",
+                    pos: 91,
+                    line: 10,
+                },
+                title: Str {
+                    value: "Nested section",
+                    pos: 91,
+                    line: 10,
+                },
+                full_title: Str {
+                    value: "Nested section",
+                    pos: 91,
+                    line: 10,
+                },
+                lines: [
+                    Str {
+                        value: "",
+                        pos: 106,
+                        line: 11,
+                    },
+                    Str {
+                        value: "Testing 123",
+                        pos: 107,
+                        line: 12,
+                    },
+                    Str {
+                        value: "",
+                        pos: 119,
+                        line: 13,
+                    },
+                ],
+            },
+            Section {
+                id: Str {
+                    value: "Up one",
+                    pos: 123,
+                    line: 14,
+                },
+                title: Str {
+                    value: "Up one",
+                    pos: 123,
+                    line: 14,
+                },
+                full_title: Str {
+                    value: "Up one",
+                    pos: 123,
+                    line: 14,
+                },
+                lines: [
+                    Str {
+                        value: "",
+                        pos: 130,
+                        line: 15,
+                    },
+                    Str {
+                        value: "Another section",
+                        pos: 131,
+                        line: 16,
+                    },
+                ],
+            },
+        ],
+    },
+)

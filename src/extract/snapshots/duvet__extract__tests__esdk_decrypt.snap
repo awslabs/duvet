@@ -1,0 +1,763 @@
+---
+source: src/extract/tests.rs
+expression: results
+---
+[
+    (
+        "overview",
+        Feature {
+            level: Must,
+            quote: [
+                "Any client provided by the AWS Encryption SDK that performs decryption of encrypted messages MUST follow",
+                "this specification for decryption.",
+            ],
+        },
+    ),
+    (
+        "authenticated-data",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST NOT release any unauthenticated plaintext or unauthenticated associated data.",
+            ],
+        },
+    ),
+    (
+        "input",
+        Feature {
+            level: Must,
+            quote: [
+                "The client MUST require the following as inputs to this operation:",
+            ],
+        },
+    ),
+    (
+        "input",
+        Feature {
+            level: Must,
+            quote: [
+                "The client MUST require exactly one of the following types of inputs:",
+            ],
+        },
+    ),
+    (
+        "encrypted-message",
+        Feature {
+            level: Must,
+            quote: [
+                "The input encrypted message MUST be a sequence of bytes in the",
+                "[message format](../data-format/message.md) specified by the AWS Encryption SDK.",
+            ],
+        },
+    ),
+    (
+        "encrypted-message",
+        Feature {
+            level: May,
+            quote: [
+                "This input MAY be [streamed](streaming.md) to this operation.",
+            ],
+        },
+    ),
+    (
+        "encrypted-message",
+        Feature {
+            level: Should,
+            quote: [
+                "If an implementation requires holding the entire encrypted message in memory in order to perform this operation,",
+                "that implementation SHOULD NOT provide an API that allows the caller to stream the encrypted message.",
+            ],
+        },
+    ),
+    (
+        "encrypted-message-format",
+        Feature {
+            level: Should,
+            quote: [
+                "To make diagnosing this mistake easier, implementations SHOULD detect the first two bytes of the Base64 encoding of any supported message [versions](../data-format/message-header.md#version-1)",
+                "and [types](../data-format/message-header.md#type)",
+                "and fail with a more specific error message.",
+            ],
+        },
+    ),
+    (
+        "cryptographic-materials-manager",
+        Feature {
+            level: Must,
+            quote: [
+                "This CMM MUST obtain the [decryption materials](../framework/structures.md#decryption-materials) required for decryption.",
+            ],
+        },
+    ),
+    (
+        "keyring",
+        Feature {
+            level: Must,
+            quote: [
+                "If the Keyring is provided as the input, the client MUST construct a [default CMM](../framework/default-cmm.md) that uses this keyring,",
+                "to obtain the [decryption materials](../framework/structures.md#decryption-materials) that is required for decryption.",
+            ],
+        },
+    ),
+    (
+        "keyring",
+        Feature {
+            level: Must,
+            quote: [
+                "This default CMM MUST obtain the decryption materials required for decryption.",
+            ],
+        },
+    ),
+    (
+        "output",
+        Feature {
+            level: Must,
+            quote: [
+                "The client MUST return as output to this operation:",
+            ],
+        },
+    ),
+    (
+        "output",
+        Feature {
+            level: Should,
+            quote: [
+                "The client SHOULD return as an output:",
+            ],
+        },
+    ),
+    (
+        "plaintext",
+        Feature {
+            level: May,
+            quote: [
+                "This operation MAY [stream](streaming.md) the plaintext as output.",
+            ],
+        },
+    ),
+    (
+        "plaintext",
+        Feature {
+            level: Should,
+            quote: [
+                "If an implementation requires holding the entire encrypted message in memory in order to perform this operation,",
+                "that implementation SHOULD NOT provide an API that allows the caller to stream the encrypted message.",
+            ],
+        },
+    ),
+    (
+        "encryption-context",
+        Feature {
+            level: May,
+            quote: [
+                "This output MAY be satisfied by outputting a [parsed header](#parsed-header) containing this value.",
+            ],
+        },
+    ),
+    (
+        "algorithm-suite",
+        Feature {
+            level: May,
+            quote: [
+                "This output MAY be satisfied by outputting a [parsed header](#parsed-header) containing this value.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "- If the message header contains an algorithm suite including a",
+                "[signature algorithm](../framework/algorithm-suites.md#signature-algorithm),",
+                "this operation MUST perform this step.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "Otherwise this operation MUST NOT perform this step.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST perform all the above steps unless otherwise specified,",
+                "and it MUST perform them in the above order.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST perform all the above steps unless otherwise specified,",
+                "and it MUST perform them in the above order.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "If the input encrypted message is not being [streamed](streaming.md) to this operation,",
+                "all output MUST NOT be released until after these steps complete successfully.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "- Output MUST NOT be released until otherwise indicated.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "- If all bytes have been provided and this operation",
+                "is unable to complete the above steps with the consumable encrypted message bytes,",
+                "this operation MUST halt and indicate a failure to the caller.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "- If this operation successfully completes the above steps",
+                "but there are consumable bytes which are intended to be decrypted,",
+                "this operation MUST fail.",
+            ],
+        },
+    ),
+    (
+        "behavior",
+        Feature {
+            level: Must,
+            quote: [
+                "- The ESDK MUST provide a configuration option that causes the decryption operation",
+                "to fail immediately after parsing the header if a signed algorithm suite is used.",
+            ],
+        },
+    ),
+    (
+        "parse-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "Given encrypted message bytes, this operation MUST process those bytes sequentially,",
+                "deserializing those bytes according to the [message format](../data-format/message.md).",
+            ],
+        },
+    ),
+    (
+        "parse-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST attempt to deserialize all consumable encrypted message bytes until it has",
+                "successfully deserialized a valid [message header](../data-format/message-header.md).",
+            ],
+        },
+    ),
+    (
+        "parse-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "If the number of [encrypted data keys](../framework/structures.md#encrypted-data-keys)",
+                "deserialized from the [message header](../data-format/message-header.md)",
+                "is greater than the [maximum number of encrypted data keys](client.md#maximum-number-of-encrypted-data-keys) configured in the [client](client.md),",
+                "then as soon as that can be determined during deserializing",
+                "decrypt MUST process no more bytes and yield an error.",
+            ],
+        },
+    ),
+    (
+        "parse-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST wait if it doesn't have enough consumable encrypted message bytes to",
+                "deserialize the next field of the message header until enough input bytes become consumable or",
+                "the caller indicates an end to the encrypted message.",
+            ],
+        },
+    ),
+    (
+        "parse-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "Until the [header is verified](#verify-the-header), this operation MUST NOT",
+                "release any parsed information from the header.",
+            ],
+        },
+    ),
+    (
+        "get-the-decryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "If the parsed [algorithm suite ID](../data-format/message-header.md#algorithm-suite-id)",
+                "is not supported by the [commitment policy](client.md#commitment-policy)",
+                "configured in the [client](client.md) decrypt MUST yield an error.",
+            ],
+        },
+    ),
+    (
+        "get-the-decryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST obtain this set of [decryption materials](../framework/structures.md#decryption-materials),",
+                "by calling [Decrypt Materials](../framework/cmm-interface.md#decrypt-materials) on a [CMM](../framework/cmm-interface.md).",
+            ],
+        },
+    ),
+    (
+        "get-the-decryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "The CMM used MUST be the input CMM, if supplied.",
+            ],
+        },
+    ),
+    (
+        "get-the-decryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "If a CMM is not supplied as the input, the decrypt operation MUST construct a [default CMM](../framework/default-cmm.md)",
+                "from the input [keyring](../framework/keyring-interface.md).",
+            ],
+        },
+    ),
+    (
+        "get-the-decryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "The call to the CMM's [Decrypt Materials](../framework/cmm-interface.md#decrypt-materials) operation",
+                "MUST be constructed as follows:",
+            ],
+        },
+    ),
+    (
+        "get-the-decryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "If the algorithm suite is not supported by the [commitment policy](client.md#commitment-policy)",
+                "configured in the [client](client.md) decrypt MUST yield an error.",
+            ],
+        },
+    ),
+    (
+        "get-the-decryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "If the [algorithm suite](../framework/algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) supports [key commitment](../framework/algorithm-suites.md#key-commitment)",
+                "then the [commit key](../framework/algorithm-suites.md#commit-key) MUST be derived from the plaintext data key",
+                "using the [commit key derivation](../framework/algorithm-suites.md#algorithm-suites-commit-key-derivation-settings).",
+            ],
+        },
+    ),
+    (
+        "get-the-decryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "The derived commit key MUST equal the commit key stored in the message header.",
+            ],
+        },
+    ),
+    (
+        "get-the-decryption-materials",
+        Feature {
+            level: Must,
+            quote: [
+                "The algorithm suite used to derive a data key from the plaintext data key MUST be",
+                "the [key derivation algorithm](../framework/algorithm-suites.md#key-derivation-algorithm) included in the",
+                "[algorithm suite](../framework/algorithm-suites.md) associated with",
+                "the returned decryption materials.",
+            ],
+        },
+    ),
+    (
+        "verify-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "Once a valid message header is deserialized and decryption materials are available,",
+                "this operation MUST validate the [message header body](../data-format/message-header.md#header-body)",
+                "by using the [authenticated encryption algorithm](../framework/algorithm-suites.md#encryption-algorithm)",
+                "to decrypt with the following inputs:",
+            ],
+        },
+    ),
+    (
+        "verify-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "If this tag verification fails, this operation MUST immediately halt and fail.",
+            ],
+        },
+    ),
+    (
+        "verify-the-header",
+        Feature {
+            level: Should,
+            quote: [
+                "- This operation SHOULD release the parsed [encryption context](#encryption-context),",
+                "[algorithm suite ID](../data-format/message-header.md#algorithm-suite-id),",
+                "and [other header information](#parsed-header)",
+                "as soon as tag verification succeeds.",
+            ],
+        },
+    ),
+    (
+        "verify-the-header",
+        Feature {
+            level: Must,
+            quote: [
+                "However, if this operation is using an algorithm suite with a signature algorithm",
+                "all released output MUST NOT be considered signed data until",
+                "this operation successfully completes.",
+            ],
+        },
+    ),
+    (
+        "verify-the-header",
+        Feature {
+            level: Should,
+            quote: [
+                "- This operation SHOULD input the serialized header to the signature algorithm as soon as it is deserialized,",
+                "such that the serialized frame isn't required to remain in memory to [verify the signature](#verify-the-signature).",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "Once the message header is successfully parsed, the next sequential bytes",
+                "MUST be deserialized according to the [message body spec](../data-format/message-body.md).",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "While there MAY still be message body left to deserialize and decrypt,",
+                "this operation MUST either wait for more of the encrypted message bytes to become consumable,",
+                "wait for the end to the encrypted message to be indicated,",
+                "or to deserialize and/or decrypt the consumable bytes.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "The [content type](../data-format/message-header.md#content-type) field parsed from the",
+                "message header above determines whether these bytes MUST be deserialized as",
+                "[framed data](../data-format/message-body.md#framed-data) or",
+                "[un-framed data](../data-format/message-body.md#un-framed-data).",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "If deserializing [framed data](../data-format/message-body.md#framed-data),",
+                "this operation MUST use the first 4 bytes of a frame to determine if the frame",
+                "MUST be deserialized as a [final frame](../data-format/message-body.md#final-frame)",
+                "or [regular frame](../fata-format/message-body/md#regular-frame).",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "If deserializing [framed data](../data-format/message-body.md#framed-data),",
+                "this operation MUST use the first 4 bytes of a frame to determine if the frame",
+                "MUST be deserialized as a [final frame](../data-format/message-body.md#final-frame)",
+                "or [regular frame](../fata-format/message-body/md#regular-frame).",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "If the first 4 bytes have a value of 0xFFFF,",
+                "then this MUST be deserialized as the [sequence number end](../data-format/message-header.md#sequence-number-end)",
+                "and the following bytes according to the [final frame spec](../data-format/message-body.md#final-frame).",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "Otherwise, this MUST be deserialized as the [sequence number](../data-format/message-header.md#sequence-number)",
+                "and the following bytes according to the [regular frame spec](../data-format/message-body.md#regular-frame).",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "If deserializing a [final frame](../data-format/message-body.md#final-frame),",
+                "this operation MUST ensure that the length of the encrypted content field is",
+                "less than or equal to the frame length deserialized in the message header.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "Once at least a single frame is deserialized (or the entire body in the un-framed case),",
+                "this operation MUST decrypt and authenticate the frame (or body) using the",
+                "[authenticated encryption algorithm](../framework/algorithm-suites.md#encryption-algorithm)",
+                "specified by the [algorithm suite](../framework/algorithm-suites.md), with the following inputs:",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "If this is un-framed data, this value MUST be 1.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "If this is framed data and the first frame sequentially, this value MUST be 1.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "Otherwise, this value MUST be 1 greater than the value of the sequence number",
+                "of the previous frame.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "- The [content length](../data-format/message-body-aad.md#content-length) MUST have a value",
+                "equal to the length of the plaintext that was encrypted.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "If this decryption fails, this operation MUST immediately halt and fail.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "This operation MUST NOT release any unauthenticated plaintext.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Should,
+            quote: [
+                "- If this operation is using an algorithm suite without a signature algorithm,",
+                "plaintext SHOULD be released as soon as the above calculation, including tag verification,",
+                "succeeds.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Should,
+            quote: [
+                "- If this operation is using an algorithm suite with a signature algorithm,",
+                "all plaintext decrypted from regular frames SHOULD be released as soon as the above calculation,",
+                "including tag verification, succeeds.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Must,
+            quote: [
+                "Any plaintext decrypted from [unframed data](../data-format/message-body.md#un-framed-data) or",
+                "a final frame MUST NOT be released until [signature verification](#verify-the-signature)",
+                "successfully completes.",
+            ],
+        },
+    ),
+    (
+        "decrypt-the-message-body",
+        Feature {
+            level: Should,
+            quote: [
+                "- This operation SHOULD input the serialized frame to the signature algorithm as soon as it is deserialized,",
+                "such that the serialized frame isn't required to remain in memory to complete",
+                "the [signature verification](#verify-the-signature).",
+            ],
+        },
+    ),
+    (
+        "verify-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "If the algorithm suite has a signature algorithm,",
+                "this operation MUST verify the message footer using the specified signature algorithm.",
+            ],
+        },
+    ),
+    (
+        "verify-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "After deserializing the body, this operation MUST deserialize the next encrypted message bytes",
+                "as the [message footer](../data-format/message-footer.md).",
+            ],
+        },
+    ),
+    (
+        "verify-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "If there are not enough consumable bytes to deserialize the message footer and",
+                "the caller has not yet indicated an end to the encrypted message,",
+                "this operation MUST wait for enough bytes to become consumable or for the caller",
+                "to indicate an end to the encrypted message.",
+            ],
+        },
+    ),
+    (
+        "verify-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "Once the message footer is deserialized, this operation MUST use the",
+                "[signature algorithm](../framework/algorithm-suites.md#signature-algorithm)",
+                "from the [algorithm suite](../framework/algorithm-suites.md) in the decryption materials to",
+                "verify the encrypted message, with the following inputs:",
+            ],
+        },
+    ),
+    (
+        "verify-the-signature",
+        Feature {
+            level: May,
+            quote: [
+                "Note that the message header and message body MAY have already been input during previous steps.",
+            ],
+        },
+    ),
+    (
+        "verify-the-signature",
+        Feature {
+            level: Must,
+            quote: [
+                "If this verification is not successful, this operation MUST immediately halt and fail.",
+            ],
+        },
+    ),
+    (
+        "security-considerations",
+        Feature {
+            level: Must,
+            quote: [
+                "If this operation is [streaming](streaming.md) output to the caller",
+                "and is decrypting messages created with an algorithm suite including a signature algorithm,",
+                "any released plaintext MUST NOT be considered signed data until this operation finishes",
+                "successfully.",
+            ],
+        },
+    ),
+    (
+        "security-considerations",
+        Feature {
+            level: Must,
+            quote: [
+                "This means that callers that process such released plaintext MUST NOT consider any processing successful",
+                "until this operation completes successfully.",
+            ],
+        },
+    ),
+    (
+        "security-considerations",
+        Feature {
+            level: Must,
+            quote: [
+                "Additionally, if this operation fails, callers MUST discard the released plaintext and encryption context",
+                "and MUST rollback any processing done due to the released plaintext or encryption context.",
+            ],
+        },
+    ),
+    (
+        "security-considerations",
+        Feature {
+            level: Must,
+            quote: [
+                "Additionally, if this operation fails, callers MUST discard the released plaintext and encryption context",
+                "and MUST rollback any processing done due to the released plaintext or encryption context.",
+            ],
+        },
+    ),
+]

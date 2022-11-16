@@ -8,23 +8,33 @@ const specifications = [];
 Object.keys(input.specifications).forEach((id) => {
   const spec = input.specifications[id];
 
+  spec.isIetf = spec.format === "ietf";
+  spec.isMarkdown = spec.format === "markdown";
+
   const parts = id.split("/");
   const title = spec.title || parts[parts.length - 1].replace(".txt", "");
   const url = `/spec/${encodeURIComponent(id)}`;
 
   const sections = [];
   spec.sections.forEach((section, idx) => {
-    section.url = `${url}/section-${encodeURIComponent(section.id)}`;
+    section.url = `${url}/${encodeURIComponent(section.id)}`;
     section.lines = section.lines.map(mapLine);
     section.spec = spec;
     section.idx = idx;
     section.requirements = (section.requirements || []).map(
       (id) => input.annotations[id]
     );
+    section.shortId = spec.isIetf
+      ? section.id.replace(/^section-/, "").replace(/^appendix-/, "")
+      : section.id;
+
+    // include the section id with the title for IETF documents
+    if (spec.isIetf) {
+      section.title = `${section.shortId}. ${section.title}`;
+    }
 
     sections.push(section);
-    sections[`section-${section.id}`] = section;
-    sections[`section-${encodeURIComponent(section.id)}`] = section;
+    sections[section.id] = section;
   });
 
   const s = {
@@ -48,26 +58,27 @@ input.annotations.forEach((anno, id) => {
   if (status) {
     status.related = (status.related || []).map((id) => input.annotations[id]);
     Object.assign(anno, status);
-    anno.isComplete = (anno.spec === anno.citation && anno.spec === anno.test)
-      || anno.spec === anno.implication;
+    anno.isComplete =
+      (anno.spec === anno.citation && anno.spec === anno.test) ||
+      anno.spec === anno.implication;
     anno.isOk = anno.isComplete || anno.exception === anno.spec;
-  }
-
-  function anchorPrefix(id) {
-    const c = id.charCodeAt(0);
-    // 1-9
-    if (c >= 49 && c <= 57) return "section-";
-    // A-Z or a-z
-    if (c >= 65 && c <= 90) return "appendix-";
-    if (c >= 97 && c <= 122) return "appendix-";
-    return "";
   }
 
   anno.id = id;
   anno.source = blobLinker(anno);
   anno.specification = specifications[anno.target_path];
-  anno.section = anno.specification.sections[`section-${anno.target_section}`];
-  anno.target = `${anno.specification.id}#${anchorPrefix(anno.section.id)}${anno.section.id}`;
+  anno.section = anno.specification.sections[anno.target_section];
+
+  // allow references to be wrong for the given section type for backward-compatibility
+  if (!anno.section) {
+    let id = anno.target_section
+      .replace(/^section-/, "")
+      .replace(/^appendix-/, "");
+    let sections = anno.specification.sections;
+    anno.section = sections[`section-${id}`] || sections[`appendix-${id}`];
+  }
+
+  anno.target = `${anno.specification.id}#${anno.section.id}`;
   anno.features = [];
   anno.tracking_issues = [];
   anno.tags = anno.tags || [];

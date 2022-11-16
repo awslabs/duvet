@@ -92,7 +92,7 @@ export function Requirements({ requirements, showSection }) {
               hash: `#A${requirement.id}`,
             }}
           >
-            {requirement.section.id}
+            {requirement.section.shortId}
           </Link>
         );
       },
@@ -194,7 +194,7 @@ export function Requirements({ requirements, showSection }) {
         autoHeight={true}
         rows={requirements}
         columns={columns}
-        sortingOrder={['desc', 'asc', null]}
+        sortingOrder={["desc", "asc", null]}
       />
     </div>
   );
@@ -225,10 +225,8 @@ export function Stats({ spec: { stats } }) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {LEVELS
-            .filter((level) => stats[level].total)
-            .map((level) => (
-              <StatsRow key={level} title={level} stats={stats[level]} />
+          {LEVELS.filter((level) => stats[level].total).map((level) => (
+            <StatsRow key={level} title={level} stats={stats[level]} />
           ))}
           <StatsRow
             className={classes.totals}
@@ -246,7 +244,14 @@ function StatsRow({ title, stats, ...props }) {
     <TableRow {...props}>
       <TableCell component="th">{title}</TableCell>
       <TableCell align="right">{stats.total}</TableCell>
-      {["complete", "citations", "implications", "tests", "exceptions", "todos"].map((name) => (
+      {[
+        "complete",
+        "citations",
+        "implications",
+        "tests",
+        "exceptions",
+        "todos",
+      ].map((name) => (
         <TableCell key={name} align="right">
           <Tooltip title={stats.percent(name)}>
             <span>{stats[name]}</span>
@@ -258,16 +263,13 @@ function StatsRow({ title, stats, ...props }) {
 }
 
 function requirementStatus(requirement) {
-  if (requirement.isComplete)
-    return [1, "Complete", "success"];
-  if (requirement.isOk)
-    return [2, "Exception", "info"];
+  if (requirement.isComplete) return [1, "Complete", "success"];
+  if (requirement.isOk) return [2, "Exception", "info"];
   if (requirement.spec === requirement.citation)
     return [4, "Missing test", "missingTest"];
   if (requirement.spec === requirement.test)
     return [5, "Missing citation", "missingCitation"];
-  if (requirement.todo)
-    return [7, "Not started", "error"];
+  if (requirement.todo) return [7, "Not started", "error"];
   if (requirement.incomplete === requirement.spec)
     return [8, "Unknown", "error"];
 

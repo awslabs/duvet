@@ -1,0 +1,163 @@
+---
+source: src/extract/tests.rs
+expression: results
+---
+[
+    (
+        "initialization",
+        Feature {
+            level: Must,
+            quote: [
+                "On client initialization,",
+                "the caller MUST have the option to provide a:",
+            ],
+        },
+    ),
+    (
+        "initialization",
+        Feature {
+            level: Must,
+            quote: [
+                "If no [commitment policy](#commitment-policy) is provided the default MUST be [REQUIRE_ENCRYPT_REQUIRE_DECRYPT](../framework/algorithm-suites.md#require_encrypt_require_decrypt).",
+            ],
+        },
+    ),
+    (
+        "initialization",
+        Feature {
+            level: Must,
+            quote: [
+                "If no [maximum number of encrypted data keys](#maximum-number-of-encrypted-data-keys) is provided",
+                "the default MUST result in no limit on the number of encrypted data keys (aside from the limit imposed by the [message format](../format/message-header.md)).",
+            ],
+        },
+    ),
+    (
+        "initialization",
+        Feature {
+            level: Should,
+            quote: [
+                "Once a [commitment policy](#commitment-policy) has been set it SHOULD be immutable.",
+            ],
+        },
+    ),
+    (
+        "commitment-policy",
+        Feature {
+            level: Must,
+            quote: [
+                "The AWS Encryption SDK MUST provide the following commitment policies:",
+            ],
+        },
+    ),
+    (
+        "maximum-number-of-encrypted-data-keys",
+        Feature {
+            level: Must,
+            quote: [
+                "Callers MUST have a way to disable this limit.",
+            ],
+        },
+    ),
+    (
+        "forbid-encrypt-allow-decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "- `03 78` MUST be the default algorithm suite",
+            ],
+        },
+    ),
+    (
+        "forbid-encrypt-allow-decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "- [encrypt](encrypt.md) MUST only support algorithm suites that have a [Key Commitment](../framework/algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of False",
+            ],
+        },
+    ),
+    (
+        "forbid-encrypt-allow-decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "- [decrypt](decrypt.md) MUST support all algorithm suites",
+            ],
+        },
+    ),
+    (
+        "require-encrypt-allow-decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "- `05 78` MUST be the default algorithm suite",
+            ],
+        },
+    ),
+    (
+        "require-encrypt-allow-decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "- [encrypt](encrypt.md) MUST only support algorithm suites that have a [Key Commitment](../framework/algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of True",
+            ],
+        },
+    ),
+    (
+        "require-encrypt-allow-decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "- [decrypt](decrypt.md) MUST support all algorithm suites",
+            ],
+        },
+    ),
+    (
+        "require-encrypt-require-decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "- `05 78` MUST be the default algorithm suite",
+            ],
+        },
+    ),
+    (
+        "require-encrypt-require-decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "- [encrypt](encrypt.md) MUST only support algorithm suites that have a [Key Commitment](../framework/algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of True",
+            ],
+        },
+    ),
+    (
+        "require-encrypt-require-decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "- [decrypt](decrypt.md) MUST only support algorithm suites that have a [Key Commitment](../framework/algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of True",
+            ],
+        },
+    ),
+    (
+        "encrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "The AWS Encryption SDK Client MUST provide an [encrypt](./encrypt.md#input) function",
+                "that adheres to [encrypt](./encrypt.md).",
+            ],
+        },
+    ),
+    (
+        "decrypt",
+        Feature {
+            level: Must,
+            quote: [
+                "The AWS Encryption SDK Client MUST provide an [decrypt](./decrypt.md#input) function",
+                "that adheres to [decrypt](./decrypt.md).",
+            ],
+        },
+    ),
+]

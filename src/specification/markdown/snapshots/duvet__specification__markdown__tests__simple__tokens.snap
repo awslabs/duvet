@@ -1,0 +1,48 @@
+---
+source: src/specification/markdown/tests.rs
+expression: "super::tokens(r#\"\n# This is a test\n\nContent goes here. Another\nsentence here.\n\"#)"
+---
+[
+    Line(
+        Str {
+            value: "",
+            pos: 0,
+            line: 1,
+        },
+    ),
+    Header {
+        line: Str {
+            value: "# This is a test",
+            pos: 1,
+            line: 2,
+        },
+        name: Str {
+            value: "This is a test",
+            pos: 3,
+            line: 2,
+        },
+        fragment: None,
+        level: 1,
+    },
+    Line(
+        Str {
+            value: "",
+            pos: 18,
+            line: 3,
+        },
+    ),
+    Line(
+        Str {
+            value: "Content goes here. Another",
+            pos: 19,
+            line: 4,
+        },
+    ),
+    Line(
+        Str {
+            value: "sentence here.",
+            pos: 46,
+            line: 5,
+        },
+    ),
+]

@@ -22,25 +22,9 @@ pub fn parse(contents: &str) -> Result<Specification, Error> {
         parser.on_line(line)?;
     }
 
-    let spec = parser.done()?;
+    let mut spec = parser.done()?;
 
-    if cfg!(debug_assertions) {
-        for section in spec.sections.values() {
-            for content in &section.lines {
-                assert_eq!(
-                    content.value,
-                    &contents[content.range()],
-                    "ranges are incorrect expected {:?}, actual {:?}",
-                    {
-                        let start =
-                            (content.value.as_ptr() as usize) - (contents.as_ptr() as usize);
-                        start..(start + content.value.len())
-                    },
-                    content.range(),
-                );
-            }
-        }
-    }
+    spec.format = super::Format::Ietf;
 
     Ok(spec)
 }
@@ -54,11 +38,7 @@ pub struct Parser<'a> {
 #[derive(Debug)]
 pub enum ParserState<'a> {
     Init,
-    Section {
-        id: Str<'a>,
-        section: Section<'a>,
-        indent: usize,
-    },
+    Section { section: Section<'a>, indent: usize },
 }
 
 impl<'a> Default for ParserState<'a> {
@@ -67,7 +47,8 @@ impl<'a> Default for ParserState<'a> {
     }
 }
 
-fn section_header(line: Str) -> Option<(Str, Section)> {
+fn section_header(line: Str) -> Option<Section> {
+    let full_title = line;
     if let Some(info) = SECTION_HEADER_RE.captures(&line) {
         let id = info.get(1)?;
         let title = info.get(3)?;
@@ -77,17 +58,18 @@ fn section_header(line: Str) -> Option<(Str, Section)> {
         }
 
         let id = line.slice(id.range()).trim_end_matches('.');
-        let title = line.slice(title.range());
+        let id = match id.chars().next() {
+            Some('0'..='9') => format!("section-{}", id),
+            _ => format!("appendix-{}", id),
+        };
+        let title = line.slice(title.range()).to_string();
 
-        Some((
+        Some(Section {
             id,
-            Section {
-                id,
-                title,
-                full_title: line.trim(),
-                lines: vec![],
-            },
-        ))
+            title,
+            full_title,
+            lines: vec![],
+        })
     } else if let Some(info) = APPENDIX_HEADER_RE.captures(&line) {
         let id = info.get(1)?;
         let title = info.get(2)?;
@@ -97,17 +79,15 @@ fn section_header(line: Str) -> Option<(Str, Section)> {
         }
 
         let id = line.slice(id.range()).trim_end_matches('.');
-        let title = line.slice(title.range());
+        let id = format!("appendix-{}", id);
+        let title = line.slice(title.range()).to_string();
 
-        Some((
+        Some(Section {
             id,
-            Section {
-                id,
-                title,
-                full_title: line.trim(),
-                lines: vec![],
-            },
-        ))
+            title,
+            full_title,
+            lines: vec![],
+        })
     } else {
         None
     }
@@ -122,16 +102,14 @@ impl<'a> Parser<'a> {
 
         match core::mem::replace(&mut self.state, ParserState::Init) {
             ParserState::Init => {
-                if let Some((id, section)) = section_header(line) {
+                if let Some(section) = section_header(line) {
                     self.state = ParserState::Section {
-                        id,
                         section,
                         indent: core::usize::MAX,
                     };
                 }
             }
             ParserState::Section {
-                id,
                 mut section,
                 indent,
             } => {
@@ -141,42 +119,32 @@ impl<'a> Parser<'a> {
                 if line_indent == line.len()
                     && section.lines.last().map(|l| !l.is_empty()).unwrap_or(false)
                 {
-                    section.lines.push(line.trim());
+                    section.lines.push(line.trim().into());
 
                     // most likely the footer/header
-                    self.state = ParserState::Section {
-                        id,
-                        section,
-                        indent,
-                    };
+                    self.state = ParserState::Section { section, indent };
 
                     return Ok(());
                 }
 
                 if line_indent == 0 {
-                    if let Some((new_id, new_section)) = section_header(line) {
-                        self.on_section(id, section, indent);
+                    if let Some(new_section) = section_header(line) {
+                        self.on_section(section, indent);
                         self.state = ParserState::Section {
-                            id: new_id,
                             section: new_section,
                             indent: core::usize::MAX,
                         };
                     } else {
                         // most likely the footer/header
-                        self.state = ParserState::Section {
-                            id,
-                            section,
-                            indent,
-                        };
+                        self.state = ParserState::Section { section, indent };
                     }
 
                     return Ok(());
                 }
 
-                section.lines.push(line);
+                section.lines.push(line.into());
 
                 self.state = ParserState::Section {
-                    id,
                     section,
                     indent: indent.min(line_indent),
                 };
@@ -186,11 +154,13 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn on_section(&mut self, id: Str<'a>, mut section: Section<'a>, indent: usize) {
+    fn on_section(&mut self, mut section: Section<'a>, indent: usize) {
         for content in &mut section.lines {
-            if !content.is_empty() {
-                let range = indent..content.len();
-                *content = content.slice(range);
+            if let super::Line::Str(content) = content {
+                if !content.is_empty() {
+                    let range = indent..content.len();
+                    *content = content.slice(range);
+                }
             }
         }
 
@@ -199,18 +169,15 @@ impl<'a> Parser<'a> {
             section.lines.pop();
         }
 
-        self.spec.sections.insert(id.value, section);
+        let id = section.id.clone();
+        self.spec.sections.insert(id, section);
     }
 
     pub fn done(mut self) -> Result<Specification<'a>, Error> {
         match core::mem::replace(&mut self.state, ParserState::Init) {
             ParserState::Init => Ok(self.spec),
-            ParserState::Section {
-                id,
-                section,
-                indent,
-            } => {
-                self.on_section(id, section, indent);
+            ParserState::Section { section, indent } => {
+                self.on_section(section, indent);
                 Ok(self.spec)
             }
         }

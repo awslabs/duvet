@@ -5,6 +5,7 @@ use super::{Reference, ReportResult, TargetReport};
 use crate::{
     annotation::{AnnotationLevel, AnnotationType},
     sourcemap::Str,
+    specification::Line,
 };
 use rayon::prelude::*;
 use std::{
@@ -80,6 +81,10 @@ macro_rules! item {
 }
 
 pub fn report(report: &ReportResult, file: &Path) -> Result<(), Error> {
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     let mut file = BufWriter::new(File::create(file)?);
 
     report_writer(report, &mut file)
@@ -284,6 +289,12 @@ pub fn report_source<Output: Write>(
 
         kv!(
             obj,
+            s!("format"),
+            s!(report.specification.format.to_string())
+        );
+
+        kv!(
+            obj,
             s!("requirements"),
             arr!(|arr| {
                 for requirement in requirements.iter() {
@@ -309,20 +320,22 @@ pub fn report_source<Output: Write>(
                                 s!("lines"),
                                 arr!(|arr| {
                                     for line in &section.lines {
-                                        item!(
-                                            arr,
-                                            if let Some(refs) = references.get(&line.line) {
-                                                report_references(
-                                                    line,
-                                                    refs,
-                                                    &mut requirements,
-                                                    output,
-                                                )?;
-                                            } else {
-                                                // the line has no annotations so just print it
-                                                s!(line);
-                                            }
-                                        )
+                                        if let Line::Str(line) = line {
+                                            item!(
+                                                arr,
+                                                if let Some(refs) = references.get(&line.line) {
+                                                    report_references(
+                                                        line,
+                                                        refs,
+                                                        &mut requirements,
+                                                        output,
+                                                    )?;
+                                                } else {
+                                                    // the line has no annotations so just print it
+                                                    s!(line);
+                                                }
+                                            )
+                                        }
                                     }
                                 })
                             );

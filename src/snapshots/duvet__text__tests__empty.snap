@@ -1,0 +1,5 @@
+---
+source: src/text.rs
+expression: "find(\"\", \"\")"
+---
+None

@@ -1,0 +1,10 @@
+---
+source: src/text.rs
+expression: "find(\"     this       should   ignore whitespace      differences\",\n    \"         this             should       ignore       whitespace            differences\")"
+---
+Some(
+    (
+        9..85,
+        "this             should       ignore       whitespace            differences",
+    ),
+)

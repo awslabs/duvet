@@ -5,16 +5,19 @@ use super::*;
 
 macro_rules! snapshot_test {
     ($name:ident) => {
+        snapshot_test!($name, ".txt");
+    };
+    ($name:ident, $ext:expr) => {
         #[test]
         fn $name() {
             let contents = include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/specs/",
                 stringify!($name),
-                ".txt"
+                $ext,
             ));
 
-            let spec = Format::Ietf.parse(contents).unwrap();
+            let spec = Format::Auto.parse(contents).unwrap();
             let sections = extract_sections(&spec);
 
             let results: Vec<_> = sections
@@ -33,3 +36,7 @@ macro_rules! snapshot_test {
 snapshot_test!(rfc9000);
 snapshot_test!(rfc9001);
 snapshot_test!(rfc9114);
+snapshot_test!(esdk_client, ".md");
+snapshot_test!(esdk_decrypt, ".md");
+snapshot_test!(esdk_encrypt, ".md");
+snapshot_test!(esdk_streaming, ".md");

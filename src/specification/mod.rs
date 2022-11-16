@@ -12,11 +12,13 @@ use core::{
 use std::collections::HashMap;
 
 pub mod ietf;
+pub mod markdown;
 
 #[derive(Default)]
 pub struct Specification<'a> {
-    pub title: Option<Str<'a>>,
-    pub sections: HashMap<&'a str, Section<'a>>,
+    pub title: Option<String>,
+    pub sections: HashMap<String, Section<'a>>,
+    pub format: Format,
 }
 
 impl<'a> fmt::Debug for Specification<'a> {
@@ -24,6 +26,7 @@ impl<'a> fmt::Debug for Specification<'a> {
         f.debug_struct("Specification")
             .field("title", &self.title)
             .field("sections", &self.sorted_sections())
+            .field("format", &self.format)
             .finish()
     }
 }
@@ -32,12 +35,32 @@ impl<'a> Specification<'a> {
     pub fn sorted_sections(&self) -> Vec<&Section<'a>> {
         let mut sections: Vec<_> = self.sections.values().collect();
 
-        sections.sort_by(|a, b| match a.title.line.cmp(&b.title.line) {
-            Ordering::Equal => a.cmp(b),
-            ordering => ordering,
-        });
+        // rely on the section ordering
+        sections.sort();
 
         sections
+    }
+
+    pub fn section(&self, id: &str) -> Option<&Section<'a>> {
+        self.sections.get(id).or_else(|| {
+            // special case ietf references
+            if !matches!(self.format, Format::Ietf) {
+                return None;
+            }
+
+            // allow references to drop the section or appendix prefixes
+            let id = id
+                .trim_start_matches("section-")
+                .trim_start_matches("appendix-");
+
+            for prefix in ["section-", "appendix-"] {
+                if let Some(section) = self.sections.get(&format!("{}{}", prefix, id)) {
+                    return Some(section);
+                }
+            }
+
+            None
+        })
     }
 }
 
@@ -45,6 +68,7 @@ impl<'a> Specification<'a> {
 pub enum Format {
     Auto,
     Ietf,
+    Markdown,
 }
 
 impl Default for Format {
@@ -53,12 +77,56 @@ impl Default for Format {
     }
 }
 
+impl fmt::Display for Format {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let v = match self {
+            Self::Auto => "auto",
+            Self::Ietf => "ietf",
+            Self::Markdown => "markdown",
+        };
+        write!(f, "{}", v)
+    }
+}
+
 impl Format {
     pub fn parse(self, contents: &str) -> Result<Specification, Error> {
-        match self {
-            Self::Auto => ietf::parse(contents),
+        let spec = match self {
+            Self::Auto => {
+                // Markdown MAY start with a header (#),
+                // but it also MAY start with a license/copyright.
+                // In which case it is probably start something like
+                // [//]: "Copyright Foo"
+                if contents.trim().starts_with('#') || contents.trim().starts_with("[//]:") {
+                    markdown::parse(contents)
+                } else {
+                    ietf::parse(contents)
+                }
+            }
             Self::Ietf => ietf::parse(contents),
+            Self::Markdown => markdown::parse(contents),
+        }?;
+
+        if cfg!(debug_assertions) {
+            for section in spec.sections.values() {
+                for content in &section.lines {
+                    if let Line::Str(content) = content {
+                        assert_eq!(
+                            content.value,
+                            &contents[content.range()],
+                            "ranges are incorrect expected {:?}, actual {:?}",
+                            {
+                                let start = (content.value.as_ptr() as usize)
+                                    - (contents.as_ptr() as usize);
+                                start..(start + content.value.len())
+                            },
+                            content.range(),
+                        );
+                    }
+                }
+            }
         }
+
+        Ok(spec)
     }
 }
 
@@ -67,19 +135,77 @@ impl FromStr for Format {
 
     fn from_str(v: &str) -> Result<Self, Self::Err> {
         match v {
-            "AUTO" => Ok(Self::Auto),
-            "IETF" => Ok(Self::Ietf),
+            "AUTO" | "auto" => Ok(Self::Auto),
+            "IETF" | "ietf" => Ok(Self::Ietf),
+            "MARKDOWN" | "markdown" | "md" => Ok(Self::Markdown),
             _ => Err(anyhow!(format!("Invalid spec type {:?}", v))),
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Line<'a> {
+    Str(Str<'a>),
+    Break,
+}
+
+impl<'a> Line<'a> {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::Str(s) => s.is_empty(),
+            Self::Break => true,
+        }
+    }
+}
+
+impl<'a> From<Str<'a>> for Line<'a> {
+    fn from(s: Str<'a>) -> Self {
+        Self::Str(s)
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash)]
 pub struct Section<'a> {
-    pub id: Str<'a>,
-    pub title: Str<'a>,
+    pub id: String,
+    pub title: String,
     pub full_title: Str<'a>,
-    pub lines: Vec<Str<'a>>,
+    pub lines: Vec<Line<'a>>,
+}
+
+impl<'a> Ord for Section<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        macro_rules! cmp {
+            ($($tt:tt)*) => {
+                match self.$($tt)*.cmp(&other.$($tt)*) {
+                    Ordering::Equal => {},
+                    other => return other,
+                }
+            }
+        }
+
+        // compare the full title position first to order by appearance
+        cmp!(full_title.pos);
+        cmp!(full_title.value);
+
+        cmp!(id);
+        cmp!(title);
+
+        cmp!(lines);
+
+        Ordering::Equal
+    }
+}
+
+impl<'a> PartialOrd for Section<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> PartialEq for Section<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
 }
 
 impl<'a> Section<'a> {
@@ -96,20 +222,22 @@ pub struct StrView {
 }
 
 impl StrView {
-    pub fn new(contents: &[Str]) -> Self {
+    pub fn new(contents: &[Line]) -> Self {
         let mut value = String::new();
         let mut byte_map = vec![];
         let mut line_map = vec![];
 
         for chunk in contents {
-            let chunk = chunk.trim();
-            if !chunk.is_empty() {
-                value.push_str(chunk.deref());
-                value.push(' ');
-                let mut range = chunk.range();
-                range.end += 1; // account for new line
-                line_map.extend(range.clone().map(|_| chunk.line));
-                byte_map.extend(range);
+            if let Line::Str(chunk) = chunk {
+                let chunk = chunk.trim();
+                if !chunk.is_empty() {
+                    value.push_str(chunk.deref());
+                    value.push(' ');
+                    let mut range = chunk.range();
+                    range.end += 1; // account for new line
+                    line_map.extend(range.clone().map(|_| chunk.line));
+                    byte_map.extend(range);
+                }
             }
         }
 
@@ -162,10 +290,15 @@ impl<'a> Iterator for StrRangeIter<'a> {
         self.start += 1;
 
         for i in self.start..self.end {
+            let target_line = self.line_map[i];
             let target = self.byte_map[i];
-            if range.end == target - 1 {
-                range.end = target;
-                debug_assert_eq!(line, self.line_map[i], "chunks should only span a line");
+
+            if line != target_line {
+                break;
+            }
+
+            if range.end <= target {
+                range.end = target + 1;
                 self.start += 1;
             } else {
                 break;

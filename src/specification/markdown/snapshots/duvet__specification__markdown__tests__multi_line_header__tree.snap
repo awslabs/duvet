@@ -1,0 +1,39 @@
+---
+source: src/specification/markdown/tests.rs
+expression: "super::parse(r#\"\nFoo *bar\nbaz*\n======\n\nContent goes here. Another\nsentence here.\n\"#)"
+---
+Ok(
+    Specification {
+        title: Some(
+            "Foo *bar baz*",
+        ),
+        sections: [
+            Section {
+                id: "foo-bar-baz",
+                title: "Foo *bar baz*",
+                full_title: Str {
+                    value: "Foo *bar\nbaz*",
+                    pos: 1,
+                    line: 2,
+                },
+                lines: [
+                    Str(
+                        Str {
+                            value: "Content goes here. Another",
+                            pos: 23,
+                            line: 6,
+                        },
+                    ),
+                    Str(
+                        Str {
+                            value: "sentence here.",
+                            pos: 50,
+                            line: 7,
+                        },
+                    ),
+                ],
+            },
+        ],
+        format: Markdown,
+    },
+)

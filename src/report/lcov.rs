@@ -52,7 +52,7 @@ pub fn report(report: &ReportResult, dir: &Path) -> Result<(), Error> {
         .map(|(source, report)| {
             let id = crate::fnv(source);
             let path = lcov_dir.join(format!("compliance.{}.lcov", id));
-            let mut output = BufWriter::new(std::fs::File::create(&path)?);
+            let mut output = BufWriter::new(std::fs::File::create(path)?);
             report_source(report, &mut output)?;
             Ok(())
         })
@@ -78,7 +78,7 @@ pub fn report_source<Output: Write>(
 
     // record all sections
     for section in report.specification.sections.values() {
-        let title = section.full_title;
+        let title = &section.full_title;
         put!("FN:{},{}", line!(title), title);
     }
 
