@@ -103,3 +103,16 @@ Testing 123
 More content
 "#
 );
+
+snapshot!(
+    duplicate_sections,
+    r#"
+# Duplicate header
+
+testing 123
+
+## Duplicate header
+
+other test
+"#
+);
