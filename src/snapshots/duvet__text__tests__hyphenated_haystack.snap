@@ -1,0 +1,10 @@
+---
+source: src/text.rs
+expression: "find(\"this is a new-line\", \"this is a new-\\nline\")"
+---
+Some(
+    (
+        0..19,
+        "this is a new-\nline",
+    ),
+)

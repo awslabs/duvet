@@ -22,7 +22,8 @@ pub fn slow_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
 
 fn fast_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
     text_search(needle.as_bytes(), haystack.as_bytes())
-        .find(|m| m.k < 2)
+        .filter(|m| m.k < 2)
+        .min_by_key(|m| m.k)
         .map(|m| m.start..m.end)
 }
 
@@ -34,16 +35,18 @@ fn normalize_whitespace(value: &str) -> (String, Vec<usize>) {
     let mut trimmed_end = 0;
 
     for word in value.split_whitespace() {
-        let start = word.as_ptr() as usize - value_start;
-        let end = start + word.len();
-        trimmed_end = end;
+        for word in word.split_inclusive('-') {
+            let start = word.as_ptr() as usize - value_start;
+            let end = start + word.len();
+            trimmed_end = end;
 
-        if !out.is_empty() {
-            out.push(' ');
-            offset_map.push(start);
+            if !out.is_empty() {
+                out.push(' ');
+                offset_map.push(start);
+            }
+            out.push_str(word);
+            offset_map.extend(start..end);
         }
-        out.push_str(word);
-        offset_map.extend(start..end);
     }
 
     offset_map.push(trimmed_end);
@@ -77,10 +80,19 @@ mod tests {
     find_test!(middle_2, "b c", "a b c d");
     find_test!(end, "d", "a b c d");
     find_test!(end_2, "c d", "a b c d");
-
     find_test!(
-        pto,
+        ws_difference,
         "     this       should   ignore whitespace      differences",
         "         this             should       ignore       whitespace            differences"
+    );
+    find_test!(
+        hyphenated_haystack,
+        "this is a new-line",
+        "this is a new-\nline"
+    );
+    find_test!(
+        hyphenated_needle,
+        "this is a new-\nline",
+        "this is a new-line"
     );
 }
