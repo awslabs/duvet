@@ -8,8 +8,8 @@ const specifications = [];
 Object.keys(input.specifications).forEach((id) => {
   const spec = input.specifications[id];
 
-  spec.isIetf = spec.format == "ietf";
-  spec.isMarkdown = spec.format == "markdown";
+  spec.isIetf = spec.format === "ietf";
+  spec.isMarkdown = spec.format === "markdown";
 
   const parts = id.split("/");
   const title = spec.title || parts[parts.length - 1].replace(".txt", "");
