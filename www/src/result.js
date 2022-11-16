@@ -8,6 +8,9 @@ const specifications = [];
 Object.keys(input.specifications).forEach((id) => {
   const spec = input.specifications[id];
 
+  spec.isIetf = spec.format == "ietf";
+  spec.isMarkdown = spec.format == "markdown";
+
   const parts = id.split("/");
   const title = spec.title || parts[parts.length - 1].replace(".txt", "");
   const url = `/spec/${encodeURIComponent(id)}`;
@@ -21,7 +24,14 @@ Object.keys(input.specifications).forEach((id) => {
     section.requirements = (section.requirements || []).map(
       (id) => input.annotations[id]
     );
-    section.shortId = section.id.replace(/^section-/, '').replace(/^appendix-/, '');
+    section.shortId = spec.isIetf
+      ? section.id.replace(/^section-/, "").replace(/^appendix-/, "")
+      : section.id;
+
+    // include the section id with the title for IETF documents
+    if (spec.isIetf) {
+      section.title = `${section.shortId}. ${section.title}`;
+    }
 
     sections.push(section);
     sections[section.id] = section;
@@ -48,8 +58,9 @@ input.annotations.forEach((anno, id) => {
   if (status) {
     status.related = (status.related || []).map((id) => input.annotations[id]);
     Object.assign(anno, status);
-    anno.isComplete = (anno.spec === anno.citation && anno.spec === anno.test)
-      || anno.spec === anno.implication;
+    anno.isComplete =
+      (anno.spec === anno.citation && anno.spec === anno.test) ||
+      anno.spec === anno.implication;
     anno.isOk = anno.isComplete || anno.exception === anno.spec;
   }
 
@@ -60,7 +71,9 @@ input.annotations.forEach((anno, id) => {
 
   // allow references to be wrong for the given section type for backward-compatibility
   if (!anno.section) {
-    let id = anno.target_section.replace(/^section-/, '').replace(/^appendix-/, '');
+    let id = anno.target_section
+      .replace(/^section-/, "")
+      .replace(/^appendix-/, "");
     let sections = anno.specification.sections;
     anno.section = sections[`section-${id}`] || sections[`appendix-${id}`];
   }

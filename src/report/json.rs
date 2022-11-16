@@ -81,6 +81,10 @@ macro_rules! item {
 }
 
 pub fn report(report: &ReportResult, file: &Path) -> Result<(), Error> {
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     let mut file = BufWriter::new(File::create(file)?);
 
     report_writer(report, &mut file)
@@ -282,6 +286,12 @@ pub fn report_source<Output: Write>(
         if let Some(title) = &report.specification.title {
             kv!(obj, s!("title"), s!(title));
         }
+
+        kv!(
+            obj,
+            s!("format"),
+            s!(report.specification.format.to_string())
+        );
 
         kv!(
             obj,

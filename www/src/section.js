@@ -24,9 +24,7 @@ export function Section({ spec, section }) {
   const key = `${spec.id}--${section.id}`;
   return (
     <>
-      <h2>
-        {section.shortId} {section.title}
-      </h2>
+      <h2>{section.title}</h2>
       <pre>
         {section.lines.map((line, i) => (
           <Line content={line} key={i} />
@@ -231,10 +229,7 @@ function Annotations({ reference: { annotations, status }, expanded }) {
         alt={showMissing && "Missing!"}
         refs={refs.TEST}
       />
-      <AnnotationRef
-        title="Implications"
-        refs={refs.IMPLICATION}
-      />
+      <AnnotationRef title="Implications" refs={refs.IMPLICATION} />
       <AnnotationRef
         title="Exceptions"
         refs={refs.EXCEPTION}

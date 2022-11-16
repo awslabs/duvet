@@ -21,6 +21,10 @@ macro_rules! writer {
 }
 
 pub fn report(report: &ReportResult, file: &Path) -> Result<(), Error> {
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     let mut file = BufWriter::new(File::create(file)?);
 
     report_writer(report, &mut file)

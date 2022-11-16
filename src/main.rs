@@ -14,6 +14,9 @@ mod sourcemap;
 mod specification;
 mod target;
 
+#[cfg(test)]
+mod tests;
+
 pub use anyhow::Error;
 
 fn main() {

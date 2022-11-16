@@ -77,6 +77,17 @@ impl Default for Format {
     }
 }
 
+impl fmt::Display for Format {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let v = match self {
+            Self::Auto => "auto",
+            Self::Ietf => "ietf",
+            Self::Markdown => "markdown",
+        };
+        write!(f, "{}", v)
+    }
+}
+
 impl Format {
     pub fn parse(self, contents: &str) -> Result<Specification, Error> {
         let spec = match self {
@@ -279,10 +290,15 @@ impl<'a> Iterator for StrRangeIter<'a> {
         self.start += 1;
 
         for i in self.start..self.end {
+            let target_line = self.line_map[i];
             let target = self.byte_map[i];
-            if range.end == target - 1 {
-                range.end = target;
-                debug_assert_eq!(line, self.line_map[i], "chunks should only span a line");
+
+            if line != target_line {
+                break;
+            }
+
+            if range.end <= target {
+                range.end = target + 1;
                 self.start += 1;
             } else {
                 break;

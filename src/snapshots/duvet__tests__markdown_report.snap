@@ -1,0 +1,55 @@
+---
+source: src/tests.rs
+expression: "out[\"specifications\"]"
+---
+{
+  "my-spec.md": {
+    "format": "markdown",
+    "requirements": [],
+    "sections": [
+      {
+        "id": "my-spec",
+        "lines": [
+          "here is a spec",
+          ""
+        ],
+        "title": "My spec"
+      },
+      {
+        "id": "testing",
+        "lines": [
+          [
+            [
+              [
+                0
+              ],
+              16,
+              "This quote MUST work"
+            ]
+          ],
+          [
+            [
+              [
+                0
+              ],
+              16,
+              "* with"
+            ]
+          ],
+          [
+            [
+              [
+                0
+              ],
+              16,
+              "* bullets"
+            ]
+          ],
+          "        "
+        ],
+        "title": "Testing"
+      }
+    ],
+    "title": "My spec"
+  }
+}
