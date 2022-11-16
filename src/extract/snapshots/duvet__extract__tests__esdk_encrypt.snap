@@ -104,6 +104,25 @@ expression: results
         },
     ),
     (
+        "encryption-context",
+        Feature {
+            level: Must,
+            quote: [
+                "If the input encryption context contains any entries with a key beginning with this prefix,",
+                "the encryption operation MUST fail.",
+            ],
+        },
+    ),
+    (
+        "algorithm-suite",
+        Feature {
+            level: Should,
+            quote: [
+                "The [algorithm suite](../framework/algorithm-suites.md) that SHOULD be used for encryption.",
+            ],
+        },
+    ),
+    (
         "frame-length",
         Feature {
             level: Must,
@@ -188,7 +207,7 @@ expression: results
         },
     ),
     (
-        "encryption-context",
+        "encryption-context-1",
         Feature {
             level: May,
             quote: [
@@ -197,7 +216,7 @@ expression: results
         },
     ),
     (
-        "algorithm-suite",
+        "algorithm-suite-1",
         Feature {
             level: May,
             quote: [

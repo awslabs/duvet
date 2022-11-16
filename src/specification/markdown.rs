@@ -220,14 +220,34 @@ impl<'a> Parser<'a> {
         Ok(self.spec)
     }
 
-    fn push_section(&mut self, section: Section<'a>, level: u8) {
+    fn push_section(&mut self, mut section: Section<'a>, level: u8) {
         // set the document title if it's a H1 and we haven't set it yet
         if self.spec.title.is_none() && level == 1 {
             self.spec.title = Some(section.title.clone());
         }
 
-        let name = section.id.clone();
-        self.spec.sections.insert(name, section);
+        let mut counter: usize = 0;
+
+        loop {
+            let name = if counter > 0 {
+                format!("{}-{}", section.id, counter)
+            } else {
+                section.id.to_string()
+            };
+
+            if let std::collections::hash_map::Entry::Vacant(entry) = self.spec.sections.entry(name)
+            {
+                // update the section if it changed
+                if &section.id != entry.key() {
+                    section.id = entry.key().clone();
+                }
+                entry.insert(section);
+                return;
+            }
+
+            // update the count if we got a duplicate
+            counter += 1;
+        }
     }
 }
 

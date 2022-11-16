@@ -1,0 +1,76 @@
+---
+source: src/specification/markdown/tests.rs
+expression: "super::tokens(r#\"\n# Duplicate header\n\ntesting 123\n\n## Duplicate header\n\nother test\n\"#)"
+---
+[
+    Line(
+        Str {
+            value: "",
+            pos: 0,
+            line: 1,
+        },
+    ),
+    Header {
+        line: Str {
+            value: "# Duplicate header",
+            pos: 1,
+            line: 2,
+        },
+        name: Str {
+            value: "Duplicate header",
+            pos: 3,
+            line: 2,
+        },
+        fragment: None,
+        level: 1,
+    },
+    Line(
+        Str {
+            value: "",
+            pos: 20,
+            line: 3,
+        },
+    ),
+    Line(
+        Str {
+            value: "testing 123",
+            pos: 21,
+            line: 4,
+        },
+    ),
+    Line(
+        Str {
+            value: "",
+            pos: 33,
+            line: 5,
+        },
+    ),
+    Header {
+        line: Str {
+            value: "## Duplicate header",
+            pos: 34,
+            line: 6,
+        },
+        name: Str {
+            value: "Duplicate header",
+            pos: 37,
+            line: 6,
+        },
+        fragment: None,
+        level: 2,
+    },
+    Line(
+        Str {
+            value: "",
+            pos: 54,
+            line: 7,
+        },
+    ),
+    Line(
+        Str {
+            value: "other test",
+            pos: 55,
+            line: 8,
+        },
+    ),
+]

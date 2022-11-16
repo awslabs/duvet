@@ -1,0 +1,57 @@
+---
+source: src/specification/markdown/tests.rs
+expression: "super::parse(r#\"\n# Duplicate header\n\ntesting 123\n\n## Duplicate header\n\nother test\n\"#)"
+---
+Ok(
+    Specification {
+        title: Some(
+            "Duplicate header",
+        ),
+        sections: [
+            Section {
+                id: "duplicate-header",
+                title: "Duplicate header",
+                full_title: Str {
+                    value: "# Duplicate header",
+                    pos: 1,
+                    line: 2,
+                },
+                lines: [
+                    Str(
+                        Str {
+                            value: "testing 123",
+                            pos: 21,
+                            line: 4,
+                        },
+                    ),
+                    Str(
+                        Str {
+                            value: "",
+                            pos: 33,
+                            line: 5,
+                        },
+                    ),
+                ],
+            },
+            Section {
+                id: "duplicate-header-1",
+                title: "Duplicate header",
+                full_title: Str {
+                    value: "## Duplicate header",
+                    pos: 34,
+                    line: 6,
+                },
+                lines: [
+                    Str(
+                        Str {
+                            value: "other test",
+                            pos: 55,
+                            line: 8,
+                        },
+                    ),
+                ],
+            },
+        ],
+        format: Markdown,
+    },
+)
