@@ -4,12 +4,26 @@
 use core::ops::Range;
 use triple_accel::levenshtein::levenshtein_search as text_search;
 
+/// In order to make text matching a little nicer to work with, we split on any punctuation,
+/// rather than require strict matching
+static PUNCTUATION: &[char] = &[
+    '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=',
+    '>', '?', '@', '[', '\\', ']', '^', '_', '`', '{', '|', '}', '~',
+];
+
 pub fn find(needle: &str, haystack: &str) -> Option<Range<usize>> {
     // try finding without ignoring whitespace first
     fast_find(needle, haystack).or_else(|| slow_find(needle, haystack))
 }
 
-pub fn slow_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
+fn fast_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
+    text_search(needle.as_bytes(), haystack.as_bytes())
+        .filter(|m| m.k < 2)
+        .min_by_key(|m| (m.k, m.start))
+        .map(|m| m.start..m.end)
+}
+
+fn slow_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
     let (needle, _) = normalize_whitespace(needle);
     let (haystack, offset_map) = normalize_whitespace(haystack);
     let range = fast_find(&needle, &haystack)?;
@@ -20,13 +34,6 @@ pub fn slow_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
     Some(start..end)
 }
 
-fn fast_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
-    text_search(needle.as_bytes(), haystack.as_bytes())
-        .filter(|m| m.k < 2)
-        .min_by_key(|m| m.k)
-        .map(|m| m.start..m.end)
-}
-
 fn normalize_whitespace(value: &str) -> (String, Vec<usize>) {
     let mut offset_map = Vec::with_capacity(value.len() + 1);
     let mut out = String::with_capacity(value.len());
@@ -35,7 +42,7 @@ fn normalize_whitespace(value: &str) -> (String, Vec<usize>) {
     let mut trimmed_end = 0;
 
     for word in value.split_whitespace() {
-        for word in word.split_inclusive('-') {
+        for word in word.split_inclusive(PUNCTUATION) {
             let start = word.as_ptr() as usize - value_start;
             let end = start + word.len();
             trimmed_end = end;
