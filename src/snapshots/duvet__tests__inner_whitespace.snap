@@ -1,0 +1,27 @@
+---
+source: src/tests.rs
+expression: "out[\"specifications\"][&spec]"
+---
+{
+  "format": "markdown",
+  "requirements": [],
+  "sections": [
+    {
+      "id": "testing",
+      "lines": [
+        [
+          [
+            [
+              0
+            ],
+            16,
+            "This      SHOULD         ignore        whitespace."
+          ]
+        ],
+        "        "
+      ],
+      "title": "Testing"
+    }
+  ],
+  "title": "Testing"
+}

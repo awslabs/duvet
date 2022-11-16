@@ -1,0 +1,10 @@
+---
+source: src/text.rs
+expression: "find(\"b c\", \"a b c d\")"
+---
+Some(
+    (
+        2..5,
+        "b c",
+    ),
+)

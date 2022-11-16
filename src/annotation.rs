@@ -13,7 +13,6 @@ use std::{
     collections::{BTreeSet, HashMap},
     path::{Path, PathBuf},
 };
-use triple_accel::levenshtein_search as text_search;
 
 pub type AnnotationSet = BTreeSet<Annotation>;
 
@@ -124,14 +123,7 @@ impl Annotation {
     }
 
     pub fn quote_range(&self, contents: &str) -> Option<Range<usize>> {
-        if self.quote.is_empty() {
-            // Don't actually consider full-section quotes as valid
-            None
-        } else {
-            text_search(self.quote.as_bytes(), contents.as_bytes())
-                .find(|m| m.k < 2)
-                .map(|m| m.start..m.end)
-        }
+        crate::text::find(&self.quote, contents)
     }
 }
 

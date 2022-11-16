@@ -13,6 +13,7 @@ mod source;
 mod sourcemap;
 mod specification;
 mod target;
+mod text;
 
 #[cfg(test)]
 mod tests;
