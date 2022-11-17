@@ -8,4 +8,7 @@ publish: www/public/script.js
 www/public/script.js:
 	@$(MAKE) -C www
 
-.PHONY: default publish force-build
+changelog:
+	@npx conventional-changelog-cli -p conventionalcommits -i CHANGELOG.md -s
+
+.PHONY: default publish force-build changelog
