@@ -79,7 +79,7 @@ export function Requirements({ requirements, showSection }) {
       field: "section",
       headerName: "Section",
       valueGetter(params) {
-        return params.row;
+        return params.row.section.title;
       },
       sortComparator(v1, v2) {
         return v1.cmp(v2);
@@ -93,7 +93,7 @@ export function Requirements({ requirements, showSection }) {
               hash: `#A${requirement.id}`,
             }}
           >
-            {requirement.section.shortId}
+            {requirement.section.title}
           </Link>
         );
       },
