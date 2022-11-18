@@ -125,7 +125,13 @@ export function Nav({ open, setOpen }) {
           </IconButton>
           <Link to="/" color="inherit">
             <Typography variant="h6" noWrap>
-              Compliance Coverage Report
+              Compliance by Specification
+            </Typography>
+          </Link>
+          <Divider orientation="vertical" variant="middle" flexItem />
+          <Link to="/list" color="inherit">
+            <Typography variant="h6" noWrap>
+              Compliance by Requirement
             </Typography>
           </Link>
         </Toolbar>

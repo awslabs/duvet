@@ -7,7 +7,9 @@ import { Nav } from "./nav";
 import { Spec, Stats } from "./spec";
 import { Section } from "./section";
 import { Link } from "./link";
+import { List } from "./list";
 import specifications from "./result";
+import { Stats as StatsClass } from "./stats_class";
 import clsx from "clsx";
 
 const drawerWidth = 400;
@@ -88,6 +90,9 @@ function App() {
         <div className={classes.drawerHeader} />
         <Container maxWidth={false} className={classes.container}>
           <Switch>
+            <Route path="/list">
+              <ListRoute />
+            </Route>
             <Route path="/spec/:specid/:sectionid">
               <SectionRoute />
             </Route>
@@ -134,6 +139,25 @@ function SectionRoute() {
   if (!section) return "section not found";
 
   return <Section spec={spec} section={section} />;
+}
+
+function ListRoute() {
+  const requirements = specifications.flatMap((spec) => spec.requirements);
+  const total = {
+    id: "AllSpecifications",
+    stats: specifications.reduce((total, {stats}) => {
+      Object.keys(stats).forEach((statName) => {
+        const stat = total[statName] || new StatsClass()
+        total[statName] = stat;
+        stat.onStat(stats[statName]);
+      });
+      return total;
+    }, {}),
+    requirements,
+  }
+  specifications
+    .map((spec) => spec.requirements)  
+  return <List spec={total} />;
 }
 
 export default App;

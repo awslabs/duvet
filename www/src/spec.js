@@ -68,10 +68,36 @@ const LEVEL_IDS = LEVELS.reduce((acc, level, idx) => {
   return acc;
 }, {});
 
-export function Requirements({ requirements, showSection }) {
+export function Requirements({ requirements, showSection, showSpecification }) {
   const classes = useStyles();
 
   const columns = [];
+
+  if (showSpecification) {
+    columns.push({
+      flex: 1, // This is paired with "content" below
+      field: "specification",
+      headerName: "Specification",
+      valueGetter(params) {
+        return params.row.specification.title;
+      },
+      sortComparator(v1, v2) {
+        return v1.localeCompare(v2)
+      },
+      renderCell(params) {
+        const requirement = params.row;
+        return (
+          <Link
+            to={{
+              pathname: requirement.specification.url,
+            }}
+          >
+            {requirement.specification.title}
+          </Link>
+        );
+      },
+    });
+  }
 
   if (showSection) {
     columns.push({
@@ -190,7 +216,7 @@ export function Requirements({ requirements, showSection }) {
   return (
     <div className={classes.root}>
       <DataGrid
-        pageSize={25}
+        pageSize={100}
         disableSelectionOnClick
         autoHeight={true}
         rows={requirements}
