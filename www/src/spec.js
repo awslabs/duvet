@@ -75,6 +75,7 @@ export function Requirements({ requirements, showSection }) {
 
   if (showSection) {
     columns.push({
+      flex: 1, // This is paired with "content" below
       field: "section",
       headerName: "Section",
       valueGetter(params) {
@@ -104,7 +105,7 @@ export function Requirements({ requirements, showSection }) {
       {
         field: "level",
         headerName: "Requirement",
-        width: 120,
+        width: 150,
         sortComparator(v1, v2) {
           return LEVEL_IDS[v2] - LEVEL_IDS[v1];
         },
@@ -182,7 +183,7 @@ export function Requirements({ requirements, showSection }) {
     field: "comment",
     headerName: "Text",
     sortable: false,
-    width: 850,
+    flex: 4, // This is paired with "section" above
     cellClassName: classes.text,
   });
 

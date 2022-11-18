@@ -86,7 +86,7 @@ function App() {
         })}
       >
         <div className={classes.drawerHeader} />
-        <Container maxWidth="lg" className={classes.container}>
+        <Container maxWidth={false} className={classes.container}>
           <Switch>
             <Route path="/spec/:specid/:sectionid">
               <SectionRoute />
