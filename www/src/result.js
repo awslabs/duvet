@@ -1,5 +1,5 @@
 
-import { Stats } from "./stats_class";
+import { Stats } from "./stats";
 
 const input =
   process.env.NODE_ENV === "production"

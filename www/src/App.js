@@ -10,7 +10,7 @@ import { Link } from "./link";
 import { List } from "./list";
 import specifications from "./result";
 import { AllSpecificationsRequirements } from "./result";
-import { Stats as StatsClass } from "./stats_class";
+import { Stats as StatsClass } from "./stats";
 import clsx from "clsx";
 
 const drawerWidth = 400;
