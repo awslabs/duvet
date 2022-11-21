@@ -9,6 +9,7 @@ import { Section } from "./section";
 import { Link } from "./link";
 import { List } from "./list";
 import specifications from "./result";
+import { AllSpecificationsRequirements } from "./result";
 import { Stats as StatsClass } from "./stats_class";
 import clsx from "clsx";
 
@@ -142,22 +143,7 @@ function SectionRoute() {
 }
 
 function ListRoute() {
-  const requirements = specifications.flatMap((spec) => spec.requirements);
-  const total = {
-    id: "AllSpecifications",
-    stats: specifications.reduce((total, {stats}) => {
-      Object.keys(stats).forEach((statName) => {
-        const stat = total[statName] || new StatsClass()
-        total[statName] = stat;
-        stat.onStat(stats[statName]);
-      });
-      return total;
-    }, {}),
-    requirements,
-  }
-  specifications
-    .map((spec) => spec.requirements)  
-  return <List spec={total} />;
+  return <List spec={AllSpecificationsRequirements} />;
 }
 
 export default App;

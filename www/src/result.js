@@ -256,3 +256,16 @@ function mapLine(line) {
 }
 
 export default specifications;
+
+export const AllSpecificationsRequirements = {
+  id: "AllSpecificationsRequirements",
+  stats: specifications.reduce((total, {stats}) => {
+    Object.keys(stats).forEach((statName) => {
+      const stat = total[statName] || new StatsClass()
+      total[statName] = stat;
+      stat.onStat(stats[statName]);
+    });
+    return total;
+  }, {}),
+  requirements: specifications.flatMap((spec) => spec.requirements),
+}
