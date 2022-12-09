@@ -20,9 +20,8 @@ pub enum SourceFile<'a> {
 impl<'a> SourceFile<'a> {
     pub fn annotations(&self) -> Result<AnnotationSet, Error> {
         let ret = self.annotations2();
-        match ret {
-            Err(ref e) => println!("{:?}", e),
-            _ => (),
+        if let Err(ref e) = ret {
+            println!("{:?}", e)
         }
         ret
     }
