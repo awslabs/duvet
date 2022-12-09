@@ -19,6 +19,14 @@ pub enum SourceFile<'a> {
 
 impl<'a> SourceFile<'a> {
     pub fn annotations(&self) -> Result<AnnotationSet, Error> {
+	let ret = self.annotations2();
+	match ret {
+	    Err(ref e) => println!("{:?}", e),
+	    _ => (),
+	}
+	ret
+    }
+    pub fn annotations2(&self) -> Result<AnnotationSet, Error> {
         let mut annotations = AnnotationSet::new();
         match self {
             Self::Text(pattern, file) => {

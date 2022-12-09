@@ -118,7 +118,7 @@ impl<'a> ParserState<'a> {
             }
             ParserState::CapturingContent(mut capture) => {
                 if pattern.try_meta(content).is_some() {
-                    return Err(anyhow!("cannot set metadata while parsing content"));
+                    return Err(anyhow!("cannot set metadata while parsing content".to_owned() + content));
                 } else if let Some(content) = pattern.try_content(content) {
                     capture.push_content(content);
                     *self = ParserState::CapturingContent(capture);
