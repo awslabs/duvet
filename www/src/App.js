@@ -7,7 +7,10 @@ import { Nav } from "./nav";
 import { Spec, Stats } from "./spec";
 import { Section } from "./section";
 import { Link } from "./link";
+import { List } from "./list";
 import specifications from "./result";
+import { AllSpecificationsRequirements } from "./result";
+import { Stats as StatsClass } from "./stats";
 import clsx from "clsx";
 
 const drawerWidth = 400;
@@ -86,8 +89,11 @@ function App() {
         })}
       >
         <div className={classes.drawerHeader} />
-        <Container maxWidth="lg" className={classes.container}>
+        <Container maxWidth={false} className={classes.container}>
           <Switch>
+            <Route path="/list">
+              <ListRoute />
+            </Route>
             <Route path="/spec/:specid/:sectionid">
               <SectionRoute />
             </Route>
@@ -134,6 +140,10 @@ function SectionRoute() {
   if (!section) return "section not found";
 
   return <Section spec={spec} section={section} />;
+}
+
+function ListRoute() {
+  return <List spec={AllSpecificationsRequirements} />;
 }
 
 export default App;

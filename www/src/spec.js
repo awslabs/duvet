@@ -68,17 +68,44 @@ const LEVEL_IDS = LEVELS.reduce((acc, level, idx) => {
   return acc;
 }, {});
 
-export function Requirements({ requirements, showSection }) {
+export function Requirements({ requirements, showSection, showSpecification }) {
   const classes = useStyles();
 
   const columns = [];
 
+  if (showSpecification) {
+    columns.push({
+      flex: 1, // This is paired with "content" below
+      field: "specification",
+      headerName: "Specification",
+      valueGetter(params) {
+        return params.row.specification.title;
+      },
+      sortComparator(v1, v2) {
+        return v1.localeCompare(v2)
+      },
+      renderCell(params) {
+        const requirement = params.row;
+        return (
+          <Link
+            to={{
+              pathname: requirement.specification.url,
+            }}
+          >
+            {requirement.specification.title}
+          </Link>
+        );
+      },
+    });
+  }
+
   if (showSection) {
     columns.push({
+      flex: 1, // This is paired with "content" below
       field: "section",
       headerName: "Section",
       valueGetter(params) {
-        return params.row;
+        return params.row.section.title;
       },
       sortComparator(v1, v2) {
         return v1.cmp(v2);
@@ -92,7 +119,7 @@ export function Requirements({ requirements, showSection }) {
               hash: `#A${requirement.id}`,
             }}
           >
-            {requirement.section.shortId}
+            {requirement.section.title}
           </Link>
         );
       },
@@ -104,7 +131,7 @@ export function Requirements({ requirements, showSection }) {
       {
         field: "level",
         headerName: "Requirement",
-        width: 120,
+        width: 150,
         sortComparator(v1, v2) {
           return LEVEL_IDS[v2] - LEVEL_IDS[v1];
         },
@@ -182,14 +209,14 @@ export function Requirements({ requirements, showSection }) {
     field: "comment",
     headerName: "Text",
     sortable: false,
-    width: 850,
+    flex: 4, // This is paired with "section" above
     cellClassName: classes.text,
   });
 
   return (
     <div className={classes.root}>
       <DataGrid
-        pageSize={25}
+        pageSize={100}
         disableSelectionOnClick
         autoHeight={true}
         rows={requirements}
