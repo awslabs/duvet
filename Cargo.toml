@@ -24,7 +24,7 @@ reqwest = { version = "0.11", features = ["blocking", "native-tls"] }
 serde = { version = "1", features = ["derive"] }
 slug = { version = "0.1" }
 structopt = "0.3"
-toml = "0.5"
+toml = "0.7"
 triple_accel = "0.4"
 url = "2"
 v_jsonescape = "0.7"
