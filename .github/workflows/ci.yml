@@ -79,7 +79,7 @@ jobs:
       - uses: camshaft/rust-cache@v1
 
       - name: Cache node_modules
-        uses: actions/cache@v3.2.2
+        uses: actions/cache@v3.2.4
         continue-on-error: true
         with:
           path: www/node_modules
@@ -117,7 +117,7 @@ jobs:
           crate: cargo-udeps
 
       - name: Cache node_modules
-        uses: actions/cache@v3.2.2
+        uses: actions/cache@v3.2.4
         continue-on-error: true
         with:
           path: www/node_modules
@@ -155,7 +155,7 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: Cache node_modules
-        uses: actions/cache@v3.2.2
+        uses: actions/cache@v3.2.4
         continue-on-error: true
         with:
           path: www/node_modules
