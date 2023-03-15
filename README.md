@@ -12,6 +12,7 @@ This tool is still in beta.
 Interfaces should be considered unstable and may change before the 1.0.0 release.
 
 ## Test
+First run `make` in the main `duvet` directory to generate the necessary files.
 ```
 cargo test
 ```
