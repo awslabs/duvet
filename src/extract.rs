@@ -60,10 +60,10 @@ pub struct Extract {
 
 impl Extract {
     pub fn exec(&self) -> Result<(), Error> {
-        let contents = self.target.load()?;
+        let contents = self.target.load(None)?;
         let spec = self.format.parse(&contents)?;
         let sections = extract_sections(&spec);
-        let local_path = self.target.local();
+        let local_path = self.target.local(None);
 
         if self.out.extension().is_some() {
             // assume a path with an extension is a single file

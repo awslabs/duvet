@@ -55,6 +55,14 @@ pub struct Project {
     /// Glob patterns for spec files
     #[structopt(long = "spec-pattern")]
     spec_patterns: Vec<String>,
+
+    /// Path to store the collection of spec files
+    ///
+    /// The spec files are stored in a folder called `specs`. This folder is
+    /// stored at the root of the project by default. Use this argument to
+    /// specify a different location.
+    #[structopt(long = "spec-download-path", default_value = ".")]
+    pub spec_download_path: String,
 }
 
 impl Project {

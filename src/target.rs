@@ -72,10 +72,10 @@ impl TargetPath {
         Ok(Self::Path(path))
     }
 
-    pub fn load(&self) -> Result<String, Error> {
+    pub fn load(&self, spec_download_path: Option<&String>) -> Result<String, Error> {
         let mut contents = match self {
             Self::Url(url) => {
-                let path = self.local();
+                let path = self.local(spec_download_path);
                 if !path.exists() {
                     std::fs::create_dir_all(path.parent().unwrap())?;
 
@@ -103,10 +103,13 @@ impl TargetPath {
         Ok(contents)
     }
 
-    pub fn local(&self) -> PathBuf {
+    pub fn local(&self, spec_download_path: Option<&String>) -> PathBuf {
         match self {
             Self::Url(url) => {
                 let mut path = std::env::current_dir().unwrap();
+                if let Some(path_to_spec) = spec_download_path {
+                    path.push(path_to_spec);
+                }
                 path.push("specs");
                 path.push(url.host_str().expect("url should have host"));
                 path.extend(url.path_segments().expect("url should have path"));
