@@ -27,6 +27,7 @@ fn main() {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, StructOpt)]
 enum Arguments {
     Extract(extract::Extract),
