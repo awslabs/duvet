@@ -72,7 +72,7 @@ impl TargetPath {
         Ok(Self::Path(path))
     }
 
-    pub fn load(&self, spec_download_path: Option<&String>) -> Result<String, Error> {
+    pub fn load(&self, spec_download_path: Option<&str>) -> Result<String, Error> {
         let mut contents = match self {
             Self::Url(url) => {
                 let path = self.local(spec_download_path);
@@ -103,13 +103,14 @@ impl TargetPath {
         Ok(contents)
     }
 
-    pub fn local(&self, spec_download_path: Option<&String>) -> PathBuf {
+    pub fn local(&self, spec_download_path: Option<&str>) -> PathBuf {
         match self {
             Self::Url(url) => {
-                let mut path = std::env::current_dir().unwrap();
-                if let Some(path_to_spec) = spec_download_path {
-                    path.push(path_to_spec);
-                }
+                let mut path = if let Some(path_to_spec) = spec_download_path {
+                    PathBuf::from_str(path_to_spec).unwrap()
+                } else {
+                    std::env::current_dir().unwrap()
+                };
                 path.push("specs");
                 path.push(url.host_str().expect("url should have host"));
                 path.extend(url.path_segments().expect("url should have path"));

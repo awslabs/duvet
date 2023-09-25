@@ -55,15 +55,23 @@ pub struct Extract {
     #[structopt(short, long, default_value = ".")]
     out: PathBuf,
 
+    /// Path to store the collection of spec files
+    ///
+    /// The collection of spec files are stored in a folder called `specs`. The
+    /// `specs` folder is stored in the current directory by default. Use this
+    /// argument to override the default location.
+    #[structopt(long = "spec-path")]
+    pub spec_path: Option<String>,
+
     target: TargetPath,
 }
 
 impl Extract {
     pub fn exec(&self) -> Result<(), Error> {
-        let contents = self.target.load(None)?;
+        let contents = self.target.load(self.spec_path.as_deref())?;
         let spec = self.format.parse(&contents)?;
         let sections = extract_sections(&spec);
-        let local_path = self.target.local(None);
+        let local_path = self.target.local(self.spec_path.as_deref());
 
         if self.out.extension().is_some() {
             // assume a path with an extension is a single file

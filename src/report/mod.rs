@@ -115,10 +115,7 @@ impl Report {
         let contents: HashMap<_, _> = targets
             .par_iter()
             .map(|target| {
-                let contents = target
-                    .path
-                    .load(Some(&self.project.spec_download_path))
-                    .unwrap();
+                let contents = target.path.load(self.project.spec_path.as_deref()).unwrap();
                 (target, contents)
             })
             .collect();

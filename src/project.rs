@@ -58,11 +58,11 @@ pub struct Project {
 
     /// Path to store the collection of spec files
     ///
-    /// The spec files are stored in a folder called `specs`. This folder is
-    /// stored at the root of the project by default. Use this argument to
-    /// specify a different location.
-    #[structopt(long = "spec-download-path", default_value = ".")]
-    pub spec_download_path: String,
+    /// The collection of spec files are stored in a folder called `specs`. The
+    /// `specs` folder is stored in the current directory by default. Use this
+    /// argument to override the default location.
+    #[structopt(long = "spec-path")]
+    pub spec_path: Option<String>,
 }
 
 impl Project {
