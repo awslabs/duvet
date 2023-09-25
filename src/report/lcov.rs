@@ -61,10 +61,7 @@ pub fn report(report: &ReportResult, dir: &Path) -> Result<(), Error> {
 }
 
 #[allow(clippy::cognitive_complexity)]
-pub fn report_source<Output: Write>(
-    report: &TargetReport,
-    output: &mut Output,
-) -> Result<(), Error> {
+fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> Result<(), Error> {
     macro_rules! put {
         ($($arg:expr),* $(,)?) => {
             writeln!(output $(, $arg)*)?;
@@ -73,7 +70,7 @@ pub fn report_source<Output: Write>(
 
     put!("TN:Compliance");
     let relative =
-        pathdiff::diff_paths(report.target.path.local(), std::env::current_dir()?).unwrap();
+        pathdiff::diff_paths(report.target.path.local(None), std::env::current_dir()?).unwrap();
     put!("SF:{}", relative.display());
 
     // record all sections
