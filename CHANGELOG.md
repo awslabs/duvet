@@ -3,14 +3,8 @@
 
 ### Features
 
-* add basic markdown support ([#84](https://github.com/awslabs/duvet/issues/84)) ([f8ebf29](https://github.com/awslabs/duvet/commit/f8ebf298c6dca3c2a261d6a3fbc3703dd1c6703b))
-* handle duplicate markdown section names ([#94](https://github.com/awslabs/duvet/issues/94)) ([5d31dd2](https://github.com/awslabs/duvet/commit/5d31dd21c05f5998b8a4e6c66e18552688a3e788))
 * specify path to the spec files ([#118](https://github.com/awslabs/duvet/issues/118)) ([ce9325e](https://github.com/awslabs/duvet/commit/ce9325ec7e5352f73a26d4b6a4dde34b58b06de1))
 
-
-### Bug Fixes
-
-* remove reduntant borrows ([#89](https://github.com/awslabs/duvet/issues/89)) ([0cfc8ce](https://github.com/awslabs/duvet/commit/0cfc8ce88a8a5183a68581fd5824498dbe4e376a))
 
 ## 0.2.0 (2022-11-16)
 
