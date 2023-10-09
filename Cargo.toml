@@ -1,6 +1,6 @@
 [package]
 name = "duvet"
-version = "0.2.0"
+version = "0.3.0"
 description = "A code quality tool to help bound correctness."
 authors = ["Cameron Bytheway <bythewc@amazon.com>", "Ryan Emery <ryanemer@amazon.com>"]
 edition = "2021"

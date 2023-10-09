@@ -1,3 +1,11 @@
+## 0.3.0 (2023-10-06)
+
+
+### Features
+
+* specify path to the spec files ([#118](https://github.com/awslabs/duvet/issues/118)) ([ce9325e](https://github.com/awslabs/duvet/commit/ce9325ec7e5352f73a26d4b6a4dde34b58b06de1))
+
+
 ## 0.2.0 (2022-11-16)
 
 
