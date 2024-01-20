@@ -29,10 +29,10 @@ jobs:
         id: definitions
         run: |
           export MSRV=$(cat rust-toolchain | awk '{$1=$1};1')
-          echo "::set-output name=msrv::$MSRV"
+          echo "msrv=$MSRV" >> "$GITHUB_OUTPUT"
           export RAW_VERSIONS="stable beta $RUST_NIGHTLY_TOOLCHAIN $MSRV"
           export VERSIONS=$(echo $RAW_VERSIONS | jq -scR 'rtrimstr("\n")|split(" ")|.')
-          echo "::set-output name=versions::$VERSIONS"
+          echo "versions=$VERSIONS" >> "$GITHUB_OUTPUT"
 
   rustfmt:
     runs-on: ubuntu-latest
