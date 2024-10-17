@@ -72,7 +72,7 @@ enum ReportError<'a> {
     MissingSection { annotation: &'a Annotation },
 }
 
-impl<'a> fmt::Display for ReportError<'a> {
+impl fmt::Display for ReportError<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::QuoteMismatch { annotation } => write!(
@@ -301,7 +301,7 @@ pub struct TargetReport<'a> {
     statuses: status::StatusMap,
 }
 
-impl<'a> TargetReport<'a> {
+impl TargetReport<'_> {
     #[allow(dead_code)]
     pub fn statistics(&self) -> Statistics {
         let mut stats = Statistics::default();

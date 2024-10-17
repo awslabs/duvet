@@ -119,7 +119,7 @@ impl<'a> From<ParsedAnnotation<'a>> for Annotation {
     }
 }
 
-impl<'a> Iterator for Parser<'a> {
+impl Iterator for Parser<'_> {
     type Item = Result<Annotation, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {

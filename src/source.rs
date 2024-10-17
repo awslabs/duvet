@@ -17,7 +17,7 @@ pub enum SourceFile<'a> {
     Spec(PathBuf),
 }
 
-impl<'a> SourceFile<'a> {
+impl SourceFile<'_> {
     pub fn annotations(&self) -> Result<AnnotationSet, Error> {
         let mut annotations = AnnotationSet::new();
         match self {
@@ -73,7 +73,7 @@ struct Spec<'a> {
     quote: &'a str,
 }
 
-impl<'a> Spec<'a> {
+impl Spec<'_> {
     fn into_annotation(
         self,
         source: PathBuf,
@@ -119,7 +119,7 @@ struct Exception<'a> {
     reason: String,
 }
 
-impl<'a> Exception<'a> {
+impl Exception<'_> {
     fn into_annotation(
         self,
         source: PathBuf,
@@ -162,7 +162,7 @@ struct Todo<'a> {
     tags: BTreeSet<String>,
 }
 
-impl<'a> Todo<'a> {
+impl Todo<'_> {
     fn into_annotation(
         self,
         source: PathBuf,

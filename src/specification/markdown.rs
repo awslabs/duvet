@@ -37,7 +37,7 @@ enum Token<'a> {
 struct Lex<'a> {
     contents: &'a str,
     lines: Peekable<LinesIter<'a>>,
-    cmark: Peekable<pulldown_cmark::OffsetIter<'a, 'a>>,
+    cmark: Peekable<pulldown_cmark::OffsetIter<'a>>,
     next_line: Option<Str<'a>>,
     next_token: Option<Token<'a>>,
 }
@@ -69,7 +69,7 @@ impl<'a> Iterator for Lex<'a> {
     type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        use pulldown_cmark::{Event::*, HeadingLevel::*, Tag::*};
+        use pulldown_cmark::{Event::*, HeadingLevel::*, Tag, TagEnd};
 
         let mut header_buffer = None;
         let mut text_buffer: Option<(usize, Range<usize>)> = None;
@@ -92,11 +92,13 @@ impl<'a> Iterator for Lex<'a> {
             }) {
                 match event {
                     // start buffering the header contents
-                    Start(Heading(_, _, _)) => {
-                        header_buffer = Some((line.line, line.range()));
+                    Start(Tag::Heading { id, .. }) => {
+                        // convert the fragment to a Str
+                        let fragment = id.and_then(|f| line.substr(&f));
+                        header_buffer = Some((line.line, line.range(), fragment));
                     }
                     // we're done parsing the header
-                    End(Heading(level, fragment, _classes)) => {
+                    End(TagEnd::Heading(level)) => {
                         // consume any lines captured by the header
                         while self
                             .lines
@@ -104,8 +106,12 @@ impl<'a> Iterator for Lex<'a> {
                             .is_some()
                         {}
 
+                        let fragment = header_buffer
+                            .as_ref()
+                            .and_then(|(_, _, fragment)| *fragment);
+
                         // convert the header buffer into a Str
-                        let line = if let Some((line_num, mut buf)) = header_buffer {
+                        let line = if let Some((line_num, mut buf, _)) = header_buffer {
                             let r = line.range();
                             buf.start = r.start.min(buf.start);
                             buf.end = r.end.max(buf.end);
@@ -113,9 +119,6 @@ impl<'a> Iterator for Lex<'a> {
                         } else {
                             line
                         };
-
-                        // convert the fragment to a Str
-                        let fragment = fragment.and_then(|f| line.substr(f));
 
                         // convert the text buffer range to a Str
                         let name = if let Some((line_num, mut buf)) = text_buffer {
@@ -142,12 +145,12 @@ impl<'a> Iterator for Lex<'a> {
                         });
                     }
                     // insert a token break before returning the line
-                    Start(Item) => {
+                    Start(Tag::Item) => {
                         self.next_line = Some(line);
                         return Some(Token::Break);
                     }
                     // insert a token break after returning the item line
-                    End(Item) => {
+                    End(TagEnd::Item) => {
                         self.next_token = Some(Token::Break);
                     }
                     // buffer the text if we're parsing a header
@@ -257,7 +260,7 @@ pub enum ParserState<'a> {
     Section { section: Section<'a>, level: u8 },
 }
 
-impl<'a> Default for ParserState<'a> {
+impl Default for ParserState<'_> {
     fn default() -> Self {
         Self::Init
     }

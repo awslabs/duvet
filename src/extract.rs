@@ -124,7 +124,7 @@ fn extract_sections<'a>(spec: &'a Specification) -> Vec<(&'a Section<'a>, Vec<Fe
         .collect()
 }
 
-fn extract_section<'a>(section: &'a Section<'a>) -> (&'a Section<'a>, Vec<Feature>) {
+fn extract_section<'a>(section: &'a Section<'a>) -> (&'a Section<'a>, Vec<Feature<'a>>) {
     let mut features = vec![];
     let lines = &section.lines[..];
 
@@ -204,7 +204,7 @@ pub struct Feature<'a> {
     quote: Vec<&'a str>,
 }
 
-impl<'a> Feature<'a> {
+impl Feature<'_> {
     pub fn should_add(&self) -> bool {
         match self.compound_level() {
             Some(level) => level == self.level,

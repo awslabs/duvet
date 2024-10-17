@@ -41,7 +41,7 @@ pub enum ParserState<'a> {
     Section { section: Section<'a>, indent: usize },
 }
 
-impl<'a> Default for ParserState<'a> {
+impl Default for ParserState<'_> {
     fn default() -> Self {
         Self::Init
     }
@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
                 if let Some(section) = section_header(line) {
                     self.state = ParserState::Section {
                         section,
-                        indent: core::usize::MAX,
+                        indent: usize::MAX,
                     };
                 }
             }
@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
                         self.on_section(section, indent);
                         self.state = ParserState::Section {
                             section: new_section,
-                            indent: core::usize::MAX,
+                            indent: usize::MAX,
                         };
                     } else {
                         // most likely the footer/header

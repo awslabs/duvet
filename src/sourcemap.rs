@@ -63,13 +63,13 @@ pub struct Str<'a> {
     pub line: usize,
 }
 
-impl<'a> fmt::Display for Str<'a> {
+impl fmt::Display for Str<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.value.fmt(f)
     }
 }
 
-impl<'a> Str<'a> {
+impl Str<'_> {
     pub fn indentation(&self) -> usize {
         let trimmed_line = self.trim_start();
         self.len() - trimmed_line.len()
@@ -126,7 +126,7 @@ impl<'a> Str<'a> {
     }
 }
 
-impl<'a> Deref for Str<'a> {
+impl Deref for Str<'_> {
     type Target = str;
 
     fn deref(&self) -> &str {
