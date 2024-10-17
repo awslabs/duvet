@@ -19,7 +19,7 @@ pub struct Pattern<'a> {
     content: &'a str,
 }
 
-impl<'a> Default for Pattern<'a> {
+impl Default for Pattern<'_> {
     fn default() -> Self {
         Self {
             meta: "//=",

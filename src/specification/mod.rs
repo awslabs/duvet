@@ -21,7 +21,7 @@ pub struct Specification<'a> {
     pub format: Format,
 }
 
-impl<'a> fmt::Debug for Specification<'a> {
+impl fmt::Debug for Specification<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Specification")
             .field("title", &self.title)
@@ -149,7 +149,7 @@ pub enum Line<'a> {
     Break,
 }
 
-impl<'a> Line<'a> {
+impl Line<'_> {
     pub fn is_empty(&self) -> bool {
         match self {
             Self::Str(s) => s.is_empty(),
@@ -164,7 +164,7 @@ impl<'a> From<Str<'a>> for Line<'a> {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash)]
+#[derive(Clone, Debug, Eq)]
 pub struct Section<'a> {
     pub id: String,
     pub title: String,
@@ -172,7 +172,7 @@ pub struct Section<'a> {
     pub lines: Vec<Line<'a>>,
 }
 
-impl<'a> Ord for Section<'a> {
+impl Ord for Section<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         macro_rules! cmp {
             ($($tt:tt)*) => {
@@ -196,19 +196,28 @@ impl<'a> Ord for Section<'a> {
     }
 }
 
-impl<'a> PartialOrd for Section<'a> {
+impl core::hash::Hash for Section<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.title.hash(state);
+        self.full_title.hash(state);
+        self.lines.hash(state);
+    }
+}
+
+impl PartialOrd for Section<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> PartialEq for Section<'a> {
+impl PartialEq for Section<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.cmp(other) == Ordering::Equal
     }
 }
 
-impl<'a> Section<'a> {
+impl Section<'_> {
     pub fn contents(&self) -> StrView {
         StrView::new(&self.lines)
     }
@@ -276,7 +285,7 @@ pub struct StrRangeIter<'a> {
     end: usize,
 }
 
-impl<'a> Iterator for StrRangeIter<'a> {
+impl Iterator for StrRangeIter<'_> {
     type Item = (usize, Range<usize>);
 
     fn next(&mut self) -> Option<Self::Item> {

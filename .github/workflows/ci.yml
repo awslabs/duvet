@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+  schedule:
+    # run every morning at 10am Pacific Time
+    - cron: '0 17 * * *'
+
 name: ci
 
 env:
@@ -15,7 +19,7 @@ env:
   RUST_BACKTRACE: 1
   # Pin the nightly toolchain to prevent breakage.
   # This should be occasionally updated.
-  RUST_NIGHTLY_TOOLCHAIN: nightly-2023-10-06
+  RUST_NIGHTLY_TOOLCHAIN: nightly-2024-10-07
 
 jobs:
   env:
