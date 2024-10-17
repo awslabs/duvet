@@ -9,11 +9,11 @@ use crate::{
     target::TargetPath,
     Error,
 };
+use clap::Parser;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::{Regex, RegexSet};
 use std::{fs::OpenOptions, io::BufWriter, path::PathBuf};
-use structopt::StructOpt;
 
 #[cfg(test)]
 mod tests;
@@ -44,15 +44,15 @@ lazy_static! {
         RegexSet::new(KEY_WORDS.iter().map(|(r, _)| r.as_str())).unwrap();
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Extract {
-    #[structopt(short, long, default_value = "IETF")]
+    #[clap(short, long, default_value = "IETF")]
     format: Format,
 
-    #[structopt(short, long, default_value = "toml")]
+    #[clap(short, long, default_value = "toml")]
     extension: String,
 
-    #[structopt(short, long, default_value = ".")]
+    #[clap(short, long, default_value = ".")]
     out: PathBuf,
 
     /// Path to store the collection of spec files
@@ -60,14 +60,14 @@ pub struct Extract {
     /// The collection of spec files are stored in a folder called `specs`. The
     /// `specs` folder is stored in the current directory by default. Use this
     /// argument to override the default location.
-    #[structopt(long = "spec-path")]
+    #[clap(long = "spec-path")]
     pub spec_path: Option<String>,
 
     target: TargetPath,
 }
 
 impl Extract {
-    pub fn exec(&self) -> Result<(), Error> {
+    pub async fn exec(&self) -> Result<(), Error> {
         let contents = self.target.load(self.spec_path.as_deref())?;
         let spec = self.format.parse(&contents)?;
         let sections = extract_sections(&spec);

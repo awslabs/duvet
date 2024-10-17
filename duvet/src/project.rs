@@ -2,58 +2,58 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{pattern::Pattern, source::SourceFile, Error};
+use clap::Parser;
 use glob::glob;
 use std::collections::HashSet;
-use structopt::StructOpt;
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, StructOpt)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
 pub struct Project {
     /// Package to run tests for
-    #[structopt(long, short = "p")]
+    #[clap(long, short = 'p')]
     package: Option<String>,
 
     /// Space or comma separated list of features to activate
-    #[structopt(long)]
+    #[clap(long)]
     features: Vec<String>,
 
     /// Build all packages in the workspace
-    #[structopt(long)]
+    #[clap(long)]
     workspace: bool,
 
     /// Exclude packages from the test
-    #[structopt(long = "exclude")]
+    #[clap(long = "exclude")]
     excludes: Vec<String>,
 
     /// Activate all available features
-    #[structopt(long = "all-features")]
+    #[clap(long = "all-features")]
     all_features: bool,
 
     /// Do not activate the `default` feature
-    #[structopt(long = "no-default-features")]
+    #[clap(long = "no-default-features")]
     no_default_features: bool,
 
     /// Disables running cargo commands
-    #[structopt(long = "no-cargo")]
+    #[clap(long = "no-cargo")]
     no_cargo: bool,
 
     /// TRIPLE
-    #[structopt(long)]
+    #[clap(long)]
     target: Option<String>,
 
     /// Directory for all generated artifacts
-    #[structopt(long = "target-dir", default_value = "target/compliance")]
+    #[clap(long = "target-dir", default_value = "target/compliance")]
     target_dir: String,
 
     /// Path to Cargo.toml
-    #[structopt(long = "manifest-path")]
+    #[clap(long = "manifest-path")]
     manifest_path: Option<String>,
 
     /// Glob patterns for additional source files
-    #[structopt(long = "source-pattern")]
+    #[clap(long = "source-pattern")]
     source_patterns: Vec<String>,
 
     /// Glob patterns for spec files
-    #[structopt(long = "spec-pattern")]
+    #[clap(long = "spec-pattern")]
     spec_patterns: Vec<String>,
 
     /// Path to store the collection of spec files
@@ -61,7 +61,7 @@ pub struct Project {
     /// The collection of spec files are stored in a folder called `specs`. The
     /// `specs` folder is stored in the current directory by default. Use this
     /// argument to override the default location.
-    #[structopt(long = "spec-path")]
+    #[clap(long = "spec-path")]
     pub spec_path: Option<String>,
 }
 

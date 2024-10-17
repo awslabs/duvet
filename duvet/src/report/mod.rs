@@ -9,13 +9,13 @@ use crate::{
     Error,
 };
 use anyhow::anyhow;
+use clap::Parser;
 use core::fmt;
 use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
 };
-use structopt::StructOpt;
 
 mod ci;
 mod html;
@@ -26,33 +26,33 @@ mod status;
 
 use stats::Statistics;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 pub struct Report {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     project: Project,
 
-    #[structopt(long)]
+    #[clap(long)]
     lcov: Option<PathBuf>,
 
-    #[structopt(long)]
+    #[clap(long)]
     json: Option<PathBuf>,
 
-    #[structopt(long)]
+    #[clap(long)]
     html: Option<PathBuf>,
 
-    #[structopt(long)]
+    #[clap(long)]
     require_citations: Option<Option<bool>>,
 
-    #[structopt(long)]
+    #[clap(long)]
     require_tests: Option<Option<bool>>,
 
-    #[structopt(long)]
+    #[clap(long)]
     ci: bool,
 
-    #[structopt(long)]
+    #[clap(long)]
     blob_link: Option<String>,
 
-    #[structopt(long)]
+    #[clap(long)]
     issue_link: Option<String>,
 }
 
@@ -97,7 +97,7 @@ impl fmt::Display for ReportError<'_> {
 }
 
 impl Report {
-    pub fn exec(&self) -> Result<(), Error> {
+    pub async fn exec(&self) -> Result<(), Error> {
         let project_sources = self.project.sources()?;
 
         let annotations: AnnotationSet = project_sources
