@@ -1,123 +1,111 @@
 use crate::{
-    db::Db,
-    error::{Error, Result},
-    intern::{self, Intern},
+    dir::Directory,
+    file::{BinaryFile, SourceFile},
+    path::Path,
+    query::Query,
+    Result,
 };
-use arcstr::{ArcStr, Substr};
-use bytes::Bytes;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{fs::FileType, time::SystemTime};
 
-#[derive(Clone, Debug, Default)]
-pub struct Paths(Arc<Intern<PathBuf>>);
+pub mod fs;
 
-impl Paths {
-    pub fn intern(&self, path: &Path) -> PathId {
-        PathId(self.0.intern(path))
+pub type OrCreate = Query<Result<crate::contents::Contents>>;
+
+#[inline]
+fn vfs<F: FnOnce(&dyn Vfs) -> R, R>(f: F) -> R {
+    // TODO read the thread_local value
+    f(&fs::Fs)
+}
+
+pub trait Vfs {
+    fn read_dir(&self, path: Path) -> Query<Result<Directory>>;
+    fn read_file(&self, path: Path, or_create: Option<OrCreate>) -> Query<Result<BinaryFile>>;
+    fn read_string(&self, path: Path, or_create: Option<OrCreate>) -> Query<Result<SourceFile>>;
+    fn read_metadata(&self, path: Path, or_create: Option<OrCreate>) -> Query<Result<Metadata>>;
+}
+
+pub fn read_file<P: Into<Path>>(path: P) -> Query<Result<BinaryFile>> {
+    vfs(|fs| fs.read_file(path.into(), None))
+}
+
+pub fn read_file_or_create<P: Into<Path>>(
+    path: P,
+    or_create: OrCreate,
+) -> Query<Result<BinaryFile>> {
+    vfs(|fs| fs.read_file(path.into(), Some(or_create)))
+}
+
+pub fn read_string<P: Into<Path>>(path: P) -> Query<Result<SourceFile>> {
+    vfs(|fs| fs.read_string(path.into(), None))
+}
+
+pub fn read_string_or_create<P: Into<Path>>(
+    path: P,
+    or_create: OrCreate,
+) -> Query<Result<SourceFile>> {
+    vfs(|fs| fs.read_string(path.into(), Some(or_create)))
+}
+
+pub fn read_dir<P: Into<Path>>(path: P) -> Query<Result<Directory>> {
+    vfs(|fs| fs.read_dir(path.into()))
+}
+
+pub fn read_metadata<P: Into<Path>>(path: P) -> Query<Result<Metadata>> {
+    vfs(|fs| fs.read_metadata(path.into(), None))
+}
+
+pub fn read_metadata_or_create<P: Into<Path>>(
+    path: P,
+    or_create: OrCreate,
+) -> Query<Result<Metadata>> {
+    vfs(|fs| fs.read_metadata(path.into(), Some(or_create)))
+}
+
+#[derive(Clone, Debug)]
+pub struct Metadata {
+    modified_time: Result<SystemTime>,
+    file_type: FileType,
+}
+
+impl Metadata {
+    pub fn is_dir(&self) -> bool {
+        self.file_type.is_dir()
     }
 
-    pub fn resolve(&self, path_id: PathId) -> intern::Ref<PathBuf> {
-        self.0.resolve(path_id.0)
+    pub fn is_file(&self) -> bool {
+        self.file_type.is_file()
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct PathId(intern::Id);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::StreamExt;
 
-// TODO change the default hasher
-pub type PathIdMap<V> = std::collections::HashMap<PathId, V>;
-pub type PathIdIter<'a, V> = std::collections::hash_map::Iter<'a, PathId, V>;
+    #[tokio::test]
+    async fn self_read() {
+        let file = read_string(file!()).await;
 
-pub trait Filesystem {
-    fn paths(&self) -> &Paths;
-
-    fn fs_read(&self, path: &Path) -> Node {
-        fs_read(self.paths(), path)
-    }
-
-    fn fs_watch(&self, path: &Path) {
-        // noop
-        let _ = path;
-    }
-}
-
-pub fn fs_read(paths: &Paths, path: &Path) -> Node {
-    if path.is_file() {
-        fs_read_file(paths, path)
-    } else {
-        fs_read_dir(paths, path)
-    }
-}
-
-pub fn fs_read_file(paths: &Paths, path: &Path) -> Node {
-    let id = paths.intern(path);
-
-    let result = (|| {
-        let v = std::fs::read_to_string(path)?;
-        let v = ArcStr::from(v);
-        Ok(Node::String(id, v))
-    })();
-
-    match result {
-        Ok(v) => v,
-        Err(err) => Node::Error(id, err),
-    }
-}
-
-pub fn fs_read_dir(paths: &Paths, path: &Path) -> Node {
-    let id = paths.intern(path);
-
-    let result = (|| {
-        let dir = fs::read_dir(path)?;
-        let children = dir
-            .map(|res| match res {
-                Ok(entry) => {
-                    let path = entry.path();
-                    let path: &Path = &path;
-                    let id = paths.intern(path);
-                    Ok(id)
-                }
-                Err(err) => Err(err.into()),
-            })
-            .collect();
-
-        Ok(children)
-    })();
-
-    match result {
-        Ok(v) => Node::Directory(id, v),
-        Err(err) => Node::Error(id, err),
-    }
-}
-
-impl Node {
-    pub fn as_str(&self) -> Result<&ArcStr> {
-        match &*self {
-            Node::String(_, v) => Ok(v),
-            Node::Binary(_, _) => Err("file is not valid utf8".into()),
-            Node::Directory(_, _) => Err("trying to read a directory as a file".into()),
-            Node::Error(_, e) => Err(e.clone()),
+        if let Ok(contents) = file {
+            assert!(contents.contains("THIS IS A REALLY UNIQUE STRING"));
         }
     }
-}
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Node {
-    String(PathId, ArcStr),
-    Binary(PathId, Bytes),
-    Directory(PathId, Arc<[Result<PathId, Error>]>),
-    Error(PathId, Error),
-}
+    #[tokio::test]
+    async fn walk() {
+        let dir = read_dir(env!("CARGO_MANIFEST_DIR")).await;
 
-pub fn vfs_read(db: &dyn Db, path_id: PathId) -> Node {
-    db.salsa_runtime()
-        .report_synthetic_read(salsa::Durability::LOW);
+        if let Ok(dir) = dir {
+            let glob = "**/*.rs".parse().unwrap();
+            let ignore = "__IGNORE__".parse().unwrap();
+            let dir = dir.glob(glob, ignore);
+            tokio::pin!(dir);
 
-    let paths = db.paths();
-    let path = paths.resolve(path_id);
+            while let Some(path) = dir.next().await {
+                dbg!(path);
+            }
+        }
 
-    db.fs_read(&path)
+        // TODO make some assertions
+    }
 }

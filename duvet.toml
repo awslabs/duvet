@@ -1,14 +1,14 @@
 version = "1"
 
 [[compliance.source]]
-patterns = ["src/**/*.rs"]
+patterns = "**/src**/*.rs"
 comment-style = { meta = "//=", content = "//#" }
 
 [[compliance.requirement]]
-patterns = ["specs/**/*.toml"]
+patterns = "**/specs/**/*.toml"
 
 [[compliance.spec.markdown]]
-patterns = ["docs/**/*.md"]
+patterns = "**/docs/**/*.md"
 
 [[compliance.spec.ietf]]
 id = "quic-transport"

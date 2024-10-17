@@ -1,15 +1,12 @@
-use duvet_core::{fs::PathId, manifests::Builder, Fs};
-use serde::{de::Deserializer, Deserialize};
+use duvet_core::{glob::Glob, path::Path};
+use serde::Deserialize;
+use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Schema {
+    pub version: String, // TODO make this a hard-coded value to v1
     pub compliance: Compliance,
-}
-
-impl Schema {
-    pub fn load(&self, fs: &Fs, path_id: PathId, manifest: &mut Builder) {
-        // TODO
-    }
 }
 
 pub use compliance::Compliance;
@@ -17,64 +14,84 @@ pub use compliance::Compliance;
 pub mod compliance {
     use super::*;
 
-    #[derive(Debug, Deserialize)]
+    #[derive(Clone, Debug, Deserialize)]
+    #[serde(deny_unknown_fields)]
     pub struct Compliance {
         #[serde(rename = "source")]
-        pub sources: Vec<Source>,
+        pub sources: Arc<[Source]>,
 
         #[serde(rename = "requirement")]
-        pub requirements: Vec<Requirement>,
+        pub requirements: Arc<[Requirement]>,
+
+        #[serde(default)]
+        pub spec: Spec,
     }
 
-    #[derive(Debug, Deserialize)]
+    #[derive(Clone, Debug, Deserialize)]
+    #[serde(deny_unknown_fields)]
     pub struct Source {
-        pub patterns: Vec<Pattern>,
+        pub patterns: Glob,
         #[serde(rename = "comment-style")]
         pub comment_style: CommentStyle,
+        #[serde(rename = "type", default = "default_type")]
+        pub default_type: Arc<str>,
     }
 
-    #[derive(Debug, Deserialize)]
+    fn default_type() -> Arc<str> {
+        "implementation".into()
+    }
+
+    #[derive(Clone, Debug, Deserialize, Hash)]
+    #[serde(deny_unknown_fields)]
     pub struct CommentStyle {
-        pub meta: String,
-        pub content: String,
+        pub meta: Arc<str>,
+        pub content: Arc<str>,
     }
 
-    #[derive(Debug, Deserialize)]
+    #[derive(Clone, Debug, Deserialize)]
+    #[serde(deny_unknown_fields)]
     pub struct Requirement {
-        pub patterns: Vec<Pattern>,
+        pub patterns: Glob,
     }
 
-    #[derive(Debug, Deserialize)]
+    #[derive(Clone, Debug, Deserialize)]
+    #[serde(deny_unknown_fields)]
     pub struct Spec {
-        pub markdown: Vec<Markdown>,
-        pub ietf: Vec<Ietf>,
-    }
-
-    #[derive(Debug, Deserialize)]
-    pub struct Markdown {
-        pub patterns: Vec<Pattern>,
-    }
-
-    #[derive(Debug, Deserialize)]
-    pub struct Ietf {
-        pub id: String,
-        pub title: Option<String>,
-        pub url: String,
         #[serde(default)]
-        pub aliases: Vec<String>,
+        pub markdown: Arc<[Markdown]>,
+        #[serde(default)]
+        pub ietf: Arc<[Ietf]>,
+        #[serde(default = "default_spec_dir")]
+        pub directory: Path,
     }
-}
 
-#[derive(Debug)]
-pub struct Pattern(globset::Glob);
+    impl Default for Spec {
+        fn default() -> Self {
+            Self {
+                markdown: Default::default(),
+                ietf: Default::default(),
+                directory: default_spec_dir(),
+            }
+        }
+    }
 
-impl<'de> Deserialize<'de> for Pattern {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value = String::deserialize(deserializer)?;
-        let value = globset::Glob::new(&value).map_err(serde::de::Error::custom)?;
-        Ok(Self(value))
+    fn default_spec_dir() -> Path {
+        Path::from("specs")
+    }
+
+    #[derive(Clone, Debug, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct Markdown {
+        pub patterns: Glob,
+    }
+
+    #[derive(Clone, Debug, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct Ietf {
+        pub id: Arc<str>,
+        pub title: Option<Arc<str>>,
+        pub url: Arc<str>,
+        #[serde(default)]
+        pub aliases: Arc<[Arc<str>]>,
     }
 }

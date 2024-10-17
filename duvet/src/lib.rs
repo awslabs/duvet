@@ -1,34 +1,17 @@
-use duvet_core::{database::Offline, diagnostics, Database as _};
-use std::{path::Path, sync::Arc};
+macro_rules! ensure {
+    ($cond:expr) => {
+        ensure!($cond, ());
+    };
+    ($cond:expr, $otherwise:expr) => {
+        if !($cond) {
+            return $otherwise;
+        }
+    };
+}
 
-type Result<V, E = Error> = core::result::Result<V, E>;
-type Error = anyhow::Error;
-
-#[macro_use]
-mod static_intern;
-
-// mod analysis;
-mod citation;
-mod error;
+pub mod comment;
+//mod citation;
+//mod error;
 mod ietf;
 mod manifest;
-
-pub use manifest::Loader;
-
-pub struct Database(Offline);
-
-impl Database {
-    pub fn new(loader: manifest::Loader) -> Self {
-        let loader = Arc::new(loader);
-        let db = duvet_core::database::Offline::new(loader);
-        Self(db)
-    }
-
-    pub fn path_diagnostics(&self, path: &Path) -> diagnostics::MultiList {
-        self.0.path_diagnostics(path)
-    }
-
-    pub fn report_all(&self) -> diagnostics::Map {
-        self.0.report_all()
-    }
-}
+pub mod report;

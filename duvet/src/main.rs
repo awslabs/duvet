@@ -1,5 +1,8 @@
-use duvet::{Database, Loader};
+use duvet::report::Report;
 use std::path::PathBuf;
+
+#[global_allocator]
+static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[derive(Debug)]
 enum Arguments {
@@ -12,13 +15,11 @@ struct Extract {
     manifest_path: PathBuf,
 }
 
-#[derive(Debug)]
-struct Report {
-    // TODO
-}
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
+    duvet_core::testing::init_tracing();
 
-fn main() {
-    let root = std::env::current_dir().unwrap().join("duvet.toml");
-    let db = Database::new(Loader { root });
-    db.report_all();
+    let manifest_path = std::env::current_dir().unwrap().join("duvet.toml");
+
+    Report { manifest_path }.run().await.unwrap()
 }
