@@ -1,0 +1,23 @@
+name: Duvet
+description: 'Installs Duvet in the GitHub Actions environment'
+inputs:
+  version:
+    description: 'Version of Duvet to install'
+    default: 0.3.0
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Install rust toolchain
+      id: toolchain
+      shell: bash
+      run: |
+        rustup toolchain install stable
+        rustup override set stable
+
+    - name: Install Duvet
+      uses: camshaft/install@v1
+      with:
+        crate: duvet
+        version: ${{ inputs.version }}
+
