@@ -9,8 +9,9 @@ pub struct Hash([u8; HASH_LEN]);
 
 impl fmt::Debug for Hash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "0x")?;
         for byte in &self.0 {
-            write!(f, "{byte:#02x}")?;
+            write!(f, "{byte:02x}")?;
         }
         Ok(())
     }

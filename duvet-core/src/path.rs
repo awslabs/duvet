@@ -11,6 +11,17 @@ pub struct Path {
     path: Arc<OsStr>,
 }
 
+impl Path {
+    pub fn pop(&mut self) -> bool {
+        if let Some(parent) = self.parent() {
+            *self = parent.into();
+            true
+        } else {
+            false
+        }
+    }
+}
+
 impl fmt::Debug for Path {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_ref().fmt(f)
@@ -62,6 +73,20 @@ impl From<PathBuf> for Path {
         Self {
             path: path.into_os_string().into(),
         }
+    }
+}
+
+impl From<&std::path::Path> for Path {
+    fn from(path: &std::path::Path) -> Self {
+        Self {
+            path: path.as_os_str().into(),
+        }
+    }
+}
+
+impl From<Path> for PathBuf {
+    fn from(value: Path) -> Self {
+        PathBuf::from(&value.path)
     }
 }
 

@@ -1,60 +1,56 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{pattern::Pattern, source::SourceFile, Error};
+use crate::{
+    comment::Pattern,
+    manifest::{Requirement, Source},
+};
 use clap::Parser;
-use glob::glob;
-use std::collections::HashSet;
+use duvet_core::glob::Glob;
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
-pub struct Project {
-    /// Package to run tests for
-    #[clap(long, short = 'p')]
+struct Deprecated {
+    #[clap(long, short = 'p', hide = true)]
     package: Option<String>,
 
-    /// Space or comma separated list of features to activate
-    #[clap(long)]
+    #[clap(long, hide = true)]
     features: Vec<String>,
 
-    /// Build all packages in the workspace
-    #[clap(long)]
+    #[clap(long, hide = true)]
     workspace: bool,
 
-    /// Exclude packages from the test
-    #[clap(long = "exclude")]
+    #[clap(long = "exclude", hide = true)]
+    #[doc(hidden)]
     excludes: Vec<String>,
 
-    /// Activate all available features
-    #[clap(long = "all-features")]
+    #[clap(long = "all-features", hide = true)]
     all_features: bool,
 
-    /// Do not activate the `default` feature
-    #[clap(long = "no-default-features")]
+    #[clap(long = "no-default-features", hide = true)]
     no_default_features: bool,
 
-    /// Disables running cargo commands
-    #[clap(long = "no-cargo")]
+    #[clap(long = "no-cargo", hide = true)]
     no_cargo: bool,
 
-    /// TRIPLE
-    #[clap(long)]
+    #[clap(long, hide = true)]
     target: Option<String>,
 
-    /// Directory for all generated artifacts
-    #[clap(long = "target-dir", default_value = "target/compliance")]
+    #[clap(long = "target-dir", default_value = "target/compliance", hide = true)]
     target_dir: String,
 
-    /// Path to Cargo.toml
-    #[clap(long = "manifest-path")]
+    #[clap(long = "manifest-path", hide = true)]
     manifest_path: Option<String>,
+}
 
+#[derive(Debug, Parser)]
+pub struct Project {
     /// Glob patterns for additional source files
     #[clap(long = "source-pattern")]
-    source_patterns: Vec<String>,
+    source_patterns: Vec<SourcePattern>,
 
     /// Glob patterns for spec files
     #[clap(long = "spec-pattern")]
-    spec_patterns: Vec<String>,
+    spec_patterns: Vec<Glob>,
 
     /// Path to store the collection of spec files
     ///
@@ -63,56 +59,58 @@ pub struct Project {
     /// argument to override the default location.
     #[clap(long = "spec-path")]
     pub spec_path: Option<String>,
+
+    // Includes a list of deprecated options to avoid breakage
+    #[clap(flatten)]
+    #[doc(hidden)]
+    deprecated: Deprecated,
 }
 
 impl Project {
-    pub fn sources(&self) -> Result<HashSet<SourceFile>, Error> {
-        let mut sources = HashSet::new();
-
-        for pattern in &self.source_patterns {
-            self.source_file(pattern, &mut sources)?;
+    pub fn load_sources(&self, sources: &mut Vec<Source>) {
+        for p in &self.source_patterns {
+            sources.push(Source {
+                pattern: p.glob.clone(),
+                comment_style: p.pattern.clone(),
+                root: duvet_core::env::current_dir().unwrap(),
+                default_type: Default::default(),
+            })
         }
-
-        for pattern in &self.spec_patterns {
-            self.spec_file(pattern, &mut sources)?;
-        }
-
-        Ok(sources)
     }
 
-    fn source_file<'a>(
-        &self,
-        pattern: &'a str,
-        files: &mut HashSet<SourceFile<'a>>,
-    ) -> Result<(), Error> {
-        let (compliance_pattern, file_pattern) = if let Some(pattern) = pattern.strip_prefix('(') {
+    pub fn load_requirements(&self, requirements: &mut Vec<Requirement>) {
+        for req in &self.spec_patterns {
+            requirements.push(Requirement {
+                pattern: req.clone(),
+                root: duvet_core::env::current_dir().unwrap(),
+            })
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct SourcePattern {
+    pattern: Pattern,
+    glob: Glob,
+}
+
+impl core::str::FromStr for SourcePattern {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(pattern) = s.strip_prefix('(') {
             let mut parts = pattern.splitn(2, ')');
             let pattern = parts.next().expect("invalid pattern");
             let file_pattern = parts.next().expect("invalid pattern");
 
             let pattern = Pattern::from_arg(pattern)?;
+            let glob = file_pattern.parse()?;
 
-            (pattern, file_pattern)
+            Ok(Self { pattern, glob })
         } else {
-            (Pattern::default(), pattern)
-        };
-
-        for entry in glob(file_pattern)? {
-            files.insert(SourceFile::Text(compliance_pattern, entry?));
+            let pattern = Pattern::default();
+            let glob = s.parse()?;
+            Ok(Self { pattern, glob })
         }
-
-        Ok(())
-    }
-
-    fn spec_file<'a>(
-        &self,
-        pattern: &'a str,
-        files: &mut HashSet<SourceFile<'a>>,
-    ) -> Result<(), Error> {
-        for entry in glob(pattern)? {
-            files.insert(SourceFile::Spec(entry?));
-        }
-
-        Ok(())
     }
 }

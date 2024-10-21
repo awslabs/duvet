@@ -1,0 +1,4 @@
+version = "1"
+
+[[compliance.source]]
+pattern = "src/**/*.rs"

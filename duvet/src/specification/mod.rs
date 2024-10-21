@@ -9,6 +9,7 @@ use core::{
     ops::{Deref, Range},
     str::FromStr,
 };
+use serde::Deserialize;
 use std::collections::HashMap;
 
 pub mod ietf;
@@ -64,7 +65,8 @@ impl<'a> Specification<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Ord, Eq, Hash, Deserialize)]
+#[serde(rename = "lowercase")]
 pub enum Format {
     Auto,
     Ietf,

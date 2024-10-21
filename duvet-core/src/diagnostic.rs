@@ -96,6 +96,24 @@ impl Diagnostic for Error {
     }
 }
 
+impl From<anyhow::Error> for Error {
+    fn from(value: anyhow::Error) -> Self {
+        Report::msg(value).into()
+    }
+}
+
+impl From<std::io::Error> for Error {
+    fn from(value: std::io::Error) -> Self {
+        Report::msg(value).into()
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(value: serde_json::Error) -> Self {
+        Report::msg(value).into()
+    }
+}
+
 impl From<Report> for Error {
     fn from(err: Report) -> Self {
         Self(Arc::new(err))
@@ -210,7 +228,7 @@ impl From<Vec<Error>> for Set {
 impl fmt::Display for Set {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for error in self.errors.iter() {
-            writeln!(f, "{}", error)?;
+            writeln!(f, "{:?}", error)?;
         }
         Ok(())
     }
@@ -227,12 +245,3 @@ impl StdError for Set {
         Some(&self.main)
     }
 }
-
-/*
-impl Diagnostic for Set {
-    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn Diagnostic> + 'a>> {
-        let iter = self.errors.iter().map(|e| e as &dyn Diagnostic);
-        Some(Box::new(iter))
-    }
-}
-*/

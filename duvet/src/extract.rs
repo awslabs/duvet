@@ -10,6 +10,7 @@ use crate::{
     Error,
 };
 use clap::Parser;
+use duvet_core::Result;
 use lazy_static::lazy_static;
 use rayon::prelude::*;
 use regex::{Regex, RegexSet};
@@ -67,8 +68,8 @@ pub struct Extract {
 }
 
 impl Extract {
-    pub async fn exec(&self) -> Result<(), Error> {
-        let contents = self.target.load(self.spec_path.as_deref())?;
+    pub async fn exec(&self) -> Result<()> {
+        let contents = self.target.load(self.spec_path.as_deref()).await?;
         let spec = self.format.parse(&contents)?;
         let sections = extract_sections(&spec);
         let local_path = self.target.local(self.spec_path.as_deref());

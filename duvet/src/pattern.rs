@@ -3,72 +3,15 @@
 
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
-    parser::ParsedAnnotation,
     sourcemap::{LinesIter, Str},
     Error,
 };
 use anyhow::anyhow;
-use std::path::Path;
+use duvet_core::{path::Path, Result};
+use std::sync::Arc;
 
 #[cfg(test)]
 mod tests;
-
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct Pattern<'a> {
-    meta: &'a str,
-    content: &'a str,
-}
-
-impl Default for Pattern<'_> {
-    fn default() -> Self {
-        Self {
-            meta: "//=",
-            content: "//#",
-        }
-    }
-}
-
-impl<'a> Pattern<'a> {
-    pub fn from_arg(arg: &'a str) -> Result<Self, Error> {
-        let mut parts = arg.split(',').filter(|p| !p.is_empty());
-        let meta = parts.next().expect("should have at least one pattern");
-        if meta.is_empty() {
-            return Err(anyhow!("compliance pattern cannot be empty"));
-        }
-
-        let content = parts.next().unwrap();
-
-        Ok(Self { meta, content })
-    }
-
-    pub fn extract(
-        &self,
-        source: &str,
-        path: &Path,
-        annotations: &mut AnnotationSet,
-    ) -> Result<(), Error> {
-        let mut state = ParserState::Search;
-
-        let mut last_line = 0;
-        for Str { value, line, .. } in LinesIter::new(source) {
-            state.on_line(path, annotations, self, value, line)?;
-            last_line = line;
-        }
-
-        // make sure we finish off the state machine
-        state.on_line(path, annotations, self, "", last_line)?;
-
-        Ok(())
-    }
-
-    fn try_meta<'b>(&self, line: &'b str) -> Option<&'b str> {
-        line.strip_prefix(self.meta)
-    }
-
-    fn try_content<'b>(&self, line: &'b str) -> Option<&'b str> {
-        line.strip_prefix(self.content)
-    }
-}
 
 enum ParserState<'a> {
     Search,
@@ -80,6 +23,7 @@ impl<'a> ParserState<'a> {
     fn on_line(
         &mut self,
         path: &Path,
+        default_type: AnnotationType,
         annotations: &mut AnnotationSet,
         pattern: &Pattern,
         line: &'a str,
@@ -100,7 +44,7 @@ impl<'a> ParserState<'a> {
                 }
 
                 let indent = line.len() - content.len();
-                let mut capture = Capture::new(line_no, indent);
+                let mut capture = Capture::new(line_no, indent, default_type);
                 capture.push_meta(content)?;
 
                 *self = ParserState::CapturingMeta(capture);
@@ -139,7 +83,7 @@ struct Capture<'a> {
 }
 
 impl<'a> Capture<'a> {
-    fn new(line: usize, column: usize) -> Self {
+    fn new(line: usize, column: usize, default_type: AnnotationType) -> Self {
         Self {
             contents: String::new(),
             annotation: ParsedAnnotation {
@@ -147,6 +91,7 @@ impl<'a> Capture<'a> {
                 anno_column: column as _,
                 item_line: line as _,
                 item_column: column as _,
+                anno: default_type,
                 ..Default::default()
             },
         }
@@ -192,9 +137,9 @@ impl<'a> Capture<'a> {
         let mut annotation = Annotation {
             item_line: item_line as _,
             item_column: 0,
-            source: path.into(),
+            source: path.clone(),
             quote: self.contents,
-            manifest_dir: std::env::current_dir()?,
+            manifest_dir: duvet_core::env::current_dir()?,
             ..self.annotation.into()
         };
 

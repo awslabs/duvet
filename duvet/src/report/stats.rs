@@ -46,7 +46,7 @@ impl AnnotationStatistics {
     fn record(&mut self, reference: &Reference) {
         self.total.record(reference);
         match reference.annotation.anno {
-            AnnotationType::Citation => {
+            AnnotationType::Implementation => {
                 self.citations.record(reference);
             }
             AnnotationType::Test => {
