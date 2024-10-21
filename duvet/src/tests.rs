@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{Arguments, Error};
+use clap::Parser;
 use insta::assert_json_snapshot;
 use std::{
     ffi::OsString,
     path::{Path, PathBuf},
 };
-use structopt::StructOpt;
 use tempfile::TempDir;
 
 type Result<T = (), E = Error> = core::result::Result<T, E>;
@@ -48,23 +48,24 @@ impl Env {
         self.dir.path().join(path)
     }
 
-    fn exec<I>(&self, args: I) -> Result
+    async fn exec<I>(&self, args: I) -> Result
     where
         I: IntoIterator,
         I::Item: Into<OsString> + Clone,
     {
-        Arguments::from_iter_safe(
+        Arguments::try_parse_from(
             ["duvet".into()]
                 .into_iter()
                 .chain(args.into_iter().map(|v| v.into())),
         )?
-        .exec()?;
+        .exec()
+        .await?;
         Ok(())
     }
 }
 
-#[test]
-fn markdown_report() -> Result {
+#[tokio::test]
+async fn markdown_report() -> Result {
     let env = Env::new()?;
 
     let spec = env.put(
@@ -102,7 +103,8 @@ This quote MUST work
         &code,
         "--json",
         &target.display().to_string(),
-    ])?;
+    ])
+    .await?;
 
     let out = env.get_json(&target)?;
 
@@ -111,8 +113,8 @@ This quote MUST work
     Ok(())
 }
 
-#[test]
-fn inner_whitespace() -> Result {
+#[tokio::test]
+async fn inner_whitespace() -> Result {
     let env = Env::new()?;
 
     let spec = env.put(
@@ -142,7 +144,8 @@ This      SHOULD         ignore        whitespace.
         &code,
         "--json",
         &out.display().to_string(),
-    ])?;
+    ])
+    .await?;
 
     let out = env.get_json(&out)?;
 

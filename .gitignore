@@ -1,5 +1,5 @@
 .DS_Store
-/.idea
-/Cargo.lock
-/target
-/.history
+.idea
+Cargo.lock
+target
+.history

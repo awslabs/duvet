@@ -1,7 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use structopt::StructOpt;
+use clap::Parser;
+use std::sync::Arc;
 
 mod annotation;
 mod extract;
@@ -20,25 +21,23 @@ mod tests;
 
 pub use anyhow::Error;
 
-fn main() {
-    if let Err(err) = Arguments::from_args().exec() {
-        eprintln!("{}", err);
-        std::process::exit(1);
-    }
-}
-
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, StructOpt)]
-enum Arguments {
+#[derive(Debug, Parser)]
+pub enum Arguments {
     Extract(extract::Extract),
     Report(report::Report),
 }
 
+#[duvet_core::query(cache)]
+pub async fn arguments() -> Arc<Arguments> {
+    Arc::new(Arguments::parse())
+}
+
 impl Arguments {
-    pub fn exec(&self) -> Result<(), Error> {
+    pub async fn exec(&self) -> Result<(), Error> {
         match self {
-            Self::Extract(args) => args.exec(),
-            Self::Report(args) => args.exec(),
+            Self::Extract(args) => args.exec().await,
+            Self::Report(args) => args.exec().await,
         }
     }
 }

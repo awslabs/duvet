@@ -86,12 +86,12 @@ jobs:
         uses: actions/cache@v3.2.6
         continue-on-error: true
         with:
-          path: www/node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
+          path: duvet/www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
 
       - name: Build script.js
         run: |
-          make www/public/script.js
+          make duvet/www/public/script.js
 
       # TODO translate json reports to in-action warnings
       - name: Run cargo clippy
@@ -124,12 +124,12 @@ jobs:
         uses: actions/cache@v3.2.6
         continue-on-error: true
         with:
-          path: www/node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
+          path: duvet/www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
 
       - name: Build script.js
         run: |
-          make www/public/script.js
+          make duvet/www/public/script.js
 
       - name: Run cargo udeps
         run: cargo udeps --workspace --all-targets
@@ -162,12 +162,12 @@ jobs:
         uses: actions/cache@v3.2.6
         continue-on-error: true
         with:
-          path: www/node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('www/package-lock.json') }}
+          path: duvet/www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
 
       - name: Build script.js
         run: |
-          make www/public/script.js
+          make duvet/www/public/script.js
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1

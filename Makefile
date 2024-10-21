@@ -1,12 +1,12 @@
-default: www/public/script.js
+default: duvet/www/public/script.js
 	@cargo test
 
-publish: www/public/script.js
+publish: duvet/www/public/script.js
 	@git diff --exit-code
 	@cargo publish --allow-dirty
 
-www/public/script.js:
-	@$(MAKE) -C www
+duvet/www/public/script.js:
+	@$(MAKE) -C duvet/www
 
 changelog:
 	@npx conventional-changelog-cli -p conventionalcommits -i CHANGELOG.md -s

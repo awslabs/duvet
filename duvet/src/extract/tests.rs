@@ -12,7 +12,7 @@ macro_rules! snapshot_test {
         fn $name() {
             let contents = include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/specs/",
+                "/../specs/",
                 stringify!($name),
                 $ext,
             ));
