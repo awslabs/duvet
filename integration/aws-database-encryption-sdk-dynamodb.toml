@@ -1,0 +1,7 @@
+name = "aws-database-encryption-sdk-dynamodb"
+repo = "https://github.com/aws/aws-database-encryption-sdk-dynamodb"
+version = "v3.7.0"
+cmd = [
+    "make duvet"
+]
+html_report = "specification_compliance_report.html"

@@ -259,6 +259,16 @@ impl Report {
             html::report(&report, dir)?;
         }
 
+        // used for internal duvet CI checks
+        if let Ok(file) = std::env::var("DUVET_INTERNAL_CI_JSON") {
+            json::report(&report, std::path::Path::new(&file))?;
+        }
+
+        // used for internal duvet CI checks
+        if let Ok(file) = std::env::var("DUVET_INTERNAL_CI_HTML") {
+            html::report(&report, std::path::Path::new(&file))?;
+        }
+
         if self.ci {
             ci::report(&report)?;
         }

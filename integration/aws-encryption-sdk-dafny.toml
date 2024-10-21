@@ -1,0 +1,7 @@
+name = "aws-encryption-sdk-dafny"
+repo = "https://github.com/aws/aws-encryption-sdk-dafny"
+version = "v4.1.0"
+cmd = [
+    "make duvet"
+]
+html_report = "specification_compliance_report.html"

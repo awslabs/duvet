@@ -3,6 +3,7 @@ members = [
     "duvet",
     "duvet-core",
     "duvet-macros",
+    "xtask",
 ]
 resolver = "2"
 
