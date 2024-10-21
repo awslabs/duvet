@@ -116,7 +116,7 @@ fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> R
                 citation!(0);
                 test!(1);
             }
-            AnnotationType::Citation => {
+            AnnotationType::Implementation => {
                 citation!(1);
                 test!(0);
             }

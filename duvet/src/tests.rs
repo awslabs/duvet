@@ -1,16 +1,10 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Arguments, Error};
-use clap::Parser;
+use crate::Result;
 use insta::assert_json_snapshot;
-use std::{
-    ffi::OsString,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
-
-type Result<T = (), E = Error> = core::result::Result<T, E>;
 
 struct Env {
     dir: TempDir,
@@ -51,15 +45,16 @@ impl Env {
     async fn exec<I>(&self, args: I) -> Result
     where
         I: IntoIterator,
-        I::Item: Into<OsString> + Clone,
+        I::Item: Into<String> + Clone,
     {
-        Arguments::try_parse_from(
+        duvet_core::env::set_args(
             ["duvet".into()]
                 .into_iter()
-                .chain(args.into_iter().map(|v| v.into())),
-        )?
-        .exec()
-        .await?;
+                .chain(args.into_iter().map(|v| v.into()))
+                .collect(),
+        );
+        duvet_core::env::set_current_dir(self.dir.path().into());
+        crate::run().await?;
         Ok(())
     }
 }

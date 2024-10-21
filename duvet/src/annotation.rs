@@ -8,10 +8,11 @@ use crate::{
 };
 use anyhow::anyhow;
 use core::{fmt, ops::Range, str::FromStr};
-use serde::Serialize;
+use duvet_core::{diagnostic::IntoDiagnostic, path::Path, query, Result};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeSet, HashMap},
-    path::{Path, PathBuf},
+    sync::Arc,
 };
 
 pub type AnnotationSet = BTreeSet<Annotation>;
@@ -44,19 +45,52 @@ impl AnnotationSetExt for AnnotationSet {
     }
 }
 
+#[query]
+pub async fn query() -> Result<Arc<AnnotationSet>> {
+    let mut errors = vec![];
+
+    // TODO use try_join after fixing `duvet_core::Query` concurrency issues
+    // let (sources, requirements) =
+    //     try_join!(crate::manifest::sources(), crate::manifest::requirements())?;
+    let sources = crate::manifest::sources().await?;
+    let requirements = crate::manifest::requirements().await?;
+
+    let mut tasks = tokio::task::JoinSet::new();
+
+    for source in sources.iter().chain(requirements.iter()) {
+        let source = source.clone();
+        tasks.spawn(async move { source.annotations().await });
+    }
+
+    let mut annotations = AnnotationSet::default();
+    while let Some(res) = tasks.join_next().await {
+        match res.into_diagnostic() {
+            Ok((local_annotations, local_errors)) => {
+                annotations.extend(local_annotations);
+                errors.extend(local_errors.iter().cloned());
+            }
+            Err(err) => {
+                errors.push(err);
+            }
+        }
+    }
+
+    if !errors.is_empty() {
+        Err(errors.into())
+    } else {
+        Ok(Arc::new(annotations))
+    }
+}
+
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct Annotation {
-    pub source: PathBuf,
+    pub source: Path,
     pub anno_line: u32,
     pub anno_column: u32,
-    pub item_line: u32,
-    pub item_column: u32,
-    pub path: String,
     pub anno: AnnotationType,
     pub target: String,
     pub quote: String,
     pub comment: String,
-    pub manifest_dir: PathBuf,
     pub level: AnnotationLevel,
     pub format: Format,
     pub tracking_issue: String,
@@ -65,6 +99,11 @@ pub struct Annotation {
 }
 
 impl Annotation {
+    pub fn relative_source(&self) -> &std::path::Path {
+        let cwd = duvet_core::env::current_dir().unwrap();
+        self.source.strip_prefix(&cwd).unwrap_or(&self.source)
+    }
+
     pub fn target(&self) -> Result<Target, Error> {
         Target::from_annotation(self)
     }
@@ -82,7 +121,7 @@ impl Annotation {
             true => target_path.into(),
             // A file path needs to match
             false => String::from(
-                self.resolve_file(Path::new(target_path))
+                self.resolve_file(target_path.into())
                     .unwrap()
                     .to_str()
                     .unwrap(),
@@ -102,20 +141,18 @@ impl Annotation {
             })
     }
 
-    pub fn resolve_file(&self, file: &Path) -> Result<PathBuf, Error> {
+    pub fn resolve_file(&self, file: Path) -> Result<Path, Error> {
         // If we have the right path, just return it
         if file.is_file() {
-            return Ok(file.to_path_buf());
+            return Ok(file);
         }
 
-        let mut manifest_dir = self.manifest_dir.clone();
-        loop {
-            if manifest_dir.join(file).is_file() {
-                return Ok(manifest_dir.join(file));
-            }
+        let mut manifest_dir = self.source.as_ref();
+        while let Some(dir) = manifest_dir.parent() {
+            manifest_dir = dir;
 
-            if !manifest_dir.pop() {
-                break;
+            if manifest_dir.join(&file).is_file() {
+                return Ok(manifest_dir.join(file).into());
             }
         }
 
@@ -129,9 +166,9 @@ impl Annotation {
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum AnnotationType {
+    Implementation,
     Spec,
     Test,
-    Citation,
     Exception,
     Todo,
     Implication,
@@ -139,16 +176,16 @@ pub enum AnnotationType {
 
 impl Default for AnnotationType {
     fn default() -> Self {
-        Self::Citation
+        Self::Implementation
     }
 }
 
 impl fmt::Display for AnnotationType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
+            Self::Implementation => "IMPLEMENTATION",
             Self::Spec => "SPEC",
             Self::Test => "TEST",
-            Self::Citation => "CITATION",
             Self::Exception => "EXCEPTION",
             Self::Todo => "TODO",
             Self::Implication => "IMPLICATION",
@@ -163,7 +200,9 @@ impl FromStr for AnnotationType {
         match v {
             "SPEC" | "spec" => Ok(Self::Spec),
             "TEST" | "test" => Ok(Self::Test),
-            "CITATION" | "citation" => Ok(Self::Citation),
+            "CITATION" | "citation" | "IMPLEMENTATION" | "implementation" => {
+                Ok(Self::Implementation)
+            }
             "EXCEPTION" | "exception" => Ok(Self::Exception),
             "TODO" | "todo" => Ok(Self::Todo),
             "IMPLICATION" | "implication" => Ok(Self::Implication),
@@ -173,7 +212,8 @@ impl FromStr for AnnotationType {
 }
 
 // The order is in terms of priority from least to greatest
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum AnnotationLevel {
     Auto,
     May,

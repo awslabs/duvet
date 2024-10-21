@@ -3,14 +3,15 @@
 
 use crate::{
     annotation::{Annotation, AnnotationLevel, AnnotationSet, AnnotationSetExt},
+    manifest::{Requirement, Source},
     project::Project,
     specification::Specification,
     target::Target,
-    Error,
 };
 use anyhow::anyhow;
 use clap::Parser;
 use core::fmt;
+use duvet_core::Result;
 use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -97,31 +98,27 @@ impl fmt::Display for ReportError<'_> {
 }
 
 impl Report {
-    pub async fn exec(&self) -> Result<(), Error> {
-        let project_sources = self.project.sources()?;
+    pub fn load_sources(&self, sources: &mut Vec<Source>) {
+        self.project.load_sources(sources)
+    }
 
-        let annotations: AnnotationSet = project_sources
-            .par_iter()
-            .flat_map(|source| {
-                // TODO gracefully handle error
-                source
-                    .annotations()
-                    .unwrap_or_else(|_| panic!("could not extract annotations from {:?}", source))
-            })
-            .collect();
+    pub fn load_requirements(&self, requirements: &mut Vec<Requirement>) {
+        self.project.load_requirements(requirements)
+    }
+
+    pub async fn exec(&self) -> Result<()> {
+        let annotations = crate::annotation::query().await?;
 
         let targets = annotations.targets()?;
 
-        let contents: HashMap<_, _> = targets
-            .par_iter()
-            .map(|target| {
-                let spec_path = self.project.spec_path.as_deref();
-                let path = target.path.local(spec_path);
-                let contents = target.path.load(spec_path).unwrap();
-                let contents = duvet_core::file::SourceFile::new(path, contents).unwrap();
-                (target, contents)
-            })
-            .collect();
+        let mut contents = HashMap::new();
+        for target in targets.iter() {
+            let spec_path = self.project.spec_path.as_deref();
+            let path = target.path.local(spec_path);
+            let value = target.path.load(spec_path).await?;
+            let t = duvet_core::file::SourceFile::new(path, value).unwrap();
+            contents.insert(target, t);
+        }
 
         let specifications: HashMap<_, _> = contents
             .par_iter()
@@ -240,9 +237,7 @@ impl Report {
                 eprintln!("{}", error);
             }
 
-            return Err(anyhow!(
-                "source errors were found. no reports were generated"
-            ));
+            return Err(anyhow!("source errors were found. no reports were generated").into());
         }
 
         report

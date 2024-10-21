@@ -1,0 +1,16 @@
+---
+source: duvet/src/comment/tokenizer.rs
+expression: tokens
+---
+[
+    Meta {
+        key: "meta",
+        value: "1",
+        line: 1,
+    },
+    Meta {
+        key: "meta",
+        value: "2",
+        line: 2,
+    },
+]

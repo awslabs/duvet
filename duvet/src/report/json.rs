@@ -135,7 +135,11 @@ pub fn report_writer<Output: Write>(
                     item!(
                         arr,
                         obj!(|obj| {
-                            kv!(obj, s!("source"), s!(annotation.source.to_string_lossy()));
+                            kv!(
+                                obj,
+                                s!("source"),
+                                s!(annotation.relative_source().to_string_lossy())
+                            );
                             kv!(obj, s!("target_path"), s!(annotation.resolve_target_path()));
 
                             if let Some(section) = annotation.target_section() {
@@ -146,7 +150,7 @@ pub fn report_writer<Output: Write>(
                                 kv!(obj, s!("line"), w!(annotation.anno_line));
                             }
 
-                            if annotation.anno != AnnotationType::Citation {
+                            if annotation.anno != AnnotationType::Implementation {
                                 kv!(obj, s!("type"), su!(annotation.anno));
                             }
 
@@ -523,7 +527,7 @@ impl RefStatus {
         self.level = self.level.max(r.annotation.level);
         match r.annotation.anno {
             AnnotationType::Spec => self.spec = true,
-            AnnotationType::Citation => self.citation = true,
+            AnnotationType::Implementation => self.citation = true,
             AnnotationType::Implication => self.implication = true,
             AnnotationType::Test => self.test = true,
             AnnotationType::Exception => self.exception = true,

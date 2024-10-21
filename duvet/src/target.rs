@@ -3,10 +3,8 @@
 
 use crate::{annotation::Annotation, specification::Format, Error};
 use core::{fmt, str::FromStr};
-use std::{
-    collections::HashSet,
-    path::{Path, PathBuf},
-};
+use duvet_core::{path::Path, vfs};
+use std::collections::HashSet;
 use url::Url;
 
 pub type TargetSet = HashSet<Target>;
@@ -41,7 +39,7 @@ impl FromStr for Target {
 #[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum TargetPath {
     Url(Url),
-    Path(PathBuf),
+    Path(Path),
 }
 
 impl fmt::Display for TargetPath {
@@ -68,54 +66,52 @@ impl TargetPath {
             return Ok(Self::Url(url));
         }
 
-        let path = anno.resolve_file(Path::new(&path))?;
+        let path = anno.resolve_file(path.into())?;
         Ok(Self::Path(path))
     }
 
-    pub fn load(&self, spec_download_path: Option<&str>) -> Result<String, Error> {
-        let mut contents = match self {
+    pub async fn load(&self, spec_download_path: Option<&str>) -> Result<String, Error> {
+        let contents = match self {
             Self::Url(url) => {
                 let path = self.local(spec_download_path);
-                if !path.exists() {
-                    std::fs::create_dir_all(path.parent().unwrap())?;
-
-                    let canonical_url = Self::canonical_url(url.as_str());
-
-                    reqwest::blocking::Client::builder()
-                        .build()?
-                        .get(canonical_url)
-                        .header("user-agent", "https://crates.io/crates/cargo-compliance")
-                        .header("accept", "text/plain")
-                        .send()?
-                        .error_for_status()?
-                        .copy_to(&mut std::fs::File::create(&path)?)?;
-                }
-                std::fs::read_to_string(path)?
+                tokio::fs::create_dir_all(path.parent().unwrap()).await?;
+                let url = Self::canonical_url(url.as_str());
+                duvet_core::http::get_cached_string(url, path).await?
             }
-            Self::Path(path) => std::fs::read_to_string(path)?,
+            Self::Path(path) => vfs::read_string(path).await?,
         };
+
+        let mut contents = contents.to_string();
 
         // make sure the file has a newline
         if !contents.ends_with('\n') {
             contents.push('\n');
         }
 
+        if contents.trim_start().starts_with("<!DOCTYPE html>") {
+            return Err(anyhow::anyhow!(
+                "target {self} returned HTML instead of plaintext"
+            ));
+        }
+
         Ok(contents)
     }
 
-    pub fn local(&self, spec_download_path: Option<&str>) -> PathBuf {
+    pub fn local(&self, spec_download_path: Option<&str>) -> Path {
         match self {
             Self::Url(url) => {
                 let mut path = if let Some(path_to_spec) = spec_download_path {
-                    PathBuf::from_str(path_to_spec).unwrap()
+                    path_to_spec.into()
                 } else {
                     std::env::current_dir().unwrap()
                 };
                 path.push("specs");
+                let url = Self::canonical_url(url.as_str());
+                let url = Url::parse(&url).unwrap();
                 path.push(url.host_str().expect("url should have host"));
                 path.extend(url.path_segments().expect("url should have path"));
                 path.set_extension("txt");
-                path
+                path.into()
             }
             Self::Path(path) => path.clone(),
         }
@@ -125,12 +121,20 @@ impl TargetPath {
         // rewrite some of the IETF links for convenience
         if let Some(rfc) = url.strip_prefix("https://tools.ietf.org/rfc/") {
             let rfc = rfc.trim_end_matches(".txt").trim_end_matches(".html");
-            return format!("https://www.rfc-editor.org/rfc/{}.txt", rfc);
+            return format!("https://www.rfc-editor.org/rfc/{rfc}.txt");
+        }
+
+        if let Some(rfc) = url.strip_prefix("https://datatracker.ietf.org/doc/html/rfc") {
+            let rfc = rfc
+                .trim_end_matches(".txt")
+                .trim_end_matches(".html")
+                .trim_end_matches('/');
+            return format!("https://www.rfc-editor.org/rfc/rfc{rfc}.txt");
         }
 
         if url.starts_with("https://www.rfc-editor.org/rfc/") {
             let rfc = url.trim_end_matches(".txt").trim_end_matches(".html");
-            return format!("{}.txt", rfc);
+            return format!("{rfc}.txt");
         }
 
         url.to_owned()
@@ -147,7 +151,6 @@ impl FromStr for TargetPath {
             return Ok(Self::Url(url));
         }
 
-        let path = PathBuf::from(path);
-        Ok(Self::Path(path))
+        Ok(Self::Path(path.into()))
     }
 }
