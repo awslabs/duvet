@@ -30,7 +30,7 @@ pub fn enforce_source(report: &TargetReport) -> Result<(), anyhow::Error> {
             AnnotationType::Test => {
                 tested_lines.insert(line);
             }
-            AnnotationType::Citation => {
+            AnnotationType::Implementation => {
                 cited_lines.insert(line);
             }
             AnnotationType::Exception => {

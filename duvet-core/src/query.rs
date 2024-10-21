@@ -445,14 +445,16 @@ mod tests {
         let query = Query::new(async move { rx.await.unwrap() });
 
         let a = query.clone();
-        let a = tokio::spawn(async move { *a.get().await });
+        let a = async move { *a.get().await };
 
         let b = query;
-        let b = tokio::spawn(async move { *b.get().await });
+        let b = async move { *b.get().await };
 
         tx.send(123).unwrap();
 
-        assert_eq!(a.await.unwrap(), 123);
-        assert_eq!(b.await.unwrap(), 123);
+        let (a, b) = tokio::join!(a, b);
+
+        assert_eq!(a, 123);
+        assert_eq!(b, 123);
     }
 }

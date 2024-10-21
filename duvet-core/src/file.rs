@@ -91,6 +91,26 @@ impl SourceFile {
             .await
     }
 
+    pub async fn as_json<T>(&self) -> crate::Result<Arc<T>>
+    where
+        T: 'static + Send + Sync + serde::de::DeserializeOwned,
+    {
+        let path = self.path.clone();
+        let contents = self.contents.clone();
+        // TODO can we get better errors by mapping string ranges?
+        crate::Cache::current()
+            .get_or_init(*self.hash(), move || {
+                crate::Query::from(
+                    serde_json::from_slice(contents.data())
+                        .map(Arc::new)
+                        .into_diagnostic()
+                        .wrap_err(path)
+                        .map_err(|err| err.into()),
+                )
+            })
+            .await
+    }
+
     pub fn substr(&self, v: &str) -> Option<Slice<SourceFile>> {
         unsafe {
             let beginning = self.as_bytes().as_ptr();
