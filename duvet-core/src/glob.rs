@@ -13,7 +13,12 @@ pub struct Glob {
 
 impl fmt::Debug for Glob {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Glob").field(&self.set.1).finish()
+        let list = &self.set.1;
+        if list.len() == 1 {
+            list[0].fmt(f)
+        } else {
+            list.fmt(f)
+        }
     }
 }
 
@@ -43,6 +48,14 @@ impl FromStr for Glob {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         Self::try_from_iter(core::iter::once(value))
+    }
+}
+
+impl TryFrom<&str> for Glob {
+    type Error = g::Error;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        value.parse()
     }
 }
 

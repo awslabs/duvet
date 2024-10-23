@@ -183,12 +183,12 @@ impl Default for AnnotationType {
 impl fmt::Display for AnnotationType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
-            Self::Implementation => "IMPLEMENTATION",
-            Self::Spec => "SPEC",
-            Self::Test => "TEST",
-            Self::Exception => "EXCEPTION",
-            Self::Todo => "TODO",
-            Self::Implication => "IMPLICATION",
+            Self::Implementation => "implementation",
+            Self::Spec => "spec",
+            Self::Test => "test",
+            Self::Exception => "exception",
+            Self::Todo => "todo",
+            Self::Implication => "implication",
         })
     }
 }

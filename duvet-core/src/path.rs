@@ -11,6 +11,25 @@ pub struct Path {
     path: Arc<OsStr>,
 }
 
+impl Path {
+    pub fn pop(&mut self) -> bool {
+        if let Some(parent) = self.parent() {
+            *self = parent.into();
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn push<V: AsRef<std::path::Path>>(&mut self, component: V) {
+        *self = self.join(component);
+    }
+
+    pub fn join<V: AsRef<std::path::Path>>(&self, component: V) -> Self {
+        self.as_ref().join(component).into()
+    }
+}
+
 impl PartialEq for Path {
     fn eq(&self, other: &Self) -> bool {
         self.as_ref().eq(other.as_ref())
@@ -37,17 +56,6 @@ impl core::hash::Hash for Path {
     }
 }
 
-impl Path {
-    pub fn pop(&mut self) -> bool {
-        if let Some(parent) = self.parent() {
-            *self = parent.into();
-            true
-        } else {
-            false
-        }
-    }
-}
-
 impl fmt::Debug for Path {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_ref().fmt(f)
@@ -56,7 +64,12 @@ impl fmt::Debug for Path {
 
 impl fmt::Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.as_ref().display().fmt(f)
+        let path = self.as_ref();
+        let path = crate::env::current_dir()
+            .ok()
+            .and_then(|dir| path.strip_prefix(dir).ok())
+            .unwrap_or(path);
+        path.display().fmt(f)
     }
 }
 

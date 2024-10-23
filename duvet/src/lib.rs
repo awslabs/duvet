@@ -9,6 +9,7 @@ mod arguments;
 mod comment;
 mod config;
 mod extract;
+mod init;
 mod manifest;
 mod project;
 mod report;

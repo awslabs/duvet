@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    extract,
+    extract, init,
     manifest::{Requirement, Source},
     report,
 };
 use clap::Parser;
-use duvet_core::{env, path::Path, query, Result};
+use duvet_core::{env, query, Result};
 use std::sync::Arc;
 
 #[derive(Debug, Parser)]
 pub struct Arguments {
-    #[clap(short, long, global = true)]
-    pub config: Option<Path>,
-
     #[command(subcommand)]
     pub command: Command,
 }
@@ -22,6 +19,7 @@ pub struct Arguments {
 #[derive(Debug, Parser)]
 #[allow(clippy::large_enum_variant)]
 pub enum Command {
+    Init(init::Init),
     Extract(extract::Extract),
     Report(report::Report),
 }
@@ -29,6 +27,7 @@ pub enum Command {
 impl Arguments {
     pub async fn exec(&self) -> Result<()> {
         match &self.command {
+            Command::Init(args) => args.exec().await,
             Command::Extract(args) => args.exec().await,
             Command::Report(args) => args.exec().await,
         }
@@ -36,6 +35,7 @@ impl Arguments {
 
     pub fn load_sources(&self, sources: &mut Vec<Source>) {
         match &self.command {
+            Command::Init(_) => (),
             Command::Extract(_) => (),
             Command::Report(args) => args.load_sources(sources),
         }
@@ -43,6 +43,7 @@ impl Arguments {
 
     pub fn load_requirements(&self, requirements: &mut Vec<Requirement>) {
         match &self.command {
+            Command::Init(_) => (),
             Command::Extract(_) => (),
             Command::Report(args) => args.load_requirements(requirements),
         }

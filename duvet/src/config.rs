@@ -9,6 +9,8 @@ use duvet_core::{diagnostic::IntoDiagnostic, file::SourceFile, path::Path, vfs};
 use serde::Deserialize;
 use std::sync::Arc;
 
+pub static DEFAULT_PATH: &str = ".duvet/config.toml";
+
 pub mod v1;
 
 #[derive(Debug, Deserialize)]
@@ -39,8 +41,7 @@ impl Config {
 }
 
 pub async fn load() -> Option<Result<Config>> {
-    let args = crate::arguments::get().await;
-    let path = args.config.clone().or_else(default_path)?;
+    let path = path().await?;
     Some(load_from_path(path).await)
 }
 
@@ -54,8 +55,29 @@ async fn load_from_path(path: Path) -> Result<Config> {
     Ok(Config { schema, file })
 }
 
-fn default_path() -> Option<Path> {
+pub async fn project() -> Option<Path> {
+    let config = path().await?;
+    project_from_config(&config).await
+}
+
+pub async fn project_from_config(path: &Path) -> Option<Path> {
+    let mut config = &**path;
+    config = config.parent()?;
+    config = config.parent()?;
+    Some(config.into())
+}
+
+pub async fn path() -> Option<Path> {
     let dir = duvet_core::env::current_dir().ok()?;
-    let path = dir.join("duvet.toml").canonicalize().ok()?;
-    Some(path.into())
+    let mut dir = &*dir;
+
+    loop {
+        let path: Path = dir.join(DEFAULT_PATH).into();
+
+        if vfs::read_metadata(&path).await.is_ok() {
+            return Some(path);
+        }
+
+        dir = dir.parent()?;
+    }
 }
