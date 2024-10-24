@@ -4,3 +4,4 @@ Cargo.lock
 target
 .history
 *.snap.new
+/duvet/src/specification/ietf/snapshots

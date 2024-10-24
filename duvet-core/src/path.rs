@@ -1,14 +1,51 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use core::fmt;
+use core::{cmp::Ordering, fmt};
 use serde::Deserialize;
 use std::{ffi::OsStr, ops::Deref, path::PathBuf, sync::Arc};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(transparent)]
 pub struct Path {
     path: Arc<OsStr>,
+}
+
+impl PartialEq for Path {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref().eq(other.as_ref())
+    }
+}
+
+impl Eq for Path {}
+
+impl PartialOrd for Path {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Path {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.as_ref().cmp(other.as_ref())
+    }
+}
+
+impl core::hash::Hash for Path {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.as_ref().hash(state)
+    }
+}
+
+impl Path {
+    pub fn pop(&mut self) -> bool {
+        if let Some(parent) = self.parent() {
+            *self = parent.into();
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl fmt::Debug for Path {
@@ -62,6 +99,20 @@ impl From<PathBuf> for Path {
         Self {
             path: path.into_os_string().into(),
         }
+    }
+}
+
+impl From<&std::path::Path> for Path {
+    fn from(path: &std::path::Path) -> Self {
+        Self {
+            path: path.as_os_str().into(),
+        }
+    }
+}
+
+impl From<Path> for PathBuf {
+    fn from(value: Path) -> Self {
+        PathBuf::from(&value.path)
     }
 }
 

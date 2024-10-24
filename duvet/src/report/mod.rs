@@ -115,7 +115,10 @@ impl Report {
         let contents: HashMap<_, _> = targets
             .par_iter()
             .map(|target| {
-                let contents = target.path.load(self.project.spec_path.as_deref()).unwrap();
+                let spec_path = self.project.spec_path.as_deref();
+                let path = target.path.local(spec_path);
+                let contents = target.path.load(spec_path).unwrap();
+                let contents = duvet_core::file::SourceFile::new(path, contents).unwrap();
                 (target, contents)
             })
             .collect();

@@ -16,8 +16,10 @@ macro_rules! snapshot_test {
                 stringify!($name),
                 $ext,
             ));
+            let path = concat!(stringify!($name), $ext);
+            let contents = duvet_core::file::SourceFile::new(path, contents).unwrap();
 
-            let spec = Format::Auto.parse(contents).unwrap();
+            let spec = Format::Auto.parse(&contents).unwrap();
             let sections = extract_sections(&spec);
 
             let results: Vec<_> = sections
