@@ -1,0 +1,5 @@
+name = "s2n-tls"
+repo = "https://github.com/aws/s2n-tls"
+version = "v1.5.5"
+cmd = ["bash compliance/generate_report.sh"]
+html_report = "compliance/report.html"

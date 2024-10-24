@@ -1,0 +1,1 @@
+integration/snapshots/*.snap filter=lfs diff=lfs merge=lfs -text

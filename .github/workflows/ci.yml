@@ -38,67 +38,24 @@ jobs:
           export VERSIONS=$(echo $RAW_VERSIONS | jq -scR 'rtrimstr("\n")|split(" ")|.')
           echo "versions=$VERSIONS" >> "$GITHUB_OUTPUT"
 
-  rustfmt:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
-        id: toolchain
-        with:
-          toolchain: ${{ env.RUST_NIGHTLY_TOOLCHAIN }}
-          profile: minimal
-          override: true
-          components: rustfmt
-
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
-  clippy:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - toolchain: stable
-            # fail on stable warnings
-            args: "-D warnings"
-          - toolchain: beta
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-
-      - uses: actions-rs/toolchain@v1.0.7
-        id: toolchain
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          profile: minimal
-          override: true
-          components: clippy
-
-      - uses: camshaft/rust-cache@v1
-
-      - name: Cache node_modules
-        uses: actions/cache@v3.2.6
-        continue-on-error: true
-        with:
-          path: duvet/www/node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
-
-      - name: Build script.js
+      - name: Install rustfmt toolchain
         run: |
-          make duvet/www/public/script.js
+          rustup toolchain install ${{ env.RUST_NIGHTLY_TOOLCHAIN }} --profile minimal --component rustfmt
+          rustup override set ${{ env.RUST_NIGHTLY_TOOLCHAIN }}
 
-      # TODO translate json reports to in-action warnings
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1.0.3
-        with:
-          command: clippy
-          args: --all-features --all-targets -- -A clippy::uninlined_format_args ${{ matrix.args }}
+      - name: Install clippy toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup override set stable
+
+      - name: Run checks
+        run: |
+          cargo xtask checks --rustfmt-toolchain ${{ env.RUST_NIGHTLY_TOOLCHAIN }}
 
   udeps:
     runs-on: ubuntu-latest
@@ -107,12 +64,11 @@ jobs:
         with:
           submodules: true
 
-      - uses: actions-rs/toolchain@v1.0.7
+      - name: Install toolchain
         id: toolchain
-        with:
-          toolchain: ${{ env.RUST_NIGHTLY_TOOLCHAIN }}
-          profile: minimal
-          override: true
+        run: |
+          rustup toolchain install ${{ env.RUST_NIGHTLY_TOOLCHAIN }} --profile minimal
+          rustup override set ${{ env.RUST_NIGHTLY_TOOLCHAIN }}
 
       - uses: camshaft/rust-cache@v1
 
@@ -129,7 +85,7 @@ jobs:
 
       - name: Build script.js
         run: |
-          make duvet/www/public/script.js
+          cargo xtask build
 
       - name: Run cargo udeps
         run: cargo udeps --workspace --all-targets
@@ -148,11 +104,11 @@ jobs:
         with:
           lfs: true
 
-      - uses: actions-rs/toolchain@v1
+      - name: Install toolchain
         id: toolchain
-        with:
-          toolchain: ${{ matrix.rust }}
-          override: true
+        run: |
+          rustup toolchain install ${{ matrix.rust }}
+          rustup override set ${{ matrix.rust }}
 
       - uses: camshaft/rust-cache@v1
         with:
@@ -165,14 +121,9 @@ jobs:
           path: duvet/www/node_modules
           key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
 
-      - name: Build script.js
+      - name: Run tests
         run: |
-          make duvet/www/public/script.js
-
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+          cargo xtask test
 
   action: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest

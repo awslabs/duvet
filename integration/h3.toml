@@ -1,0 +1,8 @@
+name = "h3"
+repo = "https://github.com/hyperium/h3"
+version = "c6b92cbca902a62850b72269384fcbc32d30cb96"
+cmd = [
+    "bash ci/compliance/extract.sh",
+    "bash ci/compliance/report.sh",
+]
+html_report = "ci/compliance/report.html"
