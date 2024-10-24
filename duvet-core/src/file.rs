@@ -164,7 +164,7 @@ impl SourceCode for SourceFile {
 }
 
 #[derive(Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct Slice<File> {
+pub struct Slice<File = SourceFile> {
     file: File,
     start: usize,
     end: usize,
