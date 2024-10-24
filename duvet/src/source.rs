@@ -3,142 +3,166 @@
 
 use crate::{
     annotation::{Annotation, AnnotationLevel, AnnotationSet, AnnotationType},
-    pattern::Pattern,
+    comment,
     specification::Format,
-    Error,
 };
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
+use duvet_core::{diagnostic, path::Path, vfs, Result};
 use serde::Deserialize;
-use std::{collections::BTreeSet, path::PathBuf};
+use std::{collections::BTreeSet, sync::Arc};
 
-#[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub enum SourceFile<'a> {
-    Text(Pattern<'a>, PathBuf),
-    Spec(PathBuf),
+#[derive(Clone, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
+pub enum SourceFile {
+    Text(comment::Pattern, Path, AnnotationType),
+    Spec(Path),
 }
 
-impl SourceFile<'_> {
-    pub fn annotations(&self) -> Result<AnnotationSet, Error> {
-        let mut annotations = AnnotationSet::new();
+impl SourceFile {
+    pub async fn annotations(&self) -> (AnnotationSet, Vec<diagnostic::Error>) {
         match self {
-            Self::Text(pattern, file) => {
-                let text = std::fs::read_to_string(file)?;
-                pattern
-                    .extract(&text, file, &mut annotations)
-                    .with_context(|| file.display().to_string())?;
-                Ok(annotations)
+            Self::Text(pattern, file, default_type) => {
+                read_source(file.clone(), pattern.clone(), *default_type).await
             }
-            Self::Spec(file) => {
-                let text = std::fs::read_to_string(file)?;
-                let specs = toml::from_str::<Specs>(&text)?;
-                for anno in specs.specs {
-                    annotations.insert(anno.into_annotation(file.clone(), &specs.target)?);
-                }
-                for anno in specs.exceptions {
-                    annotations.insert(anno.into_annotation(file.clone(), &specs.target)?);
-                }
-                for anno in specs.todos {
-                    annotations.insert(anno.into_annotation(file.clone(), &specs.target)?);
-                }
-                Ok(annotations)
-            }
+            Self::Spec(file) => read_requirement(file.clone()).await,
         }
     }
 }
 
+async fn read_source(
+    file: Path,
+    pattern: comment::Pattern,
+    default_type: AnnotationType,
+) -> (AnnotationSet, Vec<diagnostic::Error>) {
+    let source = match vfs::read_string(&file).await {
+        Ok(specs) => specs,
+        Err(err) => {
+            return (Default::default(), vec![err]);
+        }
+    };
+
+    comment::extract(&source, &pattern, default_type)
+}
+
+async fn read_requirement(file: Path) -> (AnnotationSet, Vec<diagnostic::Error>) {
+    async fn read_file(file: &Path) -> Result<Arc<Specs>> {
+        let text = vfs::read_string(file).await?;
+        let specs = text.as_toml().await?;
+        Ok(specs)
+    }
+
+    let specs = match read_file(&file).await {
+        Ok(specs) => specs,
+        Err(err) => {
+            return (Default::default(), vec![err]);
+        }
+    };
+
+    let mut annotations = AnnotationSet::default();
+    let mut errors = vec![];
+
+    let annos = None
+        .into_iter()
+        .chain(
+            specs
+                .specs
+                .iter()
+                .map(|anno| anno.as_annotation(file.clone(), &specs.target)),
+        )
+        .chain(
+            specs
+                .exceptions
+                .iter()
+                .map(|anno| anno.as_annotation(file.clone(), &specs.target)),
+        )
+        .chain(
+            specs
+                .todos
+                .iter()
+                .map(|anno| anno.as_annotation(file.clone(), &specs.target)),
+        );
+
+    for anno in annos {
+        match anno {
+            Ok(anno) => {
+                annotations.insert(anno);
+            }
+            Err(err) => {
+                errors.push(err);
+            }
+        }
+    }
+
+    (annotations, errors)
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Specs<'a> {
+struct Specs {
     target: Option<String>,
 
-    #[serde(borrow)]
     #[serde(alias = "spec", default)]
-    specs: Vec<Spec<'a>>,
+    specs: Vec<Spec>,
 
-    #[serde(borrow)]
     #[serde(alias = "exception", default)]
-    exceptions: Vec<Exception<'a>>,
+    exceptions: Vec<Exception>,
 
-    #[serde(borrow)]
     #[serde(alias = "TODO", alias = "todo", default)]
-    todos: Vec<Todo<'a>>,
+    todos: Vec<Todo>,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Spec<'a> {
+struct Spec {
     target: Option<String>,
-    level: Option<&'a str>,
-    format: Option<&'a str>,
-    quote: &'a str,
+    level: Option<AnnotationLevel>,
+    format: Option<Format>,
+    quote: String,
 }
 
-impl Spec<'_> {
-    fn into_annotation(
-        self,
-        source: PathBuf,
-        default_target: &Option<String>,
-    ) -> Result<Annotation, Error> {
+impl Spec {
+    fn as_annotation(&self, source: Path, default_target: &Option<String>) -> Result<Annotation> {
         Ok(Annotation {
             anno_line: 0,
             anno_column: 0,
-            item_line: 0,
-            item_column: 0,
-            path: String::new(),
             anno: AnnotationType::Spec,
             target: self
                 .target
+                .clone()
                 .or_else(|| default_target.as_ref().cloned())
                 .ok_or_else(|| anyhow!("missing target"))?,
-            quote: normalize_quote(self.quote),
+            quote: normalize_quote(&self.quote),
             comment: self.quote.to_string(),
-            manifest_dir: source.clone(),
             feature: Default::default(),
             tags: Default::default(),
             tracking_issue: Default::default(),
             source,
-            level: if let Some(level) = self.level {
-                level.parse()?
-            } else {
-                AnnotationLevel::Auto
-            },
-            format: if let Some(format) = self.format {
-                format.parse()?
-            } else {
-                Format::Auto
-            },
+            level: self.level.unwrap_or(AnnotationLevel::Auto),
+            format: self.format.unwrap_or(Format::Auto),
         })
     }
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Exception<'a> {
+struct Exception {
     target: Option<String>,
-    quote: &'a str,
+    quote: String,
     reason: String,
 }
 
-impl Exception<'_> {
-    fn into_annotation(
-        self,
-        source: PathBuf,
-        default_target: &Option<String>,
-    ) -> Result<Annotation, Error> {
+impl Exception {
+    fn as_annotation(&self, source: Path, default_target: &Option<String>) -> Result<Annotation> {
         Ok(Annotation {
             anno_line: 0,
             anno_column: 0,
-            item_line: 0,
-            item_column: 0,
-            path: String::new(),
             anno: AnnotationType::Exception,
             target: self
                 .target
+                .clone()
                 .or_else(|| default_target.as_ref().cloned())
                 .ok_or_else(|| anyhow!("missing target"))?,
-            quote: normalize_quote(self.quote),
-            comment: self.reason,
-            manifest_dir: source.clone(),
+            quote: normalize_quote(&self.quote),
+            comment: self.reason.clone(),
             feature: Default::default(),
             tags: Default::default(),
             tracking_issue: Default::default(),
@@ -151,9 +175,9 @@ impl Exception<'_> {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Todo<'a> {
+struct Todo {
     target: Option<String>,
-    quote: &'a str,
+    quote: String,
     feature: Option<String>,
     #[serde(alias = "tracking-issue")]
     tracking_issue: Option<String>,
@@ -162,30 +186,23 @@ struct Todo<'a> {
     tags: BTreeSet<String>,
 }
 
-impl Todo<'_> {
-    fn into_annotation(
-        self,
-        source: PathBuf,
-        default_target: &Option<String>,
-    ) -> Result<Annotation, Error> {
+impl Todo {
+    fn as_annotation(&self, source: Path, default_target: &Option<String>) -> Result<Annotation> {
         Ok(Annotation {
             anno_line: 0,
             anno_column: 0,
-            item_line: 0,
-            item_column: 0,
-            path: String::new(),
             anno: AnnotationType::Todo,
             target: self
                 .target
+                .clone()
                 .or_else(|| default_target.as_ref().cloned())
                 .ok_or_else(|| anyhow!("missing target"))?,
-            quote: normalize_quote(self.quote),
-            comment: self.reason.unwrap_or_default(),
-            manifest_dir: source.clone(),
+            quote: normalize_quote(&self.quote),
+            comment: self.reason.clone().unwrap_or_default(),
             source,
-            tags: self.tags,
-            feature: self.feature.unwrap_or_default(),
-            tracking_issue: self.tracking_issue.unwrap_or_default(),
+            tags: self.tags.clone(),
+            feature: self.feature.clone().unwrap_or_default(),
+            tracking_issue: self.tracking_issue.clone().unwrap_or_default(),
             level: AnnotationLevel::Auto,
             format: Format::Auto,
         })

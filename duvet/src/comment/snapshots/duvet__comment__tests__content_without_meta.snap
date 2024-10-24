@@ -1,7 +1,8 @@
 ---
-source: src/pattern/tests.rs
+source: duvet/src/comment/tests.rs
 expression: "parse(\"//=,//#\", r#\"\n    //# This is some content without meta\n    \"#)"
 ---
-Ok(
+(
+    {},
     [],
 )

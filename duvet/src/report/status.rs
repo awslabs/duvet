@@ -87,7 +87,7 @@ impl SpecReport {
     fn insert(&mut self, offset: usize, reference: &Reference) {
         match reference.annotation.anno {
             AnnotationType::Spec => &mut self.spec_offsets,
-            AnnotationType::Citation => &mut self.citation_offsets,
+            AnnotationType::Implementation => &mut self.citation_offsets,
             AnnotationType::Implication => &mut self.implication_offsets,
             AnnotationType::Test => &mut self.test_offsets,
             AnnotationType::Exception => &mut self.exception_offsets,

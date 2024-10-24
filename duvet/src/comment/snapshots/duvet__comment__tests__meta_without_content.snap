@@ -1,0 +1,10 @@
+---
+source: duvet/src/comment/tests.rs
+expression: "parse(\"//=,//#\", r#\"\n    //= type=todo\n    \"#)"
+---
+(
+    {},
+    [
+        "comment is missing source specification",
+    ],
+)

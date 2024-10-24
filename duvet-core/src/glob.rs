@@ -6,25 +6,34 @@ use globset as g;
 use serde::de;
 use std::{str::FromStr, sync::Arc};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Glob {
-    set: Arc<g::GlobSet>,
+    set: Arc<(g::GlobSet, Vec<String>)>,
+}
+
+impl fmt::Debug for Glob {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Glob").field(&self.set.1).finish()
+    }
 }
 
 impl Glob {
     pub fn is_match<P: AsRef<std::path::Path>>(&self, path: &P) -> bool {
-        self.set.is_match(path)
+        self.set.0.is_match(path)
     }
 
     pub fn try_from_iter<T: IntoIterator<Item = I>, I: AsRef<str>>(
         iter: T,
     ) -> Result<Glob, g::Error> {
         let mut builder = g::GlobSetBuilder::new();
+        let mut display = vec![];
         for item in iter {
-            builder.add(g::Glob::new(item.as_ref())?);
+            let value = format_value(item.as_ref());
+            builder.add(g::Glob::new(&value)?);
+            display.push(value);
         }
         let set = builder.build()?;
-        let set = Arc::new(set);
+        let set = Arc::new((set, display));
         Ok(Self { set })
     }
 }
@@ -67,12 +76,23 @@ impl<'de> de::Visitor<'de> for StringOrList {
         S: de::SeqAccess<'de>,
     {
         let mut builder = g::GlobSetBuilder::new();
+        let mut display = vec![];
         while let Some(value) = seq.next_element()? {
-            let item = g::Glob::new(value).map_err(serde::de::Error::custom)?;
+            let value = format_value(value);
+            let item = g::Glob::new(&value).map_err(serde::de::Error::custom)?;
             builder.add(item);
+            display.push(value);
         }
         let set = builder.build().map_err(serde::de::Error::custom)?;
-        let set = Arc::new(set);
+        let set = Arc::new((set, display));
         Ok(Glob { set })
+    }
+}
+
+fn format_value(v: &str) -> String {
+    if v.starts_with("**/") || v.starts_with('/') {
+        v.to_string()
+    } else {
+        format!("**/{v}")
     }
 }
