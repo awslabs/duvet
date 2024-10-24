@@ -36,6 +36,11 @@ impl FlagExt for Option<bool> {
     }
 }
 
+/// Allows for argument flexibility
+/// * `duvet` -> default
+/// * `duvet --foo` -> true
+/// * `duvet --foo=true` -> true
+/// * `duvet --foo=false` -> false
 impl FlagExt for Option<Option<bool>> {
     fn is_enabled(&self, default: bool) -> bool {
         match self {

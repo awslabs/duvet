@@ -64,7 +64,7 @@ jobs:
         with:
           submodules: true
 
-      - name: Install rustfmt toolchain
+      - name: Install toolchain
         id: toolchain
         run: |
           rustup toolchain install ${{ env.RUST_NIGHTLY_TOOLCHAIN }} --profile minimal
