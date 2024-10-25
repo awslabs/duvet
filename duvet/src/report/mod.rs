@@ -15,6 +15,7 @@ use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
+    sync::Arc,
 };
 
 mod ci;
@@ -99,16 +100,9 @@ impl fmt::Display for ReportError<'_> {
 impl Report {
     pub async fn exec(&self) -> Result<(), Error> {
         let project_sources = self.project.sources()?;
+        let project_sources = Arc::new(project_sources);
 
-        let annotations: AnnotationSet = project_sources
-            .par_iter()
-            .flat_map(|source| {
-                // TODO gracefully handle error
-                source
-                    .annotations()
-                    .unwrap_or_else(|_| panic!("could not extract annotations from {:?}", source))
-            })
-            .collect();
+        let annotations = crate::annotation::query(project_sources.clone()).await?;
 
         let targets = annotations.targets()?;
 

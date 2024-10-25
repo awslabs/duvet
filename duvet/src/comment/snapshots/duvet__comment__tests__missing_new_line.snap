@@ -1,26 +1,24 @@
 ---
-source: src/pattern/tests.rs
-expression: "parse(\"//=,//#\",\n    r#\"\n    //= https://example.com/spec.txt\n    //# Here is my citation\n    \"#)"
+source: duvet/src/comment/tests.rs
+expression: "parse(\"//=,//#\",\nr#\"\n    //= https://example.com/spec.txt\n    //# Here is my citation\"#)"
 ---
-Ok(
-    [
+(
+    {
         Annotation {
             source: "file.rs",
             anno_line: 2,
-            anno_column: 7,
-            item_line: 4,
-            item_column: 0,
-            path: "",
+            anno_column: 0,
             anno: Citation,
             target: "https://example.com/spec.txt",
             quote: "Here is my citation",
             comment: "",
-            manifest_dir: "/",
+            manifest_dir: "[CWD]",
             level: Auto,
             format: Auto,
             tracking_issue: "",
             feature: "",
             tags: {},
         },
-    ],
+    },
+    [],
 )

@@ -2,24 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::*;
-use std::path::{Path, PathBuf};
 
-fn parse(pattern: &str, value: &str) -> Result<Vec<Annotation>, anyhow::Error> {
+fn parse(pattern: &str, value: &str) -> (AnnotationSet, Vec<Error>) {
+    let file = SourceFile::new("file.rs", value).unwrap();
     let pattern = Pattern::from_arg(pattern).unwrap();
-    let path = Path::new("file.rs");
-    let mut annotations = Default::default();
-    pattern.extract(value, path, &mut annotations)?;
-
-    let annotations = annotations
-        .into_iter()
-        .map(|mut annotation| {
-            // make the manifest dir consistent on all platforms
-            annotation.manifest_dir = PathBuf::from("/");
-            annotation
-        })
-        .collect();
-
-    Ok(annotations)
+    extract(&file, &pattern, Default::default())
 }
 
 macro_rules! snapshot {
@@ -29,6 +16,18 @@ macro_rules! snapshot {
     ($name:ident, $pattern:expr, $value:expr) => {
         #[test]
         fn $name() {
+            let mut settings = insta::Settings::clone_current();
+            // ignore CWD
+            settings.add_filter(
+                &dbg!(duvet_core::env::current_dir()
+                    .unwrap()
+                    .as_ref()
+                    .display()
+                    .to_string()
+                    .replace('/', "\\/")),
+                "[CWD]",
+            );
+            let _bound = settings.bind_to_scope();
             insta::assert_debug_snapshot!(stringify!($name), parse($pattern, $value));
         }
     };
