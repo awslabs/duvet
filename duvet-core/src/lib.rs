@@ -20,6 +20,7 @@ mod cache;
 pub mod contents;
 pub mod diagnostic;
 pub mod dir;
+pub mod env;
 pub mod file;
 pub mod glob;
 pub mod hash;
@@ -36,4 +37,4 @@ pub use cache::Cache;
 pub use duvet_macros::*;
 pub use query::Query;
 
-pub type Result<T, E = diagnostic::Error> = core::result::Result<T, E>;
+pub type Result<T = (), E = diagnostic::Error> = core::result::Result<T, E>;

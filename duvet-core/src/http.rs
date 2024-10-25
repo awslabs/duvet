@@ -13,14 +13,31 @@ use std::sync::Arc;
 pub use http::response::Parts;
 pub use reqwest::Client;
 
+fn default_headers() -> reqwest::header::HeaderMap {
+    let mut map = reqwest::header::HeaderMap::new();
+
+    map.insert("accept", "text/plain".parse().unwrap());
+
+    map
+}
+
 pub fn client() -> Query<Client> {
     #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
     struct Q;
 
-    // TODO configure the client more
-    //     - User-Agent headers
-    //     - Accept headers?
-    Cache::current().get_or_init(Q, || Query::from(Client::builder().build().unwrap()))
+    Cache::current().get_or_init(Q, || {
+        Query::from(
+            Client::builder()
+                .user_agent(concat!(
+                    env!("CARGO_PKG_NAME"),
+                    "/",
+                    env!("CARGO_PKG_VERSION")
+                ))
+                .default_headers(default_headers())
+                .build()
+                .unwrap(),
+        )
+    })
 }
 
 pub fn get_full<U>(url: U) -> Query<Result<(Arc<Parts>, Contents)>>

@@ -20,6 +20,7 @@ mod text;
 mod tests;
 
 pub use anyhow::Error;
+pub use duvet_core::Result;
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Parser)]
@@ -40,6 +41,11 @@ impl Arguments {
             Self::Report(args) => args.exec().await,
         }
     }
+}
+
+pub async fn run() -> Result {
+    arguments().await.exec().await?;
+    Ok(())
 }
 
 pub(crate) fn fnv<H: core::hash::Hash + ?Sized>(value: &H) -> u64 {
