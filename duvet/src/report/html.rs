@@ -51,7 +51,10 @@ pub fn report_writer<Output: Write>(
     w!("<body>");
     w!("<div id=root></div>");
     w!(r#"<script>"#);
-    w!(include_str!("../../www/public/script.js"));
+    w!(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/www/public/script.js"
+    )));
     w!(r#"</script>"#);
     w!("</body>");
     w!("</html>");

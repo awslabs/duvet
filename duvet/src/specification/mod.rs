@@ -9,6 +9,7 @@ use core::{
     ops::{Deref, Range},
     str::FromStr,
 };
+use duvet_core::file::SourceFile;
 use std::collections::HashMap;
 
 pub mod ietf;
@@ -89,7 +90,7 @@ impl fmt::Display for Format {
 }
 
 impl Format {
-    pub fn parse(self, contents: &str) -> Result<Specification, Error> {
+    pub fn parse(self, contents: &SourceFile) -> Result<Specification, Error> {
         let spec = match self {
             Self::Auto => {
                 // Markdown MAY start with a header (#),
@@ -147,15 +148,6 @@ impl FromStr for Format {
 pub enum Line<'a> {
     Str(Str<'a>),
     Break,
-}
-
-impl Line<'_> {
-    pub fn is_empty(&self) -> bool {
-        match self {
-            Self::Str(s) => s.is_empty(),
-            Self::Break => true,
-        }
-    }
 }
 
 impl<'a> From<Str<'a>> for Line<'a> {
