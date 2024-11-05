@@ -128,7 +128,12 @@ macro_rules! expect_contents {
 
 /// Transforms file contents into lines
 fn lines(contents: &SourceFile) -> impl Iterator<Item = Token> + '_ {
-    contents.lines().enumerate().map(move |(line, value)| {
+    contents.lines().enumerate().map(move |(line, mut value)| {
+        // look for Byte Order Mark and filter it out
+        if line == 0 {
+            value = value.trim_start_matches("\u{feff}");
+        }
+
         // line numbers start at 1
         let line = line + 1;
         let value = contents.substr(value).unwrap();
