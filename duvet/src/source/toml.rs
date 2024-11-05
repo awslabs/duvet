@@ -33,7 +33,7 @@ pub async fn load(path: &Path) -> (AnnotationSet, Vec<duvet_core::diagnostic::Er
                             default_target,
                         ) {
                             Ok(anno) => {
-                                annotations.insert(anno);
+                                annotations.insert(Arc::new(anno));
                             }
                             Err(err) => {
                                 errors.push(err);
@@ -47,7 +47,7 @@ pub async fn load(path: &Path) -> (AnnotationSet, Vec<duvet_core::diagnostic::Er
             load!(exceptions);
             load!(todos);
 
-            (annotations, errors)
+            (Arc::new(annotations), errors)
         }
         Err(err) => (Default::default(), vec![err]),
     }

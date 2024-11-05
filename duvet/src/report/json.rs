@@ -5,14 +5,13 @@ use super::{Reference, ReportResult, TargetReport};
 use crate::{
     annotation::{AnnotationLevel, AnnotationType},
     specification::Line,
+    Result,
 };
-use duvet_core::file::Slice;
-use rayon::prelude::*;
+use duvet_core::{file::Slice, path::Path};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs::File,
     io::{BufWriter, Cursor, Error, Write},
-    path::Path,
 };
 
 macro_rules! writer {
@@ -80,7 +79,7 @@ macro_rules! item {
     }};
 }
 
-pub fn report(report: &ReportResult, file: &Path) -> Result<(), Error> {
+pub fn report(report: &ReportResult, file: &Path) -> Result {
     if let Some(parent) = file.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -90,21 +89,15 @@ pub fn report(report: &ReportResult, file: &Path) -> Result<(), Error> {
     report_writer(report, &mut file)
 }
 
-pub fn report_writer<Output: Write>(
-    report: &ReportResult,
-    output: &mut Output,
-) -> Result<(), Error> {
-    let specs = report
-        .targets
-        .par_iter()
-        .map(|(source, report)| {
-            let id = format!("{}", &source.path);
-            let mut output = Cursor::new(vec![]);
-            report_source(report, &mut output)?;
-            let output = unsafe { String::from_utf8_unchecked(output.into_inner()) };
-            Ok((id, output))
-        })
-        .collect::<Result<BTreeMap<String, String>, std::io::Error>>()?;
+pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) -> Result {
+    let mut specs = BTreeMap::new();
+    for (source, report) in report.targets.iter() {
+        let id = format!("{}", &source.path);
+        let mut output = Cursor::new(vec![]);
+        report_source(report, &mut output)?;
+        let output = unsafe { String::from_utf8_unchecked(output.into_inner()) };
+        specs.insert(id, output);
+    }
 
     writer!(output);
 
@@ -131,7 +124,7 @@ pub fn report_writer<Output: Write>(
             obj,
             s!("annotations"),
             arr!(|arr| {
-                for annotation in report.annotations {
+                for annotation in report.annotations.iter() {
                     item!(
                         arr,
                         obj!(|obj| {
@@ -270,16 +263,15 @@ pub fn report_source<Output: Write>(
 ) -> Result<(), Error> {
     writer!(output);
 
-    let mut references: HashMap<usize, Vec<&Reference>> = HashMap::new();
+    let mut references: HashMap<_, Vec<&Reference>> = HashMap::new();
     let mut requirements = BTreeSet::new();
     for reference in &report.references {
         if reference.annotation.anno == AnnotationType::Spec {
-            requirements.insert(reference.annotation_id);
+            requirements.insert(reference.annotation.id);
         }
-        references
-            .entry(reference.line())
-            .or_default()
-            .push(reference);
+        for line in reference.text.line_range() {
+            references.entry(line).or_default().push(reference);
+        }
     }
 
     obj!(|obj| {
@@ -321,20 +313,22 @@ pub fn report_source<Output: Write>(
                                 arr!(|arr| {
                                     for line in &section.lines {
                                         if let Line::Str(line) = line {
-                                            item!(
-                                                arr,
-                                                if let Some(refs) = references.get(&line.line()) {
-                                                    report_references(
-                                                        line,
-                                                        refs,
-                                                        &mut requirements,
-                                                        output,
-                                                    )?;
-                                                } else {
-                                                    // the line has no annotations so just print it
-                                                    s!(line);
-                                                }
-                                            )
+                                            for lineno in line.line_range() {
+                                                item!(
+                                                    arr,
+                                                    if let Some(refs) = references.get(&lineno) {
+                                                        report_references(
+                                                            line,
+                                                            refs,
+                                                            &mut requirements,
+                                                            output,
+                                                        )?;
+                                                    } else {
+                                                        // the line has no annotations so just print it
+                                                        s!(line);
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 })
@@ -408,9 +402,9 @@ fn report_references<Output: Write>(
                         arr,
                         arr!(|arr| {
                             for r in current_refs {
-                                item!(arr, w!(r.annotation_id));
+                                item!(arr, w!(r.annotation.id));
                                 if r.annotation.anno == AnnotationType::Spec {
-                                    requirements.insert(r.annotation_id);
+                                    requirements.insert(r.annotation.id);
                                 }
                                 status.on_anno(r);
                             }

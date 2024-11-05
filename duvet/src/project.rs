@@ -3,7 +3,7 @@
 
 use crate::{comment, source::SourceFile, Error};
 use clap::Parser;
-use glob::glob;
+use duvet_core::path::Path;
 use std::collections::HashSet;
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
@@ -62,11 +62,81 @@ pub struct Project {
     /// `specs` folder is stored in the current directory by default. Use this
     /// argument to override the default location.
     #[clap(long = "spec-path")]
-    pub spec_path: Option<String>,
+    pub spec_path: Option<Path>,
 }
 
+// TODO
+/*
 impl Project {
-    pub fn sources(&self) -> Result<HashSet<SourceFile>, Error> {
+    pub async fn sources(&self) -> Result<HashSet<SourceFile>, Error> {
+        use core::pin::Pin;
+        use duvet_core::{dir::walk, env, glob::Glob, path::Path};
+        use futures::{Stream, StreamExt};
+
+        let mut streams = vec![];
+
+        for pattern in &self.source_patterns {
+            streams.push(Self::source_file(pattern)?);
+        }
+
+        for pattern in &self.spec_patterns {
+            streams.push(Self::spec_file(pattern)?);
+        }
+
+        let mut sources = HashSet::new();
+        // TODO fix query concurrency
+        /*
+        let mut entries = futures::stream::select_all(streams);
+        while let Some(entry) = entries.next().await {
+            sources.insert(entry);
+        }
+        */
+        for mut stream in streams {
+            while let Some(entry) = stream.next().await {
+                sources.insert(entry);
+            }
+        }
+
+        Ok(sources)
+    }
+
+    fn source_file(pattern: &str) -> Result<Pin<Box<dyn Stream<Item = SourceFile>>>, Error> {
+        let (comment, file_pattern) = if let Some(pattern) = pattern.strip_prefix('(') {
+            let mut parts = pattern.splitn(2, ')');
+            let pattern = parts.next().expect("invalid pattern");
+            let file_pattern = parts.next().expect("invalid pattern");
+
+            let pattern = comment::Pattern::from_arg(pattern)?;
+
+            (pattern, file_pattern)
+        } else {
+            (comment::Pattern::default(), pattern)
+        };
+
+        let glob = Glob::try_from(file_pattern)?;
+        // TODO add support for .gitignore to `walk`
+        let ignore = Glob::try_from_iter([".git", "node_modules", "target"])?;
+        let walk = walk::glob(env::current_dir()?, glob, ignore);
+        let walk = walk.map(move |entry| SourceFile::Text(comment.clone(), entry));
+        let walk = Box::pin(walk);
+
+        Ok(walk)
+    }
+
+    fn spec_file(pattern: &str) -> Result<Pin<Box<dyn Stream<Item = SourceFile>>>, Error> {
+        let glob = Glob::try_from(pattern)?;
+        // TODO add support for .gitignore to `walk`
+        let ignore = Glob::try_from_iter([".git", "node_modules", "target"])?;
+        let walk = walk::glob(env::current_dir()?, glob, ignore);
+        let walk = walk.map(|entry| SourceFile::Toml(entry));
+        let walk = Box::pin(walk);
+        Ok(walk)
+    }
+}
+*/
+
+impl Project {
+    pub async fn sources(&self) -> Result<HashSet<SourceFile>, Error> {
         let mut sources = HashSet::new();
 
         for pattern in &self.source_patterns {
@@ -93,7 +163,7 @@ impl Project {
             (comment::Pattern::default(), pattern)
         };
 
-        for entry in glob(file_pattern)? {
+        for entry in glob::glob(file_pattern)? {
             files.insert(SourceFile::Text(compliance_pattern.clone(), entry?.into()));
         }
 
@@ -101,7 +171,7 @@ impl Project {
     }
 
     fn toml_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result<(), Error> {
-        for entry in glob(pattern)? {
+        for entry in glob::glob(pattern)? {
             files.insert(SourceFile::Toml(entry?.into()));
         }
 

@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{ReportResult, TargetReport};
-use crate::annotation::AnnotationType;
-use rayon::prelude::*;
+use crate::{annotation::AnnotationType, target::Target, Result};
+use duvet_core::path::Path;
 use std::{
     collections::HashSet,
-    io::{BufWriter, Error, Write},
-    path::Path,
+    io::{BufWriter, Write},
 };
 
 const IMPL_BLOCK: &str = "0,0";
@@ -37,25 +36,29 @@ macro_rules! record {
     };
 }
 
-pub fn report(report: &ReportResult, dir: &Path) -> Result<(), Error> {
+pub fn report(report: &ReportResult, dir: &Path) -> Result {
     std::fs::create_dir_all(dir)?;
     let lcov_dir = dir.canonicalize()?;
     report
         .targets
-        .par_iter()
-        .map(|(source, report)| {
-            let id = crate::fnv(source);
+        .iter()
+        .enumerate()
+        .map(|(id, (source, report))| {
             let path = lcov_dir.join(format!("compliance.{}.lcov", id));
             let mut output = BufWriter::new(std::fs::File::create(path)?);
-            report_source(report, &mut output)?;
+            report_source(source, report, &mut output)?;
             Ok(())
         })
-        .collect::<Result<(), std::io::Error>>()?;
+        .collect::<Result>()?;
     Ok(())
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> Result<(), Error> {
+fn report_source<Output: Write>(
+    source: &Target,
+    report: &TargetReport,
+    output: &mut Output,
+) -> Result {
     macro_rules! put {
         ($($arg:expr),* $(,)?) => {
             writeln!(output $(, $arg)*)?;
@@ -63,8 +66,7 @@ fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> R
     }
 
     put!("TN:Compliance");
-    let relative =
-        pathdiff::diff_paths(report.target.path.local(None), std::env::current_dir()?).unwrap();
+    let relative = source.path.local(None);
     put!("SF:{}", relative.display());
 
     // record all sections
@@ -83,7 +85,7 @@ fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> R
     // record all references to specific sections
     for reference in &report.references {
         let title = if let Some(section_id) = reference.annotation.target_section() {
-            let section = report.specification.sections.get(section_id).unwrap();
+            let section = report.specification.sections.get(&*section_id).unwrap();
             Some(&section.full_title)
         } else {
             None
