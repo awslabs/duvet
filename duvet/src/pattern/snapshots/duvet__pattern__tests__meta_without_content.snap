@@ -1,7 +1,0 @@
----
-source: src/pattern/tests.rs
-expression: "parse(\"//=,//#\", r#\"\n    //= type=todo\n    \"#)"
----
-Err(
-    "missing source information",
-)

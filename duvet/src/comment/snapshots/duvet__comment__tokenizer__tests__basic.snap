@@ -1,0 +1,28 @@
+---
+source: duvet/src/comment/tokenizer.rs
+expression: tokens
+---
+[
+    UnnamedMeta {
+        value: "thing goes here",
+        line: 1,
+    },
+    Meta {
+        key: "meta",
+        value: "foo",
+        line: 2,
+    },
+    Meta {
+        key: "meta2",
+        value: "bar",
+        line: 3,
+    },
+    Content {
+        value: "content goes",
+        line: 4,
+    },
+    Content {
+        value: "here",
+        line: 5,
+    },
+]
