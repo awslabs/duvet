@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::ReportResult;
+use duvet_core::path::Path;
 use std::{
     fs::File,
     io::{BufWriter, Error, Write},
-    path::Path,
 };
 
 #[rustfmt::skip] // it gets really confused with macros that generate macros

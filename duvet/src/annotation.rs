@@ -4,12 +4,12 @@
 use crate::{
     source::SourceFile,
     specification::Format,
-    target::{Target, TargetSet},
+    target::{SpecificationMap, Target, TargetSet},
     Error, Result,
 };
 use anyhow::anyhow;
-use core::{fmt, ops::Range, str::FromStr};
-use duvet_core::{diagnostic::IntoDiagnostic, path::Path, query};
+use core::{fmt, ops, ops::Range, str::FromStr};
+use duvet_core::{diagnostic::IntoDiagnostic, file::Slice, path::Path, query};
 use serde::Serialize;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
@@ -17,38 +17,15 @@ use std::{
     sync::Arc,
 };
 
-pub type AnnotationSet = BTreeSet<Annotation>;
+pub type AnnotationSet = Arc<BTreeSet<Arc<Annotation>>>;
 
-pub type AnnotationReferenceMap<'a> =
-    HashMap<(Target, Option<&'a str>), Vec<(usize, &'a Annotation)>>;
-
-pub trait AnnotationSetExt {
-    fn targets(&self) -> Result<TargetSet, Error>;
-    fn reference_map(&self) -> Result<AnnotationReferenceMap, Error>;
-}
-
-impl AnnotationSetExt for AnnotationSet {
-    fn targets(&self) -> Result<TargetSet, Error> {
-        let mut set = TargetSet::new();
-        for anno in self.iter() {
-            set.insert(anno.target()?);
-        }
-        Ok(set)
-    }
-
-    fn reference_map(&self) -> Result<AnnotationReferenceMap, Error> {
-        let mut map = AnnotationReferenceMap::new();
-        for (id, anno) in self.iter().enumerate() {
-            let target = anno.target()?;
-            let section = anno.target_section();
-            map.entry((target, section)).or_default().push((id, anno));
-        }
-        Ok(map)
-    }
-}
+pub type AnnotationReferenceMapKey = (Arc<Target>, Option<Arc<str>>);
+pub type AnnotationReferenceMapValue = Arc<[AnnotationWithId]>;
+pub type AnnotationReferenceMap =
+    Arc<HashMap<AnnotationReferenceMapKey, AnnotationReferenceMapValue>>;
 
 #[query]
-pub async fn query(sources: Arc<HashSet<SourceFile>>) -> Result<Arc<AnnotationSet>> {
+pub async fn query(sources: Arc<HashSet<SourceFile>>) -> Result<AnnotationSet> {
     let mut errors = vec![];
 
     let mut tasks = tokio::task::JoinSet::new();
@@ -58,11 +35,11 @@ pub async fn query(sources: Arc<HashSet<SourceFile>>) -> Result<Arc<AnnotationSe
         tasks.spawn(async move { source.annotations().await });
     }
 
-    let mut annotations = AnnotationSet::default();
+    let mut annotations = BTreeSet::default();
     while let Some(res) = tasks.join_next().await {
         match res.into_diagnostic() {
             Ok((local_annotations, local_errors)) => {
-                annotations.extend(local_annotations);
+                annotations.extend(local_annotations.iter().cloned());
                 errors.extend(local_errors.iter().cloned());
             }
             Err(err) => {
@@ -78,11 +55,60 @@ pub async fn query(sources: Arc<HashSet<SourceFile>>) -> Result<Arc<AnnotationSe
     }
 }
 
+pub async fn specifications(
+    annotations: AnnotationSet,
+    spec_path: Option<Path>,
+) -> Result<SpecificationMap> {
+    let mut targets = TargetSet::new();
+    for anno in annotations.iter() {
+        targets.insert(anno.target()?);
+    }
+
+    let specs = crate::target::query(&targets, spec_path).await?;
+
+    Ok(specs)
+}
+
+pub async fn reference_map(set: AnnotationSet) -> Result<AnnotationReferenceMap> {
+    let mut map = HashMap::new();
+    for (id, anno) in set.iter().enumerate() {
+        let target = anno.target()?;
+        let section = anno.target_section();
+        let entry: &mut Vec<_> = map.entry((target, section)).or_default();
+        entry.push(AnnotationWithId {
+            id,
+            annotation: anno.clone(),
+        });
+    }
+    let map = map
+        .into_iter()
+        .map(|(key, value)| (key, value.into()))
+        .collect();
+    Ok(Arc::new(map))
+}
+
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub struct AnnotationWithId {
+    pub id: usize,
+    pub annotation: Arc<Annotation>,
+}
+
+impl ops::Deref for AnnotationWithId {
+    type Target = Arc<Annotation>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.annotation
+    }
+}
+
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct Annotation {
     pub source: Path,
-    pub anno_line: u32,
-    pub anno_column: u32,
+    pub anno_line: usize,
+    pub original_target: Slice,
+    pub original_text: Slice,
+    pub original_quote: Slice,
     pub anno: AnnotationType,
     pub target: String,
     pub quote: String,
@@ -96,8 +122,8 @@ pub struct Annotation {
 }
 
 impl Annotation {
-    pub fn target(&self) -> Result<Target, Error> {
-        Target::from_annotation(self)
+    pub fn target(&self) -> Result<Arc<Target>, Error> {
+        Target::from_annotation(self).map(Arc::new)
     }
 
     pub fn target_path(&self) -> &str {
@@ -121,8 +147,8 @@ impl Annotation {
         }
     }
 
-    pub fn target_section(&self) -> Option<&str> {
-        self.target_parts().1
+    pub fn target_section(&self) -> Option<Arc<str>> {
+        self.target_parts().1.map(Arc::from)
     }
 
     fn target_parts(&self) -> (&str, Option<&str>) {

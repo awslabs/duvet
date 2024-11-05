@@ -1,5 +1,5 @@
 ---
-source: duvet/src/text.rs
+source: duvet/src/text/find.rs
 expression: "find(\"     this       should   ignore whitespace      differences\",\n\"         this             should       ignore       whitespace            differences\")"
 ---
 Some(

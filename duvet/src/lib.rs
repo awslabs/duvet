@@ -8,6 +8,7 @@ mod annotation;
 mod comment;
 mod extract;
 mod project;
+mod reference;
 mod report;
 mod source;
 mod sourcemap;
@@ -34,7 +35,7 @@ pub async fn arguments() -> Arc<Arguments> {
 }
 
 impl Arguments {
-    pub async fn exec(&self) -> Result<(), Error> {
+    pub async fn exec(&self) -> Result {
         match self {
             Self::Extract(args) => args.exec().await,
             Self::Report(args) => args.exec().await,
@@ -45,11 +46,4 @@ impl Arguments {
 pub async fn run() -> Result {
     arguments().await.exec().await?;
     Ok(())
-}
-
-pub(crate) fn fnv<H: core::hash::Hash + ?Sized>(value: &H) -> u64 {
-    use core::hash::Hasher;
-    let mut hasher = fnv::FnvHasher::default();
-    value.hash(&mut hasher);
-    hasher.finish()
 }
