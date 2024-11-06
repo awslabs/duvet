@@ -115,6 +115,12 @@ impl From<PathBuf> for Path {
     }
 }
 
+impl From<&PathBuf> for Path {
+    fn from(path: &PathBuf) -> Self {
+        path.as_path().into()
+    }
+}
+
 impl From<&std::path::Path> for Path {
     fn from(path: &std::path::Path) -> Self {
         Self {

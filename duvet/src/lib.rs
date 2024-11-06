@@ -5,9 +5,8 @@ use clap::Parser;
 use std::sync::Arc;
 
 mod annotation;
+mod comment;
 mod extract;
-mod parser;
-mod pattern;
 mod project;
 mod report;
 mod source;

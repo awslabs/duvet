@@ -139,7 +139,11 @@ impl FromStr for Format {
             "AUTO" | "auto" => Ok(Self::Auto),
             "IETF" | "ietf" => Ok(Self::Ietf),
             "MARKDOWN" | "markdown" | "md" => Ok(Self::Markdown),
-            _ => Err(anyhow!(format!("Invalid spec type {:?}", v))),
+            _ => Err(anyhow!(format!(
+                "Invalid spec type {:?}, expected one of {:?}",
+                v,
+                ["auto", "ietf", "markdown"]
+            ))),
         }
     }
 }

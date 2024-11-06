@@ -184,10 +184,17 @@ impl Diagnostic for WithSourceCode {
     }
 
     fn labels<'a>(&'a self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + 'a>> {
-        let iter = core::iter::once(LabeledSpan::new_with_span(
-            Some(self.label.clone()),
-            self.source_code.range(),
-        ));
+        if self.label.is_empty() {
+            return None;
+        }
+
+        let label = if self.label.is_empty() {
+            None
+        } else {
+            Some(self.label.clone())
+        };
+
+        let iter = core::iter::once(LabeledSpan::new_with_span(label, self.source_code.range()));
 
         Some(if let Some(prev) = self.error.labels() {
             Box::new(prev.chain(iter))

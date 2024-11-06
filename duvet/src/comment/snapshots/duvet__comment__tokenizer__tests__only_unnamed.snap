@@ -1,0 +1,14 @@
+---
+source: duvet/src/comment/tokenizer.rs
+expression: tokens
+---
+[
+    UnnamedMeta {
+        value: "this is meta",
+        line: 1,
+    },
+    UnnamedMeta {
+        value: "this is other meta",
+        line: 2,
+    },
+]

@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    source::SourceFile,
     specification::Format,
     target::{Target, TargetSet},
-    Error,
+    Error, Result,
 };
 use anyhow::anyhow;
 use core::{fmt, ops::Range, str::FromStr};
+use duvet_core::{diagnostic::IntoDiagnostic, path::Path, query};
 use serde::Serialize;
 use std::{
-    collections::{BTreeSet, HashMap},
-    path::{Path, PathBuf},
+    collections::{BTreeSet, HashMap, HashSet},
+    path::PathBuf,
+    sync::Arc,
 };
 
 pub type AnnotationSet = BTreeSet<Annotation>;
@@ -44,19 +47,47 @@ impl AnnotationSetExt for AnnotationSet {
     }
 }
 
+#[query]
+pub async fn query(sources: Arc<HashSet<SourceFile>>) -> Result<Arc<AnnotationSet>> {
+    let mut errors = vec![];
+
+    let mut tasks = tokio::task::JoinSet::new();
+
+    for source in sources.iter() {
+        let source = source.clone();
+        tasks.spawn(async move { source.annotations().await });
+    }
+
+    let mut annotations = AnnotationSet::default();
+    while let Some(res) = tasks.join_next().await {
+        match res.into_diagnostic() {
+            Ok((local_annotations, local_errors)) => {
+                annotations.extend(local_annotations);
+                errors.extend(local_errors.iter().cloned());
+            }
+            Err(err) => {
+                errors.push(err);
+            }
+        }
+    }
+
+    if !errors.is_empty() {
+        Err(errors.into())
+    } else {
+        Ok(Arc::new(annotations))
+    }
+}
+
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct Annotation {
-    pub source: PathBuf,
+    pub source: Path,
     pub anno_line: u32,
     pub anno_column: u32,
-    pub item_line: u32,
-    pub item_column: u32,
-    pub path: String,
     pub anno: AnnotationType,
     pub target: String,
     pub quote: String,
     pub comment: String,
-    pub manifest_dir: PathBuf,
+    pub manifest_dir: Path,
     pub level: AnnotationLevel,
     pub format: Format,
     pub tracking_issue: String,
@@ -82,7 +113,7 @@ impl Annotation {
             true => target_path.into(),
             // A file path needs to match
             false => String::from(
-                self.resolve_file(Path::new(target_path))
+                self.resolve_file(std::path::Path::new(target_path))
                     .unwrap()
                     .to_str()
                     .unwrap(),
@@ -102,7 +133,7 @@ impl Annotation {
             })
     }
 
-    pub fn resolve_file(&self, file: &Path) -> Result<PathBuf, Error> {
+    pub fn resolve_file(&self, file: &std::path::Path) -> Result<PathBuf, Error> {
         // If we have the right path, just return it
         if file.is_file() {
             return Ok(file.to_path_buf());
@@ -111,7 +142,7 @@ impl Annotation {
         let mut manifest_dir = self.manifest_dir.clone();
         loop {
             if manifest_dir.join(file).is_file() {
-                return Ok(manifest_dir.join(file));
+                return Ok(manifest_dir.join(file).into());
             }
 
             if !manifest_dir.pop() {
@@ -163,11 +194,22 @@ impl FromStr for AnnotationType {
         match v {
             "SPEC" | "spec" => Ok(Self::Spec),
             "TEST" | "test" => Ok(Self::Test),
-            "CITATION" | "citation" => Ok(Self::Citation),
+            "IMPLEMENTATION" | "implementation" | "CITATION" | "citation" => Ok(Self::Citation),
             "EXCEPTION" | "exception" => Ok(Self::Exception),
             "TODO" | "todo" => Ok(Self::Todo),
             "IMPLICATION" | "implication" => Ok(Self::Implication),
-            _ => Err(anyhow!(format!("Invalid annotation type {:?}", v))),
+            _ => Err(anyhow!(format!(
+                "Invalid annotation type {:?}, expected one of {:?}",
+                v,
+                [
+                    "spec",
+                    "test",
+                    "implementation",
+                    "exception",
+                    "todo",
+                    "implication"
+                ]
+            ))),
         }
     }
 }
@@ -211,7 +253,11 @@ impl FromStr for AnnotationLevel {
             "MUST" => Ok(Self::Must),
             "SHOULD" => Ok(Self::Should),
             "MAY" => Ok(Self::May),
-            _ => Err(anyhow!(format!("Invalid annotation level {:?}", v))),
+            _ => Err(anyhow!(format!(
+                "Invalid annotation level {:?}, expected one of {:?}",
+                v,
+                ["AUTO", "MUST", "SHOULD", "MAY"]
+            ))),
         }
     }
 }

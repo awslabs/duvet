@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{pattern::Pattern, source::SourceFile, Error};
+use crate::{comment, source::SourceFile, Error};
 use clap::Parser;
 use glob::glob;
 use std::collections::HashSet;
@@ -80,37 +80,29 @@ impl Project {
         Ok(sources)
     }
 
-    fn source_file<'a>(
-        &self,
-        pattern: &'a str,
-        files: &mut HashSet<SourceFile<'a>>,
-    ) -> Result<(), Error> {
+    fn source_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result<(), Error> {
         let (compliance_pattern, file_pattern) = if let Some(pattern) = pattern.strip_prefix('(') {
             let mut parts = pattern.splitn(2, ')');
             let pattern = parts.next().expect("invalid pattern");
             let file_pattern = parts.next().expect("invalid pattern");
 
-            let pattern = Pattern::from_arg(pattern)?;
+            let pattern = comment::Pattern::from_arg(pattern)?;
 
             (pattern, file_pattern)
         } else {
-            (Pattern::default(), pattern)
+            (comment::Pattern::default(), pattern)
         };
 
         for entry in glob(file_pattern)? {
-            files.insert(SourceFile::Text(compliance_pattern, entry?));
+            files.insert(SourceFile::Text(compliance_pattern.clone(), entry?.into()));
         }
 
         Ok(())
     }
 
-    fn spec_file<'a>(
-        &self,
-        pattern: &'a str,
-        files: &mut HashSet<SourceFile<'a>>,
-    ) -> Result<(), Error> {
+    fn spec_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result<(), Error> {
         for entry in glob(pattern)? {
-            files.insert(SourceFile::Spec(entry?));
+            files.insert(SourceFile::Spec(entry?.into()));
         }
 
         Ok(())

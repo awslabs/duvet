@@ -211,6 +211,16 @@ impl Slice<SourceFile> {
     {
         e.into().with_source_slice(self.clone(), label)
     }
+
+    pub fn parse<T>(&self) -> crate::Result<T>
+    where
+        T: core::str::FromStr,
+        T::Err: Into<crate::diagnostic::Error>,
+    {
+        self.as_ref()
+            .parse()
+            .map_err(|err| self.error(err, "error here"))
+    }
 }
 
 impl fmt::Debug for Slice<BinaryFile> {
