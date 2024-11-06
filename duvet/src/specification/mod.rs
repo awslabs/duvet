@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{sourcemap::Str, Error};
+use crate::{sourcemap::Str, Error, Result};
 use anyhow::anyhow;
 use core::{
     cmp::Ordering,
@@ -90,9 +90,15 @@ impl fmt::Display for Format {
 }
 
 impl Format {
-    pub fn parse(self, contents: &SourceFile) -> Result<Specification, Error> {
+    pub fn parse(self, contents: &SourceFile) -> Result<Specification> {
         let spec = match self {
             Self::Auto => {
+                if let Some(ext) = contents.path().extension() {
+                    if ext == "md" || ext == "markdown" {
+                        return markdown::parse(contents);
+                    }
+                }
+
                 // Markdown MAY start with a header (#),
                 // but it also MAY start with a license/copyright.
                 // In which case it is probably start something like
@@ -151,6 +157,7 @@ impl FromStr for Format {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Line<'a> {
     Str(Str<'a>),
+    /// Used when extracting requirements to break content into separate groupings.
     Break,
 }
 

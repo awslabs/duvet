@@ -1,261 +1,208 @@
 ---
-source: src/specification/markdown/tests.rs
-expression: "super::tokens(r#\"\n# List example\n\nHere is a list:\n* Item 1\n* Item 2\n  * Item 2.1\n* Item 3\n  * Item 3.1\n    * Item 3.1.1\n    * Item 3.1.2\n  * Item 3.2\n\nHere is a numbered list:\n1. Item 1\n2. Item 2\n3. Item 3\n\nHere is a list with content:\n* Item\n  More content\n\n  Other content\n\n  * Testing\n\n    Other test\n\nTesting 123\n\n* Item\nMore content\n\"#)"
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: tokens(& contents).collect :: < Vec < _ >> ()"
 ---
 [
-    Line(
-        Str {
-            value: "",
-            pos: 0,
-            line: 1,
-        },
-    ),
-    Header {
-        line: Str {
-            value: "# List example",
-            pos: 1,
-            line: 2,
-        },
-        name: Str {
-            value: "List example",
-            pos: 3,
-            line: 2,
-        },
-        fragment: None,
+    Content {
+        value: "",
+        line: 1,
+    },
+    Section {
+        id: None,
+        title: "List example",
+        line: 2,
         level: 1,
     },
-    Line(
-        Str {
-            value: "",
-            pos: 16,
-            line: 3,
-        },
-    ),
-    Line(
-        Str {
-            value: "Here is a list:",
-            pos: 17,
-            line: 4,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "* Item 1",
-            pos: 33,
-            line: 5,
-        },
-    ),
-    Break,
-    Break,
-    Line(
-        Str {
-            value: "* Item 2",
-            pos: 42,
-            line: 6,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "  * Item 2.1",
-            pos: 51,
-            line: 7,
-        },
-    ),
-    Break,
-    Break,
-    Line(
-        Str {
-            value: "* Item 3",
-            pos: 64,
-            line: 8,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "  * Item 3.1",
-            pos: 73,
-            line: 9,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "    * Item 3.1.1",
-            pos: 86,
-            line: 10,
-        },
-    ),
-    Break,
-    Break,
-    Line(
-        Str {
-            value: "    * Item 3.1.2",
-            pos: 103,
-            line: 11,
-        },
-    ),
-    Break,
-    Break,
-    Line(
-        Str {
-            value: "  * Item 3.2",
-            pos: 120,
-            line: 12,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "",
-            pos: 133,
-            line: 13,
-        },
-    ),
-    Line(
-        Str {
-            value: "Here is a numbered list:",
-            pos: 134,
-            line: 14,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "1. Item 1",
-            pos: 159,
-            line: 15,
-        },
-    ),
-    Break,
-    Break,
-    Line(
-        Str {
-            value: "2. Item 2",
-            pos: 169,
-            line: 16,
-        },
-    ),
-    Break,
-    Break,
-    Line(
-        Str {
-            value: "3. Item 3",
-            pos: 179,
-            line: 17,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "",
-            pos: 189,
-            line: 18,
-        },
-    ),
-    Line(
-        Str {
-            value: "Here is a list with content:",
-            pos: 190,
-            line: 19,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "* Item",
-            pos: 219,
-            line: 20,
-        },
-    ),
-    Line(
-        Str {
-            value: "  More content",
-            pos: 226,
-            line: 21,
-        },
-    ),
-    Line(
-        Str {
-            value: "",
-            pos: 241,
-            line: 22,
-        },
-    ),
-    Line(
-        Str {
-            value: "  Other content",
-            pos: 242,
-            line: 23,
-        },
-    ),
-    Line(
-        Str {
-            value: "",
-            pos: 258,
-            line: 24,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "  * Testing",
-            pos: 259,
-            line: 25,
-        },
-    ),
-    Line(
-        Str {
-            value: "",
-            pos: 271,
-            line: 26,
-        },
-    ),
-    Line(
-        Str {
-            value: "    Other test",
-            pos: 272,
-            line: 27,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "",
-            pos: 287,
-            line: 28,
-        },
-    ),
-    Line(
-        Str {
-            value: "Testing 123",
-            pos: 288,
-            line: 29,
-        },
-    ),
-    Line(
-        Str {
-            value: "",
-            pos: 300,
-            line: 30,
-        },
-    ),
-    Break,
-    Line(
-        Str {
-            value: "* Item",
-            pos: 301,
-            line: 31,
-        },
-    ),
-    Line(
-        Str {
-            value: "More content",
-            pos: 308,
-            line: 32,
-        },
-    ),
-    Break,
+    Content {
+        value: "",
+        line: 3,
+    },
+    Content {
+        value: "Here is a list:",
+        line: 4,
+    },
+    Break {
+        line: 5,
+    },
+    Content {
+        value: "* Item 1",
+        line: 5,
+    },
+    Break {
+        line: 5,
+    },
+    Break {
+        line: 6,
+    },
+    Content {
+        value: "* Item 2",
+        line: 6,
+    },
+    Break {
+        line: 7,
+    },
+    Content {
+        value: "  * Item 2.1",
+        line: 7,
+    },
+    Break {
+        line: 7,
+    },
+    Break {
+        line: 8,
+    },
+    Content {
+        value: "* Item 3",
+        line: 8,
+    },
+    Break {
+        line: 9,
+    },
+    Content {
+        value: "  * Item 3.1",
+        line: 9,
+    },
+    Break {
+        line: 10,
+    },
+    Content {
+        value: "    * Item 3.1.1",
+        line: 10,
+    },
+    Break {
+        line: 10,
+    },
+    Break {
+        line: 11,
+    },
+    Content {
+        value: "    * Item 3.1.2",
+        line: 11,
+    },
+    Break {
+        line: 11,
+    },
+    Break {
+        line: 12,
+    },
+    Content {
+        value: "  * Item 3.2",
+        line: 12,
+    },
+    Break {
+        line: 12,
+    },
+    Content {
+        value: "",
+        line: 13,
+    },
+    Content {
+        value: "Here is a numbered list:",
+        line: 14,
+    },
+    Break {
+        line: 15,
+    },
+    Content {
+        value: "1. Item 1",
+        line: 15,
+    },
+    Break {
+        line: 15,
+    },
+    Break {
+        line: 16,
+    },
+    Content {
+        value: "2. Item 2",
+        line: 16,
+    },
+    Break {
+        line: 16,
+    },
+    Break {
+        line: 17,
+    },
+    Content {
+        value: "3. Item 3",
+        line: 17,
+    },
+    Break {
+        line: 17,
+    },
+    Content {
+        value: "",
+        line: 18,
+    },
+    Content {
+        value: "Here is a list with content:",
+        line: 19,
+    },
+    Break {
+        line: 20,
+    },
+    Content {
+        value: "* Item",
+        line: 20,
+    },
+    Content {
+        value: "  More content",
+        line: 21,
+    },
+    Content {
+        value: "",
+        line: 22,
+    },
+    Content {
+        value: "  Other content",
+        line: 23,
+    },
+    Content {
+        value: "",
+        line: 24,
+    },
+    Break {
+        line: 25,
+    },
+    Content {
+        value: "  * Testing",
+        line: 25,
+    },
+    Content {
+        value: "",
+        line: 26,
+    },
+    Content {
+        value: "    Other test",
+        line: 27,
+    },
+    Break {
+        line: 27,
+    },
+    Content {
+        value: "",
+        line: 28,
+    },
+    Content {
+        value: "Testing 123",
+        line: 29,
+    },
+    Content {
+        value: "",
+        line: 30,
+    },
+    Break {
+        line: 31,
+    },
+    Content {
+        value: "* Item",
+        line: 31,
+    },
+    Content {
+        value: "More content",
+        line: 32,
+    },
+    Break {
+        line: 32,
+    },
 ]

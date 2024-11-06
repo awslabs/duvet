@@ -1,6 +1,6 @@
 ---
-source: src/specification/markdown/tests.rs
-expression: "super::parse(r#\"\n# This is a test\n\nContent goes here. Another\nsentence here.\n\"#)"
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: parse(& contents)"
 ---
 Ok(
     Specification {
@@ -12,8 +12,8 @@ Ok(
                 id: "this-is-a-test",
                 title: "This is a test",
                 full_title: Str {
-                    value: "# This is a test",
-                    pos: 1,
+                    value: "This is a test",
+                    pos: 3,
                     line: 2,
                 },
                 lines: [

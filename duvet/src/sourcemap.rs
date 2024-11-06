@@ -6,56 +6,6 @@ use core::{
     ops::{Deref, Range},
 };
 
-#[derive(Clone, Copy, Debug)]
-pub struct LinesIter<'a> {
-    content: &'a str,
-    line: usize,
-    offset: usize,
-}
-
-impl<'a> LinesIter<'a> {
-    pub fn new(content: &'a str) -> Self {
-        Self {
-            content,
-            offset: 0,
-            line: 1,
-        }
-    }
-}
-
-impl<'a> Iterator for LinesIter<'a> {
-    type Item = Str<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let content = &self.content[self.offset..];
-
-        if content.is_empty() {
-            return None;
-        }
-
-        let pos = self.offset;
-
-        let rel_offset = if let Some(next_newline) = content.find('\n') {
-            self.offset += next_newline + 1; // trim \n
-            next_newline
-        } else {
-            // consume the remaining characters
-            let len = content.len();
-            self.offset += len;
-            len
-        };
-
-        let value = Str {
-            value: content[..rel_offset].trim_end_matches('\r'),
-            pos,
-            line: self.line,
-        };
-
-        self.line += 1;
-        Some(value)
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Str<'a> {
     pub value: &'a str,
@@ -137,26 +87,5 @@ impl Deref for Str<'_> {
 impl<'a> From<Str<'a>> for &'a str {
     fn from(s: Str<'a>) -> Self {
         s.value
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use insta::assert_debug_snapshot;
-
-    #[test]
-    fn lines_iter_with_trailing_newline() {
-        assert_debug_snapshot!(LinesIter::new("line 1\nline 2\n").collect::<Vec<_>>());
-    }
-
-    #[test]
-    fn lines_iter_without_trailing_newline() {
-        assert_debug_snapshot!(LinesIter::new("line 1\nline 2").collect::<Vec<_>>());
-    }
-
-    #[test]
-    fn lines_iter_cr_newline() {
-        assert_debug_snapshot!(LinesIter::new("line 1\r\nline 2\r\n").collect::<Vec<_>>());
     }
 }

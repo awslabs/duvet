@@ -1,6 +1,6 @@
 ---
-source: src/text.rs
-expression: "find(\"     this       should   ignore whitespace      differences\",\n    \"         this             should       ignore       whitespace            differences\")"
+source: duvet/src/text.rs
+expression: "find(\"     this       should   ignore whitespace      differences\",\n\"         this             should       ignore       whitespace            differences\")"
 ---
 Some(
     (

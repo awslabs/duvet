@@ -1,5 +1,5 @@
 ---
-source: src/text.rs
+source: duvet/src/text.rs
 expression: "find(\"a\", \"a b c d\")"
 ---
 Some(

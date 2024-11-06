@@ -1,5 +1,5 @@
 ---
-source: src/tests.rs
+source: duvet/src/tests.rs
 expression: "out[\"specifications\"][&spec]"
 ---
 {
@@ -9,8 +9,7 @@ expression: "out[\"specifications\"][&spec]"
     {
       "id": "my-spec",
       "lines": [
-        "here is a spec",
-        ""
+        "here is a spec"
       ],
       "title": "My spec"
     },
@@ -43,8 +42,7 @@ expression: "out[\"specifications\"][&spec]"
             16,
             "* bullets"
           ]
-        ],
-        "        "
+        ]
       ],
       "title": "Testing"
     }

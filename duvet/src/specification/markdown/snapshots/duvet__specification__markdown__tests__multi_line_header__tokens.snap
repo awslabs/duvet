@@ -1,48 +1,28 @@
 ---
-source: src/specification/markdown/tests.rs
-expression: "super::tokens(r#\"\nFoo *bar\nbaz*\n======\n\nContent goes here. Another\nsentence here.\n\"#)"
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: tokens(& contents).collect :: < Vec < _ >> ()"
 ---
 [
-    Line(
-        Str {
-            value: "",
-            pos: 0,
-            line: 1,
-        },
-    ),
-    Header {
-        line: Str {
-            value: "Foo *bar\nbaz*",
-            pos: 1,
-            line: 2,
-        },
-        name: Str {
-            value: "Foo *bar\nbaz*",
-            pos: 1,
-            line: 2,
-        },
-        fragment: None,
+    Content {
+        value: "",
+        line: 1,
+    },
+    Section {
+        id: None,
+        title: "Foo *bar\nbaz*",
+        line: 2,
         level: 1,
     },
-    Line(
-        Str {
-            value: "",
-            pos: 22,
-            line: 5,
-        },
-    ),
-    Line(
-        Str {
-            value: "Content goes here. Another",
-            pos: 23,
-            line: 6,
-        },
-    ),
-    Line(
-        Str {
-            value: "sentence here.",
-            pos: 50,
-            line: 7,
-        },
-    ),
+    Content {
+        value: "",
+        line: 5,
+    },
+    Content {
+        value: "Content goes here. Another",
+        line: 6,
+    },
+    Content {
+        value: "sentence here.",
+        line: 7,
+    },
 ]

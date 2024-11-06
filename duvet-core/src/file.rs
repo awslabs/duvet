@@ -111,6 +111,15 @@ impl SourceFile {
             .await
     }
 
+    pub fn substr_range(&self, range: Range<usize>) -> Option<Slice> {
+        let _ = self.get(range.clone())?;
+        Some(Slice {
+            file: self.clone(),
+            start: range.start,
+            end: range.end,
+        })
+    }
+
     pub fn substr(&self, v: &str) -> Option<Slice<SourceFile>> {
         unsafe {
             let beginning = self.as_bytes().as_ptr();
@@ -134,6 +143,11 @@ impl SourceFile {
             start,
             end: start + v.len(),
         }
+    }
+
+    pub fn lines_slices(&self) -> impl Iterator<Item = Slice> + '_ {
+        self.lines()
+            .map(|line| unsafe { self.substr_unchecked(line) })
     }
 }
 

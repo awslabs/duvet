@@ -1,5 +1,5 @@
 ---
-source: src/text.rs
+source: duvet/src/text.rs
 expression: "find(\"this is a new-line\", \"this is a new-\\nline\")"
 ---
 Some(
