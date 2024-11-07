@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{Format, Line, Section, Specification, Str};
-use crate::Error;
+use crate::Result;
 use duvet_core::file::SourceFile;
 
 pub mod break_filter;
@@ -12,7 +12,7 @@ pub mod tokenizer;
 #[cfg(test)]
 mod tests;
 
-pub fn parse(contents: &SourceFile) -> Result<Specification, Error> {
+pub fn parse(contents: &SourceFile) -> Result<Specification> {
     let tokens = tokenizer::tokens(contents);
     let tokens = break_filter::break_filter(tokens);
     let parser = parser::parse(tokens);

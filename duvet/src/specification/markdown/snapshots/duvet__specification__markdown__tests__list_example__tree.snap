@@ -1,6 +1,6 @@
 ---
-source: src/specification/markdown/tests.rs
-expression: "super::parse(r#\"\n# List example\n\nHere is a list:\n* Item 1\n* Item 2\n  * Item 2.1\n* Item 3\n  * Item 3.1\n    * Item 3.1.1\n    * Item 3.1.2\n  * Item 3.2\n\nHere is a numbered list:\n1. Item 1\n2. Item 2\n3. Item 3\n\nHere is a list with content:\n* Item\n  More content\n\n  Other content\n\n  * Testing\n\n    Other test\n\nTesting 123\n\n* Item\nMore content\n\"#)"
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: parse(& contents)"
 ---
 Ok(
     Specification {
@@ -12,8 +12,8 @@ Ok(
                 id: "list-example",
                 title: "List example",
                 full_title: Str {
-                    value: "# List example",
-                    pos: 1,
+                    value: "List example",
+                    pos: 3,
                     line: 2,
                 },
                 lines: [
@@ -178,6 +178,7 @@ Ok(
                             line: 24,
                         },
                     ),
+                    Break,
                     Str(
                         Str {
                             value: "  * Testing",
@@ -221,6 +222,7 @@ Ok(
                             line: 30,
                         },
                     ),
+                    Break,
                     Str(
                         Str {
                             value: "* Item",
@@ -235,7 +237,6 @@ Ok(
                             line: 32,
                         },
                     ),
-                    Break,
                 ],
             },
         ],

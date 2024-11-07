@@ -1,6 +1,6 @@
 ---
-source: src/specification/markdown/tests.rs
-expression: "super::parse(r#\"\n# Duplicate header\n\ntesting 123\n\n## Duplicate header\n\nother test\n\"#)"
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: parse(& contents)"
 ---
 Ok(
     Specification {
@@ -12,8 +12,8 @@ Ok(
                 id: "duplicate-header",
                 title: "Duplicate header",
                 full_title: Str {
-                    value: "# Duplicate header",
-                    pos: 1,
+                    value: "Duplicate header",
+                    pos: 3,
                     line: 2,
                 },
                 lines: [
@@ -24,21 +24,14 @@ Ok(
                             line: 4,
                         },
                     ),
-                    Str(
-                        Str {
-                            value: "",
-                            pos: 33,
-                            line: 5,
-                        },
-                    ),
                 ],
             },
             Section {
                 id: "duplicate-header-1",
                 title: "Duplicate header",
                 full_title: Str {
-                    value: "## Duplicate header",
-                    pos: 34,
+                    value: "Duplicate header",
+                    pos: 37,
                     line: 6,
                 },
                 lines: [

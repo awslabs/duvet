@@ -1,23 +1,25 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::*;
-
-fn tokens(contents: &str) -> Vec<Token> {
-    Lex::new(contents).collect()
-}
+use super::{parse, tokenizer::tokens};
+use duvet_core::file::SourceFile;
 
 macro_rules! snapshot {
     ($name:ident, $contents:expr) => {
         mod $name {
             #[test]
             fn tokens() {
-                insta::assert_debug_snapshot!("tokens", super::tokens($contents));
+                let contents = super::SourceFile::new("index.md", $contents).unwrap();
+                insta::assert_debug_snapshot!(
+                    "tokens",
+                    super::tokens(&contents).collect::<Vec<_>>()
+                );
             }
 
             #[test]
             fn tree() {
-                insta::assert_debug_snapshot!("tree", super::parse($contents));
+                let contents = super::SourceFile::new("index.md", $contents).unwrap();
+                insta::assert_debug_snapshot!("tree", super::parse(&contents));
             }
         }
     };

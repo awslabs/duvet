@@ -142,16 +142,19 @@ impl IntegrationTest {
         // allow LFS to run
         let _env = sh.push_env("GIT_CLONE_PROTECTION_ACTIVE", "false");
 
-        let _dir = if !sh.path_exists(&target) {
+        if !sh.path_exists(&target) {
             cmd!(sh, "git clone --recurse-submodules {repo} {target}").run()?;
-            sh.push_dir(&target)
-        } else {
-            let dir = sh.push_dir(&target);
-            cmd!(sh, "git fetch --recurse-submodules").run()?;
-            dir
-        };
+        }
 
-        cmd!(sh, "git reset --hard {version}").run()?;
+        let _dir = sh.push_dir(&target);
+
+        let target_hash = cmd!(sh, "git rev-parse {version}").read()?;
+        let current_hash = cmd!(sh, "git rev-parse HEAD").read()?;
+
+        if target_hash != current_hash {
+            cmd!(sh, "git reset --hard {target_hash}").run()?;
+            cmd!(sh, "git fetch --recurse-submodules").run()?;
+        }
 
         Ok(())
     }

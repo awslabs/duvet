@@ -18,32 +18,31 @@ pub struct Parser<T> {
 }
 
 pub struct Section {
+    pub level: u8,
     pub id: Id,
     pub title: Slice,
     pub line: usize,
-    pub lines: Vec<(usize, Slice)>,
+    pub lines: Vec<(usize, Option<Slice>)>,
 }
 
 pub enum Id {
-    Section(Slice),
-    Appendix(Slice),
-    NamedSection(Slice),
+    Fragment(Slice),
+    Title(Slice),
 }
 
 impl fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Id::Section(id) => write!(f, "section-{id}"),
-            Id::Appendix(id) => write!(f, "appendix-{id}"),
-            Id::NamedSection(title) => write!(f, "name-{}", slug::slugify(title)),
+            Id::Fragment(id) => write!(f, "{id}"),
+            Id::Title(title) => write!(f, "{}", slug::slugify(title)),
         }
     }
 }
 
 impl Section {
-    fn push(&mut self, line: usize, value: Slice) {
+    fn push(&mut self, line: usize, value: Option<Slice>) {
         // don't push an empty first line
-        if self.lines.is_empty() && value.trim().is_empty() {
+        if self.lines.is_empty() && is_empty(&value) {
             return;
         }
 
@@ -54,11 +53,21 @@ impl Section {
 impl<T: Iterator<Item = Token>> Parser<T> {
     fn on_token(&mut self, token: Token) -> Option<Section> {
         match token {
-            Token::Section { id, title, line } => {
+            Token::Section {
+                id,
+                title,
+                line,
+                level,
+            } => {
                 let prev = self.flush();
 
+                let id = id
+                    .map(Id::Fragment)
+                    .unwrap_or_else(|| Id::Title(title.clone()));
+
                 self.section = Some(Section {
-                    id: Id::Section(id),
+                    level,
+                    id,
                     title,
                     line,
                     lines: vec![],
@@ -66,49 +75,19 @@ impl<T: Iterator<Item = Token>> Parser<T> {
 
                 prev
             }
-            Token::Appendix { id, title, line } => {
-                let prev = self.flush();
-
-                self.section = Some(Section {
-                    id: Id::Appendix(id),
-                    title,
-                    line,
-                    lines: vec![],
-                });
-
-                prev
-            }
-            Token::NamedSection { title, line } => {
-                let prev = self.flush();
-
-                self.section = Some(Section {
-                    id: Id::NamedSection(title.clone()),
-                    title,
-                    line,
-                    lines: vec![],
-                });
-
-                prev
-            }
-            Token::Break { line, value, ty: _ } => {
+            Token::Break { line } => {
                 if let Some(section) = self.section.as_mut() {
                     // just get the line offset
-                    let trimmed = &value[0..0];
-                    let value = value.file().substr(trimmed).unwrap();
-                    section.push(line, value);
+                    section.push(line, None);
                 }
 
                 None
             }
             Token::Content { line, value } => {
                 if let Some(section) = self.section.as_mut() {
-                    section.push(line, value);
+                    section.push(line, Some(value));
                 }
 
-                None
-            }
-            Token::Header { value: _, line: _ } => {
-                // ignore headers
                 None
             }
         }
@@ -123,7 +102,7 @@ impl<T: Iterator<Item = Token>> Parser<T> {
                 break;
             };
 
-            if !line.trim().is_empty() {
+            if !is_empty(line) {
                 break;
             }
 
@@ -147,4 +126,8 @@ impl<T: Iterator<Item = Token>> Iterator for Parser<T> {
             }
         }
     }
+}
+
+fn is_empty(v: &Option<Slice>) -> bool {
+    v.as_ref().map_or(true, |v| v.trim().is_empty())
 }

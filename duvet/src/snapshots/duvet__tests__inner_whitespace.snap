@@ -1,5 +1,5 @@
 ---
-source: src/tests.rs
+source: duvet/src/tests.rs
 expression: "out[\"specifications\"][&spec]"
 ---
 {
@@ -17,8 +17,7 @@ expression: "out[\"specifications\"][&spec]"
             16,
             "This      SHOULD         ignore        whitespace."
           ]
-        ],
-        "        "
+        ]
       ],
       "title": "Testing"
     }

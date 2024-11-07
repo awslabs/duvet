@@ -1,6 +1,6 @@
 ---
-source: src/specification/markdown/tests.rs
-expression: "super::parse(r#\"\n# This is a test\n\nContent goes here. Another\nsentence here.\n\n## This is another test\n\nMore content goes here\n\n### Nested section\n\nTesting 123\n\n## Up one\n\nAnother section\n\"#)"
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: parse(& contents)"
 ---
 Ok(
     Specification {
@@ -12,8 +12,8 @@ Ok(
                 id: "this-is-a-test",
                 title: "This is a test",
                 full_title: Str {
-                    value: "# This is a test",
-                    pos: 1,
+                    value: "This is a test",
+                    pos: 3,
                     line: 2,
                 },
                 lines: [
@@ -31,21 +31,14 @@ Ok(
                             line: 5,
                         },
                     ),
-                    Str(
-                        Str {
-                            value: "",
-                            pos: 61,
-                            line: 6,
-                        },
-                    ),
                 ],
             },
             Section {
                 id: "this-is-another-test",
                 title: "This is another test",
                 full_title: Str {
-                    value: "## This is another test",
-                    pos: 62,
+                    value: "This is another test",
+                    pos: 65,
                     line: 7,
                 },
                 lines: [
@@ -56,21 +49,14 @@ Ok(
                             line: 9,
                         },
                     ),
-                    Str(
-                        Str {
-                            value: "",
-                            pos: 110,
-                            line: 10,
-                        },
-                    ),
                 ],
             },
             Section {
                 id: "nested-section",
                 title: "Nested section",
                 full_title: Str {
-                    value: "### Nested section",
-                    pos: 111,
+                    value: "Nested section",
+                    pos: 115,
                     line: 11,
                 },
                 lines: [
@@ -81,21 +67,14 @@ Ok(
                             line: 13,
                         },
                     ),
-                    Str(
-                        Str {
-                            value: "",
-                            pos: 143,
-                            line: 14,
-                        },
-                    ),
                 ],
             },
             Section {
                 id: "up-one",
                 title: "Up one",
                 full_title: Str {
-                    value: "## Up one",
-                    pos: 144,
+                    value: "Up one",
+                    pos: 147,
                     line: 15,
                 },
                 lines: [
