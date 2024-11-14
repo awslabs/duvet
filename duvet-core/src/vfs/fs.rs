@@ -9,7 +9,20 @@ use crate::{
     query::Query,
 };
 use miette::Context;
-use tokio::{fs, io::AsyncReadExt};
+use tokio::{fs, io::AsyncReadExt, sync::Semaphore};
+
+#[cfg(target_os = "linux")]
+/// Linux usually defaults to 1024 but we lower it just in case it's lower
+const MAX_CONCURRENCY: usize = 256;
+
+#[cfg(not(target_os = "linux"))]
+/// If it's not Linux, assume the `ulimit -n` is low.
+///
+/// For example, macOS seems to default to 256.
+const MAX_CONCURRENCY: usize = 64;
+
+/// Limits the number of open files
+static CONCURRENCY: Semaphore = Semaphore::const_new(MAX_CONCURRENCY);
 
 #[derive(Clone, Default)]
 pub struct Fs(());
@@ -70,7 +83,9 @@ impl Vfs for Fs {
                 let modified_time = metadata.modified_time.as_ref().ok().copied();
 
                 cache.get_or_init((path.clone(), modified_time), || {
-                    Query::spawn(async {
+                    Query::spawn(async move {
+                        let concurrency = CONCURRENCY.acquire().await.unwrap();
+
                         let mut file = fs::OpenOptions::new()
                             .read(true)
                             .open(&path)
@@ -83,6 +98,9 @@ impl Vfs for Fs {
                             .await
                             .into_diagnostic()
                             .wrap_err_with(|| path.clone())?;
+
+                        drop(file);
+                        drop(concurrency);
 
                         let contents = Contents::from(data);
 
