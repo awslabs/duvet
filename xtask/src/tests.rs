@@ -20,14 +20,15 @@ pub struct Tests {
     #[clap(long)]
     /// Enables all of the default tests
     default_tests: Option<Option<bool>>,
-
-    #[clap(flatten)]
-    build: crate::build::Build,
 }
 
 impl Tests {
     pub fn run(&self, sh: &Shell) -> Result {
-        let bin = self.build.run(sh)?;
+        let bin = crate::build::Build {
+            // compile in dev mode with optimizations
+            profile: "release-debug".into(),
+        }
+        .run(sh)?;
 
         let default_tests = self.default_tests.is_enabled(true);
 

@@ -1,28 +1,51 @@
 [advisories]
-vulnerability = "deny"
-unmaintained = "deny"
-notice = "deny"
 yanked = "deny"
-ignore = [
-    "RUSTSEC-2021-0139" # structopt is still using clap v2
-]
 
 [bans]
-multiple-versions = "deny"
+skip-tree = [
+    # all of these are going to be just test dependencies
+    { name = "insta" },
+]
 
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
 
 [licenses]
-unlicensed = "deny"
-allow-osi-fsf-free = "neither"
-copyleft = "deny"
-confidence-threshold = 0.90
+confidence-threshold = 0.9
+# ignore licenses for private crates
+private = { ignore = true }
 allow = [
     "Apache-2.0",
+    "BSD-2-Clause",
     "BSD-3-Clause",
+    "CC0-1.0",
+    "ISC",
     "MIT",
+    "OpenSSL",
     "Unicode-DFS-2016",
     "Zlib",
+    "Unicode-3.0",
+]
+
+[[licenses.clarify]]
+name = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 },
+]
+
+[[licenses.clarify]]
+name = "webpki"
+expression = "ISC"
+license-files = [
+    { path = "LICENSE", hash = 0x001c7e6c },
+]
+
+[[licenses.clarify]]
+name = "encoding_rs"
+version = "*"
+expression = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+license-files = [
+    { path = "COPYRIGHT", hash = 0x39f8ad31 }
 ]

@@ -1,7 +1,11 @@
 [package]
 name = "duvet-macros"
 version = "0.1.0"
+description = "Internal crate used by duvet"
+authors = ["Cameron Bytheway <bythewc@amazon.com>"]
 edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/awslabs/duvet"
 
 [lib]
 proc-macro = true
