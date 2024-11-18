@@ -24,7 +24,6 @@ pathdiff = "0.2"
 pulldown-cmark = { version = "0.12", default-features = false }
 rayon = "1"
 regex = "1"
-reqwest = { version = "0.12", features = ["blocking", "native-tls"] }
 serde = { version = "1", features = ["derive"] }
 slug = { version = "0.1" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

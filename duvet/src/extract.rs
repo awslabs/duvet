@@ -68,9 +68,8 @@ pub struct Extract {
 
 impl Extract {
     pub async fn exec(&self) -> Result<(), Error> {
-        let contents = self.target.load(self.spec_path.as_deref())?;
-        let local_path = self.target.local(self.spec_path.as_deref());
-        let contents = duvet_core::file::SourceFile::new(&*local_path, contents).unwrap();
+        let contents = self.target.load(self.spec_path.as_deref()).await?;
+        let local_path = contents.path();
 
         let spec = self.format.parse(&contents)?;
         let sections = extract_sections(&spec);
@@ -87,7 +86,7 @@ impl Extract {
                     // The specification may be stored alongside the extracted TOML.
                     let mut out = match local_path.strip_prefix(&self.out) {
                         Ok(path) => self.out.join(path),
-                        Err(_e) => self.out.join(&local_path),
+                        Err(_e) => self.out.join(local_path),
                     };
 
                     out.set_extension("");
