@@ -1,8 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{annotation::Annotation, specification::Format, Error};
+use crate::{annotation::Annotation, specification::Format, Error, Result};
 use core::{fmt, str::FromStr};
+use duvet_core::file::SourceFile;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
@@ -72,35 +73,15 @@ impl TargetPath {
         Ok(Self::Path(path))
     }
 
-    pub fn load(&self, spec_download_path: Option<&str>) -> Result<String, Error> {
-        let mut contents = match self {
+    pub async fn load(&self, spec_download_path: Option<&str>) -> Result<SourceFile> {
+        match self {
             Self::Url(url) => {
                 let path = self.local(spec_download_path);
-                if !path.exists() {
-                    std::fs::create_dir_all(path.parent().unwrap())?;
-
-                    let canonical_url = Self::canonical_url(url.as_str());
-
-                    reqwest::blocking::Client::builder()
-                        .build()?
-                        .get(canonical_url)
-                        .header("user-agent", "https://crates.io/crates/cargo-compliance")
-                        .header("accept", "text/plain")
-                        .send()?
-                        .error_for_status()?
-                        .copy_to(&mut std::fs::File::create(&path)?)?;
-                }
-                std::fs::read_to_string(path)?
+                let url = Self::canonical_url(url.as_str());
+                duvet_core::http::get_cached_string(url, path).await
             }
-            Self::Path(path) => std::fs::read_to_string(path)?,
-        };
-
-        // make sure the file has a newline
-        if !contents.ends_with('\n') {
-            contents.push('\n');
+            Self::Path(path) => duvet_core::vfs::read_string(path).await,
         }
-
-        Ok(contents)
     }
 
     pub fn local(&self, spec_download_path: Option<&str>) -> PathBuf {
