@@ -106,16 +106,13 @@ impl Report {
 
         let targets = annotations.targets()?;
 
-        let contents: HashMap<_, _> = targets
-            .par_iter()
-            .map(|target| {
-                let spec_path = self.project.spec_path.as_deref();
-                let path = target.path.local(spec_path);
-                let contents = target.path.load(spec_path).unwrap();
-                let contents = duvet_core::file::SourceFile::new(path, contents).unwrap();
-                (target, contents)
-            })
-            .collect();
+        let mut contents = HashMap::new();
+        for target in targets.iter() {
+            let spec_path = self.project.spec_path.as_deref();
+            let file = target.path.load(spec_path).await?;
+
+            contents.insert(target, file);
+        }
 
         let specifications: HashMap<_, _> = contents
             .par_iter()
