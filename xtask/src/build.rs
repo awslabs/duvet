@@ -1,12 +1,12 @@
-use crate::{args::FlagExt as _, Result};
+use crate::Result;
 use clap::Parser;
 use std::path::PathBuf;
 use xshell::{cmd, Shell};
 
 #[derive(Debug, Default, Parser)]
 pub struct Build {
-    #[clap(long)]
-    pub release: Option<Option<bool>>,
+    #[clap(long, default_value = "dev")]
+    pub profile: String,
 }
 
 impl Build {
@@ -16,20 +16,17 @@ impl Build {
             cmd!(sh, "make").run()?;
         }
 
-        let mut args = vec![];
-
-        let is_release = self.release.is_enabled(true);
-
-        if is_release {
-            args.push("--release".to_string());
-        }
+        let args = vec!["--profile".to_string(), self.profile.clone()];
 
         cmd!(sh, "cargo build -p duvet {args...}").run()?;
 
-        let path = if is_release {
-            sh.current_dir().join("target/release/duvet")
-        } else {
+        let path = if self.profile == "dev" {
             sh.current_dir().join("target/debug/duvet")
+        } else {
+            sh.current_dir()
+                .join("target")
+                .join(&self.profile)
+                .join("duvet")
         };
 
         Ok(path)

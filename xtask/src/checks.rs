@@ -14,7 +14,7 @@ pub struct Checks {
 impl Checks {
     pub fn run(&self, sh: &Shell) -> Result {
         crate::build::Build {
-            release: Some(Some(false)),
+            profile: "dev".into(),
         }
         .run(sh)?;
 
