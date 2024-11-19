@@ -21,8 +21,7 @@ pub struct Section {
     pub level: u8,
     pub id: Id,
     pub title: Slice,
-    pub line: usize,
-    pub lines: Vec<(usize, Option<Slice>)>,
+    pub lines: Vec<Option<Slice>>,
 }
 
 pub enum Id {
@@ -40,13 +39,13 @@ impl fmt::Display for Id {
 }
 
 impl Section {
-    fn push(&mut self, line: usize, value: Option<Slice>) {
+    fn push(&mut self, value: Option<Slice>) {
         // don't push an empty first line
         if self.lines.is_empty() && is_empty(&value) {
             return;
         }
 
-        self.lines.push((line, value));
+        self.lines.push(value);
     }
 }
 
@@ -56,8 +55,8 @@ impl<T: Iterator<Item = Token>> Parser<T> {
             Token::Section {
                 id,
                 title,
-                line,
                 level,
+                line: _,
             } => {
                 let prev = self.flush();
 
@@ -69,23 +68,22 @@ impl<T: Iterator<Item = Token>> Parser<T> {
                     level,
                     id,
                     title,
-                    line,
                     lines: vec![],
                 });
 
                 prev
             }
-            Token::Break { line } => {
+            Token::Break { line: _ } => {
                 if let Some(section) = self.section.as_mut() {
                     // just get the line offset
-                    section.push(line, None);
+                    section.push(None);
                 }
 
                 None
             }
-            Token::Content { line, value } => {
+            Token::Content { value, line: _ } => {
                 if let Some(section) = self.section.as_mut() {
-                    section.push(line, Some(value));
+                    section.push(Some(value));
                 }
 
                 None
@@ -98,7 +96,7 @@ impl<T: Iterator<Item = Token>> Parser<T> {
 
         // trim any trailing lines
         loop {
-            let Some((_lineno, line)) = section.lines.last() else {
+            let Some(line) = section.lines.last() else {
                 break;
             };
 

@@ -1,0 +1,12 @@
+---
+source: duvet/src/tests.rs
+expression: error
+---
+  × missing section "foo" in my-spec.md
+   ╭─[src/my-code.rs:2:5]
+ 1 │ 
+ 2 │ //= my-spec.md#foo
+   ·     ───────┬──────
+   ·            ╰── referenced here
+ 3 │ //# This quote MUST NOT work
+   ╰────
