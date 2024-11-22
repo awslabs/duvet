@@ -27,6 +27,7 @@ pub mod hash;
 #[cfg(feature = "http")]
 pub mod http;
 pub mod path;
+pub mod progress;
 mod query;
 pub mod vfs;
 
