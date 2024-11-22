@@ -1,0 +1,11 @@
+tabWidth = 2
+useTabs = false
+printWidth = 90
+# Avoid re-formatting existing text.
+# All new text SHOULD be formatted with semantic newlines.
+# We SHOULD revisit this setting in the future.
+proseWrap = "preserve"
+# Only use quotes in supported config file formats where necessary.
+quoteProps = "as-needed"
+# Force all newlines to line-feed-only.
+endOfLine = "lf"
