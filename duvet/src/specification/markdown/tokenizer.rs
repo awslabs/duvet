@@ -10,14 +10,17 @@ pub enum Token {
     Section {
         id: Option<Slice>,
         title: Slice,
-        line: usize,
         level: u8,
+        #[allow(dead_code)]
+        line: usize,
     },
     Break {
+        #[allow(dead_code)]
         line: usize,
     },
     Content {
         value: Slice,
+        #[allow(dead_code)]
         line: usize,
     },
 }
