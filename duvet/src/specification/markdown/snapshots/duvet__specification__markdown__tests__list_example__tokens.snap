@@ -10,8 +10,8 @@ expression: "super :: tokens(& contents).collect :: < Vec < _ >> ()"
     Section {
         id: None,
         title: "List example",
-        line: 2,
         level: 1,
+        line: 2,
     },
     Content {
         value: "",

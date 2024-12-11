@@ -10,8 +10,8 @@ expression: "super :: tokens(& contents).collect :: < Vec < _ >> ()"
     Section {
         id: None,
         title: "This is a test",
-        line: 2,
         level: 1,
+        line: 2,
     },
     Content {
         value: "",
@@ -32,8 +32,8 @@ expression: "super :: tokens(& contents).collect :: < Vec < _ >> ()"
     Section {
         id: None,
         title: "This is another test",
-        line: 7,
         level: 2,
+        line: 7,
     },
     Content {
         value: "",
@@ -50,8 +50,8 @@ expression: "super :: tokens(& contents).collect :: < Vec < _ >> ()"
     Section {
         id: None,
         title: "Nested section",
-        line: 11,
         level: 3,
+        line: 11,
     },
     Content {
         value: "",
@@ -68,8 +68,8 @@ expression: "super :: tokens(& contents).collect :: < Vec < _ >> ()"
     Section {
         id: None,
         title: "Up one",
-        line: 15,
         level: 2,
+        line: 15,
     },
     Content {
         value: "",

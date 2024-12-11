@@ -117,7 +117,7 @@ impl Extract {
     }
 }
 
-fn extract_sections<'a>(spec: &'a Specification) -> Vec<(&'a Section<'a>, Vec<Feature<'a>>)> {
+fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature<'_>>)> {
     spec.sorted_sections()
         .par_iter()
         .map(|section| extract_section(section))
@@ -125,7 +125,7 @@ fn extract_sections<'a>(spec: &'a Specification) -> Vec<(&'a Section<'a>, Vec<Fe
         .collect()
 }
 
-fn extract_section<'a>(section: &'a Section<'a>) -> (&'a Section<'a>, Vec<Feature<'a>>) {
+fn extract_section(section: &Section) -> (&Section, Vec<Feature<'_>>) {
     let mut features = vec![];
     let lines = &section.lines[..];
 

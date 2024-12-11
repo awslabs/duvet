@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{Format, Line, Section, Specification, Str};
+use super::{Format, Line, Section, Specification};
 use crate::Result;
 use duvet_core::file::SourceFile;
 use std::collections::{hash_map::Entry, HashMap};
@@ -18,13 +18,6 @@ pub fn parse(contents: &SourceFile) -> Result<Specification> {
     let tokens = break_filter::break_filter(tokens);
     let parser = parser::parse(tokens);
 
-    let pos = |substr: &str| substr.as_ptr() as usize - contents.as_ptr() as usize;
-    let substr = |substr: &str, line: usize| {
-        let pos = pos(substr);
-        let value = &contents[pos..pos + substr.len()];
-        Str { value, pos, line }
-    };
-
     let mut spec_title = None;
 
     let mut sections = HashMap::new();
@@ -40,13 +33,12 @@ pub fn parse(contents: &SourceFile) -> Result<Specification> {
         let section = Section {
             title,
             id: section.id.to_string(),
-            full_title: substr(&section.title, section.line),
+            full_title: section.title,
             lines: section
                 .lines
                 .into_iter()
-                .map(|(line, value)| {
+                .map(|value| {
                     if let Some(value) = value {
-                        let value = substr(&value, line);
                         Line::Str(value)
                     } else {
                         Line::Break
@@ -66,7 +58,7 @@ pub fn parse(contents: &SourceFile) -> Result<Specification> {
 }
 
 /// Inserts the section into the document, appending a unique ID if needed
-fn insert_section<'a>(sections: &mut HashMap<String, Section<'a>>, mut section: Section<'a>) {
+fn insert_section(sections: &mut HashMap<String, Section>, mut section: Section) {
     let mut counter = 0usize;
 
     loop {

@@ -31,7 +31,7 @@ impl StatusMap {
         // first build up a map of all of the references at any given offset
         for r in references {
             if r.annotation.anno != AnnotationType::Spec {
-                for offset in r.start..r.end {
+                for offset in r.start()..r.end() {
                     coverage.entry(offset).or_default().push(r);
                 }
             } else {
@@ -44,10 +44,10 @@ impl StatusMap {
             .map(|(anno_id, refs)| {
                 let mut spec = SpecReport::default();
                 for r in refs {
-                    for offset in r.start..r.end {
+                    for offset in r.start()..r.end() {
                         spec.insert(offset, r);
                     }
-                    for (offset, refs) in coverage.range(r.start..r.end) {
+                    for (offset, refs) in coverage.range(r.start()..r.end()) {
                         for r in refs {
                             spec.insert(*offset, r);
                             spec.related.insert(r.annotation_id);

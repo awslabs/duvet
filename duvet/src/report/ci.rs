@@ -22,7 +22,7 @@ pub fn enforce_source(report: &TargetReport) -> Result<(), anyhow::Error> {
 
     // record all references to specific sections
     for reference in &report.references {
-        let line = reference.line;
+        let line = reference.line();
 
         significant_lines.insert(line);
 
