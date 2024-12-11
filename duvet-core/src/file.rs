@@ -321,6 +321,10 @@ impl Slice<SourceFile> {
             .map_err(|err| self.error(err, "error here"))
     }
 
+    pub fn line(&self) -> usize {
+        self.line_range().start
+    }
+
     pub fn line_range(&self) -> Range<usize> {
         let mapping = self.file.mapping();
         let start = mapping.offset_to_line(self.start);

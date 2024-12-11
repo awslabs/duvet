@@ -57,7 +57,7 @@ pub struct Report {
     issue_link: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
 struct Reference<'a> {
     line: usize,
     start: usize,
@@ -65,6 +65,20 @@ struct Reference<'a> {
     annotation_id: usize,
     annotation: &'a Annotation,
     level: AnnotationLevel,
+}
+
+impl Reference<'_> {
+    pub fn start(&self) -> usize {
+        self.start
+    }
+
+    pub fn end(&self) -> usize {
+        self.end
+    }
+
+    pub fn line(&self) -> usize {
+        self.line
+    }
 }
 
 #[derive(Debug)]
@@ -133,20 +147,19 @@ impl Report {
 
                 if let Some(section_id) = section_id {
                     if let Some(section) = spec.section(section_id) {
-                        let contents = section.contents();
+                        let contents = section.view();
 
                         for (annotation_id, annotation) in annotations {
                             if annotation.quote.is_empty() {
                                 // empty quotes don't count towards coverage but are still
                                 // references
-                                let line = section.full_title.line;
-                                let range = section.full_title.range();
+                                let text = section.full_title.clone();
                                 results.push(Ok((
                                     target,
                                     Reference {
-                                        line,
-                                        start: range.start,
-                                        end: range.end,
+                                        line: text.line(),
+                                        start: text.range().start,
+                                        end: text.range().end,
                                         annotation,
                                         annotation_id: *annotation_id,
                                         level: annotation.level,
@@ -156,13 +169,13 @@ impl Report {
                             }
 
                             if let Some(range) = annotation.quote_range(&contents) {
-                                for (line, range) in contents.ranges(range) {
+                                for text in contents.ranges(range) {
                                     results.push(Ok((
                                         target,
                                         Reference {
-                                            line,
-                                            start: range.start,
-                                            end: range.end,
+                                            line: text.line(),
+                                            start: text.range().start,
+                                            end: text.range().end,
                                             annotation,
                                             annotation_id: *annotation_id,
                                             level: annotation.level,
@@ -299,7 +312,7 @@ pub struct ReportResult<'a> {
 pub struct TargetReport<'a> {
     target: &'a Target,
     references: BTreeSet<Reference<'a>>,
-    specification: &'a Specification<'a>,
+    specification: &'a Specification,
     require_citations: bool,
     require_tests: bool,
     statuses: status::StatusMap,
