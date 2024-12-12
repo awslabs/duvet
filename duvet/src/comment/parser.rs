@@ -34,8 +34,7 @@ struct Meta {
     target: Option<Slice>,
     anno: Option<(AnnotationType, Slice)>,
     reason: Option<Slice>,
-    line: u32,
-    column: u32,
+    line: usize,
     feature: Option<Slice>,
     tracking_issue: Option<Slice>,
     level: Option<(AnnotationLevel, Slice)>,
@@ -85,7 +84,7 @@ impl Meta {
 
     fn build(self, contents: Vec<Slice>, default_type: AnnotationType) -> Result<Annotation> {
         let first_meta = self.first_meta.unwrap();
-        let source = first_meta.file().path().clone();
+        let source = first_meta.file().clone();
 
         let Some(target) = self.target else {
             return Err(first_meta.error(
@@ -93,6 +92,8 @@ impl Meta {
                 "defined here",
             ));
         };
+        let original_target = target.clone();
+        let target = target.to_string();
 
         let anno = self.anno.map_or(default_type, |v| v.0);
 
@@ -108,19 +109,34 @@ impl Meta {
             }
         }
 
+        let mut original_text = first_meta.range();
+        let mut original_quote = original_text.clone();
+
         let mut quote = String::new();
         for (idx, part) in contents.into_iter().enumerate() {
-            if idx > 0 {
+            if idx == 0 {
+                original_quote = part.range();
+            } else {
                 quote.push(' ');
             }
+
+            original_text.start = original_text.start.min(part.range().start);
+            original_text.end = original_text.end.max(part.range().end);
+            original_quote.end = original_quote.end.max(part.range().end);
+
             quote.push_str(part.trim());
         }
 
+        let original_text = source.substr_range(original_text).unwrap();
+        let original_quote = source.substr_range(original_quote).unwrap();
+
         let annotation = Annotation {
-            source,
+            source: source.path().clone(),
             anno_line: self.line,
-            anno_column: self.column,
             anno,
+            original_text,
+            original_target,
+            original_quote,
             target: target.to_string(),
             quote,
             manifest_dir: duvet_core::env::current_dir()?,
