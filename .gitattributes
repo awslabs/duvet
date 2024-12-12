@@ -1,2 +1,2 @@
 integration/snapshots/*.snap filter=lfs diff=lfs merge=lfs -text
-**/snapshots.tar.gz filter=lfs diff=lfs merge=lfs -text
+**/snapshots.tar.gz filter=lfs diff=lfs merge=lfs
