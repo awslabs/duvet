@@ -74,7 +74,7 @@ impl Project {
         }
 
         for pattern in &self.spec_patterns {
-            self.spec_file(pattern, &mut sources)?;
+            self.toml_file(pattern, &mut sources)?;
         }
 
         Ok(sources)
@@ -100,9 +100,9 @@ impl Project {
         Ok(())
     }
 
-    fn spec_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result<(), Error> {
+    fn toml_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result<(), Error> {
         for entry in glob(pattern)? {
-            files.insert(SourceFile::Spec(entry?.into()));
+            files.insert(SourceFile::Toml(entry?.into()));
         }
 
         Ok(())
