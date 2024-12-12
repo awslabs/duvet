@@ -1,0 +1,10 @@
+---
+source: duvet/src/text/find.rs
+expression: "find(\"c d\", \"a b c d\")"
+---
+Some(
+    (
+        4..7,
+        "c d",
+    ),
+)

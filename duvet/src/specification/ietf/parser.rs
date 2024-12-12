@@ -20,8 +20,7 @@ pub struct Parser<T> {
 pub struct Section {
     pub id: Id,
     pub title: Slice,
-    pub line: usize,
-    pub lines: Vec<(usize, Slice)>,
+    pub lines: Vec<Slice>,
 }
 
 pub enum Id {
@@ -41,68 +40,69 @@ impl fmt::Display for Id {
 }
 
 impl Section {
-    fn push(&mut self, line: usize, value: Slice) {
+    fn push(&mut self, value: Slice) {
         // don't push an empty first line
         if self.lines.is_empty() && value.trim().is_empty() {
             return;
         }
 
-        self.lines.push((line, value));
+        self.lines.push(value);
     }
 }
 
 impl<T: Iterator<Item = Token>> Parser<T> {
     fn on_token(&mut self, token: Token) -> Option<Section> {
         match token {
-            Token::Section { id, title, line } => {
+            Token::Section { id, title, line: _ } => {
                 let prev = self.flush();
 
                 self.section = Some(Section {
                     id: Id::Section(id),
                     title,
-                    line,
                     lines: vec![],
                 });
 
                 prev
             }
-            Token::Appendix { id, title, line } => {
+            Token::Appendix { id, title, line: _ } => {
                 let prev = self.flush();
 
                 self.section = Some(Section {
                     id: Id::Appendix(id),
                     title,
-                    line,
                     lines: vec![],
                 });
 
                 prev
             }
-            Token::NamedSection { title, line } => {
+            Token::NamedSection { title, line: _ } => {
                 let prev = self.flush();
 
                 self.section = Some(Section {
                     id: Id::NamedSection(title.clone()),
                     title,
-                    line,
                     lines: vec![],
                 });
 
                 prev
             }
-            Token::Break { line, value, ty: _ } => {
+            Token::Break {
+                value,
+                ty: _,
+                line: _,
+            } => {
                 if let Some(section) = self.section.as_mut() {
                     // just get the line offset
                     let trimmed = &value[0..0];
                     let value = value.file().substr(trimmed).unwrap();
-                    section.push(line, value);
+                    section.push(value);
                 }
 
                 None
             }
-            Token::Content { line, value } => {
+            Token::Content { value, line: _ } => {
                 if let Some(section) = self.section.as_mut() {
-                    section.push(line, value);
+                    section.push(value);
                 }
 
                 None
@@ -119,7 +119,7 @@ impl<T: Iterator<Item = Token>> Parser<T> {
 
         // trim any trailing lines
         loop {
-            let Some((_lineno, line)) = section.lines.last() else {
+            let Some(line) = section.lines.last() else {
                 break;
             };
 

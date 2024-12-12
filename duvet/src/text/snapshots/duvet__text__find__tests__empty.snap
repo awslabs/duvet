@@ -1,0 +1,5 @@
+---
+source: duvet/src/text/find.rs
+expression: "find(\"\", \"\")"
+---
+None

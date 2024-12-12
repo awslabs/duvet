@@ -13,24 +13,18 @@ use std::{
 const IMPL_BLOCK: &str = "0,0";
 const TEST_BLOCK: &str = "1,0";
 
-macro_rules! line {
-    ($value:expr) => {
-        $value.line
-    };
-}
-
 macro_rules! record {
     ($block:expr, $line_hits:ident, $line:expr, $title:expr, $count:expr) => {
         if $count != 0 {
             $line_hits.insert($line);
         }
         put!("BRDA:{},{},{}", $line, $block, $count);
-        if let Some(title) = $title {
+        if let Some(title) = &$title {
             let mut title_count = $count;
             if title_count != 0 {
-                if !$line_hits.contains(&line!(title)) {
+                if !$line_hits.contains(&title.line()) {
                     // mark the title as recorded
-                    $line_hits.insert(line!(title));
+                    $line_hits.insert(title.line());
                 } else {
                     // the title was already recorded
                     title_count = 0;
@@ -38,7 +32,7 @@ macro_rules! record {
             }
 
             put!("FNDA:{},{}", title_count, title);
-            put!("BRDA:{},{},{}", line!(title), $block, title_count);
+            put!("BRDA:{},{},{}", title.line(), $block, title_count);
         }
     };
 }
@@ -76,7 +70,7 @@ fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> R
     // record all sections
     for section in report.specification.sections.values() {
         let title = &section.full_title;
-        put!("FN:{},{}", line!(title), title);
+        put!("FN:{},{}", title.line(), title);
     }
 
     put!("FNF:{}", report.specification.sections.len());
@@ -90,12 +84,12 @@ fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> R
     for reference in &report.references {
         let title = if let Some(section_id) = reference.annotation.target_section() {
             let section = report.specification.sections.get(section_id).unwrap();
-            Some(section.full_title)
+            Some(&section.full_title)
         } else {
             None
         };
 
-        let line = line!(reference);
+        let line = reference.line();
 
         macro_rules! citation {
             ($count:expr) => {

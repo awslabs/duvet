@@ -11,36 +11,20 @@ Ok(
             Section {
                 id: "duplicate-header",
                 title: "Duplicate header",
-                full_title: Str {
-                    value: "Duplicate header",
-                    pos: 3,
-                    line: 2,
-                },
+                full_title: "Duplicate header",
                 lines: [
                     Str(
-                        Str {
-                            value: "testing 123",
-                            pos: 21,
-                            line: 4,
-                        },
+                        "testing 123",
                     ),
                 ],
             },
             Section {
                 id: "duplicate-header-1",
                 title: "Duplicate header",
-                full_title: Str {
-                    value: "Duplicate header",
-                    pos: 37,
-                    line: 6,
-                },
+                full_title: "Duplicate header",
                 lines: [
                     Str(
-                        Str {
-                            value: "other test",
-                            pos: 55,
-                            line: 8,
-                        },
+                        "other test",
                     ),
                 ],
             },
