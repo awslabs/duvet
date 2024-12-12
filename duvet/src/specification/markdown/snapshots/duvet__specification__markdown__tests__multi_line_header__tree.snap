@@ -1,6 +1,6 @@
 ---
-source: src/specification/markdown/tests.rs
-expression: "super::parse(r#\"\nFoo *bar\nbaz*\n======\n\nContent goes here. Another\nsentence here.\n\"#)"
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: parse(& contents)"
 ---
 Ok(
     Specification {
@@ -11,25 +11,13 @@ Ok(
             Section {
                 id: "foo-bar-baz",
                 title: "Foo *bar baz*",
-                full_title: Str {
-                    value: "Foo *bar\nbaz*",
-                    pos: 1,
-                    line: 2,
-                },
+                full_title: "Foo *bar\nbaz*",
                 lines: [
                     Str(
-                        Str {
-                            value: "Content goes here. Another",
-                            pos: 23,
-                            line: 6,
-                        },
+                        "Content goes here. Another",
                     ),
                     Str(
-                        Str {
-                            value: "sentence here.",
-                            pos: 50,
-                            line: 7,
-                        },
+                        "sentence here.",
                     ),
                 ],
             },
