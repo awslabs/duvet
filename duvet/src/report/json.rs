@@ -4,9 +4,9 @@
 use super::{Reference, ReportResult, TargetReport};
 use crate::{
     annotation::{AnnotationLevel, AnnotationType},
-    sourcemap::Str,
     specification::Line,
 };
+use duvet_core::file::Slice;
 use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -277,7 +277,7 @@ pub fn report_source<Output: Write>(
             requirements.insert(reference.annotation_id);
         }
         references
-            .entry(reference.line)
+            .entry(reference.line())
             .or_default()
             .push(reference);
     }
@@ -323,7 +323,7 @@ pub fn report_source<Output: Write>(
                                         if let Line::Str(line) = line {
                                             item!(
                                                 arr,
-                                                if let Some(refs) = references.get(&line.line) {
+                                                if let Some(refs) = references.get(&line.line()) {
                                                     report_references(
                                                         line,
                                                         refs,
@@ -363,7 +363,7 @@ pub fn report_source<Output: Write>(
 }
 
 fn report_references<Output: Write>(
-    line: &Str,
+    line: &Slice,
     refs: &[&Reference],
     requirements: &mut BTreeSet<usize>,
     output: &mut Output,
@@ -377,21 +377,23 @@ fn report_references<Output: Write>(
 
     assert!(!refs.is_empty());
     arr!(|arr| {
-        let mut start = line.pos;
-        let end = line.pos + line.len();
+        let line_range = line.range();
+        let line_pos = line_range.start;
+        let mut start = line_pos;
+        let end = line_range.end;
 
         while start < end {
             let mut min_end = end;
             let current_refs = refs.iter().filter(|r| {
-                if r.start <= start {
-                    if start < r.end {
-                        min_end = min_end.min(r.end);
+                if r.start() <= start {
+                    if start < r.end() {
+                        min_end = min_end.min(r.end());
                         true
                     } else {
                         false
                     }
                 } else {
-                    min_end = min_end.min(r.start);
+                    min_end = min_end.min(r.start());
                     false
                 }
             });
@@ -419,7 +421,7 @@ fn report_references<Output: Write>(
                     item!(arr, w!(status.id()));
 
                     // output the actual text
-                    item!(arr, s!(line[(start - line.pos)..(min_end - line.pos)]));
+                    item!(arr, s!(line[(start - line_pos)..(min_end - line_pos)]));
                 })
             );
 
