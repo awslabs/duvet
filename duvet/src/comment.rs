@@ -22,10 +22,10 @@ pub fn extract(
     let tokens = tokenizer::tokens(file, pattern);
     let mut parser = parser::parse(tokens, default_type);
 
-    let annotations = (&mut parser).collect();
+    let annotations = (&mut parser).map(Arc::new).collect();
     let errors = parser.errors();
 
-    (annotations, errors)
+    (Arc::new(annotations), errors)
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]

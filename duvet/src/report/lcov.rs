@@ -79,7 +79,7 @@ fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> R
     // record all references to specific sections
     for reference in &report.references {
         let title = if let Some(section_id) = reference.annotation.target_section() {
-            let section = report.specification.sections.get(section_id).unwrap();
+            let section = report.specification.sections.get(&*section_id).unwrap();
             Some(&section.full_title)
         } else {
             None

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::file::{Slice, SourceFile};
-pub use miette::{miette as miette_error, Report};
+pub use miette::{miette as miette_error, Context, Report};
 use miette::{Diagnostic, LabeledSpan};
 use std::{error::Error as StdError, fmt, sync::Arc};
 

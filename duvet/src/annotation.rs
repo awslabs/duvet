@@ -4,7 +4,7 @@
 use crate::{
     source::SourceFile,
     specification::Format,
-    target::{Target, TargetSet},
+    target::{SpecificationMap, Target, TargetSet},
     Error, Result,
 };
 use core::{fmt, ops::Range, str::FromStr};
@@ -16,10 +16,10 @@ use std::{
     sync::Arc,
 };
 
-pub type AnnotationSet = BTreeSet<Annotation>;
+pub type AnnotationSet = Arc<BTreeSet<Arc<Annotation>>>;
 
 pub type AnnotationReferenceMap<'a> =
-    HashMap<(Target, Option<&'a str>), Vec<(usize, &'a Annotation)>>;
+    HashMap<(Arc<Target>, Option<Arc<str>>), Vec<(usize, &'a Annotation)>>;
 
 pub trait AnnotationSetExt {
     fn targets(&self) -> Result<TargetSet>;
@@ -46,8 +46,22 @@ impl AnnotationSetExt for AnnotationSet {
     }
 }
 
+pub async fn specifications(
+    annotations: AnnotationSet,
+    spec_path: Option<Path>,
+) -> Result<SpecificationMap> {
+    let mut targets = TargetSet::new();
+    for anno in annotations.iter() {
+        targets.insert(anno.target()?);
+    }
+
+    let specs = crate::target::query(&targets, spec_path).await?;
+
+    Ok(specs)
+}
+
 #[query]
-pub async fn query(sources: Arc<HashSet<SourceFile>>) -> Result<Arc<AnnotationSet>> {
+pub async fn query(sources: Arc<HashSet<SourceFile>>) -> Result<AnnotationSet> {
     let mut errors = vec![];
 
     let mut tasks = tokio::task::JoinSet::new();
@@ -57,11 +71,11 @@ pub async fn query(sources: Arc<HashSet<SourceFile>>) -> Result<Arc<AnnotationSe
         tasks.spawn(async move { source.annotations().await });
     }
 
-    let mut annotations = AnnotationSet::default();
+    let mut annotations = BTreeSet::default();
     while let Some(res) = tasks.join_next().await {
         match res.into_diagnostic() {
             Ok((local_annotations, local_errors)) => {
-                annotations.extend(local_annotations);
+                annotations.extend(local_annotations.iter().cloned());
                 errors.extend(local_errors.iter().cloned());
             }
             Err(err) => {
@@ -97,8 +111,8 @@ pub struct Annotation {
 }
 
 impl Annotation {
-    pub fn target(&self) -> Result<Target> {
-        Target::from_annotation(self)
+    pub fn target(&self) -> Result<Arc<Target>> {
+        Target::from_annotation(self).map(Arc::new)
     }
 
     pub fn target_path(&self) -> &str {
@@ -122,8 +136,8 @@ impl Annotation {
         }
     }
 
-    pub fn target_section(&self) -> Option<&str> {
-        self.target_parts().1
+    pub fn target_section(&self) -> Option<Arc<str>> {
+        self.target_parts().1.map(Arc::from)
     }
 
     fn target_parts(&self) -> (&str, Option<&str>) {

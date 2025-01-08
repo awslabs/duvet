@@ -128,7 +128,7 @@ pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) 
             obj,
             s!("annotations"),
             arr!(|arr| {
-                for annotation in report.annotations {
+                for annotation in report.annotations.iter() {
                     item!(
                         arr,
                         obj!(|obj| {
