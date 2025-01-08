@@ -17,8 +17,7 @@ mod text;
 #[cfg(test)]
 mod tests;
 
-pub use anyhow::Error;
-pub use duvet_core::Result;
+pub use duvet_core::{diagnostic::Error, Result};
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Parser)]
@@ -33,7 +32,7 @@ pub async fn arguments() -> Arc<Arguments> {
 }
 
 impl Arguments {
-    pub async fn exec(&self) -> Result<(), Error> {
+    pub async fn exec(&self) -> Result {
         match self {
             Self::Extract(args) => args.exec().await,
             Self::Report(args) => args.exec().await,

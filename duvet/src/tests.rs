@@ -1,16 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Arguments, Error};
+use crate::{Arguments, Result};
 use clap::Parser;
+use duvet_core::diagnostic::IntoDiagnostic;
 use insta::assert_json_snapshot;
 use std::{
     ffi::OsString,
     path::{Path, PathBuf},
 };
 use tempfile::TempDir;
-
-type Result<T = (), E = Error> = core::result::Result<T, E>;
 
 struct Env {
     dir: TempDir,
@@ -57,7 +56,8 @@ impl Env {
             ["duvet".into()]
                 .into_iter()
                 .chain(args.into_iter().map(|v| v.into())),
-        )?
+        )
+        .into_diagnostic()?
         .exec()
         .await?;
         Ok(())

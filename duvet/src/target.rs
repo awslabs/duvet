@@ -3,7 +3,7 @@
 
 use crate::{annotation::Annotation, specification::Format, Error, Result};
 use core::{fmt, str::FromStr};
-use duvet_core::file::SourceFile;
+use duvet_core::{diagnostic::IntoDiagnostic, file::SourceFile};
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
@@ -19,7 +19,7 @@ pub struct Target {
 }
 
 impl Target {
-    pub fn from_annotation(anno: &Annotation) -> Result<Self, Error> {
+    pub fn from_annotation(anno: &Annotation) -> Result<Self> {
         let path = TargetPath::from_annotation(anno)?;
         Ok(Self {
             path,
@@ -55,7 +55,7 @@ impl fmt::Display for TargetPath {
 }
 
 impl TargetPath {
-    pub fn from_annotation(anno: &Annotation) -> Result<Self, Error> {
+    pub fn from_annotation(anno: &Annotation) -> Result<Self> {
         let path = anno.target_path();
 
         // Absolute path
@@ -65,7 +65,7 @@ impl TargetPath {
 
         // URL style path
         if path.contains("://") {
-            let url = Url::parse(path)?;
+            let url = Url::parse(path).into_diagnostic()?;
             return Ok(Self::Url(url));
         }
 
@@ -124,7 +124,7 @@ impl FromStr for TargetPath {
     fn from_str(path: &str) -> Result<Self, Self::Err> {
         // URL style path
         if path.contains("://") {
-            let url = Url::parse(path)?;
+            let url = Url::parse(path).into_diagnostic()?;
             return Ok(Self::Url(url));
         }
 

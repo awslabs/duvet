@@ -7,9 +7,8 @@ use crate::{
     target::{Target, TargetSet},
     Error, Result,
 };
-use anyhow::anyhow;
 use core::{fmt, ops::Range, str::FromStr};
-use duvet_core::{diagnostic::IntoDiagnostic, file::Slice, path::Path, query};
+use duvet_core::{diagnostic::IntoDiagnostic, error, file::Slice, path::Path, query};
 use serde::Serialize;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
@@ -23,12 +22,12 @@ pub type AnnotationReferenceMap<'a> =
     HashMap<(Target, Option<&'a str>), Vec<(usize, &'a Annotation)>>;
 
 pub trait AnnotationSetExt {
-    fn targets(&self) -> Result<TargetSet, Error>;
-    fn reference_map(&self) -> Result<AnnotationReferenceMap, Error>;
+    fn targets(&self) -> Result<TargetSet>;
+    fn reference_map(&self) -> Result<AnnotationReferenceMap>;
 }
 
 impl AnnotationSetExt for AnnotationSet {
-    fn targets(&self) -> Result<TargetSet, Error> {
+    fn targets(&self) -> Result<TargetSet> {
         let mut set = TargetSet::new();
         for anno in self.iter() {
             set.insert(anno.target()?);
@@ -36,7 +35,7 @@ impl AnnotationSetExt for AnnotationSet {
         Ok(set)
     }
 
-    fn reference_map(&self) -> Result<AnnotationReferenceMap, Error> {
+    fn reference_map(&self) -> Result<AnnotationReferenceMap> {
         let mut map = AnnotationReferenceMap::new();
         for (id, anno) in self.iter().enumerate() {
             let target = anno.target()?;
@@ -98,7 +97,7 @@ pub struct Annotation {
 }
 
 impl Annotation {
-    pub fn target(&self) -> Result<Target, Error> {
+    pub fn target(&self) -> Result<Target> {
         Target::from_annotation(self)
     }
 
@@ -135,7 +134,7 @@ impl Annotation {
             })
     }
 
-    pub fn resolve_file(&self, file: &std::path::Path) -> Result<PathBuf, Error> {
+    pub fn resolve_file(&self, file: &std::path::Path) -> Result<PathBuf> {
         // If we have the right path, just return it
         if file.is_file() {
             return Ok(file.to_path_buf());
@@ -152,7 +151,7 @@ impl Annotation {
             }
         }
 
-        Err(anyhow!(format!("Could not resolve file {:?}", file)))
+        Err(error!("Could not resolve file {:?}", file))
     }
 
     pub fn quote_range(&self, contents: &str) -> Option<Range<usize>> {
@@ -200,7 +199,7 @@ impl FromStr for AnnotationType {
             "EXCEPTION" | "exception" => Ok(Self::Exception),
             "TODO" | "todo" => Ok(Self::Todo),
             "IMPLICATION" | "implication" => Ok(Self::Implication),
-            _ => Err(anyhow!(format!(
+            _ => Err(error!(
                 "Invalid annotation type {:?}, expected one of {:?}",
                 v,
                 [
@@ -211,7 +210,7 @@ impl FromStr for AnnotationType {
                     "todo",
                     "implication"
                 ]
-            ))),
+            )),
         }
     }
 }
@@ -255,11 +254,11 @@ impl FromStr for AnnotationLevel {
             "MUST" => Ok(Self::Must),
             "SHOULD" => Ok(Self::Should),
             "MAY" => Ok(Self::May),
-            _ => Err(anyhow!(format!(
+            _ => Err(error!(
                 "Invalid annotation level {:?}, expected one of {:?}",
                 v,
                 ["AUTO", "MUST", "SHOULD", "MAY"]
-            ))),
+            )),
         }
     }
 }

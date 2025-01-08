@@ -7,11 +7,11 @@ use crate::{
     annotation::AnnotationLevel,
     specification::{Format, Line, Section, Specification},
     target::TargetPath,
-    Error,
+    Result,
 };
 use clap::Parser;
+use duvet_core::diagnostic::IntoDiagnostic;
 use lazy_static::lazy_static;
-use rayon::prelude::*;
 use regex::{Regex, RegexSet};
 use std::{fs::OpenOptions, io::BufWriter, path::PathBuf};
 
@@ -34,10 +34,10 @@ lazy_static! {
             .iter()
             .cloned()
             .map(|(pat, l)| {
-                let r = Regex::new(&format!("\\b{}\\b\"?", pat))?;
+                let r = Regex::new(&format!("\\b{}\\b\"?", pat)).into_diagnostic()?;
                 Ok((r, l))
             })
-            .collect::<Result<_, Error>>()
+            .collect::<Result<_>>()
             .unwrap()
     };
     static ref KEY_WORDS_SET: RegexSet =
@@ -67,7 +67,7 @@ pub struct Extract {
 }
 
 impl Extract {
-    pub async fn exec(&self) -> Result<(), Error> {
+    pub async fn exec(&self) -> Result {
         let contents = self.target.load(self.spec_path.as_deref()).await?;
         let local_path = contents.path();
 
@@ -80,37 +80,34 @@ impl Extract {
             todo!("single file not implemented");
         } else {
             // output to directory
-            sections
-                .par_iter()
-                .map(|(section, features)| {
-                    // The specification may be stored alongside the extracted TOML.
-                    let mut out = match local_path.strip_prefix(&self.out) {
-                        Ok(path) => self.out.join(path),
-                        Err(_e) => self.out.join(local_path),
-                    };
+            sections.iter().try_for_each(|(section, features)| {
+                // The specification may be stored alongside the extracted TOML.
+                let mut out = match local_path.strip_prefix(&self.out) {
+                    Ok(path) => self.out.join(path),
+                    Err(_e) => self.out.join(local_path),
+                };
 
-                    out.set_extension("");
-                    let _ = std::fs::create_dir_all(&out);
-                    out.push(format!("{}.{}", section.id, self.extension));
+                out.set_extension("");
+                let _ = std::fs::create_dir_all(&out);
+                out.push(format!("{}.{}", section.id, self.extension));
 
-                    let file = OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .truncate(true)
-                        .open(out)?;
-                    let mut file = BufWriter::new(file);
+                let file = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(out)?;
+                let mut file = BufWriter::new(file);
 
-                    let target = &self.target;
+                let target = &self.target;
 
-                    match &self.extension[..] {
-                        "rs" => write_rust(&mut file, target, section, features)?,
-                        "toml" => write_toml(&mut file, target, section, features)?,
-                        ext => unimplemented!("{}", ext),
-                    }
+                match &self.extension[..] {
+                    "rs" => write_rust(&mut file, target, section, features)?,
+                    "toml" => write_toml(&mut file, target, section, features)?,
+                    ext => unimplemented!("{}", ext),
+                }
 
-                    Ok(())
-                })
-                .collect::<Result<(), std::io::Error>>()?;
+                <Result>::Ok(())
+            })?;
         }
 
         Ok(())
@@ -119,7 +116,7 @@ impl Extract {
 
 fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature<'_>>)> {
     spec.sorted_sections()
-        .par_iter()
+        .iter()
         .map(|section| extract_section(section))
         .filter(|(_section, features)| !features.is_empty())
         .collect()
@@ -339,7 +336,7 @@ fn write_rust<W: std::io::Write>(
     target: &TargetPath,
     section: &Section,
     features: &[Feature],
-) -> Result<(), std::io::Error> {
+) -> Result {
     writeln!(w, "//! {}#{}", target, section.id)?;
     writeln!(w, "//!")?;
     writeln!(w, "//! {}", section.full_title)?;
@@ -369,7 +366,7 @@ fn write_toml<W: std::io::Write>(
     target: &TargetPath,
     section: &Section,
     features: &[Feature],
-) -> Result<(), std::io::Error> {
+) -> Result {
     writeln!(w, "target = \"{}#{}\"", target, section.id)?;
     writeln!(w)?;
     writeln!(w, "# {}", section.full_title)?;

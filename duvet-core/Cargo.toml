@@ -13,7 +13,6 @@ http = ["dep:http", "reqwest"]
 testing = ["tracing-subscriber"]
 
 [dependencies]
-anyhow = "1"
 blake3 = "1"
 bytes = "1"
 console = "0.15"

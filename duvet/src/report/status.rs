@@ -4,7 +4,6 @@
 use super::Reference;
 use crate::annotation::AnnotationType;
 use core::ops::Deref;
-use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 // TODO use a real interval set
@@ -40,7 +39,7 @@ impl StatusMap {
         }
 
         self.0 = specs
-            .par_iter()
+            .iter()
             .map(|(anno_id, refs)| {
                 let mut spec = SpecReport::default();
                 for r in refs {

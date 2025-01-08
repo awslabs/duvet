@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{annotation::AnnotationSet, comment};
+use crate::{annotation::AnnotationSet, comment, Error};
 use duvet_core::path::Path;
 
 pub mod toml;
@@ -13,7 +13,7 @@ pub enum SourceFile {
 }
 
 impl SourceFile {
-    pub async fn annotations(&self) -> (AnnotationSet, Vec<duvet_core::diagnostic::Error>) {
+    pub async fn annotations(&self) -> (AnnotationSet, Vec<Error>) {
         match self {
             Self::Text(pattern, file) => match duvet_core::vfs::read_string(file).await {
                 Ok(text) => comment::extract(&text, pattern, Default::default()),
