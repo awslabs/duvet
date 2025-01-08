@@ -7,7 +7,9 @@ expression: "parse(\"//=,//#\",\nr#\"\n    //= https://example.com/spec.txt\n   
         Annotation {
             source: "file.rs",
             anno_line: 2,
-            anno_column: 0,
+            original_target: "https://example.com/spec.txt",
+            original_text: "https://example.com/spec.txt\n    //= type=test\n    //# Here is my citation",
+            original_quote: "Here is my citation",
             anno: Test,
             target: "https://example.com/spec.txt",
             quote: "Here is my citation",

@@ -1,6 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#[global_allocator]
+static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() {
     let format = tracing_subscriber::fmt::format().compact(); // Use a less verbose output format.
 
@@ -29,6 +32,8 @@ fn main() {
             }
         })
         .enable_all()
+        // it usually takes longer to spawn threads than complete the program so keep the max low
+        .max_blocking_threads(8)
         .build()
         .unwrap();
 

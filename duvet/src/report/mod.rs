@@ -92,18 +92,16 @@ impl fmt::Display for ReportError<'_> {
         match self {
             Self::QuoteMismatch { annotation } => write!(
                 f,
-                "{}#{}:{} - quote not found in {:?}",
+                "{}#{} - quote not found in {:?}",
                 annotation.source.display(),
                 annotation.anno_line,
-                annotation.anno_column,
                 annotation.target,
             ),
             Self::MissingSection { annotation } => write!(
                 f,
-                "{}#{}:{} - section {:?} not found in {:?}",
+                "{}#{} - section {:?} not found in {:?}",
                 annotation.source.display(),
                 annotation.anno_line,
-                annotation.anno_column,
                 annotation.target_section().unwrap_or("-"),
                 annotation.target_path(),
             ),

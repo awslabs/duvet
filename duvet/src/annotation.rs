@@ -9,7 +9,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use core::{fmt, ops::Range, str::FromStr};
-use duvet_core::{diagnostic::IntoDiagnostic, path::Path, query};
+use duvet_core::{diagnostic::IntoDiagnostic, file::Slice, path::Path, query};
 use serde::Serialize;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
@@ -81,8 +81,10 @@ pub async fn query(sources: Arc<HashSet<SourceFile>>) -> Result<Arc<AnnotationSe
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct Annotation {
     pub source: Path,
-    pub anno_line: u32,
-    pub anno_column: u32,
+    pub anno_line: usize,
+    pub original_target: Slice,
+    pub original_text: Slice,
+    pub original_quote: Slice,
     pub anno: AnnotationType,
     pub target: String,
     pub quote: String,
