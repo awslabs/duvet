@@ -8,6 +8,7 @@ mod annotation;
 mod comment;
 mod extract;
 mod project;
+mod reference;
 mod report;
 mod source;
 mod specification;
@@ -43,11 +44,4 @@ impl Arguments {
 pub async fn run() -> Result {
     arguments().await.exec().await?;
     Ok(())
-}
-
-pub(crate) fn fnv<H: core::hash::Hash + ?Sized>(value: &H) -> u64 {
-    use core::hash::Hasher;
-    let mut hasher = fnv::FnvHasher::default();
-    value.hash(&mut hasher);
-    hasher.finish()
 }

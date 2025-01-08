@@ -1,0 +1,12 @@
+---
+source: duvet/src/tests.rs
+expression: error
+---
+  × could not find text in section "section" of my-spec.md
+   ╭─[src/my-code.rs:3:5]
+ 2 │ //= my-spec.md#section
+ 3 │ //# Here is missing text
+   ·     ──────────┬─────────
+   ·               ╰── text here
+ 4 │         
+   ╰────

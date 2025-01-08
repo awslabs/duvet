@@ -159,6 +159,30 @@ impl Section {
             Line::Break => None,
         }))
     }
+
+    pub fn original_text(&self) -> Option<Slice> {
+        let mut start = usize::MAX;
+        let mut end = 0;
+        let mut has_content = false;
+
+        for line in self.lines.iter() {
+            match line {
+                Line::Str(v) => {
+                    let r = v.range();
+                    start = start.min(r.start);
+                    end = end.max(r.end);
+                    has_content = true;
+                }
+                Line::Break => {}
+            }
+        }
+
+        if !has_content {
+            return None;
+        }
+
+        Some(self.full_title.file().substr_range(start..end).unwrap())
+    }
 }
 
 impl Ord for Section {
