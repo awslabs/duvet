@@ -111,7 +111,7 @@ impl Meta {
         let mut original_quote = original_text.clone();
 
         let mut quote = String::new();
-        for (idx, part) in contents.into_iter().enumerate() {
+        for (idx, part) in contents.iter().enumerate() {
             if idx == 0 {
                 original_quote = part.range();
             } else {
@@ -135,7 +135,7 @@ impl Meta {
             original_text,
             original_target,
             original_quote,
-            target: target.to_string(),
+            target,
             quote,
             manifest_dir: duvet_core::env::current_dir()?,
             comment: self.reason.map(|v| v.to_string()).unwrap_or_default(),

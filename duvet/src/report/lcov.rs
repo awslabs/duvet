@@ -3,11 +3,10 @@
 
 use super::{ReportResult, TargetReport};
 use crate::{annotation::AnnotationType, Result};
-use duvet_core::env;
+use duvet_core::{env, path::Path};
 use std::{
     collections::HashSet,
     io::{BufWriter, Write},
-    path::Path,
 };
 
 const IMPL_BLOCK: &str = "0,0";

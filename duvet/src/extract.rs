@@ -6,14 +6,14 @@
 use crate::{
     annotation::AnnotationLevel,
     specification::{Format, Line, Section, Specification},
-    target::TargetPath,
+    target::{self, Target, TargetPath},
     Result,
 };
 use clap::Parser;
 use duvet_core::{diagnostic::IntoDiagnostic, path::Path};
 use lazy_static::lazy_static;
 use regex::{Regex, RegexSet};
-use std::{fs::OpenOptions, io::BufWriter, path::PathBuf};
+use std::{fs::OpenOptions, io::BufWriter, path::PathBuf, sync::Arc};
 
 #[cfg(test)]
 mod tests;
@@ -68,10 +68,13 @@ pub struct Extract {
 
 impl Extract {
     pub async fn exec(&self) -> Result {
-        let contents = self.target.load(self.spec_path.as_ref()).await?;
-        let local_path = contents.path();
-
-        let spec = self.format.parse(&contents)?;
+        let spec_path = self.spec_path.clone();
+        let local_path = self.target.local(spec_path.as_ref());
+        let target = Arc::new(Target {
+            format: self.format,
+            path: self.target.clone(),
+        });
+        let spec = target::to_specification(target, spec_path).await?;
         let sections = extract_sections(&spec);
 
         if self.out.extension().is_some() {
@@ -80,11 +83,12 @@ impl Extract {
             todo!("single file not implemented");
         } else {
             // output to directory
+
             sections.iter().try_for_each(|(section, features)| {
                 // The specification may be stored alongside the extracted TOML.
                 let mut out = match local_path.strip_prefix(&self.out) {
                     Ok(path) => self.out.join(path),
-                    Err(_e) => self.out.join(local_path),
+                    Err(_e) => self.out.join(&local_path),
                 };
 
                 out.set_extension("");
@@ -114,7 +118,7 @@ impl Extract {
     }
 }
 
-fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature<'_>>)> {
+fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature>)> {
     spec.sorted_sections()
         .iter()
         .map(|section| extract_section(section))
@@ -122,7 +126,7 @@ fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature<'_>>)> {
         .collect()
 }
 
-fn extract_section(section: &Section) -> (&Section, Vec<Feature<'_>>) {
+fn extract_section(section: &Section) -> (&Section, Vec<Feature>) {
     let mut features = vec![];
     let lines = &section.lines[..];
 
