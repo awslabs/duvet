@@ -5,13 +5,13 @@ use super::{Reference, ReportResult, TargetReport};
 use crate::{
     annotation::{AnnotationLevel, AnnotationType},
     specification::Line,
+    Error, Result,
 };
 use duvet_core::file::Slice;
-use rayon::prelude::*;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs::File,
-    io::{BufWriter, Cursor, Error, Write},
+    io::{BufWriter, Cursor, Write},
     path::Path,
 };
 
@@ -80,7 +80,7 @@ macro_rules! item {
     }};
 }
 
-pub fn report(report: &ReportResult, file: &Path) -> Result<(), Error> {
+pub fn report(report: &ReportResult, file: &Path) -> Result {
     if let Some(parent) = file.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -90,13 +90,10 @@ pub fn report(report: &ReportResult, file: &Path) -> Result<(), Error> {
     report_writer(report, &mut file)
 }
 
-pub fn report_writer<Output: Write>(
-    report: &ReportResult,
-    output: &mut Output,
-) -> Result<(), Error> {
+pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) -> Result {
     let specs = report
         .targets
-        .par_iter()
+        .iter()
         .map(|(source, report)| {
             let id = format!("{}", &source.path);
             let mut output = Cursor::new(vec![]);
@@ -104,7 +101,7 @@ pub fn report_writer<Output: Write>(
             let output = unsafe { String::from_utf8_unchecked(output.into_inner()) };
             Ok((id, output))
         })
-        .collect::<Result<BTreeMap<String, String>, std::io::Error>>()?;
+        .collect::<Result<BTreeMap<String, String>>>()?;
 
     writer!(output);
 
@@ -264,10 +261,7 @@ pub fn report_writer<Output: Write>(
     Ok(())
 }
 
-pub fn report_source<Output: Write>(
-    report: &TargetReport,
-    output: &mut Output,
-) -> Result<(), Error> {
+pub fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> Result {
     writer!(output);
 
     let mut references: HashMap<usize, Vec<&Reference>> = HashMap::new();
@@ -367,7 +361,7 @@ fn report_references<Output: Write>(
     refs: &[&Reference],
     requirements: &mut BTreeSet<usize>,
     output: &mut Output,
-) -> Result<(), Error> {
+) -> Result {
     writer!(output);
 
     if line.is_empty() {

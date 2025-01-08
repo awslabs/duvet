@@ -98,12 +98,6 @@ impl Diagnostic for Error {
     }
 }
 
-impl From<anyhow::Error> for Error {
-    fn from(value: anyhow::Error) -> Self {
-        Report::msg(value).into()
-    }
-}
-
 impl From<std::io::Error> for Error {
     fn from(value: std::io::Error) -> Self {
         Report::msg(value).into()

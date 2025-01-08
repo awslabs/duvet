@@ -5,11 +5,10 @@ use super::tokenizer::Token;
 use crate::{
     annotation::{Annotation, AnnotationLevel, AnnotationType},
     specification::Format,
+    Error,
 };
-use anyhow::anyhow;
 use duvet_core::{
-    diagnostic::Error,
-    ensure,
+    ensure, error,
     file::{Slice, SourceFile},
     Result,
 };
@@ -42,7 +41,7 @@ struct Meta {
 }
 
 impl Meta {
-    fn set(&mut self, key: Option<Slice>, value: Slice) -> Result<()> {
+    fn set(&mut self, key: Option<Slice>, value: Slice) -> Result {
         let source_value = value.clone();
 
         let prev = match key.as_deref() {
@@ -65,15 +64,14 @@ impl Meta {
             Some(_) => {
                 return Err(key
                     .unwrap()
-                    .error(anyhow!("invalid metadata field"), "defined here"));
+                    .error(error!("invalid metadata field"), "defined here"));
             }
             None => core::mem::replace(&mut self.target, Some(value)),
         };
 
         if let Some(prev) = prev {
             let key = key.as_deref().unwrap_or("source");
-            let err: Error = anyhow!("{key:?} already specified").into();
-            let err = err
+            let err = error!("{key:?} already specified")
                 .with_source_slice(source_value, "redefined here")
                 .with_source_slice(prev, "already defined here");
             return Err(err);
@@ -88,7 +86,7 @@ impl Meta {
 
         let Some(target) = self.target else {
             return Err(first_meta.error(
-                anyhow!("comment is missing source specification"),
+                error!("comment is missing source specification"),
                 "defined here",
             ));
         };
@@ -104,7 +102,7 @@ impl Meta {
         ] {
             if anno != allowed {
                 if let Some(value) = field {
-                    return Err(value.error(anyhow!("invalid key for type {anno}"), "defined here"));
+                    return Err(value.error(error!("invalid key for type {anno}"), "defined here"));
                 }
             }
         }

@@ -4,10 +4,10 @@
 use crate::{
     annotation::{Annotation, AnnotationLevel, AnnotationSet, AnnotationType},
     specification::Format,
-    Result,
+    Error, Result,
 };
-use anyhow::anyhow;
 use duvet_core::{
+    error,
     file::{self, Slice},
     path::Path,
 };
@@ -15,7 +15,7 @@ use serde::Deserialize;
 use serde_spanned::Spanned;
 use std::{collections::BTreeSet, sync::Arc};
 
-pub async fn load(path: &Path) -> (AnnotationSet, Vec<duvet_core::diagnostic::Error>) {
+pub async fn load(path: &Path) -> (AnnotationSet, Vec<Error>) {
     match Specs::from_path(path).await {
         Ok((specs, file)) => {
             let mut annotations = BTreeSet::default();
@@ -97,7 +97,7 @@ impl Spec {
         let target = self
             .target
             .or_else(|| default_target.as_ref().cloned())
-            .ok_or_else(|| anyhow!("missing target"))?;
+            .ok_or_else(|| error!("missing target"))?;
         let original_target = source.substr_range(target.span()).unwrap();
         let target = target.into_inner();
 
@@ -165,7 +165,7 @@ impl Exception {
         let target = self
             .target
             .or_else(|| default_target.as_ref().cloned())
-            .ok_or_else(|| anyhow!("missing target"))?;
+            .ok_or_else(|| error!("missing target"))?;
         let original_target = source.substr_range(target.span()).unwrap();
         let target = target.into_inner();
 
@@ -216,7 +216,7 @@ impl Todo {
         let target = self
             .target
             .or_else(|| default_target.as_ref().cloned())
-            .ok_or_else(|| anyhow!("missing target"))?;
+            .ok_or_else(|| error!("missing target"))?;
         let original_target = source.substr_range(target.span()).unwrap();
         let target = target.into_inner();
 

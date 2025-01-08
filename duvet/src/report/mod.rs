@@ -6,12 +6,11 @@ use crate::{
     project::Project,
     specification::Specification,
     target::Target,
-    Error,
+    Result,
 };
-use anyhow::anyhow;
 use clap::Parser;
 use core::fmt;
-use rayon::prelude::*;
+use duvet_core::error;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
@@ -110,7 +109,7 @@ impl fmt::Display for ReportError<'_> {
 }
 
 impl Report {
-    pub async fn exec(&self) -> Result<(), Error> {
+    pub async fn exec(&self) -> Result {
         let project_sources = self.project.sources()?;
         let project_sources = Arc::new(project_sources);
 
@@ -127,7 +126,7 @@ impl Report {
         }
 
         let specifications: HashMap<_, _> = contents
-            .par_iter()
+            .iter()
             .map(|(target, contents)| {
                 let spec = target.format.parse(contents).unwrap();
                 (target, spec)
@@ -137,7 +136,7 @@ impl Report {
         let reference_map = annotations.reference_map()?;
 
         let results: Vec<_> = reference_map
-            .par_iter()
+            .iter()
             .flat_map(|((target, section_id), annotations)| {
                 let spec = specifications.get(&target).expect("spec already checked");
 
@@ -242,14 +241,14 @@ impl Report {
                 eprintln!("{}", error);
             }
 
-            return Err(anyhow!(
+            return Err(error!(
                 "source errors were found. no reports were generated"
             ));
         }
 
         report
             .targets
-            .par_iter_mut()
+            .iter_mut()
             .for_each(|(_, target)| target.statuses.populate(&target.references));
 
         if let Some(dir) = &self.lcov {

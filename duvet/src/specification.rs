@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{Error, Result};
-use anyhow::anyhow;
 use core::{cmp::Ordering, fmt, str::FromStr};
-use duvet_core::file::{Slice, SourceFile};
+use duvet_core::{
+    error,
+    file::{Slice, SourceFile},
+};
 use std::collections::HashMap;
 
 pub mod ietf;
@@ -120,7 +122,7 @@ impl FromStr for Format {
             "AUTO" | "auto" => Ok(Self::Auto),
             "IETF" | "ietf" => Ok(Self::Ietf),
             "MARKDOWN" | "markdown" | "md" => Ok(Self::Markdown),
-            _ => Err(anyhow!(format!(
+            _ => Err(error!(format!(
                 "Invalid spec type {:?}, expected one of {:?}",
                 v,
                 ["auto", "ietf", "markdown"]

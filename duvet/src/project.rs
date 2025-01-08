@@ -1,8 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{comment, source::SourceFile, Error};
+use crate::{comment, source::SourceFile, Result};
 use clap::Parser;
+use duvet_core::diagnostic::IntoDiagnostic;
 use glob::glob;
 use std::collections::HashSet;
 
@@ -66,7 +67,7 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn sources(&self) -> Result<HashSet<SourceFile>, Error> {
+    pub fn sources(&self) -> Result<HashSet<SourceFile>> {
         let mut sources = HashSet::new();
 
         for pattern in &self.source_patterns {
@@ -80,7 +81,7 @@ impl Project {
         Ok(sources)
     }
 
-    fn source_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result<(), Error> {
+    fn source_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result {
         let (compliance_pattern, file_pattern) = if let Some(pattern) = pattern.strip_prefix('(') {
             let mut parts = pattern.splitn(2, ')');
             let pattern = parts.next().expect("invalid pattern");
@@ -93,16 +94,19 @@ impl Project {
             (comment::Pattern::default(), pattern)
         };
 
-        for entry in glob(file_pattern)? {
-            files.insert(SourceFile::Text(compliance_pattern.clone(), entry?.into()));
+        for entry in glob(file_pattern).into_diagnostic()? {
+            files.insert(SourceFile::Text(
+                compliance_pattern.clone(),
+                entry.into_diagnostic()?.into(),
+            ));
         }
 
         Ok(())
     }
 
-    fn toml_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result<(), Error> {
-        for entry in glob(pattern)? {
-            files.insert(SourceFile::Toml(entry?.into()));
+    fn toml_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result {
+        for entry in glob(pattern).into_diagnostic()? {
+            files.insert(SourceFile::Toml(entry.into_diagnostic()?.into()));
         }
 
         Ok(())
