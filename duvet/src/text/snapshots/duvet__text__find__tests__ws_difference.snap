@@ -5,6 +5,7 @@ expression: "find(\"     this       should   ignore whitespace      differences\
 Some(
     (
         9..85,
+        Exact,
         "this             should       ignore       whitespace            differences",
     ),
 )

@@ -1,0 +1,11 @@
+---
+source: duvet/src/text/find.rs
+expression: "find(\"  Second   Sentence.  \",\n\" First    sentence.   Second Sentence.   Third  Sentence.   \")"
+---
+Some(
+    (
+        22..38,
+        Exact,
+        "Second Sentence.",
+    ),
+)

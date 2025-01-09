@@ -32,6 +32,7 @@ url = "2"
 v_jsonescape = "0.7"
 
 [dev-dependencies]
+bolero = "0.12"
 insta = { version = "1", features = ["filters", "json"] }
 serde_json = "1"
 strip-ansi-escapes = "0.2"

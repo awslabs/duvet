@@ -182,7 +182,7 @@ impl Annotation {
         Err(error!("Could not resolve file {:?}", file))
     }
 
-    pub fn quote_range(&self, contents: &str) -> Option<Range<usize>> {
+    pub fn quote_range(&self, contents: &str) -> Option<(Range<usize>, crate::text::find::Kind)> {
         crate::text::find(&self.quote, contents)
     }
 }

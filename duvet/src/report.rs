@@ -68,18 +68,21 @@ impl Report {
         let specifications = annotation::specifications(annotations.clone(), spec_path).await?;
         progress!(progress, "Loaded {} specifications", specifications.len());
 
-        let progress = progress!("Compiling references");
+        let progress = progress!("Mapping sections");
         let reference_map = annotation::reference_map(annotations.clone()).await?;
+        progress!(progress, "Mapped {} sections", reference_map.len());
 
+        let progress = progress!("Matching references");
         let mut report = ReportResult {
             targets: Default::default(),
             annotations,
             blob_link: self.blob_link.as_deref(),
             issue_link: self.issue_link.as_deref(),
         };
-
         let references = reference::query(reference_map.clone(), specifications.clone()).await?;
+        progress!(progress, "Matched {} references", references.len());
 
+        let progress = progress!("Sorting references");
         for reference in references.iter() {
             report
                 .targets
@@ -103,12 +106,7 @@ impl Report {
             target.statuses.populate(&target.references)
         });
 
-        progress!(
-            progress,
-            "Compiled {} references across {} sections",
-            references.len(),
-            reference_map.len()
-        );
+        progress!(progress, "Sorted {} references", references.len());
 
         type ReportFn = fn(&ReportResult, &Path) -> crate::Result<()>;
 
