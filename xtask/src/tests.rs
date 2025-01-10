@@ -87,7 +87,8 @@ impl Tests {
         let tests = tests
             .into_iter()
             .filter_map(|test| {
-                if !test.extension().map_or(false, |ext| ext == "toml") {
+                let ext = test.extension()?;
+                if ext != "toml" {
                     return None;
                 }
                 let file = sh.read_file(&test).unwrap();

@@ -134,7 +134,7 @@ impl SourceFile {
     pub fn substr(&self, v: &str) -> Option<Slice<SourceFile>> {
         unsafe {
             let beginning = self.as_bytes().as_ptr();
-            let end = beginning.add(self.as_bytes().len());
+            let end = beginning.add(self.len());
 
             if !(beginning..=end).contains(&v.as_ptr()) {
                 return None;
