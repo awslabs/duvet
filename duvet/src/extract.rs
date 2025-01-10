@@ -5,15 +5,16 @@
 
 use crate::{
     annotation::AnnotationLevel,
+    project::Project,
     specification::{Format, Line, Section, Specification},
     target::{self, Target, TargetPath},
     Result,
 };
 use clap::Parser;
-use duvet_core::{diagnostic::IntoDiagnostic, path::Path};
+use duvet_core::{diagnostic::IntoDiagnostic, error, path::Path, progress};
 use lazy_static::lazy_static;
 use regex::{Regex, RegexSet};
-use std::{fs::OpenOptions, io::BufWriter, path::PathBuf, sync::Arc};
+use std::{fs::OpenOptions, io::BufWriter, sync::Arc};
 
 #[cfg(test)]
 mod tests;
@@ -53,65 +54,118 @@ pub struct Extract {
     extension: String,
 
     #[clap(short, long, default_value = ".")]
-    out: PathBuf,
+    out: Path,
 
-    /// Path to store the collection of spec files
-    ///
-    /// The collection of spec files are stored in a folder called `specs`. The
-    /// `specs` folder is stored in the current directory by default. Use this
-    /// argument to override the default location.
-    #[clap(long = "spec-path")]
-    pub spec_path: Option<Path>,
+    #[clap(flatten)]
+    project: Project,
 
-    target: TargetPath,
+    target_path: TargetPath,
 }
 
 impl Extract {
     pub async fn exec(&self) -> Result {
-        let spec_path = self.spec_path.clone();
-        let local_path = self.target.local(spec_path.as_ref());
+        let download_path = self.project.download_path().await?;
+
         let target = Arc::new(Target {
             format: self.format,
-            path: self.target.clone(),
+            path: self.target_path.clone(),
         });
-        let spec = target::to_specification(target, spec_path).await?;
-        let sections = extract_sections(&spec);
 
+        Extraction {
+            download_path: &download_path,
+            base_path: None,
+            target,
+            out: &self.out,
+            extension: &self.extension,
+            log: true,
+        }
+        .exec()
+        .await
+    }
+}
+
+pub struct Extraction<'a> {
+    pub download_path: &'a Path,
+    pub base_path: Option<&'a Path>,
+    pub target: Arc<Target>,
+    pub out: &'a Path,
+    pub extension: &'a str,
+    pub log: bool,
+}
+
+impl Extraction<'_> {
+    pub async fn exec(self) -> Result {
         if self.out.extension().is_some() {
             // assume a path with an extension is a single file
-            // TODO output to single file
-            todo!("single file not implemented");
+            // TODO output to single file?
+            return Err(error!(
+                "single file extraction not supported, got {}",
+                self.out.display()
+            ));
+        }
+
+        let download_path = self.download_path;
+        let local_path = self.target.path.local(download_path);
+
+        // The specification may be stored alongside the extracted TOML.
+        let out = match local_path.strip_prefix(self.out) {
+            Ok(path) => self.out.join(path),
+            Err(_e) => {
+                let local_path = self
+                    .base_path
+                    .and_then(|base| local_path.strip_prefix(base).ok())
+                    .unwrap_or(&local_path);
+                self.out.join(local_path)
+            }
+        };
+
+        let progress = if self.log {
+            Some(progress!(
+                "Extracting requirements from {}",
+                self.target.path
+            ))
         } else {
-            // output to directory
+            None
+        };
 
-            sections.iter().try_for_each(|(section, features)| {
-                // The specification may be stored alongside the extracted TOML.
-                let mut out = match local_path.strip_prefix(&self.out) {
-                    Ok(path) => self.out.join(path),
-                    Err(_e) => self.out.join(&local_path),
-                };
+        let spec = target::to_specification(self.target.clone(), download_path.clone()).await?;
+        let sections = extract_sections(&spec);
 
-                out.set_extension("");
-                let _ = std::fs::create_dir_all(&out);
-                out.push(format!("{}.{}", section.id, self.extension));
+        // output to directory
 
-                let file = OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .truncate(true)
-                    .open(out)?;
-                let mut file = BufWriter::new(file);
+        let mut total = 0;
 
-                let target = &self.target;
+        for (section, features) in sections.iter() {
+            total += features.len();
 
-                match &self.extension[..] {
-                    "rs" => write_rust(&mut file, target, section, features)?,
-                    "toml" => write_toml(&mut file, target, section, features)?,
-                    ext => unimplemented!("{}", ext),
-                }
+            let mut out = out.to_path_buf();
 
-                <Result>::Ok(())
-            })?;
+            out.set_extension("");
+            let _ = std::fs::create_dir_all(&out);
+            out.push(format!("{}.{}", section.id, self.extension));
+
+            let file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(out)?;
+            let mut file = BufWriter::new(file);
+
+            let target = &self.target.path;
+
+            match self.extension {
+                "rs" => write_rust(&mut file, target, section, features)?,
+                "toml" => write_toml(&mut file, target, section, features)?,
+                ext => return Err(error!("unsupported extraction type: {ext:?}")),
+            }
+        }
+
+        if let Some(progress) = progress {
+            progress!(
+                progress,
+                "Extracted {total} requirements across {} sections",
+                sections.len()
+            );
         }
 
         Ok(())
@@ -139,17 +193,17 @@ fn extract_section(section: &Section) -> (&Section, Vec<Feature>) {
 
         if KEY_WORDS_SET.is_match(line) {
             for (key_word, level) in KEY_WORDS.iter() {
-                for occurance in key_word.find_iter(line) {
+                for occurrence in key_word.find_iter(line) {
                     // filter out any matches in quotes - these are definitions in the
                     // document
-                    if occurance.as_str().ends_with('"') {
+                    if occurrence.as_str().ends_with('"') {
                         continue;
                     }
 
                     let mut quote = vec![];
 
-                    let start = find_open(lines, lineno, occurance.start());
-                    let end = find_close(lines, lineno, occurance.end());
+                    let start = find_open(lines, lineno, occurrence.start());
+                    let end = find_close(lines, lineno, occurrence.end());
 
                     #[allow(clippy::needless_range_loop)]
                     for i in start.0..=end.0 {
