@@ -9,6 +9,7 @@ use crate::{
 use core::{fmt, str::FromStr};
 use duvet_core::{diagnostic::IntoDiagnostic, file::SourceFile, path::Path, progress, query};
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     sync::Arc,
 };
@@ -127,7 +128,7 @@ impl TargetPath {
     pub async fn load(&self, spec_download_path: Option<&Path>) -> Result<SourceFile> {
         match self {
             Self::Url(url) => {
-                let canonical_url = Self::canonical_url(url.as_str());
+                let canonical_url = Self::canonical_url(url.as_str()).to_string();
                 let path = self.local(spec_download_path);
 
                 let progress = if !path.exists() {
@@ -158,8 +159,21 @@ impl TargetPath {
                 }
                 .to_path_buf();
                 path.push("specs");
-                path.push(url.host_str().expect("url should have host"));
-                path.extend(url.path_segments().expect("url should have path"));
+
+                let mut push_url = |url: &Url| {
+                    path.push(url.host_str().expect("url should have host"));
+                    path.extend(url.path_segments().expect("url should have path"));
+                };
+
+                let canonical_url = Self::canonical_url(url.as_str());
+
+                if matches!(canonical_url, Cow::Borrowed(_)) {
+                    push_url(url)
+                } else {
+                    let url = Url::parse(&canonical_url).unwrap();
+                    push_url(&url)
+                }
+
                 path.set_extension("txt");
                 path.into()
             }
@@ -167,19 +181,33 @@ impl TargetPath {
         }
     }
 
-    fn canonical_url(url: &str) -> String {
+    fn canonical_url(url: &str) -> Cow<str> {
+        fn remove_extension(url: &str) -> &str {
+            url.trim_end_matches('/')
+                .trim_end_matches(".txt")
+                .trim_end_matches(".html")
+                .trim_end_matches(".xml")
+                .trim_end_matches(".pdf")
+        }
+
         // rewrite some of the IETF links for convenience
-        if let Some(rfc) = url.strip_prefix("https://tools.ietf.org/rfc/") {
-            let rfc = rfc.trim_end_matches(".txt").trim_end_matches(".html");
-            return format!("https://www.rfc-editor.org/rfc/{}.txt", rfc);
+        let patterns = [
+            "https://www.rfc-editor.org/rfc/rfc",
+            "http://www.rfc-editor.org/rfc/rfc",
+            "https://tools.ietf.org/rfc/rfc",
+            "http://tools.ietf.org/rfc/rfc",
+            "https://datatracker.ietf.org/doc/html/rfc",
+            "http://datatracker.ietf.org/doc/html/rfc",
+        ];
+
+        for pattern in patterns {
+            if let Some(rfc) = url.strip_prefix(pattern) {
+                let rfc = remove_extension(rfc);
+                return format!("{}{rfc}.txt", patterns[0]).into();
+            }
         }
 
-        if url.starts_with("https://www.rfc-editor.org/rfc/") {
-            let rfc = url.trim_end_matches(".txt").trim_end_matches(".html");
-            return format!("{}.txt", rfc);
-        }
-
-        url.to_owned()
+        url.into()
     }
 }
 
@@ -195,5 +223,33 @@ impl FromStr for TargetPath {
 
         let path = Path::from(path);
         Ok(Self::Path(path))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TargetPath;
+
+    #[test]
+    fn canonical_url_test() {
+        let urls = [
+            "https://www.rfc-editor.org/rfc/rfc9000.txt",
+            "https://www.rfc-editor.org/rfc/rfc9000",
+            "https://www.rfc-editor.org/rfc/rfc9000.html",
+            "https://www.rfc-editor.org/rfc/rfc9000.xml",
+            "https://www.rfc-editor.org/rfc/rfc9000.pdf",
+            "https://datatracker.ietf.org/doc/html/rfc9000",
+            "https://datatracker.ietf.org/doc/html/rfc9000.html",
+            "https://datatracker.ietf.org/doc/html/rfc9000.txt",
+            "https://tools.ietf.org/rfc/rfc9000",
+            "https://tools.ietf.org/rfc/rfc9000.txt",
+            "https://tools.ietf.org/rfc/rfc9000.html",
+        ];
+
+        let expected = urls[0];
+        for url in urls {
+            let canonical = TargetPath::canonical_url(url);
+            assert_eq!(expected, canonical);
+        }
     }
 }
