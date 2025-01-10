@@ -101,7 +101,7 @@ impl fmt::Display for ReportError<'_> {
                 "{}#{} - section {:?} not found in {:?}",
                 annotation.source.display(),
                 annotation.anno_line,
-                annotation.target_section().unwrap_or("-"),
+                annotation.target_section().as_deref().unwrap_or("-"),
                 annotation.target_path(),
             ),
         }
@@ -119,26 +119,21 @@ impl Report {
 
         let mut contents = HashMap::new();
         for target in targets.iter() {
-            let spec_path = self.project.spec_path.as_deref();
+            let spec_path = self.project.spec_path.as_ref();
             let file = target.path.load(spec_path).await?;
 
             contents.insert(target, file);
         }
-
-        let specifications: HashMap<_, _> = contents
-            .iter()
-            .map(|(target, contents)| {
-                let spec = target.format.parse(contents).unwrap();
-                (target, spec)
-            })
-            .collect();
+        let spec_path = self.project.spec_path.clone();
+        let specifications =
+            crate::annotation::specifications(annotations.clone(), spec_path).await?;
 
         let reference_map = annotations.reference_map()?;
 
         let results: Vec<_> = reference_map
             .iter()
             .flat_map(|((target, section_id), annotations)| {
-                let spec = specifications.get(&target).expect("spec already checked");
+                let spec = specifications.get(target).expect("spec already checked");
 
                 let mut results = vec![];
 
@@ -220,7 +215,7 @@ impl Report {
                 .or_insert_with(|| TargetReport {
                     target,
                     references: BTreeSet::new(),
-                    specification: specifications.get(&target).expect("content should exist"),
+                    specification: specifications.get(target).expect("content should exist"),
                     require_citations: self.require_citations(),
                     require_tests: self.require_tests(),
                     statuses: Default::default(),

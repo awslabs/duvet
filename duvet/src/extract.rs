@@ -10,7 +10,7 @@ use crate::{
     Result,
 };
 use clap::Parser;
-use duvet_core::diagnostic::IntoDiagnostic;
+use duvet_core::{diagnostic::IntoDiagnostic, path::Path};
 use lazy_static::lazy_static;
 use regex::{Regex, RegexSet};
 use std::{fs::OpenOptions, io::BufWriter, path::PathBuf};
@@ -61,14 +61,14 @@ pub struct Extract {
     /// `specs` folder is stored in the current directory by default. Use this
     /// argument to override the default location.
     #[clap(long = "spec-path")]
-    pub spec_path: Option<String>,
+    pub spec_path: Option<Path>,
 
     target: TargetPath,
 }
 
 impl Extract {
     pub async fn exec(&self) -> Result {
-        let contents = self.target.load(self.spec_path.as_deref()).await?;
+        let contents = self.target.load(self.spec_path.as_ref()).await?;
         let local_path = contents.path();
 
         let spec = self.format.parse(&contents)?;

@@ -3,7 +3,7 @@
 
 use crate::{comment, source::SourceFile, Result};
 use clap::Parser;
-use duvet_core::diagnostic::IntoDiagnostic;
+use duvet_core::{diagnostic::IntoDiagnostic, path::Path};
 use glob::glob;
 use std::collections::HashSet;
 
@@ -63,7 +63,7 @@ pub struct Project {
     /// `specs` folder is stored in the current directory by default. Use this
     /// argument to override the default location.
     #[clap(long = "spec-path")]
-    pub spec_path: Option<String>,
+    pub spec_path: Option<Path>,
 }
 
 impl Project {
