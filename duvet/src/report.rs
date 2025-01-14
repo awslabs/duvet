@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    annotation::{Annotation, AnnotationLevel, AnnotationSet, AnnotationSetExt},
+    annotation::{self, Annotation, AnnotationLevel, AnnotationSet, AnnotationWithId},
     project::Project,
     specification::Specification,
     target::Target,
@@ -10,10 +10,9 @@ use crate::{
 };
 use clap::Parser;
 use core::fmt;
-use duvet_core::error;
+use duvet_core::{error, path::Path, progress};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
-    path::PathBuf,
+    collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
 
@@ -32,13 +31,13 @@ pub struct Report {
     project: Project,
 
     #[clap(long)]
-    lcov: Option<PathBuf>,
+    lcov: Option<Path>,
 
     #[clap(long)]
-    json: Option<PathBuf>,
+    json: Option<Path>,
 
     #[clap(long)]
-    html: Option<PathBuf>,
+    html: Option<Path>,
 
     #[clap(long)]
     require_citations: Option<Option<bool>>,
@@ -57,16 +56,15 @@ pub struct Report {
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
-struct Reference<'a> {
+struct Reference {
     line: usize,
     start: usize,
     end: usize,
-    annotation_id: usize,
-    annotation: &'a Annotation,
+    annotation: AnnotationWithId,
     level: AnnotationLevel,
 }
 
-impl Reference<'_> {
+impl Reference {
     pub fn start(&self) -> usize {
         self.start
     }
@@ -110,25 +108,22 @@ impl fmt::Display for ReportError<'_> {
 
 impl Report {
     pub async fn exec(&self) -> Result {
-        let project_sources = self.project.sources()?;
+        let progress = progress!("Scanning sources");
+        let project_sources = self.project.sources().await?;
         let project_sources = Arc::new(project_sources);
+        progress!(progress, "Scanned {} sources", project_sources.len());
 
+        let progress = progress!("Extracing annotations");
         let annotations = crate::annotation::query(project_sources.clone()).await?;
+        progress!(progress, "Extracted {} annotations", annotations.len());
 
-        let targets = annotations.targets()?;
-
-        let mut contents = HashMap::new();
-        for target in targets.iter() {
-            let spec_path = self.project.spec_path.as_ref();
-            let file = target.path.load(spec_path).await?;
-
-            contents.insert(target, file);
-        }
+        let progress = progress!("Loading specifications");
         let spec_path = self.project.spec_path.clone();
-        let specifications =
-            crate::annotation::specifications(annotations.clone(), spec_path).await?;
+        let specifications = annotation::specifications(annotations.clone(), spec_path).await?;
+        progress!(progress, "Loaded {} specifications", specifications.len());
 
-        let reference_map = annotations.reference_map()?;
+        let progress = progress!("Compiling references");
+        let reference_map = annotation::reference_map(annotations.clone()).await?;
 
         let results: Vec<_> = reference_map
             .iter()
@@ -141,7 +136,7 @@ impl Report {
                     if let Some(section) = spec.section(section_id) {
                         let contents = section.view();
 
-                        for (annotation_id, annotation) in annotations {
+                        for annotation in annotations.iter() {
                             if annotation.quote.is_empty() {
                                 // empty quotes don't count towards coverage but are still
                                 // references
@@ -152,8 +147,7 @@ impl Report {
                                         line: text.line(),
                                         start: text.range().start,
                                         end: text.range().end,
-                                        annotation,
-                                        annotation_id: *annotation_id,
+                                        annotation: annotation.clone(),
                                         level: annotation.level,
                                     },
                                 )));
@@ -168,8 +162,7 @@ impl Report {
                                             line: text.line(),
                                             start: text.range().start,
                                             end: text.range().end,
-                                            annotation,
-                                            annotation_id: *annotation_id,
+                                            annotation: annotation.clone(),
                                             level: annotation.level,
                                         },
                                     )));
@@ -180,7 +173,7 @@ impl Report {
                             }
                         }
                     } else {
-                        for (_, annotation) in annotations {
+                        for annotation in annotations.iter() {
                             results.push(Err((target, ReportError::MissingSection { annotation })));
                         }
                     }
@@ -197,7 +190,7 @@ impl Report {
 
         let mut report = ReportResult {
             targets: Default::default(),
-            annotations: &annotations,
+            annotations,
             blob_link: self.blob_link.as_deref(),
             issue_link: self.issue_link.as_deref(),
         };
@@ -208,18 +201,22 @@ impl Report {
                 Ok((target, entry)) => (target, Ok(entry)),
                 Err((target, err)) => (target, Err(err)),
             };
+            let target = target.clone();
 
-            let entry = report
-                .targets
-                .entry(target)
-                .or_insert_with(|| TargetReport {
+            let entry = report.targets.entry(target.clone()).or_insert_with(|| {
+                let specification = specifications
+                    .get(&target)
+                    .expect("content should exist")
+                    .clone();
+                TargetReport {
                     target,
                     references: BTreeSet::new(),
-                    specification: specifications.get(target).expect("content should exist"),
+                    specification,
                     require_citations: self.require_citations(),
                     require_tests: self.require_tests(),
                     statuses: Default::default(),
-                });
+                }
+            });
 
             match result {
                 Ok(reference) => {
@@ -230,6 +227,12 @@ impl Report {
                 }
             }
         }
+
+        progress!(
+            progress,
+            "Compiled references in {} sections",
+            reference_map.len()
+        );
 
         if !errors.is_empty() {
             for error in &errors {
@@ -246,26 +249,28 @@ impl Report {
             .iter_mut()
             .for_each(|(_, target)| target.statuses.populate(&target.references));
 
-        if let Some(dir) = &self.lcov {
-            lcov::report(&report, dir)?;
-        }
+        type ReportFn = fn(&ReportResult, &Path) -> crate::Result<()>;
 
-        if let Some(file) = &self.json {
-            json::report(&report, file)?;
-        }
+        let reports: &[(&Option<_>, ReportFn)] = &[
+            (&self.json, json::report),
+            (&self.html, html::report),
+            (&self.lcov, lcov::report),
+            (
+                &std::env::var("DUVET_INTERNAL_CI_JSON").ok().map(Path::from),
+                json::report,
+            ),
+            (
+                &std::env::var("DUVET_INTERNAL_CI_HTML").ok().map(Path::from),
+                html::report,
+            ),
+        ];
 
-        if let Some(dir) = &self.html {
-            html::report(&report, dir)?;
-        }
-
-        // used for internal duvet CI checks
-        if let Ok(file) = std::env::var("DUVET_INTERNAL_CI_JSON") {
-            json::report(&report, std::path::Path::new(&file))?;
-        }
-
-        // used for internal duvet CI checks
-        if let Ok(file) = std::env::var("DUVET_INTERNAL_CI_HTML") {
-            html::report(&report, std::path::Path::new(&file))?;
+        for (path, report_fn) in reports {
+            if let Some(path) = path {
+                let progress = progress!("Writing {path}");
+                report_fn(&report, path)?;
+                progress!(progress, "Wrote {path}");
+            }
         }
 
         if self.ci {
@@ -294,23 +299,23 @@ impl Report {
 
 #[derive(Debug)]
 pub struct ReportResult<'a> {
-    pub targets: BTreeMap<&'a Target, TargetReport<'a>>,
-    pub annotations: &'a AnnotationSet,
+    pub targets: BTreeMap<Arc<Target>, TargetReport>,
+    pub annotations: AnnotationSet,
     pub blob_link: Option<&'a str>,
     pub issue_link: Option<&'a str>,
 }
 
 #[derive(Debug)]
-pub struct TargetReport<'a> {
-    target: &'a Target,
-    references: BTreeSet<Reference<'a>>,
-    specification: &'a Specification,
+pub struct TargetReport {
+    target: Arc<Target>,
+    references: BTreeSet<Reference>,
+    specification: Arc<Specification>,
     require_citations: bool,
     require_tests: bool,
     statuses: status::StatusMap,
 }
 
-impl TargetReport<'_> {
+impl TargetReport {
     #[allow(dead_code)]
     pub fn statistics(&self) -> Statistics {
         let mut stats = Statistics::default();

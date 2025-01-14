@@ -7,12 +7,11 @@ use crate::{
     specification::Line,
     Error, Result,
 };
-use duvet_core::file::Slice;
+use duvet_core::{file::Slice, path::Path};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs::File,
     io::{BufWriter, Cursor, Write},
-    path::Path,
 };
 
 macro_rules! writer {
@@ -268,7 +267,7 @@ pub fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) 
     let mut requirements = BTreeSet::new();
     for reference in &report.references {
         if reference.annotation.anno == AnnotationType::Spec {
-            requirements.insert(reference.annotation_id);
+            requirements.insert(reference.annotation.id);
         }
         references
             .entry(reference.line())
@@ -402,9 +401,9 @@ fn report_references<Output: Write>(
                         arr,
                         arr!(|arr| {
                             for r in current_refs {
-                                item!(arr, w!(r.annotation_id));
+                                item!(arr, w!(r.annotation.id));
                                 if r.annotation.anno == AnnotationType::Spec {
-                                    requirements.insert(r.annotation_id);
+                                    requirements.insert(r.annotation.id);
                                 }
                                 status.on_anno(r);
                             }
