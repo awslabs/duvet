@@ -34,7 +34,7 @@ impl StatusMap {
                     coverage.entry(offset).or_default().push(r);
                 }
             } else {
-                specs.entry(r.annotation_id).or_default().push(r);
+                specs.entry(r.annotation.id).or_default().push(r);
             }
         }
 
@@ -49,7 +49,7 @@ impl StatusMap {
                     for (offset, refs) in coverage.range(r.start()..r.end()) {
                         for r in refs {
                             spec.insert(*offset, r);
-                            spec.related.insert(r.annotation_id);
+                            spec.related.insert(r.annotation.id);
                         }
                     }
                 }

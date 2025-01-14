@@ -3,10 +3,10 @@
 
 use super::ReportResult;
 use crate::Result;
+use duvet_core::path::Path;
 use std::{
     fs::File,
     io::{BufWriter, Write},
-    path::Path,
 };
 
 #[rustfmt::skip] // it gets really confused with macros that generate macros

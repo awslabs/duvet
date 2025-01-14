@@ -67,7 +67,7 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn sources(&self) -> Result<HashSet<SourceFile>> {
+    pub async fn sources(&self) -> Result<HashSet<SourceFile>> {
         let mut sources = HashSet::new();
 
         for pattern in &self.source_patterns {
