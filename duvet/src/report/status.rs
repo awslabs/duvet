@@ -4,7 +4,6 @@
 use super::Reference;
 use crate::annotation::AnnotationType;
 use core::ops::Deref;
-use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 // TODO use a real interval set
@@ -24,33 +23,33 @@ impl Deref for StatusMap {
 }
 
 impl StatusMap {
-    pub(super) fn populate(&mut self, references: &BTreeSet<Reference>) {
+    pub(super) fn populate(&mut self, references: &[Reference]) {
         let mut specs: BTreeMap<AnnotationId, Vec<&Reference>> = BTreeMap::new();
         let mut coverage: BTreeMap<usize, Vec<&Reference>> = BTreeMap::new();
 
         // first build up a map of all of the references at any given offset
         for r in references {
             if r.annotation.anno != AnnotationType::Spec {
-                for offset in r.start..r.end {
+                for offset in r.start()..r.end() {
                     coverage.entry(offset).or_default().push(r);
                 }
             } else {
-                specs.entry(r.annotation_id).or_default().push(r);
+                specs.entry(r.annotation.id).or_default().push(r);
             }
         }
 
         self.0 = specs
-            .par_iter()
+            .iter()
             .map(|(anno_id, refs)| {
                 let mut spec = SpecReport::default();
                 for r in refs {
-                    for offset in r.start..r.end {
+                    for offset in r.start()..r.end() {
                         spec.insert(offset, r);
                     }
-                    for (offset, refs) in coverage.range(r.start..r.end) {
+                    for (offset, refs) in coverage.range(r.start()..r.end()) {
                         for r in refs {
                             spec.insert(*offset, r);
-                            spec.related.insert(r.annotation_id);
+                            spec.related.insert(r.annotation.id);
                         }
                     }
                 }

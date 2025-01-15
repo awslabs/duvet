@@ -1,10 +1,11 @@
 ---
-source: duvet/src/text.rs
+source: duvet/src/text/find.rs
 expression: "find(\"d\", \"a b c d\")"
 ---
 Some(
     (
         6..7,
+        Exact,
         "d",
     ),
 )

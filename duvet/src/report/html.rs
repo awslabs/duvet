@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::ReportResult;
+use crate::Result;
+use duvet_core::path::Path;
 use std::{
     fs::File,
-    io::{BufWriter, Error, Write},
-    path::Path,
+    io::{BufWriter, Write},
 };
 
 #[rustfmt::skip] // it gets really confused with macros that generate macros
@@ -20,7 +21,7 @@ macro_rules! writer {
     };
 }
 
-pub fn report(report: &ReportResult, file: &Path) -> Result<(), Error> {
+pub fn report(report: &ReportResult, file: &Path) -> Result {
     if let Some(parent) = file.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -30,10 +31,7 @@ pub fn report(report: &ReportResult, file: &Path) -> Result<(), Error> {
     report_writer(report, &mut file)
 }
 
-pub fn report_writer<Output: Write>(
-    report: &ReportResult,
-    output: &mut Output,
-) -> Result<(), Error> {
+pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) -> Result {
     writer!(output);
 
     w!("<!DOCTYPE html>\n");

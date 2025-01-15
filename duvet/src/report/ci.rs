@@ -2,27 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{ReportResult, TargetReport};
-use crate::annotation::AnnotationType;
-use anyhow::anyhow;
-use rayon::prelude::*;
+use crate::{annotation::AnnotationType, Result};
+use duvet_core::error;
 use std::collections::HashSet;
 
-pub fn report(report: &ReportResult) -> Result<(), anyhow::Error> {
+pub fn report(report: &ReportResult) -> Result {
     report
         .targets
-        .par_iter()
-        .map(|(_source, report)| enforce_source(report))
-        .collect::<Result<(), anyhow::Error>>()
+        .iter()
+        .try_for_each(|(_source, report)| enforce_source(report))
 }
 
-pub fn enforce_source(report: &TargetReport) -> Result<(), anyhow::Error> {
+pub fn enforce_source(report: &TargetReport) -> Result {
     let mut cited_lines = HashSet::new();
     let mut tested_lines = HashSet::new();
     let mut significant_lines = HashSet::new();
 
     // record all references to specific sections
     for reference in &report.references {
-        let line = reference.line;
+        let line = reference.line();
 
         significant_lines.insert(line);
 
@@ -50,23 +48,23 @@ pub fn enforce_source(report: &TargetReport) -> Result<(), anyhow::Error> {
     if report.require_citations {
         // Significant lines are not cited.
         if significant_lines.difference(&cited_lines).next().is_some() {
-            return Err(anyhow!("Specification requirements missing citation."));
+            return Err(error!("Specification requirements missing citation."));
         }
         // Citations that have no significance.
         if cited_lines.difference(&significant_lines).next().is_some() {
-            return Err(anyhow!("Citation for non-existing specification."));
+            return Err(error!("Citation for non-existing specification."));
         }
     }
 
     if report.require_tests {
         // Cited lines without tests
         if cited_lines.difference(&tested_lines).next().is_some() {
-            return Err(anyhow!("Citation missing test."));
+            return Err(error!("Citation missing test."));
         }
 
         // Tests without citation
         if cited_lines.difference(&tested_lines).next().is_some() {
-            return Err(anyhow!("Test for non-existing citation."));
+            return Err(error!("Test for non-existing citation."));
         }
     }
 

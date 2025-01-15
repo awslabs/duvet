@@ -5,11 +5,10 @@ use super::tokenizer::Token;
 use crate::{
     annotation::{Annotation, AnnotationLevel, AnnotationType},
     specification::Format,
+    Error,
 };
-use anyhow::anyhow;
 use duvet_core::{
-    diagnostic::Error,
-    ensure,
+    ensure, error,
     file::{Slice, SourceFile},
     Result,
 };
@@ -34,8 +33,7 @@ struct Meta {
     target: Option<Slice>,
     anno: Option<(AnnotationType, Slice)>,
     reason: Option<Slice>,
-    line: u32,
-    column: u32,
+    line: usize,
     feature: Option<Slice>,
     tracking_issue: Option<Slice>,
     level: Option<(AnnotationLevel, Slice)>,
@@ -43,7 +41,7 @@ struct Meta {
 }
 
 impl Meta {
-    fn set(&mut self, key: Option<Slice>, value: Slice) -> Result<()> {
+    fn set(&mut self, key: Option<Slice>, value: Slice) -> Result {
         let source_value = value.clone();
 
         let prev = match key.as_deref() {
@@ -66,15 +64,14 @@ impl Meta {
             Some(_) => {
                 return Err(key
                     .unwrap()
-                    .error(anyhow!("invalid metadata field"), "defined here"));
+                    .error(error!("invalid metadata field"), "defined here"));
             }
             None => core::mem::replace(&mut self.target, Some(value)),
         };
 
         if let Some(prev) = prev {
             let key = key.as_deref().unwrap_or("source");
-            let err: Error = anyhow!("{key:?} already specified").into();
-            let err = err
+            let err = error!("{key:?} already specified")
                 .with_source_slice(source_value, "redefined here")
                 .with_source_slice(prev, "already defined here");
             return Err(err);
@@ -85,14 +82,16 @@ impl Meta {
 
     fn build(self, contents: Vec<Slice>, default_type: AnnotationType) -> Result<Annotation> {
         let first_meta = self.first_meta.unwrap();
-        let source = first_meta.file().path().clone();
+        let source = first_meta.file().clone();
 
         let Some(target) = self.target else {
             return Err(first_meta.error(
-                anyhow!("comment is missing source specification"),
+                error!("comment is missing source specification"),
                 "defined here",
             ));
         };
+        let original_target = target.clone();
+        let target = target.to_string();
 
         let anno = self.anno.map_or(default_type, |v| v.0);
 
@@ -103,25 +102,40 @@ impl Meta {
         ] {
             if anno != allowed {
                 if let Some(value) = field {
-                    return Err(value.error(anyhow!("invalid key for type {anno}"), "defined here"));
+                    return Err(value.error(error!("invalid key for type {anno}"), "defined here"));
                 }
             }
         }
 
+        let mut original_text = first_meta.range();
+        let mut original_quote = original_text.clone();
+
         let mut quote = String::new();
-        for (idx, part) in contents.into_iter().enumerate() {
-            if idx > 0 {
+        for (idx, part) in contents.iter().enumerate() {
+            if idx == 0 {
+                original_quote = part.range();
+            } else {
                 quote.push(' ');
             }
+
+            original_text.start = original_text.start.min(part.range().start);
+            original_text.end = original_text.end.max(part.range().end);
+            original_quote.end = original_quote.end.max(part.range().end);
+
             quote.push_str(part.trim());
         }
 
+        let original_text = source.substr_range(original_text).unwrap();
+        let original_quote = source.substr_range(original_quote).unwrap();
+
         let annotation = Annotation {
-            source,
+            source: source.path().clone(),
             anno_line: self.line,
-            anno_column: self.column,
             anno,
-            target: target.to_string(),
+            original_text,
+            original_target,
+            original_quote,
+            target,
             quote,
             manifest_dir: duvet_core::env::current_dir()?,
             comment: self.reason.map(|v| v.to_string()).unwrap_or_default(),

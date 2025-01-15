@@ -11,231 +11,111 @@ Ok(
             Section {
                 id: "list-example",
                 title: "List example",
-                full_title: Str {
-                    value: "List example",
-                    pos: 3,
-                    line: 2,
-                },
+                full_title: "List example",
                 lines: [
                     Str(
-                        Str {
-                            value: "Here is a list:",
-                            pos: 17,
-                            line: 4,
-                        },
+                        "Here is a list:",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "* Item 1",
-                            pos: 33,
-                            line: 5,
-                        },
+                        "* Item 1",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "* Item 2",
-                            pos: 42,
-                            line: 6,
-                        },
+                        "* Item 2",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "  * Item 2.1",
-                            pos: 51,
-                            line: 7,
-                        },
+                        "  * Item 2.1",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "* Item 3",
-                            pos: 64,
-                            line: 8,
-                        },
+                        "* Item 3",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "  * Item 3.1",
-                            pos: 73,
-                            line: 9,
-                        },
+                        "  * Item 3.1",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "    * Item 3.1.1",
-                            pos: 86,
-                            line: 10,
-                        },
+                        "    * Item 3.1.1",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "    * Item 3.1.2",
-                            pos: 103,
-                            line: 11,
-                        },
+                        "    * Item 3.1.2",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "  * Item 3.2",
-                            pos: 120,
-                            line: 12,
-                        },
+                        "  * Item 3.2",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "",
-                            pos: 133,
-                            line: 13,
-                        },
+                        "",
                     ),
                     Str(
-                        Str {
-                            value: "Here is a numbered list:",
-                            pos: 134,
-                            line: 14,
-                        },
+                        "Here is a numbered list:",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "1. Item 1",
-                            pos: 159,
-                            line: 15,
-                        },
+                        "1. Item 1",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "2. Item 2",
-                            pos: 169,
-                            line: 16,
-                        },
+                        "2. Item 2",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "3. Item 3",
-                            pos: 179,
-                            line: 17,
-                        },
+                        "3. Item 3",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "",
-                            pos: 189,
-                            line: 18,
-                        },
+                        "",
                     ),
                     Str(
-                        Str {
-                            value: "Here is a list with content:",
-                            pos: 190,
-                            line: 19,
-                        },
+                        "Here is a list with content:",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "* Item",
-                            pos: 219,
-                            line: 20,
-                        },
+                        "* Item",
                     ),
                     Str(
-                        Str {
-                            value: "  More content",
-                            pos: 226,
-                            line: 21,
-                        },
+                        "  More content",
                     ),
                     Str(
-                        Str {
-                            value: "",
-                            pos: 241,
-                            line: 22,
-                        },
+                        "",
                     ),
                     Str(
-                        Str {
-                            value: "  Other content",
-                            pos: 242,
-                            line: 23,
-                        },
+                        "  Other content",
                     ),
                     Str(
-                        Str {
-                            value: "",
-                            pos: 258,
-                            line: 24,
-                        },
+                        "",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "  * Testing",
-                            pos: 259,
-                            line: 25,
-                        },
+                        "  * Testing",
                     ),
                     Str(
-                        Str {
-                            value: "",
-                            pos: 271,
-                            line: 26,
-                        },
+                        "",
                     ),
                     Str(
-                        Str {
-                            value: "    Other test",
-                            pos: 272,
-                            line: 27,
-                        },
+                        "    Other test",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "",
-                            pos: 287,
-                            line: 28,
-                        },
+                        "",
                     ),
                     Str(
-                        Str {
-                            value: "Testing 123",
-                            pos: 288,
-                            line: 29,
-                        },
+                        "Testing 123",
                     ),
                     Str(
-                        Str {
-                            value: "",
-                            pos: 300,
-                            line: 30,
-                        },
+                        "",
                     ),
                     Break,
                     Str(
-                        Str {
-                            value: "* Item",
-                            pos: 301,
-                            line: 31,
-                        },
+                        "* Item",
                     ),
                     Str(
-                        Str {
-                            value: "More content",
-                            pos: 308,
-                            line: 32,
-                        },
+                        "More content",
                     ),
                 ],
             },

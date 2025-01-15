@@ -2,12 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::file::{Slice, SourceFile};
-pub use miette::Report;
+pub use miette::{miette as miette_error, Context, Report};
 use miette::{Diagnostic, LabeledSpan};
 use std::{error::Error as StdError, fmt, sync::Arc};
 
+#[macro_export]
+macro_rules! error {
+    ($($tt:tt)*) => {{
+        let error: $crate::diagnostic::Error = $crate::diagnostic::miette_error!($($tt)*).into();
+        error
+    }};
+}
+
 #[derive(Clone)]
 pub struct Error(Arc<Report>);
+
+impl Error {
+    pub fn snapshot(&self) -> Snapshot {
+        Snapshot(self.clone())
+    }
+}
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
@@ -27,26 +41,6 @@ impl fmt::Debug for Error {
     }
 }
 
-pub trait IntoDiagnostic<T, E> {
-    fn into_diagnostic(self) -> Result<T, Error>;
-}
-
-impl<T, E: 'static + std::error::Error + Send + Sync> IntoDiagnostic<T, E> for Result<T, E> {
-    fn into_diagnostic(self) -> Result<T, Error> {
-        miette::IntoDiagnostic::into_diagnostic(self).map_err(Error::from)
-    }
-}
-
-impl IntoDiagnostic<(), ()> for Vec<Error> {
-    fn into_diagnostic(self) -> Result<(), Error> {
-        if self.is_empty() {
-            Ok(())
-        } else {
-            Err(self.into())
-        }
-    }
-}
-
 impl Error {
     pub fn with_source_slice(
         &self,
@@ -57,6 +51,14 @@ impl Error {
             error: self.clone(),
             source_code,
             label: label.as_ref().to_string(),
+        })
+        .into()
+    }
+
+    pub fn with_help<H: fmt::Display>(&self, help: H) -> Self {
+        Report::new(WithHelp {
+            error: self.clone(),
+            help: help.to_string(),
         })
         .into()
     }
@@ -96,12 +98,6 @@ impl Diagnostic for Error {
     }
 }
 
-impl From<anyhow::Error> for Error {
-    fn from(value: anyhow::Error) -> Self {
-        Report::msg(value).into()
-    }
-}
-
 impl From<std::io::Error> for Error {
     fn from(value: std::io::Error) -> Self {
         Report::msg(value).into()
@@ -137,6 +133,103 @@ impl From<Set> for Error {
         miette::IntoDiagnostic::into_diagnostic(Err::<(), _>(err))
             .unwrap_err()
             .into()
+    }
+}
+
+pub struct Snapshot(Error);
+
+impl fmt::Display for Snapshot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use miette::ReportHandler;
+
+        let handler = miette::DebugReportHandler::new();
+
+        if let Some(set) = (self.0).0.downcast_ref::<Set>() {
+            for error in set.errors.iter() {
+                handler.display(error, f)?;
+            }
+        } else {
+            handler.display(&self.0, f)?;
+        }
+
+        Ok(())
+    }
+}
+
+pub trait IntoDiagnostic<T, E> {
+    fn into_diagnostic(self) -> Result<T, Error>;
+}
+
+impl<T, E: 'static + std::error::Error + Send + Sync> IntoDiagnostic<T, E> for Result<T, E> {
+    fn into_diagnostic(self) -> Result<T, Error> {
+        miette::IntoDiagnostic::into_diagnostic(self).map_err(Error::from)
+    }
+}
+
+impl IntoDiagnostic<(), ()> for Vec<Error> {
+    fn into_diagnostic(self) -> Result<(), Error> {
+        if self.is_empty() {
+            Ok(())
+        } else {
+            Err(self.into())
+        }
+    }
+}
+
+struct WithHelp {
+    error: Error,
+    help: String,
+}
+
+impl fmt::Display for WithHelp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.error.fmt(f)
+    }
+}
+
+impl fmt::Debug for WithHelp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.error.fmt(f)
+    }
+}
+
+impl StdError for WithHelp {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.error.source()
+    }
+}
+
+impl Diagnostic for WithHelp {
+    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        self.error.code()
+    }
+
+    fn severity(&self) -> Option<miette::Severity> {
+        self.error.severity()
+    }
+
+    fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        Some(Box::new(&self.help))
+    }
+
+    fn url<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        self.error.url()
+    }
+
+    fn labels<'a>(&'a self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + 'a>> {
+        self.error.labels()
+    }
+
+    fn source_code(&self) -> Option<&dyn miette::SourceCode> {
+        self.error.source_code()
+    }
+
+    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn Diagnostic> + 'a>> {
+        self.error.related()
+    }
+
+    fn diagnostic_source(&self) -> Option<&dyn Diagnostic> {
+        self.error.diagnostic_source()
     }
 }
 
@@ -226,7 +319,7 @@ pub struct Set {
 
 impl From<Vec<Error>> for Set {
     fn from(errors: Vec<Error>) -> Self {
-        let main = miette::miette!("encountered {} errors", errors.len()).into();
+        let main = error!("encountered {} errors", errors.len());
         let errors = Arc::from(errors);
         Self { main, errors }
     }

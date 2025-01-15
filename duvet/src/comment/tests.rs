@@ -3,10 +3,12 @@
 
 use super::*;
 
-fn parse(pattern: &str, value: &str) -> (AnnotationSet, Vec<Error>) {
+fn parse(pattern: &str, value: &str) -> (AnnotationSet, Vec<String>) {
     let file = SourceFile::new("file.rs", value).unwrap();
     let pattern = Pattern::from_arg(pattern).unwrap();
-    extract(&file, &pattern, Default::default())
+    let (annotations, errors) = extract(&file, &pattern, Default::default());
+    let errors = errors.into_iter().map(|error| error.to_string()).collect();
+    (annotations, errors)
 }
 
 macro_rules! snapshot {

@@ -1,10 +1,11 @@
 ---
-source: duvet/src/text.rs
+source: duvet/src/text/find.rs
 expression: "find(\"this is a new-line\", \"this is a new-\\nline\")"
 ---
 Some(
     (
         0..19,
+        Exact,
         "this is a new-\nline",
     ),
 )

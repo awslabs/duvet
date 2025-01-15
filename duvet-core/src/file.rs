@@ -111,6 +111,17 @@ impl SourceFile {
             .await
     }
 
+    pub fn mapping(&self) -> Mapping {
+        let contents = self.clone();
+        crate::Cache::current()
+            .get_or_init(*self.hash(), move || {
+                crate::Query::from(Mapping::new(&contents))
+            })
+            .try_get()
+            .expect("mapping is synchronous")
+            .clone()
+    }
+
     pub fn substr_range(&self, range: Range<usize>) -> Option<Slice> {
         let _ = self.get(range.clone())?;
         Some(Slice {
@@ -123,7 +134,7 @@ impl SourceFile {
     pub fn substr(&self, v: &str) -> Option<Slice<SourceFile>> {
         unsafe {
             let beginning = self.as_bytes().as_ptr();
-            let end = beginning.add(self.as_bytes().len());
+            let end = beginning.add(self.len());
 
             if !(beginning..=end).contains(&v.as_ptr()) {
                 return None;
@@ -137,12 +148,19 @@ impl SourceFile {
     ///
     /// Callers should ensure that the `v` is a slice of `self`
     pub unsafe fn substr_unchecked(&self, v: &str) -> Slice<SourceFile> {
-        let start = v.as_bytes().as_ptr() as usize - self.as_bytes().as_ptr() as usize;
+        let range = self.substr_to_range(v);
         Slice {
             file: self.clone(),
-            start,
-            end: start + v.len(),
+            start: range.start,
+            end: range.end,
         }
+    }
+
+    #[inline]
+    fn substr_to_range(&self, v: &str) -> Range<usize> {
+        let start = v.as_bytes().as_ptr() as usize - self.as_bytes().as_ptr() as usize;
+        let end = start + v.len();
+        start..end
     }
 
     pub fn lines_slices(&self) -> impl Iterator<Item = Slice> + '_ {
@@ -179,12 +197,7 @@ impl SourceCode for SourceFile {
 
         let contents = (**self).read_span(span, context_lines_before, context_lines_after)?;
 
-        let path = std::env::current_dir()
-            .ok()
-            .and_then(|cwd| self.path.strip_prefix(cwd).ok())
-            .unwrap_or(&self.path)
-            .display()
-            .to_string();
+        let path = self.path.to_string();
 
         Ok(Box::new(MietteSpanContents::new_named(
             path,
@@ -194,6 +207,78 @@ impl SourceCode for SourceFile {
             contents.column(),
             contents.line_count(),
         )))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Mapping {
+    line_offsets: Arc<[usize]>,
+    #[cfg(debug_assertions)]
+    offset_to_line: Arc<[usize]>,
+}
+
+impl Mapping {
+    #[cfg(not(debug_assertions))]
+    fn new(contents: &SourceFile) -> Self {
+        let mut line_offsets = vec![];
+
+        for line in contents.lines() {
+            let range = contents.substr_to_range(line);
+            line_offsets.push(range.start);
+        }
+
+        Self {
+            line_offsets: line_offsets.into(),
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn new(contents: &SourceFile) -> Self {
+        let mut offset_to_line = vec![];
+        let mut line_offsets = vec![];
+        let mut last_end = 0;
+        let mut last_line = 0;
+
+        for (lineno, line) in contents.lines().enumerate() {
+            // lines start at 1
+            let lineno = lineno + 1;
+
+            let range = contents.substr_to_range(line);
+
+            // fill in any newline gaps from the `lines` iter
+            for _ in 0..(range.start - last_end) {
+                offset_to_line.push(last_line);
+            }
+
+            for _ in range.clone() {
+                offset_to_line.push(lineno);
+            }
+
+            last_line = lineno;
+            last_end = range.end;
+            line_offsets.push(range.start);
+        }
+
+        Self {
+            offset_to_line: offset_to_line.into(),
+            line_offsets: line_offsets.into(),
+        }
+    }
+
+    pub fn offset_to_line(&self, offset: usize) -> usize {
+        let res = self.line_offsets.binary_search(&offset);
+
+        let line = match res {
+            Ok(line) => line + 1,
+            Err(line) => line,
+        };
+
+        #[cfg(debug_assertions)]
+        if let Some(expected) = self.offset_to_line.get(offset) {
+            assert_eq!(*expected, line, "offset={offset}, {:?}", self.line_offsets);
+        }
+
+        line
     }
 }
 
@@ -234,6 +319,17 @@ impl Slice<SourceFile> {
         self.as_ref()
             .parse()
             .map_err(|err| self.error(err, "error here"))
+    }
+
+    pub fn line(&self) -> usize {
+        self.line_range().start
+    }
+
+    pub fn line_range(&self) -> Range<usize> {
+        let mapping = self.file.mapping();
+        let start = mapping.offset_to_line(self.start);
+        let end = mapping.offset_to_line(self.end);
+        start..(end + 1)
     }
 }
 

@@ -13,9 +13,9 @@ http = ["dep:http", "reqwest"]
 testing = ["tracing-subscriber"]
 
 [dependencies]
-anyhow = "1"
 blake3 = "1"
 bytes = "1"
+console = "0.15"
 duvet-macros = { version = "0.1", path = "../duvet-macros" }
 futures = { version = "0.3", default-features = false }
 fxhash = "0.2"

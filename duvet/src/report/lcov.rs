@@ -2,22 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{ReportResult, TargetReport};
-use crate::annotation::AnnotationType;
-use rayon::prelude::*;
+use crate::{annotation::AnnotationType, target::Target, Result};
+use duvet_core::path::Path;
 use std::{
     collections::HashSet,
-    io::{BufWriter, Error, Write},
-    path::Path,
+    io::{BufWriter, Write},
 };
 
 const IMPL_BLOCK: &str = "0,0";
 const TEST_BLOCK: &str = "1,0";
-
-macro_rules! line {
-    ($value:expr) => {
-        $value.line
-    };
-}
 
 macro_rules! record {
     ($block:expr, $line_hits:ident, $line:expr, $title:expr, $count:expr) => {
@@ -25,12 +18,12 @@ macro_rules! record {
             $line_hits.insert($line);
         }
         put!("BRDA:{},{},{}", $line, $block, $count);
-        if let Some(title) = $title {
+        if let Some(title) = &$title {
             let mut title_count = $count;
             if title_count != 0 {
-                if !$line_hits.contains(&line!(title)) {
+                if !$line_hits.contains(&title.line()) {
                     // mark the title as recorded
-                    $line_hits.insert(line!(title));
+                    $line_hits.insert(title.line());
                 } else {
                     // the title was already recorded
                     title_count = 0;
@@ -38,30 +31,33 @@ macro_rules! record {
             }
 
             put!("FNDA:{},{}", title_count, title);
-            put!("BRDA:{},{},{}", line!(title), $block, title_count);
+            put!("BRDA:{},{},{}", title.line(), $block, title_count);
         }
     };
 }
 
-pub fn report(report: &ReportResult, dir: &Path) -> Result<(), Error> {
+pub fn report(report: &ReportResult, dir: &Path) -> Result {
     std::fs::create_dir_all(dir)?;
     let lcov_dir = dir.canonicalize()?;
     report
         .targets
-        .par_iter()
-        .map(|(source, report)| {
-            let id = crate::fnv(source);
+        .iter()
+        .enumerate()
+        .try_for_each(|(id, (source, report))| {
             let path = lcov_dir.join(format!("compliance.{}.lcov", id));
             let mut output = BufWriter::new(std::fs::File::create(path)?);
-            report_source(report, &mut output)?;
-            Ok(())
-        })
-        .collect::<Result<(), std::io::Error>>()?;
+            report_source(source, report, &mut output)?;
+            <Result>::Ok(())
+        })?;
     Ok(())
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> Result<(), Error> {
+fn report_source<Output: Write>(
+    source: &Target,
+    report: &TargetReport,
+    output: &mut Output,
+) -> Result {
     macro_rules! put {
         ($($arg:expr),* $(,)?) => {
             writeln!(output $(, $arg)*)?;
@@ -69,14 +65,13 @@ fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> R
     }
 
     put!("TN:Compliance");
-    let relative =
-        pathdiff::diff_paths(report.target.path.local(None), std::env::current_dir()?).unwrap();
+    let relative = source.path.local(None);
     put!("SF:{}", relative.display());
 
     // record all sections
     for section in report.specification.sections.values() {
         let title = &section.full_title;
-        put!("FN:{},{}", line!(title), title);
+        put!("FN:{},{}", title.line(), title);
     }
 
     put!("FNF:{}", report.specification.sections.len());
@@ -89,13 +84,13 @@ fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> R
     // record all references to specific sections
     for reference in &report.references {
         let title = if let Some(section_id) = reference.annotation.target_section() {
-            let section = report.specification.sections.get(section_id).unwrap();
-            Some(section.full_title)
+            let section = report.specification.sections.get(&*section_id).unwrap();
+            Some(&section.full_title)
         } else {
             None
         };
 
-        let line = line!(reference);
+        let line = reference.line();
 
         macro_rules! citation {
             ($count:expr) => {

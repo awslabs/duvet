@@ -6,14 +6,14 @@
 use crate::{
     annotation::AnnotationLevel,
     specification::{Format, Line, Section, Specification},
-    target::TargetPath,
-    Error,
+    target::{self, Target, TargetPath},
+    Result,
 };
 use clap::Parser;
+use duvet_core::{diagnostic::IntoDiagnostic, path::Path};
 use lazy_static::lazy_static;
-use rayon::prelude::*;
 use regex::{Regex, RegexSet};
-use std::{fs::OpenOptions, io::BufWriter, path::PathBuf};
+use std::{fs::OpenOptions, io::BufWriter, path::PathBuf, sync::Arc};
 
 #[cfg(test)]
 mod tests;
@@ -34,10 +34,10 @@ lazy_static! {
             .iter()
             .cloned()
             .map(|(pat, l)| {
-                let r = Regex::new(&format!("\\b{}\\b\"?", pat))?;
+                let r = Regex::new(&format!("\\b{}\\b\"?", pat)).into_diagnostic()?;
                 Ok((r, l))
             })
-            .collect::<Result<_, Error>>()
+            .collect::<Result<_>>()
             .unwrap()
     };
     static ref KEY_WORDS_SET: RegexSet =
@@ -61,17 +61,20 @@ pub struct Extract {
     /// `specs` folder is stored in the current directory by default. Use this
     /// argument to override the default location.
     #[clap(long = "spec-path")]
-    pub spec_path: Option<String>,
+    pub spec_path: Option<Path>,
 
     target: TargetPath,
 }
 
 impl Extract {
-    pub async fn exec(&self) -> Result<(), Error> {
-        let contents = self.target.load(self.spec_path.as_deref()).await?;
-        let local_path = contents.path();
-
-        let spec = self.format.parse(&contents)?;
+    pub async fn exec(&self) -> Result {
+        let spec_path = self.spec_path.clone();
+        let local_path = self.target.local(spec_path.as_ref());
+        let target = Arc::new(Target {
+            format: self.format,
+            path: self.target.clone(),
+        });
+        let spec = target::to_specification(target, spec_path).await?;
         let sections = extract_sections(&spec);
 
         if self.out.extension().is_some() {
@@ -80,52 +83,50 @@ impl Extract {
             todo!("single file not implemented");
         } else {
             // output to directory
-            sections
-                .par_iter()
-                .map(|(section, features)| {
-                    // The specification may be stored alongside the extracted TOML.
-                    let mut out = match local_path.strip_prefix(&self.out) {
-                        Ok(path) => self.out.join(path),
-                        Err(_e) => self.out.join(local_path),
-                    };
 
-                    out.set_extension("");
-                    let _ = std::fs::create_dir_all(&out);
-                    out.push(format!("{}.{}", section.id, self.extension));
+            sections.iter().try_for_each(|(section, features)| {
+                // The specification may be stored alongside the extracted TOML.
+                let mut out = match local_path.strip_prefix(&self.out) {
+                    Ok(path) => self.out.join(path),
+                    Err(_e) => self.out.join(&local_path),
+                };
 
-                    let file = OpenOptions::new()
-                        .write(true)
-                        .create(true)
-                        .truncate(true)
-                        .open(out)?;
-                    let mut file = BufWriter::new(file);
+                out.set_extension("");
+                let _ = std::fs::create_dir_all(&out);
+                out.push(format!("{}.{}", section.id, self.extension));
 
-                    let target = &self.target;
+                let file = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(out)?;
+                let mut file = BufWriter::new(file);
 
-                    match &self.extension[..] {
-                        "rs" => write_rust(&mut file, target, section, features)?,
-                        "toml" => write_toml(&mut file, target, section, features)?,
-                        ext => unimplemented!("{}", ext),
-                    }
+                let target = &self.target;
 
-                    Ok(())
-                })
-                .collect::<Result<(), std::io::Error>>()?;
+                match &self.extension[..] {
+                    "rs" => write_rust(&mut file, target, section, features)?,
+                    "toml" => write_toml(&mut file, target, section, features)?,
+                    ext => unimplemented!("{}", ext),
+                }
+
+                <Result>::Ok(())
+            })?;
         }
 
         Ok(())
     }
 }
 
-fn extract_sections<'a>(spec: &'a Specification) -> Vec<(&'a Section<'a>, Vec<Feature<'a>>)> {
+fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature>)> {
     spec.sorted_sections()
-        .par_iter()
+        .iter()
         .map(|section| extract_section(section))
         .filter(|(_section, features)| !features.is_empty())
         .collect()
 }
 
-fn extract_section<'a>(section: &'a Section<'a>) -> (&'a Section<'a>, Vec<Feature<'a>>) {
+fn extract_section(section: &Section) -> (&Section, Vec<Feature>) {
     let mut features = vec![];
     let lines = &section.lines[..];
 
@@ -339,7 +340,7 @@ fn write_rust<W: std::io::Write>(
     target: &TargetPath,
     section: &Section,
     features: &[Feature],
-) -> Result<(), std::io::Error> {
+) -> Result {
     writeln!(w, "//! {}#{}", target, section.id)?;
     writeln!(w, "//!")?;
     writeln!(w, "//! {}", section.full_title)?;
@@ -369,7 +370,7 @@ fn write_toml<W: std::io::Write>(
     target: &TargetPath,
     section: &Section,
     features: &[Feature],
-) -> Result<(), std::io::Error> {
+) -> Result {
     writeln!(w, "target = \"{}#{}\"", target, section.id)?;
     writeln!(w)?;
     writeln!(w, "# {}", section.full_title)?;

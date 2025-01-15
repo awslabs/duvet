@@ -14,7 +14,7 @@ pub struct Statistics {
 impl Statistics {
     #[allow(dead_code)]
     pub(super) fn record(&mut self, reference: &Reference) {
-        match reference.level {
+        match reference.annotation.level {
             AnnotationLevel::Auto => {
                 // don't record auto references
             }
@@ -77,8 +77,8 @@ pub struct Stat {
 
 impl Stat {
     fn record(&mut self, reference: &Reference) {
-        let start = reference.start as u64;
-        let end = reference.end as u64;
+        let start = reference.start() as u64;
+        let end = reference.end() as u64;
         let len = end - start.max(self.cursor);
         if len > 0 {
             self.range += len;

@@ -1,9 +1,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::annotation::{AnnotationSet, AnnotationType};
-use anyhow::anyhow;
-use duvet_core::{diagnostic::Error, file::SourceFile};
+use crate::{
+    annotation::{AnnotationSet, AnnotationType},
+    Error, Result,
+};
+use duvet_core::{error, file::SourceFile};
 use std::sync::Arc;
 
 pub mod parser;
@@ -20,10 +22,10 @@ pub fn extract(
     let tokens = tokenizer::tokens(file, pattern);
     let mut parser = parser::parse(tokens, default_type);
 
-    let annotations = (&mut parser).collect();
+    let annotations = (&mut parser).map(Arc::new).collect();
     let errors = parser.errors();
 
-    (annotations, errors)
+    (Arc::new(annotations), errors)
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -42,11 +44,11 @@ impl Default for Pattern {
 }
 
 impl Pattern {
-    pub fn from_arg(arg: &str) -> Result<Self, anyhow::Error> {
+    pub fn from_arg(arg: &str) -> Result<Self> {
         let mut parts = arg.split(',').filter(|p| !p.is_empty());
         let meta = parts.next().expect("should have at least one pattern");
         if meta.is_empty() {
-            return Err(anyhow!("compliance pattern cannot be empty"));
+            return Err(error!("compliance pattern cannot be empty"));
         }
 
         let content = parts.next().unwrap();
