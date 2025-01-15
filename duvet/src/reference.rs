@@ -84,7 +84,7 @@ pub async fn build_references(
     let mut references = vec![];
 
     let Some(section_id) = section_id else {
-        // TODO return an warning that referring to a spec without a section doesn't make sense
+        // TODO return a warning that referring to a spec without a section doesn't make sense
         return (references.into(), errors.into());
     };
 
