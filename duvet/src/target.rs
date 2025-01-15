@@ -17,7 +17,7 @@ use url::Url;
 
 pub type SpecificationMap = Arc<HashMap<Arc<Target>, Arc<Specification>>>;
 
-pub async fn query(targets: &TargetSet, spec_path: Option<Path>) -> Result<SpecificationMap> {
+pub async fn query(targets: &TargetSet, spec_path: Path) -> Result<SpecificationMap> {
     let mut errors = vec![];
 
     let mut tasks = tokio::task::JoinSet::new();
@@ -53,10 +53,9 @@ pub async fn query(targets: &TargetSet, spec_path: Option<Path>) -> Result<Speci
 #[query]
 pub async fn to_specification(
     target: Arc<Target>,
-    spec_path: Option<duvet_core::path::Path>,
+    spec_path: duvet_core::path::Path,
 ) -> Result<Arc<Specification>> {
-    let spec_path = spec_path.as_ref();
-    let contents = target.path.load(spec_path).await?;
+    let contents = target.path.load(&spec_path).await?;
     let spec = target.format.parse(&contents)?;
     let spec = Arc::new(spec);
     Ok(spec)
@@ -125,7 +124,7 @@ impl TargetPath {
         Ok(Self::Path(path.into()))
     }
 
-    pub async fn load(&self, spec_download_path: Option<&Path>) -> Result<SourceFile> {
+    pub async fn load(&self, spec_download_path: &Path) -> Result<SourceFile> {
         match self {
             Self::Url(url) => {
                 let canonical_url = Self::canonical_url(url.as_str()).to_string();
@@ -149,16 +148,10 @@ impl TargetPath {
         }
     }
 
-    pub fn local(&self, spec_download_path: Option<&Path>) -> Path {
+    pub fn local(&self, spec_download_path: &Path) -> Path {
         match self {
             Self::Url(url) => {
-                let mut path = if let Some(path_to_spec) = spec_download_path {
-                    path_to_spec.clone()
-                } else {
-                    duvet_core::env::current_dir().unwrap()
-                }
-                .to_path_buf();
-                path.push("specs");
+                let mut path = spec_download_path.to_path_buf();
 
                 let mut push_url = |url: &Url| {
                     path.push(url.host_str().expect("url should have host"));
