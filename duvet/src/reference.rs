@@ -113,7 +113,12 @@ pub async fn build_references(
             continue;
         }
 
-        if let Some(range) = annotation.quote_range(&contents) {
+        if let Some((range, kind)) = annotation.quote_range(&contents) {
+            if kind.is_fuzzy() {
+                // TODO
+                //warnings.push(warn!(""));
+            }
+
             for text in contents.ranges(range) {
                 references.push(Reference {
                     target: target.clone(),

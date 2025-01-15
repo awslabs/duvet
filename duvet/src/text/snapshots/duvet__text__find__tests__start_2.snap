@@ -5,6 +5,7 @@ expression: "find(\"a b\", \"a b c d\")"
 Some(
     (
         0..3,
+        Exact,
         "a b",
     ),
 )
