@@ -126,8 +126,8 @@ mod tests {
                 $name,
                 $input,
                 Pattern {
-                    meta: "//=".into(),
-                    content: "//#".into(),
+                    meta: "//@=".into(),
+                    content: "//@#".into(),
                 }
             );
         };
@@ -146,25 +146,25 @@ mod tests {
     snapshot_test!(
         basic,
         r#"
-        //= thing goes here
-        //= meta=foo
-        //= meta2 = bar
-        //# content goes
-        //# here
+        //@= thing goes here
+        //@= meta=foo
+        //@= meta2 = bar
+        //@# content goes
+        //@# here
         "#
     );
     snapshot_test!(
         only_unnamed,
         r#"
-        //= this is meta
-        //= this is other meta
+        //@= this is meta
+        //@= this is other meta
         "#
     );
     snapshot_test!(
         duplicate_meta,
         r#"
-        //= meta=1
-        //= meta=2
+        //@= meta=1
+        //@= meta=2
         "#
     );
     snapshot_test!(

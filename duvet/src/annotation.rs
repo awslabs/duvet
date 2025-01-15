@@ -29,7 +29,7 @@ pub type AnnotationReferenceMap =
 
 pub async fn specifications(
     annotations: AnnotationSet,
-    spec_path: Option<Path>,
+    spec_path: Path,
 ) -> Result<SpecificationMap> {
     let mut targets = TargetSet::new();
     for anno in annotations.iter() {

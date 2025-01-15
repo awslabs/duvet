@@ -1,0 +1,197 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://awslabs.github.io/duvet/config/v0.4.json",
+  "title": "Duvet Configuration",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "report": {
+      "$ref": "#/definitions/Report"
+    },
+    "requirement": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Requirement"
+      }
+    },
+    "source": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Source"
+      }
+    },
+    "specification": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Specification"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "CommentStyle": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "default": "//#",
+          "type": "string"
+        },
+        "meta": {
+          "default": "//=",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DefaultType": {
+      "type": "string",
+      "enum": [
+        "implementation",
+        "spec",
+        "test",
+        "exception",
+        "todo",
+        "implication"
+      ]
+    },
+    "HtmlReport": {
+      "type": "object",
+      "properties": {
+        "blob-link": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TemplatedString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "issue-link": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TemplatedString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "path": {
+          "default": ".duvet/reports/report.html",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "JsonReport": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "path": {
+          "default": ".duvet/reports/report.json",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Report": {
+      "type": "object",
+      "properties": {
+        "html": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HtmlReport"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "json": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/JsonReport"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Requirement": {
+      "type": "object",
+      "required": [
+        "pattern"
+      ],
+      "properties": {
+        "pattern": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Source": {
+      "type": "object",
+      "required": [
+        "pattern"
+      ],
+      "properties": {
+        "comment-style": {
+          "$ref": "#/definitions/CommentStyle"
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/DefaultType"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Specification": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SpecificationFormat"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "default": "",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SpecificationFormat": {
+      "type": "string",
+      "enum": [
+        "ietf",
+        "markdown"
+      ]
+    },
+    "TemplatedString": {
+      "type": "string"
+    }
+  }
+}
