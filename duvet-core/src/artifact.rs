@@ -5,7 +5,7 @@ use std::path::Path;
 
 /// Synchronizes a value to the file system
 ///
-/// When the `CI` environment variable is set, this method ensures the value matches
+/// When the `CI` environment variable is set, this method asserts the value matches
 /// what is on disk.
 pub fn sync(path: impl AsRef<Path>, value: impl AsRef<str>) {
     let path = path.as_ref();
