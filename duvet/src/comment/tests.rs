@@ -13,7 +13,8 @@ fn parse(pattern: &str, value: &str) -> (AnnotationSet, Vec<String>) {
 
 macro_rules! snapshot {
     ($name:ident, $value:expr) => {
-        snapshot!($name, "//=,//#", $value);
+        // use a different pattern so we don't register these tests as part of the duvet report
+        snapshot!($name, "//@=,//@#", $value);
     };
     ($name:ident, $pattern:expr, $value:expr) => {
         #[test]
@@ -38,58 +39,58 @@ macro_rules! snapshot {
 snapshot!(
     content_without_meta,
     r#"
-    //# This is some content without meta
+    //@# This is some content without meta
     "#
 );
 
 snapshot!(
     meta_without_content,
     r#"
-    //= type=todo
+    //@= type=todo
     "#
 );
 
 snapshot!(
     type_citation,
     r#"
-    //= https://example.com/spec.txt
-    //# Here is my citation
+    //@= https://example.com/spec.txt
+    //@# Here is my citation
     "#
 );
 
 snapshot!(
     type_test,
     r#"
-    //= https://example.com/spec.txt
-    //= type=test
-    //# Here is my citation
+    //@= https://example.com/spec.txt
+    //@= type=test
+    //@# Here is my citation
     "#
 );
 
 snapshot!(
     type_todo,
     r#"
-    //= https://example.com/spec.txt
-    //= type=todo
-    //= feature=cool-things
-    //= tracking-issue=123
-    //# Here is my citation
+    //@= https://example.com/spec.txt
+    //@= type=todo
+    //@= feature=cool-things
+    //@= tracking-issue=123
+    //@# Here is my citation
     "#
 );
 
 snapshot!(
     type_exception,
     r#"
-    //= https://example.com/spec.txt
-    //= type=exception
-    //= reason=This isn't possible currently
-    //# Here is my citation
+    //@= https://example.com/spec.txt
+    //@= type=exception
+    //@= reason=This isn't possible currently
+    //@# Here is my citation
     "#
 );
 
 snapshot!(
     missing_new_line,
     r#"
-    //= https://example.com/spec.txt
-    //# Here is my citation"#
+    //@= https://example.com/spec.txt
+    //@# Here is my citation"#
 );

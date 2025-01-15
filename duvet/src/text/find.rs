@@ -50,7 +50,7 @@ fn fast_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
     })
 }
 
-/// TODO we should probaly deprecate this - it's better to enforce strict matching
+/// TODO we should probably deprecate this - it's better to enforce strict matching
 fn fuzzy_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
     text_search(
         needle.as_bytes(),

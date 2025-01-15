@@ -39,6 +39,7 @@ macro_rules! record {
 pub fn report(report: &ReportResult, dir: &Path) -> Result {
     std::fs::create_dir_all(dir)?;
     let lcov_dir = dir.canonicalize()?;
+    let download_path = &report.download_path;
     report
         .targets
         .iter()
@@ -46,7 +47,7 @@ pub fn report(report: &ReportResult, dir: &Path) -> Result {
         .try_for_each(|(id, (source, report))| {
             let path = lcov_dir.join(format!("compliance.{}.lcov", id));
             let mut output = BufWriter::new(std::fs::File::create(path)?);
-            report_source(source, report, &mut output)?;
+            report_source(source, report, download_path, &mut output)?;
             <Result>::Ok(())
         })?;
     Ok(())
@@ -56,6 +57,7 @@ pub fn report(report: &ReportResult, dir: &Path) -> Result {
 fn report_source<Output: Write>(
     source: &Target,
     report: &TargetReport,
+    download_path: &Path,
     output: &mut Output,
 ) -> Result {
     macro_rules! put {
@@ -65,7 +67,7 @@ fn report_source<Output: Write>(
     }
 
     put!("TN:Compliance");
-    let relative = source.path.local(None);
+    let relative = source.path.local(download_path);
     put!("SF:{}", relative.display());
 
     // record all sections

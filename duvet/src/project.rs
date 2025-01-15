@@ -1,81 +1,80 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{comment, source::SourceFile, Result};
+use crate::{comment, config, source::SourceFile, Result};
 use clap::Parser;
 use duvet_core::{diagnostic::IntoDiagnostic, path::Path};
 use glob::glob;
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::Arc};
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
 pub struct Project {
-    /// Package to run tests for
-    #[clap(long, short = 'p')]
-    package: Option<String>,
+    #[clap(flatten)]
+    deprecated: Deprecated,
 
-    /// Space or comma separated list of features to activate
     #[clap(long)]
-    features: Vec<String>,
-
-    /// Build all packages in the workspace
-    #[clap(long)]
-    workspace: bool,
-
-    /// Exclude packages from the test
-    #[clap(long = "exclude")]
-    excludes: Vec<String>,
-
-    /// Activate all available features
-    #[clap(long = "all-features")]
-    all_features: bool,
-
-    /// Do not activate the `default` feature
-    #[clap(long = "no-default-features")]
-    no_default_features: bool,
-
-    /// Disables running cargo commands
-    #[clap(long = "no-cargo")]
-    no_cargo: bool,
-
-    /// TRIPLE
-    #[clap(long)]
-    target: Option<String>,
-
-    /// Directory for all generated artifacts
-    #[clap(long = "target-dir", default_value = "target/compliance")]
-    target_dir: String,
-
-    /// Path to Cargo.toml
-    #[clap(long = "manifest-path")]
-    manifest_path: Option<String>,
-
-    /// Glob patterns for additional source files
-    #[clap(long = "source-pattern")]
-    source_patterns: Vec<String>,
-
-    /// Glob patterns for spec files
-    #[clap(long = "spec-pattern")]
-    spec_patterns: Vec<String>,
-
-    /// Path to store the collection of spec files
-    ///
-    /// The collection of spec files are stored in a folder called `specs`. The
-    /// `specs` folder is stored in the current directory by default. Use this
-    /// argument to override the default location.
-    #[clap(long = "spec-path")]
-    pub spec_path: Option<Path>,
+    config_path: Option<Path>,
 }
 
 impl Project {
+    pub async fn download_path(&self) -> Result<Path> {
+        if let Some(config) = self.config().await? {
+            return Ok(config.download_path.clone());
+        }
+
+        if let Some(download_path) = self.deprecated.spec_path.as_ref() {
+            // the previous behavior always appended `specs` so we need to preserve that
+            return Ok(download_path.join("specs"));
+        }
+
+        Ok("specs".into())
+    }
+
+    pub async fn config(&self) -> Result<Option<Arc<config::Config>>> {
+        let (path, root) = if let Some(path) = self.config_path.as_ref() {
+            let root = duvet_core::env::current_dir()?;
+            (path.clone(), root)
+        } else if let Some((path, root)) = config::default_path_and_root().await {
+            (path, root)
+        } else {
+            return Ok(None);
+        };
+
+        let config = config::load(path, root).await?;
+        Ok(Some(config))
+    }
+
     pub async fn sources(&self) -> Result<HashSet<SourceFile>> {
         let mut sources = HashSet::new();
 
-        for pattern in &self.source_patterns {
+        for pattern in &self.deprecated.source_patterns {
             self.source_file(pattern, &mut sources)?;
         }
 
-        for pattern in &self.spec_patterns {
+        for pattern in &self.deprecated.spec_patterns {
             self.toml_file(pattern, &mut sources)?;
+        }
+
+        if let Some(config) = self.config().await? {
+            for source in &config.sources {
+                // TODO switch from `glob` to `duvet_core::glob`
+                let _ = &source.root;
+                for entry in glob(&source.pattern).into_diagnostic()? {
+                    sources.insert(SourceFile::Text {
+                        pattern: source.comment_style.clone(),
+                        default_type: source.default_type,
+                        path: entry.into_diagnostic()?.into(),
+                    });
+                }
+            }
+
+            for requirement in &config.requirements {
+                // TODO switch from `glob` to `duvet_core::glob`
+                let _ = &requirement.root;
+                for entry in glob(&requirement.pattern).into_diagnostic()? {
+                    sources.insert(SourceFile::Toml(entry.into_diagnostic()?.into()));
+                }
+            }
         }
 
         Ok(sources)
@@ -95,10 +94,11 @@ impl Project {
         };
 
         for entry in glob(file_pattern).into_diagnostic()? {
-            files.insert(SourceFile::Text(
-                compliance_pattern.clone(),
-                entry.into_diagnostic()?.into(),
-            ));
+            files.insert(SourceFile::Text {
+                pattern: compliance_pattern.clone(),
+                default_type: Default::default(),
+                path: entry.into_diagnostic()?.into(),
+            });
         }
 
         Ok(())
@@ -111,4 +111,48 @@ impl Project {
 
         Ok(())
     }
+}
+
+/// Set of options that are preserved for backwards compatibility but either
+/// don't do anything or are undocumented
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
+struct Deprecated {
+    #[clap(long, short = 'p', hide = true)]
+    package: Option<String>,
+
+    #[clap(long, hide = true)]
+    features: Vec<String>,
+
+    #[clap(long, hide = true)]
+    workspace: bool,
+
+    #[clap(long = "exclude", hide = true)]
+    excludes: Vec<String>,
+
+    #[clap(long = "all-features", hide = true)]
+    all_features: bool,
+
+    #[clap(long = "no-default-features", hide = true)]
+    no_default_features: bool,
+
+    #[clap(long = "no-cargo", hide = true)]
+    no_cargo: bool,
+
+    #[clap(long, hide = true)]
+    target: Option<String>,
+
+    #[clap(long = "target-dir", default_value = "target/compliance", hide = true)]
+    target_dir: String,
+
+    #[clap(long = "manifest-path", hide = true)]
+    manifest_path: Option<String>,
+
+    #[clap(long = "source-pattern", hide = true)]
+    source_patterns: Vec<String>,
+
+    #[clap(long = "spec-pattern", hide = true)]
+    spec_patterns: Vec<String>,
+
+    #[clap(long = "spec-path", hide = true)]
+    spec_path: Option<Path>,
 }

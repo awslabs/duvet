@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 mod annotation;
 mod comment;
+mod config;
 mod extract;
 mod project;
 mod reference;

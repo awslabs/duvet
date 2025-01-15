@@ -1,6 +1,6 @@
 ---
 source: duvet/src/comment/tests.rs
-expression: "parse(\"//=,//#\",\nr#\"\n    //= https://example.com/spec.txt\n    //= type=todo\n    //= feature=cool-things\n    //= tracking-issue=123\n    //# Here is my citation\n    \"#)"
+expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n    //@= type=todo\n    //@= feature=cool-things\n    //@= tracking-issue=123\n    //@# Here is my citation\n    \"#)"
 ---
 (
     {
@@ -8,7 +8,7 @@ expression: "parse(\"//=,//#\",\nr#\"\n    //= https://example.com/spec.txt\n   
             source: "file.rs",
             anno_line: 2,
             original_target: "https://example.com/spec.txt",
-            original_text: "https://example.com/spec.txt\n    //= type=todo\n    //= feature=cool-things\n    //= tracking-issue=123\n    //# Here is my citation",
+            original_text: "https://example.com/spec.txt\n    //@= type=todo\n    //@= feature=cool-things\n    //@= tracking-issue=123\n    //@# Here is my citation",
             original_quote: "Here is my citation",
             anno: Todo,
             target: "https://example.com/spec.txt",

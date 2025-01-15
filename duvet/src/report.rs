@@ -54,18 +54,38 @@ pub struct Report {
 
 impl Report {
     pub async fn exec(&self) -> Result {
+        let config = self.project.config().await?;
+        let config = config.as_ref();
+
+        if let Some(config) = config {
+            let progress = progress!("Extracting requirements");
+            let count = config.load_specifications().await?;
+            if count > 0 {
+                progress!(
+                    progress,
+                    "Extracted requirements from {count} specifications"
+                );
+            } else {
+                progress!(
+                    progress,
+                    "Extracted no requirements - config does not include any specifications"
+                )
+            }
+        }
+
         let progress = progress!("Scanning sources");
         let project_sources = self.project.sources().await?;
         let project_sources = Arc::new(project_sources);
         progress!(progress, "Scanned {} sources", project_sources.len());
 
-        let progress = progress!("Extracing annotations");
+        let progress = progress!("Parsing annotations");
         let annotations = crate::annotation::query(project_sources.clone()).await?;
-        progress!(progress, "Extracted {} annotations", annotations.len());
+        progress!(progress, "Parsed {} annotations", annotations.len());
 
         let progress = progress!("Loading specifications");
-        let spec_path = self.project.spec_path.clone();
-        let specifications = annotation::specifications(annotations.clone(), spec_path).await?;
+        let download_path = self.project.download_path().await?;
+        let specifications =
+            annotation::specifications(annotations.clone(), download_path.clone()).await?;
         progress!(progress, "Loaded {} specifications", specifications.len());
 
         let progress = progress!("Mapping sections");
@@ -73,11 +93,20 @@ impl Report {
         progress!(progress, "Mapped {} sections", reference_map.len());
 
         let progress = progress!("Matching references");
+        let blob_link = self
+            .blob_link
+            .as_deref()
+            .or_else(|| config.and_then(|config| config.report.html.blob_link.as_deref()));
+        let issue_link = self
+            .issue_link
+            .as_deref()
+            .or_else(|| config.and_then(|config| config.report.html.issue_link.as_deref()));
         let mut report = ReportResult {
             targets: Default::default(),
             annotations,
-            blob_link: self.blob_link.as_deref(),
-            issue_link: self.issue_link.as_deref(),
+            blob_link,
+            issue_link,
+            download_path: &download_path,
         };
         let references = reference::query(reference_map.clone(), specifications.clone()).await?;
         progress!(progress, "Matched {} references", references.len());
@@ -110,18 +139,23 @@ impl Report {
 
         type ReportFn = fn(&ReportResult, &Path) -> crate::Result<()>;
 
-        let reports: &[(&Option<_>, ReportFn)] = &[
-            (&self.json, json::report),
-            (&self.html, html::report),
-            (&self.lcov, lcov::report),
+        let internal_json = std::env::var("DUVET_INTERNAL_CI_JSON").ok().map(Path::from);
+        let internal_html = std::env::var("DUVET_INTERNAL_CI_HTML").ok().map(Path::from);
+
+        let reports: &[(Option<&_>, ReportFn)] = &[
+            (self.json.as_ref(), json::report),
+            (self.html.as_ref(), html::report),
+            (self.lcov.as_ref(), lcov::report),
             (
-                &std::env::var("DUVET_INTERNAL_CI_JSON").ok().map(Path::from),
+                config.and_then(|config| config.report.json.path()),
                 json::report,
             ),
             (
-                &std::env::var("DUVET_INTERNAL_CI_HTML").ok().map(Path::from),
+                config.and_then(|config| config.report.html.path()),
                 html::report,
             ),
+            (internal_json.as_ref(), json::report),
+            (internal_html.as_ref(), html::report),
         ];
 
         for (path, report_fn) in reports {
@@ -162,6 +196,7 @@ pub struct ReportResult<'a> {
     pub annotations: AnnotationSet,
     pub blob_link: Option<&'a str>,
     pub issue_link: Option<&'a str>,
+    pub download_path: &'a Path,
 }
 
 #[derive(Debug)]

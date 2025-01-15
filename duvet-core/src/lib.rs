@@ -16,6 +16,8 @@ macro_rules! ensure {
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 
+#[cfg(any(test, feature = "testing"))]
+pub mod artifact;
 mod cache;
 pub mod contents;
 pub mod diagnostic;
