@@ -1,6 +1,6 @@
 ---
 source: duvet/src/tests.rs
-expression: "out[\"specifications\"][&spec]"
+expression: "out[\"specifications\"][\"my-spec.md\"]"
 ---
 {
   "format": "markdown",

@@ -14,7 +14,7 @@ pub struct Statistics {
 impl Statistics {
     #[allow(dead_code)]
     pub(super) fn record(&mut self, reference: &Reference) {
-        match reference.level {
+        match reference.annotation.level {
             AnnotationLevel::Auto => {
                 // don't record auto references
             }

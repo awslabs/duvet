@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{ReportResult, TargetReport};
-use crate::{annotation::AnnotationType, Result};
-use duvet_core::{env, path::Path};
+use crate::{annotation::AnnotationType, target::Target, Result};
+use duvet_core::path::Path;
 use std::{
     collections::HashSet,
     io::{BufWriter, Write},
@@ -39,18 +39,25 @@ macro_rules! record {
 pub fn report(report: &ReportResult, dir: &Path) -> Result {
     std::fs::create_dir_all(dir)?;
     let lcov_dir = dir.canonicalize()?;
-    report.targets.iter().try_for_each(|(source, report)| {
-        let id = crate::fnv(source);
-        let path = lcov_dir.join(format!("compliance.{}.lcov", id));
-        let mut output = BufWriter::new(std::fs::File::create(path)?);
-        report_source(report, &mut output)?;
-        <Result>::Ok(())
-    })?;
+    report
+        .targets
+        .iter()
+        .enumerate()
+        .try_for_each(|(id, (source, report))| {
+            let path = lcov_dir.join(format!("compliance.{}.lcov", id));
+            let mut output = BufWriter::new(std::fs::File::create(path)?);
+            report_source(source, report, &mut output)?;
+            <Result>::Ok(())
+        })?;
     Ok(())
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> Result {
+fn report_source<Output: Write>(
+    source: &Target,
+    report: &TargetReport,
+    output: &mut Output,
+) -> Result {
     macro_rules! put {
         ($($arg:expr),* $(,)?) => {
             writeln!(output $(, $arg)*)?;
@@ -58,8 +65,7 @@ fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> R
     }
 
     put!("TN:Compliance");
-    let relative =
-        pathdiff::diff_paths(report.target.path.local(None), env::current_dir()?).unwrap();
+    let relative = source.path.local(None);
     put!("SF:{}", relative.display());
 
     // record all sections

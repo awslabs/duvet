@@ -90,17 +90,14 @@ pub fn report(report: &ReportResult, file: &Path) -> Result {
 }
 
 pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) -> Result {
-    let specs = report
-        .targets
-        .iter()
-        .map(|(source, report)| {
-            let id = format!("{}", &source.path);
-            let mut output = Cursor::new(vec![]);
-            report_source(report, &mut output)?;
-            let output = unsafe { String::from_utf8_unchecked(output.into_inner()) };
-            Ok((id, output))
-        })
-        .collect::<Result<BTreeMap<String, String>>>()?;
+    let mut specs = BTreeMap::new();
+    for (source, report) in report.targets.iter() {
+        let id = format!("{}", &source.path);
+        let mut output = Cursor::new(vec![]);
+        report_source(report, &mut output)?;
+        let output = unsafe { String::from_utf8_unchecked(output.into_inner()) };
+        specs.insert(id, output);
+    }
 
     writer!(output);
 
@@ -263,16 +260,15 @@ pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) 
 pub fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) -> Result {
     writer!(output);
 
-    let mut references: HashMap<usize, Vec<&Reference>> = HashMap::new();
+    let mut references: HashMap<_, Vec<&Reference>> = HashMap::new();
     let mut requirements = BTreeSet::new();
     for reference in &report.references {
         if reference.annotation.anno == AnnotationType::Spec {
             requirements.insert(reference.annotation.id);
         }
-        references
-            .entry(reference.line())
-            .or_default()
-            .push(reference);
+        for line in reference.text.line_range() {
+            references.entry(line).or_default().push(reference);
+        }
     }
 
     obj!(|obj| {
@@ -314,20 +310,22 @@ pub fn report_source<Output: Write>(report: &TargetReport, output: &mut Output) 
                                 arr!(|arr| {
                                     for line in &section.lines {
                                         if let Line::Str(line) = line {
-                                            item!(
-                                                arr,
-                                                if let Some(refs) = references.get(&line.line()) {
-                                                    report_references(
-                                                        line,
-                                                        refs,
-                                                        &mut requirements,
-                                                        output,
-                                                    )?;
-                                                } else {
-                                                    // the line has no annotations so just print it
-                                                    s!(line);
-                                                }
-                                            )
+                                            for lineno in line.line_range() {
+                                                item!(
+                                                    arr,
+                                                    if let Some(refs) = references.get(&lineno) {
+                                                        report_references(
+                                                            line,
+                                                            refs,
+                                                            &mut requirements,
+                                                            output,
+                                                        )?;
+                                                    } else {
+                                                        // the line has no annotations so just print it
+                                                        s!(line);
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 })

@@ -23,7 +23,7 @@ impl Deref for StatusMap {
 }
 
 impl StatusMap {
-    pub(super) fn populate(&mut self, references: &BTreeSet<Reference>) {
+    pub(super) fn populate(&mut self, references: &[Reference]) {
         let mut specs: BTreeMap<AnnotationId, Vec<&Reference>> = BTreeMap::new();
         let mut coverage: BTreeMap<usize, Vec<&Reference>> = BTreeMap::new();
 
