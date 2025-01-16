@@ -8,6 +8,7 @@ mod annotation;
 mod comment;
 mod config;
 mod extract;
+mod init;
 mod project;
 mod reference;
 mod report;
@@ -21,7 +22,11 @@ pub use duvet_core::{diagnostic::Error, Result};
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Parser)]
 pub enum Arguments {
+    /// Initializes a duvet project
+    Init(init::Init),
+    /// Extracts requirements out of a specification
     Extract(extract::Extract),
+    /// Generates reports for the project
     Report(report::Report),
 }
 
@@ -33,6 +38,7 @@ pub async fn arguments() -> Arc<Arguments> {
 impl Arguments {
     pub async fn exec(&self) -> Result {
         match self {
+            Self::Init(args) => args.exec().await,
             Self::Extract(args) => args.exec().await,
             Self::Report(args) => args.exec().await,
         }

@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 import { makeStyles } from "@material-ui/core/styles";
 import { DataGrid } from "@mui/x-data-grid";
 import Table from "@material-ui/core/Table";

@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useState, default as React, useMemo, forwardRef } from "react";
 import { makeStyles, useTheme } from "@material-ui/core/styles";
 import clsx from "clsx";

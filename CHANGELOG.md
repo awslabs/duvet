@@ -16,7 +16,7 @@
 
 ### Bug Fixes
 
-* remove reduntant borrows ([#89](https://github.com/awslabs/duvet/issues/89)) ([0cfc8ce](https://github.com/awslabs/duvet/commit/0cfc8ce88a8a5183a68581fd5824498dbe4e376a))
+* remove redundant borrows ([#89](https://github.com/awslabs/duvet/issues/89)) ([0cfc8ce](https://github.com/awslabs/duvet/commit/0cfc8ce88a8a5183a68581fd5824498dbe4e376a))
 * handle duplicate markdown section names ([#94](https://github.com/awslabs/duvet/issues/94)) ([5d31dd2](https://github.com/awslabs/duvet/commit/5d31dd21c05f5998b8a4e6c66e18552688a3e788))
 
 ## 0.1.1 (2022-10-07)

@@ -1,0 +1,7 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [Rust](my-spec.md)
+  SECTION: [Rust](#rust)
+    TEXT[implementation]: Rust SHOULD be auto-detected.

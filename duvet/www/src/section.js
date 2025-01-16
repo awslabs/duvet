@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useState, useMemo, default as React } from "react";
 import { useLocation } from "react-router-dom";
 import { makeStyles, withStyles } from "@material-ui/core/styles";

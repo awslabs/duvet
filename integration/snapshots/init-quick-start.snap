@@ -1,0 +1,38 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: https://www.rfc-editor.org/rfc/rfc2324
+  SECTION: [The BREW method, and the use of POST](#section-2.1.1)
+    TEXT[!MUST,implementation]:    A coffee pot server MUST accept both the BREW and POST method
+    TEXT[!MUST,implementation]:    equivalently.
+
+  SECTION: [406 Not Acceptable](#section-2.3.1)
+    TEXT[!MAY]: In HTCPCP, this response code MAY be
+    TEXT[!MAY]:    returned if the operator of the coffee pot cannot comply with the
+    TEXT[!MAY]:    Accept-Addition request.
+    TEXT[!SHOULD]: Unless the request was a HEAD request, the
+    TEXT[!SHOULD]:    response SHOULD include an entity containing a list of available
+    TEXT[!SHOULD]:    coffee additions.
+
+  SECTION: [418 I'm a teapot](#section-2.3.2)
+    TEXT[!MAY]: The resulting entity body MAY be short and
+    TEXT[!MAY]:    stout.
+
+  SECTION: [The "coffee" URI scheme](#section-3)
+    TEXT[!MAY]: However, the use
+    TEXT[!MAY]:    of coffee-scheme in various languages MAY be interpreted as an
+    TEXT[!MAY]:    indication of the kind of coffee produced by the coffee pot.
+
+  SECTION: [The "message/coffeepot" media type](#section-4)
+    TEXT[!MUST]:    The entity body of a POST or BREW request MUST be of Content-Type
+    TEXT[!MUST]:    "message/coffeepot".
+
+  SECTION: [Timing Considerations](#section-5.1)
+    TEXT[!SHOULD]: Coffee pots SHOULD use the Network Time
+    TEXT[!SHOULD]:    Protocol [NTP] to synchronize their clocks to a globally accurate
+    TEXT[!SHOULD]:    time standard.
+
+  SECTION: [Crossing firewalls](#section-5.2)
+    TEXT[!SHOULD]: Every home computer network SHOULD be protected by a firewall
+    TEXT[!SHOULD]:    from sources of heat.

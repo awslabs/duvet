@@ -9,6 +9,8 @@ use serde::{de, Deserialize};
 
 pub mod v0_4_0;
 
+pub static DEFAULT: &str = "https://awslabs.github.io/duvet/config/v0.4.0.json";
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "$schema", deny_unknown_fields)]
 pub enum Schema {
