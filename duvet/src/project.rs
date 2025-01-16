@@ -113,8 +113,8 @@ impl Project {
     }
 }
 
-/// Set of options that are preserved for backwards compatibility but either
-/// don't do anything or are undocumented
+// Set of options that are preserved for backwards compatibility but either
+// don't do anything or are undocumented
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
 struct Deprecated {
     #[clap(long, short = 'p', hide = true)]

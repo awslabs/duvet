@@ -1,0 +1,21 @@
+[book]
+authors = ["Cameron Bytheway"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Duvet"
+
+[build]
+build-dir = "build"
+
+[output.html]
+copy-fonts = true
+git-repository-url = "https://github.com/awslabs/duvet"
+edit-url-template = "https://github.com/awslabs/duvet/edit/main/book/{path}"
+
+[output.html.playground]
+editable = false
+copyable = true
+copy-js = true
+line-numbers = false
+runnable = false

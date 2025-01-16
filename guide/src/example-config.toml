@@ -1,0 +1,47 @@
+# Specifies the version of the config
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.json"
+
+[[source]]
+pattern = "src/**/*.rs" # Lists all of the source files to scan
+
+[[source]]
+pattern = "test/**/*.rs"
+type = "test"            # Sets the default annotation type
+
+[[source]]
+pattern = "src/**/*.py"
+type = "implementation"
+# Sets the comment style for this group 
+comment-style = { meta = "##=", content = "##%" }
+
+# Defines a required specification
+[[specification]]
+source = "https://www.rfc-editor.org/rfc/rfc2324" # URL to the specification
+
+[[specification]]
+source = "https://www.rfc-editor.org/rfc/rfc9000" # URL to the specification
+format = "ietf"                                   # Specifies the format
+
+[[specification]]
+source = "my-specification.md" # Sets the local path to a specification
+
+# Loads additional requirement files. By default it includes:
+# * ".duvet/requirements/**/*.toml",
+# * ".duvet/todos/**/*.toml",
+# * ".duvet/exceptions/**/*.toml",
+[[requirement]]
+pattern = ".duvet/implications/**/*.toml"
+
+[report.html]
+enabled = true                                           # Enables the HTML report
+path = ".duvet/reports/report.html"                      # Sets the path to the report output
+issue-link = "https://github.com/awslabs/duvet/issues"   # Configures issue creation links
+blob-link = "https://github.com/awslabs/duvet/blob/main" # Configures source file links
+
+[report.json]
+enabled = true                      # Enables the JSON report
+path = ".duvet/reports/report.html" # Sets the path to the report output
+
+[report.snapshot]
+enabled = true               # Enables the snapshot report
+path = ".duvet/snapshot.txt" # Sets the path to the report output
