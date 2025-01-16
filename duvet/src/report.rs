@@ -185,9 +185,18 @@ impl Report {
 
         for (path, report_fn) in reports {
             if let Some(path) = path {
-                let progress = progress!("Writing {path}");
+                let is_snapshot_ci = snapshot::report_ci as ReportFn == *report_fn;
+                let progress = if is_snapshot_ci {
+                    progress!("Checking {path}")
+                } else {
+                    progress!("Writing {path}")
+                };
                 report_fn(&report, path)?;
-                progress!(progress, "Wrote {path}");
+                if is_snapshot_ci {
+                    progress!(progress, "Checked {path}");
+                } else {
+                    progress!(progress, "Wrote {path}");
+                }
             }
         }
 

@@ -20,7 +20,7 @@ EXIT: Some(1)
       Sorted 1 references 
      Writing .duvet/reports/report.html
        Wrote .duvet/reports/report.html 
-     Writing .duvet/snapshot.txt
+    Checking .duvet/snapshot.txt
 
   × .duvet/snapshot.txt
   ╰─▶ Could not read report snapshot. This is required to enforce CI checks.
