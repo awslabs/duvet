@@ -1,0 +1,29 @@
+source = { local = true }
+cmd = ["duvet report"]
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/my-code.rs"
+
+[[specification]]
+source = "my-spec.md"
+"""
+
+[[file]]
+path = "src/my-code.rs"
+contents = """
+//= my-spec.md#section
+//# Here is missing text
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# Section
+
+here is a spec
+"""

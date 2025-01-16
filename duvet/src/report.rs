@@ -17,6 +17,7 @@ mod ci;
 mod html;
 mod json;
 mod lcov;
+mod snapshot;
 mod stats;
 mod status;
 
@@ -43,7 +44,7 @@ pub struct Report {
     require_tests: Option<Option<bool>>,
 
     #[clap(long)]
-    ci: bool,
+    ci: Option<Option<bool>>,
 
     #[clap(long)]
     blob_link: Option<String>,
@@ -141,6 +142,20 @@ impl Report {
 
         let internal_json = std::env::var("DUVET_INTERNAL_CI_JSON").ok().map(Path::from);
         let internal_html = std::env::var("DUVET_INTERNAL_CI_HTML").ok().map(Path::from);
+        let internal_snapshot = std::env::var("DUVET_INTERNAL_CI_SNAPSHOT")
+            .ok()
+            .map(Path::from);
+        let snapshot_path = config.and_then(|config| config.report.snapshot.path());
+
+        let ci = match self.ci {
+            // use the new CI environment variable if the snapshot reports are configured
+            None if snapshot_path.is_some() => {
+                std::env::var("CI").is_ok_and(|value| !["false", "0"].contains(&value.as_str()))
+            }
+            None => false,
+            Some(None) => true,
+            Some(Some(value)) => value,
+        };
 
         let reports: &[(Option<&_>, ReportFn)] = &[
             (self.json.as_ref(), json::report),
@@ -154,8 +169,18 @@ impl Report {
                 config.and_then(|config| config.report.html.path()),
                 html::report,
             ),
+            (
+                snapshot_path,
+                if ci {
+                    snapshot::report_ci
+                } else {
+                    snapshot::report
+                },
+            ),
             (internal_json.as_ref(), json::report),
             (internal_html.as_ref(), html::report),
+            // the duvet CI uses its own snapshotting mechanism
+            (internal_snapshot.as_ref(), snapshot::report),
         ];
 
         for (path, report_fn) in reports {
@@ -166,7 +191,8 @@ impl Report {
             }
         }
 
-        if self.ci {
+        // only use the old CI check if the config hasn't set up snapshots
+        if ci && snapshot_path.is_none() {
             ci::report(&report)?;
         }
 

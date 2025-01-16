@@ -3,7 +3,10 @@
 
 use console::style;
 use core::fmt;
+use once_cell::sync::Lazy;
 use std::time::Instant;
+
+static INTERNAL_CI: Lazy<bool> = Lazy::new(|| std::env::var("DUVET_INTERNAL_CI").is_ok());
 
 #[macro_export]
 macro_rules! progress {
@@ -46,6 +49,10 @@ impl Progress {
     }
 
     fn total_time(&self) -> String {
+        if *INTERNAL_CI {
+            return String::new();
+        }
+
         let total = self.start_time.elapsed();
 
         if total.as_secs() > 0 {

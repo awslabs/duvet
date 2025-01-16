@@ -1,0 +1,9 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [My spec](my-spec.md)
+  SECTION: [Testing](#testing)
+    TEXT[!MUST,implementation]: This quote MUST work
+    TEXT[implementation]: * with
+    TEXT[implementation]: * bullets

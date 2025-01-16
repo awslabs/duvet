@@ -245,6 +245,7 @@ impl FromStr for AnnotationType {
 
 // The order is in terms of priority from least to greatest
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize)]
+#[cfg_attr(test, derive(bolero::TypeGenerator))]
 pub enum AnnotationLevel {
     Auto,
     May,

@@ -2,14 +2,14 @@
 name = "duvet"
 version = "0.3.0"
 description = "A requirements traceability tool"
-authors = ["Cameron Bytheway <bythewc@amazon.com>", "Ryan Emery <ryanemer@amazon.com>"]
+authors = [
+    "Cameron Bytheway <bythewc@amazon.com>",
+    "Ryan Emery <ryanemer@amazon.com>",
+]
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/awslabs/duvet"
-include = [
-    "/src/**/*.rs",
-    "/www/public",
-]
+include = ["/src/**/*.rs", "/www/public"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -37,5 +37,3 @@ duvet-core = { version = "0.1", path = "../duvet-core", features = ["testing"] }
 insta = { version = "1", features = ["filters", "json"] }
 schemars = "0.8"
 serde_json = "1"
-strip-ansi-escapes = "0.2"
-tempfile = "3"

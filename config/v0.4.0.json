@@ -129,6 +129,16 @@
               "type": "null"
             }
           ]
+        },
+        "snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SnapshotReport"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -140,6 +150,20 @@
       ],
       "properties": {
         "pattern": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SnapshotReport": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "path": {
+          "default": ".duvet/snapshot.txt",
           "type": "string"
         }
       },

@@ -200,6 +200,8 @@ pub struct Report {
     pub html: Option<HtmlReport>,
     #[serde(default)]
     pub json: Option<JsonReport>,
+    #[serde(default)]
+    pub snapshot: Option<SnapshotReport>,
 }
 
 impl From<&Report> for config::Report {
@@ -215,6 +217,11 @@ impl From<&Report> for config::Report {
                 .as_ref()
                 .map(From::from)
                 .unwrap_or_else(|| (&JsonReport::default()).into()),
+            snapshot: value
+                .snapshot
+                .as_ref()
+                .map(From::from)
+                .unwrap_or_else(|| (&SnapshotReport::default()).into()),
         }
     }
 }
@@ -296,6 +303,44 @@ impl JsonReport {
 
 impl From<&JsonReport> for config::JsonReport {
     fn from(value: &JsonReport) -> Self {
+        Self {
+            enabled: value.enabled,
+            path: value.path.as_str().into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct SnapshotReport {
+    #[serde(default = "SnapshotReport::default_enabled")]
+    pub enabled: bool,
+    #[serde(default = "SnapshotReport::default_path")]
+    pub path: String,
+}
+
+impl Default for SnapshotReport {
+    fn default() -> Self {
+        Self {
+            enabled: Self::default_enabled(),
+            path: Self::default_path(),
+        }
+    }
+}
+
+impl SnapshotReport {
+    fn default_enabled() -> bool {
+        false
+    }
+
+    fn default_path() -> String {
+        ".duvet/snapshot.txt".into()
+    }
+}
+
+impl From<&SnapshotReport> for config::SnapshotReport {
+    fn from(value: &SnapshotReport) -> Self {
         Self {
             enabled: value.enabled,
             path: value.path.as_str().into(),

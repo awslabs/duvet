@@ -1,7 +1,2 @@
-name = "aws-cryptographic-material-providers-library"
-repo = "https://github.com/aws/aws-cryptographic-material-providers-library"
-version = "v1.7.0"
-cmd = [
-    "make duvet"
-]
-html_report = "specification_compliance_report.html"
+source = { repo = "https://github.com/aws/aws-cryptographic-material-providers-library", version = "v1.7.0" }
+cmd = ["make duvet"]

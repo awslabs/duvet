@@ -1,0 +1,32 @@
+source = { local = true }
+cmd = ["duvet report --ci"]
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/my-code.rs"
+
+[[specification]]
+source = "my-spec.md"
+
+[report.snapshot]
+enabled = true
+"""
+
+[[file]]
+path = "src/my-code.rs"
+contents = """
+//= my-spec.md#section
+//# here is a spec
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# Section
+
+here is a spec
+"""

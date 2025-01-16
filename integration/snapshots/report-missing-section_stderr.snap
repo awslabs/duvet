@@ -1,0 +1,29 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet report
+EXIT: Some(1)
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 1 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+
+  × 
+  │   × missing section "foo" in my-spec.md
+  │    ╭─[src/my-code.rs:1:5]
+  │  1 │ //= my-spec.md#foo
+  │    ·     ───────┬──────
+  │    ·            ╰── referenced here
+  │  2 │ //# This quote MUST NOT work
+  │    ╰────
+  │ 
+  │ 
+  ╰─▶ encountered 1 errors

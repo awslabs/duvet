@@ -1,0 +1,33 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet report --ci
+EXIT: Some(1)
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 1 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 1 references 
+     Sorting references
+      Sorted 1 references 
+     Writing .duvet/reports/report.html
+       Wrote .duvet/reports/report.html 
+     Writing .duvet/snapshot.txt
+
+Differences detected in .duvet/snapshot.txt:
+
+@@ -1 +1,3 @@
+ SPECIFICATION: [Section](my-spec.md)
++  SECTION: [Section](#section)
++    TEXT[implementation]: here is a spec
+
+  × .duvet/snapshot.txt
+  ╰─▶ Report snapshot does not match with CI mode enabled.

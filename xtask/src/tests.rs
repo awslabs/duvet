@@ -1,7 +1,10 @@
 use crate::{args::FlagExt as _, Result};
 use clap::Parser;
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 use xshell::{cmd, Shell};
 
 #[derive(Debug, Parser)]
@@ -86,21 +89,23 @@ impl Tests {
 
         let tests = tests
             .into_iter()
-            .filter_map(|test| {
-                let ext = test.extension()?;
+            .filter_map(|path| {
+                let ext = path.extension()?;
                 if ext != "toml" {
                     return None;
                 }
-                let file = sh.read_file(&test).unwrap();
-                let test: IntegrationTest = toml::from_str(&file).unwrap();
+                let file = sh.read_file(&path).unwrap();
+                let mut test: IntegrationTest = toml::from_str(&file).unwrap();
+                test.name = path.file_stem().unwrap().to_string_lossy().to_string();
                 Some(test)
             })
             .collect::<Vec<IntegrationTest>>();
 
         sh.create_dir("target/integration/")?;
 
+        let mut targets = vec![];
         for test in &tests {
-            test.fetch(sh)?;
+            targets.push(test.init(sh)?);
         }
 
         let prev_path = sh.var("PATH")?;
@@ -113,8 +118,8 @@ impl Tests {
             std::env::set_var("INSTA_UPDATE", "always");
         };
 
-        for test in &tests {
-            test.run(sh)?;
+        for (test, target) in tests.iter().zip(targets.iter()) {
+            test.run(target, sh)?;
         }
 
         Ok(())
@@ -124,23 +129,70 @@ impl Tests {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct IntegrationTest {
+    #[serde(skip)]
     name: String,
-    repo: String,
-    version: String,
+    source: IntegrationSource,
     cmd: Vec<String>,
-    html_report: PathBuf,
+    #[serde(rename = "file", default)]
+    files: Vec<IntegrationFile>,
+    #[serde(default)]
+    env: BTreeMap<String, String>,
 }
 
-impl IntegrationTest {
-    fn fetch(&self, sh: &Shell) -> Result {
-        let Self {
-            name,
-            repo,
-            version,
-            ..
-        } = self;
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct IntegrationFile {
+    path: String,
+    contents: String,
+}
 
-        let target = format!("target/integration/{name}");
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum IntegrationSource {
+    Git { repo: String, version: String },
+    Local { local: bool },
+}
+
+impl IntegrationSource {
+    fn is_local(&self) -> bool {
+        matches!(self, Self::Local { .. })
+    }
+
+    fn init(&self, test: &IntegrationTest, sh: &Shell) -> Result<PathBuf> {
+        match self {
+            Self::Git { repo, version } => {
+                assert!(
+                    test.files.is_empty(),
+                    "virtual files are only supported for local tests"
+                );
+                Self::init_git(test, repo, version, sh)
+            }
+            Self::Local { local } => {
+                assert!(*local);
+                assert!(
+                    !test.files.is_empty(),
+                    "local tests need at least one virtual file"
+                );
+                let target = Self::init_local(test, sh)?;
+
+                for IntegrationFile { path, contents } in test.files.iter() {
+                    sh.write_file(target.join(path), contents)?;
+                }
+
+                Ok(target)
+            }
+        }
+    }
+
+    fn init_local(test: &IntegrationTest, sh: &Shell) -> Result<PathBuf> {
+        let target = Path::new("target/integration").join(&test.name);
+        let _ = sh.remove_path(&target);
+        sh.create_dir(&target)?;
+        Ok(target)
+    }
+
+    fn init_git(test: &IntegrationTest, repo: &str, version: &str, sh: &Shell) -> Result<PathBuf> {
+        let target = Path::new("target/integration").join(&test.name);
         // allow LFS to run
         let _env = sh.push_env("GIT_CLONE_PROTECTION_ACTIVE", "false");
 
@@ -158,45 +210,87 @@ impl IntegrationTest {
             cmd!(sh, "git fetch --recurse-submodules").run()?;
         }
 
-        Ok(())
+        Ok(target)
+    }
+}
+
+impl IntegrationTest {
+    fn init(&self, sh: &Shell) -> Result<PathBuf> {
+        self.source.init(self, sh)
     }
 
-    fn run(&self, sh: &Shell) -> Result {
-        let Self {
-            name,
-            cmd,
-            html_report,
-            ..
-        } = self;
+    fn run(&self, target: &Path, sh: &Shell) -> Result {
+        let Self { name, cmd, .. } = self;
 
-        let json_report = {
-            let target = format!("target/integration/{name}");
-            let _dir = sh.push_dir(&target);
+        let (stderr, json_report, snapshot_report) = {
+            let _dir = sh.push_dir(target);
+            let html_report = sh.current_dir().join("duvet_report.html");
             let json_report = sh.current_dir().join("duvet_report.json");
-            let html_report = sh.current_dir().join(html_report);
+            let snapshot_report = sh.current_dir().join("duvet_snapshot.txt");
+
+            // override this variable if we're in the duvet CI
+            let _env = sh.push_env("CI", "false");
+            let _env = sh.push_env("DUVET_INTERNAL_CI", "true");
+            let _env = sh.push_env("DUVET_INTERNAL_CI_HTML", html_report.display().to_string());
             let _env = sh.push_env("DUVET_INTERNAL_CI_JSON", json_report.display().to_string());
+            let _env = sh.push_env(
+                "DUVET_INTERNAL_CI_SNAPSHOT",
+                snapshot_report.display().to_string(),
+            );
+
+            let mut env = vec![];
+            for (key, value) in &self.env {
+                env.push(sh.push_env(key, value));
+            }
+
+            let mut stderr = String::new();
 
             for cmd in cmd {
                 let mut args = cmd.split(' ');
-                sh.cmd(args.next().unwrap()).args(args).run()?;
+                let runner = sh.cmd(args.next().unwrap()).args(args);
+                // local tests are allowed to fail
+                if self.source.is_local() {
+                    let output = runner.ignore_status().output()?;
+                    if !output.status.success() {
+                        stderr.push_str(&format!("$ {cmd}\n"));
+                        stderr.push_str(&format!("EXIT: {:?}\n", output.status.code()));
+                        stderr.push_str(&String::from_utf8_lossy(&output.stderr));
+                        continue;
+                    }
+                } else {
+                    runner.run()?;
+                }
             }
 
-            assert!(html_report.exists());
-            assert!(json_report.exists());
+            if stderr.is_empty() {
+                assert!(html_report.exists());
+                assert!(json_report.exists());
+                assert!(snapshot_report.exists());
+            }
 
-            json_report
+            (stderr, json_report, snapshot_report)
         };
-
-        let json_file = sh.read_file(&json_report)?;
-        let json: serde_json::Value = serde_json::from_str(&json_file)?;
 
         let mut settings = insta::Settings::clone_current();
 
         settings.set_snapshot_path(sh.current_dir().join("integration/snapshots"));
         settings.set_prepend_module_to_snapshot(false);
 
+        if !stderr.is_empty() {
+            settings.bind(|| {
+                insta::assert_snapshot!(format!("{name}_stderr"), stderr);
+            });
+            return Ok(());
+        }
+
+        let json_file = sh.read_file(&json_report)?;
+        let json: serde_json::Value = serde_json::from_str(&json_file)?;
+
+        let snapshot = sh.read_file(&snapshot_report)?;
+
         settings.bind(|| {
-            insta::assert_json_snapshot!(name.to_string(), json);
+            insta::assert_snapshot!(format!("{name}"), snapshot);
+            insta::assert_json_snapshot!(format!("{name}_json"), json);
         });
 
         Ok(())
