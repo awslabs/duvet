@@ -10,30 +10,30 @@ Before getting started, Duvet requires a [rust toolchain](https://www.rust-lang.
 
 1. Install command
 
-    ```console
-    $ cargo install duvet --locked
-    ```
+   ```console
+   $ cargo install duvet --locked
+   ```
 
 2. Initialize repository
 
-    In this example, we are using Rust. However, Duvet can be used with any language.
+   In this example, we are using Rust. However, Duvet can be used with any language.
 
-    ```console
-    $ duvet init --lang-rust --specification https://www.rfc-editor.org/rfc/rfc2324
-    ```
+   ```console
+   $ duvet init --lang-rust --specification https://www.rfc-editor.org/rfc/rfc2324
+   ```
 
 3. Add a implementation comment in the project
 
-    ```rust
-    // src/lib.rs
+   ```rust
+   // src/lib.rs
 
-    //= https://www.rfc-editor.org/rfc/rfc2324#section-2.1.1
-    //# A coffee pot server MUST accept both the BREW and POST method
-    //# equivalently.
-    ```
+   //= https://www.rfc-editor.org/rfc/rfc2324#section-2.1.1
+   //# A coffee pot server MUST accept both the BREW and POST method
+   //# equivalently.
+   ```
 
 4. Generate a report
 
-    ```console
-    $ duvet report
-    ```
+   ```console
+   $ duvet report
+   ```

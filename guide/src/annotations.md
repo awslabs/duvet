@@ -45,6 +45,7 @@ In a strongly-typed language, this requirement is being both implemented and tes
 
 ```rust
 //= my-spec.md#section
+//= type=implication
 //# The function MUST return a 64-bit integer.
 fn the_function() -> u64 {
     42
@@ -61,7 +62,7 @@ The source code has defined an exception for a requirement and is explicitly cho
 Implementations MAY panic on invalid arguments.
 ```
 
-In our example here, we've chosen _not_ to panic, but instead return an error. Annotations with the `exception` type are expected to provide a reason as to why the requirement is not being implemented.
+In our example here, we've chosen _not_ to panic, but instead return an error. Annotations with the `exception` type can optionally provide a reason as to why the requirement is not being implemented.
 
 ```rust
 //= my-spec.md#section
