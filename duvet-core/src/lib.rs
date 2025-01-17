@@ -21,6 +21,8 @@ pub mod artifact;
 mod cache;
 pub mod contents;
 pub mod diagnostic;
+#[cfg(feature = "diff")]
+pub mod diff;
 pub mod dir;
 pub mod env;
 pub mod file;
@@ -36,6 +38,7 @@ pub mod vfs;
 #[doc(hidden)]
 pub mod macro_support;
 
+pub use ::console;
 pub use cache::Cache;
 pub use duvet_macros::*;
 pub use query::Query;

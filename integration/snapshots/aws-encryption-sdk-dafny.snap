@@ -1,3 +1,2026 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:f19f23447507fc26f720fe57aee55e58545e574d440bc3d412374fcbdffc1f92
-size 1284446
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [Algorithm Suites](aws-encryption-sdk-specification/framework/algorithm-suites.md)
+  SECTION: [Overview](#overview)
+    TEXT[!MUST]: The algorithm suite defines the behaviors [supported formats](#supported-formats) MUST follow for cryptographic operations.
+
+  SECTION: [GCM](#gcm)
+    TEXT[!MUST]: If specified to use GCM, the AWS Encryption SDK MUST use GCM with the following specifics:
+
+  SECTION: [CBC](#cbc)
+    TEXT[!MUST]: If specified to use CBC, the S3 Encryption Client MUST use CBC with the following specifics:
+    TEXT[!MUST]: - CBC MUST only be used to decrypt existing ciphertexts.
+    TEXT[!MUST]: - CBC MUST NOT be used to encrypt new ciphertexts.
+
+  SECTION: [CTR](#ctr)
+    TEXT[!MUST]: If specified to use CTR, the S3 Encryption Client MUST use CTR with the following specifics:
+    TEXT[!MUST]: - CTR MUST only be used to decrypt existing ciphertexts.
+    TEXT[!MUST]: - CTR MUST NOT be used to encrypt new ciphertexts.
+
+  SECTION: [Identity KDF](#identity-kdf)
+    TEXT[!MUST]: The Identity KDF MUST take a byte sequence as input,
+    TEXT[!MUST]: and MUST return the input, unchanged, as output.
+    TEXT[!MUST]: If included in the algorithm suite,
+    TEXT[!MUST]: the algorithm suite's encryption key length MUST equal the algorithm suite's [key derivation input length](#key-derivation-input-length).
+
+  SECTION: [Supported Formats](#supported-formats)
+    TEXT[!MUST]: Both short and long name MUST be unique.
+
+  SECTION: [Supported Format Algorithm Suites ENUM](#supported-format-algorithm-suites-enum)
+    TEXT[!MUST]: The Material Providers Library MUST provide
+    TEXT[!MUST]: a set of algorithm suite ENUM for each [supported format](#supported-format).
+
+  SECTION: [Supported Algorithm Suites ENUM](#supported-algorithm-suites-enum)
+    TEXT[!MUST]: The Material Providers Library MUST provide
+    TEXT[!MUST]: an ENUM that is the super set of all the [supported format algorithm suites enum](#supported-format-algorithm-suites-enum)
+    TEXT[!MUST]: called the Algorithm Suite ENUM.
+    TEXT[!MAY]: This means that different formats MAY have duplicate Format Algorithm Suite ENUM.
+
+  SECTION: [Supported Algorithm Suites](#supported-algorithm-suites)
+    TEXT[!MUST]: The value `00 00` is reserved
+    TEXT[!MUST]: and MUST NOT be used
+    TEXT[!MUST]: as an Algorithm Suite ID in the future.
+    TEXT[!MUST]: Algorithm Suite ID MUST be a unique hex value across all supported algorithm suites.
+
+  SECTION: [Algorithm Suites Signature Settings](#algorithm-suites-signature-settings)
+    TEXT[!MUST]: An algorithm suite with a symmetric signature algorithm MUST use [intermediate key wrapping](#intermediate-key-wrapping).
+
+  SECTION: [Intermediate Key Wrapping](#intermediate-key-wrapping)
+    TEXT[!MUST]: - For each encrypted data key, a distinct `intermediate key` MUST be generated using cryptographically secure random bytes.
+    TEXT[!MUST]:   This intermediate key MUST have length equal to the encryption key length of the algorithm suite.
+    TEXT[!MUST]: - For each encrypted data key, a [symmetric signing key](./structures.md#symmetric-signing-key) MUST be derived from the `intermediate key`
+    TEXT[!MUST]:   using the key derivation algorithm in the algorithm suite, with the following specifics:
+    TEXT[!MUST]: - For each encrypted data key, a `key encryption key` MUST be derived from the `intermediate key`
+    TEXT[!MUST]:   using the key derivation algorithm in the algorithm suite, with the following specifics:
+    TEXT[!MUST]: - The [EDK ciphertext](./structures.md#ciphertext) MUST be the following serialization:
+
+  SECTION: [Wrapped Plaintext Data Key](#wrapped-plaintext-data-key)
+    TEXT[!MUST]: The wrapped plaintext data key MUST be the result of the following AES GCM 256 Encrypt operation:
+    TEXT[!MUST]: This value MUST be equal to the algorithm suite's encryption key length + 16.
+
+  SECTION: [Structure](#structure)
+    TEXT[!MUST]: The fields described below are REQUIRED to be specified by algorithm suites, unless otherwise specified.
+
+  SECTION: [Algorithm Suite ID](#algorithm-suite-id)
+    TEXT[!MUST]: A 2-byte hex value that MUST uniquely identify an algorithm suite.
+    TEXT[!SHOULD]: This 2-byte value SHOULD be used to bind algorithm suites to ciphertext.
+
+  SECTION: [Encryption Algorithm](#encryption-algorithm)
+    TEXT[!MUST]: The length of the input encryption key MUST equal the [encryption key length](#encryption-key-length) specified by the algorithm suite.
+
+  SECTION: [Encryption Algorithm Mode](#encryption-algorithm-mode)
+    TEXT[!MUST]: The length of the input IV MUST equal the IV length specified by the algorithm suite.
+    TEXT[!MUST]: The length of the authentication tag MUST equal the authentication tag length specified by the algorithm suite.
+
+  SECTION: [Encryption Key Derivation Algorithm](#encryption-key-derivation-algorithm)
+    TEXT[!MUST]: The specified KDF algorithm MUST be used to generate the encryption algorithm encryption key input.
+
+  SECTION: [Commit Key Derivation Algorithm](#commit-key-derivation-algorithm)
+    TEXT[!MUST]: The specified KDF algorithm MUST be used to generate the [commit key](#commit-key).
+
+  SECTION: [Asymmetric Signature Algorithm](#asymmetric-signature-algorithm)
+    TEXT[!MAY]: This field is OPTIONAL.
+    TEXT[!MUST]: - Asymmetric signatures MUST be generated using the specified asymmetric signature algorithm.
+    TEXT[!MUST]: - Asymmetric signatures MUST be verified using the specified asymmetric signature algorithm.
+    TEXT[!MUST]: - Asymmetric signatures MUST NOT be generated.
+    TEXT[!MUST]: - Asymmetric signatures MUST NOT be verified.
+
+  SECTION: [Symmetric Signature Algorithm](#symmetric-signature-algorithm)
+    TEXT[!MAY]: This field is OPTIONAL.
+    TEXT[!MUST]: - Symmetric signatures MUST be generated using the specified symmetric signature algorithm.
+    TEXT[!MUST]: - Symmetric signatures MUST be verified using the specified symmetric signature algorithm.
+    TEXT[!MUST]: - The algorithm suite MUST also use [Intermediate Key Wrapping](#intermediate-key-wrapping).
+    TEXT[!MUST]: - Symmetric signatures MUST NOT be generated.
+    TEXT[!MUST]: - Symmetric signatures MUST NOT be verified.
+
+  SECTION: [Message Format Version](#message-format-version)
+    TEXT[!MUST]: This MUST be used to branch any serialization/deserialization logic in [supported formats](#supported-formats).
+
+  SECTION: [Supported Algorithm Suite Data](#supported-algorithm-suite-data)
+    TEXT[!MUST]: - Algorithm Suite 05 78 MUST store the commit key in the suite data
+    TEXT[!MUST]: - Algorithm Suite 04 78 MUST store the commit key in the suite data
+
+  SECTION: [Algorithm Suite Data Length](#algorithm-suite-data-length)
+    TEXT[!MAY]: The field MAY be length 0.
+
+SPECIFICATION: [AWS KMS Discovery Keyring](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-discovery-keyring.md)
+  SECTION: [Interface](#interface)
+    TEXT[!MUST]: MUST implement that [AWS Encryption SDK Keyring interface](../keyring-interface.md#interface)
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On initialization the caller MUST provide:
+    TEXT[!MUST]: The AWS KMS SDK client MUST NOT be null.
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: This function MUST fail.
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: OnDecrypt MUST take [decryption materials](../structures.md#decryption-materials) and
+    TEXT[!MUST]: a list of [encrypted data keys](../structures.md#encrypted-data-key) as input.
+    TEXT[!MUST]: If the [decryption materials](../structures.md#decryption-materials) already contained a valid plaintext data key,
+    TEXT[!MUST]: they keyring MUST fail and MUST NOT modify the [decryption materials](../structures.md#decryption-materials).
+    TEXT[!MUST]: The set of encrypted data keys MUST first be filtered to match this keyring’s configuration.
+    TEXT[!MUST]: - Its provider ID MUST exactly match the value “aws-kms”.
+    TEXT[!MUST]: - The provider info MUST be a [valid AWS KMS ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn) with a resource type of `key` or OnDecrypt MUST fail.
+    TEXT[!MUST]: - If a discovery filter is configured, its partition and the provider info partition MUST match.
+    TEXT[!MUST]: - If a discovery filter is configured, its set of accounts MUST contain the provider info account.
+    TEXT[!MUST]: For each encrypted data key in the filtered set, one at a time, the OnDecrypt MUST attempt to decrypt the data key.
+    TEXT[!MUST]: To attempt to decrypt a particular [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: OnDecrypt MUST call [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html) with the configured AWS KMS client.
+    TEXT[!MUST]: When calling [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html), the keyring MUST call with a request constructed as follows:
+    TEXT[!MUST]: - The `KeyId` field in the response MUST equal the AWS KMS ARN from the provider info
+    TEXT[!MUST]: - The length of the response’s `Plaintext` MUST equal the [key derivation input length](../algorithm-suites.md#key-derivation-input-length)
+    TEXT[!MUST]:   specified by the [algorithm suite](../algorithm-suites.md) included in the input [decryption materials](../structures.md#decryption-materials).
+    TEXT[!MUST]: If the response does not satisfy these requirements
+    TEXT[!MUST]: then an error is collected and the next encrypted data key in the filtered set MUST be attempted.
+    TEXT[!MUST]: If the response does satisfy these requirements then OnDecrypt MUST do the following with the response:
+    TEXT[!MUST]: If OnDecrypt fails to successfully decrypt any [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: then it MUST yield an error that includes all collected errors.
+
+SPECIFICATION: [AWS KMS Hierarchical Keyring](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-hierarchical-keyring.md)
+  SECTION: [Interface](#interface)
+    TEXT[!MUST]: MUST implement the [AWS Encryption SDK Keyring interface](../keyring-interface.md#interface)
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: - MUST provide a [Keystore](../branch-key-store.md)
+    TEXT[!MUST]: - MUST provide a [cache limit TTL](#cache-limit-ttl)
+    TEXT[!MUST]: - MUST provide either a Branch Key Identifier or a [Branch Key Supplier](#branch-key-supplier)
+    TEXT[!MAY]: - MAY provide a max cache size
+    TEXT[!MUST]: On initialization the Hierarchical Keyring MUST initialize a [cryptographic-materials-cache](../local-cryptographic-materials-cache.md) with the configured cache limit TTL and the max cache size.
+    TEXT[!MUST]: If no max cache size is provided, the crypotgraphic materials cache MUST be configured to a
+    TEXT[!MUST]: max cache size of 1000.
+
+  SECTION: [Cache Limit TTL](#cache-limit-ttl)
+    TEXT[!MUST]: The maximum amount of time in seconds that an entry within the cache may be used before it MUST be evicted.
+    TEXT[!MUST]: The client MUST set a time-to-live (TTL) for [branch key materials](../structures.md#branch-key-materials) in the underlying cache.
+    TEXT[!MUST]: This value MUST be greater than zero.
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: OnEncrypt MUST take [encryption materials](../structures.md#encryption-materials) as input.
+    TEXT[!MUST]: If the input [encryption materials](../structures.md#encryption-materials) do not contain a plaintext data key,
+    TEXT[!MUST]: OnEncrypt MUST generate a random plaintext data key, according to the key length defined in the [algorithm suite](../algorithm-suites.md#encryption-key-length).
+    TEXT[!MUST]: The process used to generate this random plaintext data key MUST use a secure source of randomness.
+    TEXT[!MUST]: The hierarchical keyring MUST attempt to find [branch key materials](../structures.md#branch-key-materials)
+    TEXT[!MUST]: from the underlying [cryptographic materials cache](../local-cryptographic-materials-cache.md).
+    TEXT[!MUST]: The hierarchical keyring MUST use the formulas specified in [Appendix A](#appendix-a-cache-entry-identifier-formulas)
+    TEXT[!MUST]: to compute the [cache entry identifier](../cryptographic-materials-cache.md#cache-identifier).
+    TEXT[!MUST]: If a cache entry is found and the entry's TTL has not expired, the hierarchical keyring MUST use those branch key materials for key wrapping.
+    TEXT[!MUST]: If a cache entry is not found or the cache entry is expired, the hierarchical keyring MUST attempt to obtain the branch key materials
+    TEXT[!MUST]: by querying the backing branch keystore specified in the [retrieve OnEncrypt branch key materials](#query-branch-keystore-onencrypt) section.
+    TEXT[!MUST]: If the keyring is not able to retrieve [branch key materials](../structures.md#branch-key-materials)
+    TEXT[!MUST]: through the underlying cryptographic materials cache or
+    TEXT[!MUST]: it no longer has access to them through the backing keystore, OnEncrypt MUST fail.
+    TEXT[!MUST]: - MUST wrap a data key with the branch key materials according to the [branch key wrapping](#branch-key-wrapping) section.
+    TEXT[!MUST]: If the keyring is unable to wrap a plaintext data key, OnEncrypt MUST fail
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+    TEXT[!MUST]: Otherwise, OnEncrypt MUST append a new [encrypted data key](../structures.md#encrypted-data-key)
+    TEXT[!MUST]: to the encrypted data key list in the [encryption materials](../structures.md#encryption-materials), constructed as follows:
+    TEXT[!MUST]: - [ciphertext](../structures.md#ciphertext): MUST be serialized as the [hierarchical keyring ciphertext](#ciphertext)
+    TEXT[!MUST]: - [key provider id](../structures.md#key-provider-id): MUST be UTF8 Encoded "aws-kms-hierarchy"
+    TEXT[!MUST]: - [key provider info](../structures.md#key-provider-information): MUST be the UTF8 Encoded AWS DDB response `branch-key-id`
+
+  SECTION: [Query Branch Keystore OnEncrypt](#query-branch-keystore-onencrypt)
+    TEXT[!MUST]: OnEncrypt MUST call the Keystore's [GetActiveBranchKey](../branch-key-store.md#getactivebranchkey) operation with the following inputs:
+    TEXT[!MUST]: If the Keystore's GetActiveBranchKey operation succeeds
+    TEXT[!MUST]: the keyring MUST put the returned branch key materials in the cache using the
+    TEXT[!MUST]: formula defined in [Appendix A](#appendix-a-cache-entry-identifier-formulas).
+    TEXT[!MUST]: Otherwise, OnEncrypt MUST fail.
+
+  SECTION: [Branch Key Wrapping](#branch-key-wrapping)
+    TEXT[!MUST]: The hierarchical keyring MUST:
+    TEXT[!MUST]:    - MUST use the `derivedBranchKey` as the AES-GCM cipher key.
+    TEXT[!MUST]:    - MUST use the plain text data key that will be wrapped by the `derivedBranchKey` as the AES-GCM message.
+    TEXT[!MUST]:    - MUST use the derived `IV` as the AES-GCM IV.
+    TEXT[!MUST]:    - MUST use an authentication tag byte of length 16.
+    TEXT[!MUST]:    - MUST use the serialized [AAD](#branch-key-wrapping-and-unwrapping-aad) as the AES-GCM AAD.
+    TEXT[!MUST]: If OnEncrypt fails to do any of the above, OnEncrypt MUST fail.
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: OnDecrypt MUST take [decryption materials](../structures.md#decryption-materials) and a list of [encrypted data keys](../structures.md#encrypted-data-keys) as input.
+    TEXT[!MUST]: If the decryption materials already contain a `PlainTextDataKey`, OnDecrypt MUST fail.
+    TEXT[!MUST]: The set of encrypted data keys MUST first be filtered to match this keyring’s configuration.
+    TEXT[!MUST]: - Its provider ID MUST match the UTF8 Encoded value of “aws-kms-hierarchy”.
+    TEXT[!MUST]: - Deserialize the key provider info, if deserialization fails the next EDK in the set MUST be attempted.
+    TEXT[!MUST]:   - The deserialized key provider info MUST be UTF8 Decoded and MUST match this keyring's configured `Branch Key Identifier`.
+    TEXT[!MUST]: For each encrypted data key in the filtered set, one at a time, OnDecrypt MUST attempt to decrypt the encrypted data key.
+    TEXT[!MUST]: If this attempt results in an error, then these errors MUST be collected.
+    TEXT[!MUST]: To decrypt each encrypted data key in the filtered set, the hierarchical keyring MUST attempt
+    TEXT[!MUST]: to find the corresponding [branch key materials](../structures.md#branch-key-materials)
+    TEXT[!MUST]: from the underlying [cryptographic materials cache](../local-cryptographic-materials-cache.md).
+    TEXT[!MUST]: The hierarchical keyring MUST use the OnDecrypt formula specified in [Appendix A](#decryption-materials)
+    TEXT[!MUST]: in order to compute the [cache entry identifier](cryptographic-materials-cache.md#cache-identifier).
+    TEXT[!MUST]: If a cache entry is found and the entry's TTL has not expired, the hierarchical keyring MUST use those branch key materials for key unwrapping.
+    TEXT[!MUST]: If a cache entry is not found or the cache entry is expired, the hierarchical keyring
+    TEXT[!MUST]: MUST attempt to obtain the branch key materials by calling the backing branch key
+    TEXT[!MUST]: store specified in the [retrieve OnDecrypt branch key materials](#getitem-branch-keystore-ondecrypt) section.
+    TEXT[!MUST]: If the keyring is not able to retrieve `branch key materials` from the backing keystore then OnDecrypt MUST fail.
+    TEXT[!MUST]: - MUST unwrap the encrypted data key with the branch key materials according to the [branch key unwrapping](#branch-key-unwrapping) section.
+    TEXT[!MUST]: If a decryption succeeds, this keyring MUST
+    TEXT[!MUST]: add the resulting plaintext data key to the decryption materials and return the modified materials.
+    TEXT[!MUST]: If OnDecrypt fails to successfully decrypt any [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: then it MUST yield an error that includes all the collected errors
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+
+  SECTION: [GetItem Branch Keystore OnDecrypt](#getitem-branch-keystore-ondecrypt)
+    TEXT[!MUST]: OnDecrypt MUST calculate the following values:
+    TEXT[!MUST]: OnDecrypt MUST call the Keystore's [GetBranchKeyVersion](../branch-key-store.md#getbranchkeyversion) operation with the following inputs:
+    TEXT[!MUST]: If the Keystore's GetBranchKeyVersion operation succeeds
+    TEXT[!MUST]: the keyring MUST put the returned branch key materials in the cache using the
+    TEXT[!MUST]: formula defined in [Appendix A](#appendix-a-cache-entry-identifier-formulas).
+    TEXT[!MUST]: Otherwise, OnDecrypt MUST fail.
+
+  SECTION: [Branch Key Unwrapping](#branch-key-unwrapping)
+    TEXT[!MUST]: To decrypt an encrypted data key with a branch key, the hierarchical keyring MUST:
+    TEXT[!MUST]:    - It MUST use the `encrypted key` obtained from deserialization as the AES-GCM input ciphertext.
+    TEXT[!MUST]:    - It MUST use the `authentication tag` obtained from deserialization as the AES-GCM input authentication tag.
+    TEXT[!MUST]:    - It MUST use the `derivedBranchKey` as the AES-GCM cipher key.
+    TEXT[!MUST]:    - It MUST use the `IV` obtained from deserialization as the AES-GCM input IV.
+    TEXT[!MUST]:    - It MUST use the serialized [encryption context](#branch-key-wrapping-and-unwrapping-aad) as the AES-GCM AAD.
+    TEXT[!MUST]: If OnDecrypt fails to do any of the above, OnDecrypt MUST fail.
+
+  SECTION: [Branch Key Wrapping and Unwrapping AAD](#branch-key-wrapping-and-unwrapping-aad)
+    TEXT[!MUST]: To Encrypt and Decrypt the `wrappedDerivedBranchKey` the keyring MUST include the following values as part of the AAD for
+    TEXT[!MUST]: the AES Encrypt/Decrypt calls.
+    TEXT[!MUST]: To construct the AAD, the keyring MUST concatenate the following values
+    TEXT[!MUST]: If the keyring cannot serialize the encryption context, the operation MUST fail.
+
+  SECTION: [Appendix A: Cache Entry Identifier Formulas](#appendix-a-cache-entry-identifier-formulas)
+    TEXT[!MUST]: When accessing the underlying cryptographic materials cache,
+    TEXT[!MUST]: the hierarchical keyring MUST use the formulas specified in this appendix
+    TEXT[!MUST]: in order to compute the [cache entry identifier](../cryptographic-materials-cache.md#cache-identifier).
+
+  SECTION: [Encryption Materials](#encryption-materials)
+    TEXT[!MUST]: When the hierarchical keyring receives an OnEncrypt request,
+    TEXT[!MUST]: the cache entry identifier MUST be calculated as the first 32 bytes of the
+    TEXT[!MUST]: SHA-512 hash of the following byte strings, in the order listed:
+
+  SECTION: [Decryption Materials](#decryption-materials)
+    TEXT[!MUST]: When the hierarchical keyring receives an OnDecrypt request,
+    TEXT[!MUST]: it MUST calculate the cache entry identifier as the first 32 bytes of the SHA-512 hash of the following byte strings, in the order listed:
+
+  SECTION: [Branch Key Supplier](#branch-key-supplier)
+    TEXT[!MUST]: This operation MUST take in an encryption context as input,
+    TEXT[!MUST]: and return a branch key id (string) as output.
+
+SPECIFICATION: [AWS KMS Key ARN](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-key-arn.md)
+  SECTION: [A valid AWS KMS ARN](#a-valid-aws-kms-arn)
+    TEXT[!MUST]: MUST start with string `arn`
+    TEXT[!MUST]: The partition MUST be a non-empty
+    TEXT[!MUST]: The service MUST be the string `kms`
+    TEXT[!MUST]: The region MUST be a non-empty string
+    TEXT[!MUST]: The account MUST be a non-empty string
+    TEXT[!MUST]: The resource section MUST be non-empty and MUST be split by a single `/`
+    TEXT[!MUST]:    any additional `/` are included in the resource id
+    TEXT[!MUST]: The resource type MUST be either `alias` or `key`
+    TEXT[!MUST]: The resource id MUST be a non-empty string
+
+  SECTION: [Identifying an an AWS KMS multi-Region ARN](#identifying-an-an-aws-kms-multi-region-arn)
+    TEXT[!MUST]: This function MUST take a single AWS KMS ARN
+    TEXT[!MUST]: If the input is an invalid AWS KMS ARN this function MUST error.
+    TEXT[!MUST]: If resource type is “alias”,
+    TEXT[!MUST]: this is an AWS KMS alias ARN and MUST return false.
+    TEXT[!MUST]: If resource type is “key” and resource ID starts with “mrk-“,
+    TEXT[!MUST]: this is a AWS KMS multi-Region key ARN and MUST return true.
+    TEXT[!MUST]: If resource type is “key” and resource ID does not start with “mrk-“,
+    TEXT[!MUST]: this is a (single-region) AWS KMS key ARN and MUST return false.
+
+  SECTION: [Identifying an an AWS KMS multi-Region identifier](#identifying-an-an-aws-kms-multi-region-identifier)
+    TEXT[!MUST]: This function MUST take a single AWS KMS identifier
+    TEXT[!MUST]: If the input starts with "arn:",
+    TEXT[!MUST]: this MUST return the output of [identifying an an AWS KMS multi-Region ARN](aws-kms-key-arn.md#identifying-an-an-aws-kms-multi-region-arn)
+    TEXT[!MUST]: called with this input.
+    TEXT[!MUST]: If the input starts with “alias/“,
+    TEXT[!MUST]: this an AWS KMS alias and not a multi-Region key id and MUST return false.
+    TEXT[!MUST]: If the input starts with “mrk-“,
+    TEXT[!MUST]: this is a multi-Region key id and MUST return true.
+    TEXT[!MUST]: If the input does not start with any of the above,
+    TEXT[!MUST]: this is not a multi-Region key id and MUST return false.
+
+SPECIFICATION: [AWS KMS Keyring](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-keyring.md)
+  SECTION: [Interface](#interface)
+    TEXT[!MUST]: MUST implement the [AWS Encryption SDK Keyring interface](../keyring-interface.md#interface)
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: - MUST provide an AWS KMS key identifier
+    TEXT[!MUST]: - MUST provide an AWS KMS SDK client
+    TEXT[!MAY]: - MAY provide a list of Grant Tokens
+    TEXT[!MUST]: The AWS KMS key identifier MUST NOT be null or empty.
+    TEXT[!MUST]: The AWS KMS key identifier MUST be [a valid identifier](aws-kms-key-arn.md#a-valid-aws-kms-identifier).
+    TEXT[!MUST]: The AWS KMS SDK client MUST NOT be null.
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: OnEncrypt MUST take [encryption materials](../structures.md#encryption-materials) as input.
+    TEXT[!MUST]: If the input [encryption materials](../structures.md#encryption-materials) do not contain a plaintext data key
+    TEXT[!MUST]: OnEncrypt MUST attempt to generate a new plaintext data key
+    TEXT[!MUST]: by calling [AWS KMS GenerateDataKey](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html).
+    TEXT[!MUST]: If the keyring calls AWS KMS GenerateDataKeys, it MUST use the configured AWS KMS client to make the call.
+    TEXT[!MUST]: The keyring MUST call AWS KMS GenerateDataKeys with a request constructed as follows:
+    TEXT[!MUST]: - `KeyId` MUST be the keyring's KMS key identifier.
+    TEXT[!MUST]: - `NumberOfBytes` MUST be the [key derivation input length](../algorithm-suites.md#key-derivation-input-length)
+    TEXT[!MUST]:   specified by the [algorithm suite](../algorithm-suites.md) included in the input [encryption materials](../structures.md#encryption-materials).
+    TEXT[!MUST]: - `EncryptionContext` MUST be the [encryption context](../structures.md#encryption-context)
+    TEXT[!MUST]:   included in the input [encryption materials](../structures.md#encryption-materials).
+    TEXT[!MUST]: - `GrantTokens` MUST be this keyring's [grant tokens](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#grant_token).
+    TEXT[!MUST]: If the call to [AWS KMS GenerateDataKey](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html) does not succeed,
+    TEXT[!MUST]: OnEncrypt MUST NOT modify the [encryption materials](../structures.md#encryption-materials) and MUST fail.
+    TEXT[!MUST]: If the Generate Data Key call succeeds, OnEncrypt MUST verify that the response `Plaintext` length matches
+    TEXT[!MUST]: the specification of the [algorithm suite](../algorithm-suites.md)'s Key Derivation Input Length field.
+    TEXT[!MUST]: The Generate Data Key response’s `KeyId` MUST be [a valid AWS KMS key ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn).
+    TEXT[!MUST]: - MUST set the plaintext data key on the [encryption materials](../structures.md#encryption-materials) as the response `Plaintext`.
+    TEXT[!MUST]: - MUST append a new [encrypted data key](../structures.md#encrypted-data-key) to the encrypted data key list in the [encryption materials](../structures.md#encryption-materials), constructed as follows:
+    TEXT[!MUST]:   - the [ciphertext](../structures.md#ciphertext) MUST be the response `CiphertextBlob`.
+    TEXT[!MUST]:   - the [key provider id](../structures.md#key-provider-id) MUST be "aws-kms".
+    TEXT[!MUST]:   - the [key provider information](../structures.md#key-provider-information) MUST be the response `KeyId`.
+    TEXT[!MUST]: - MUST output the modified [encryption materials](../structures.md#encryption-materials)
+    TEXT[!MUST]: If the input [encryption materials](../structures.md#encryption-materials) do contain a plaintext data key,
+    TEXT[!MUST]: OnEncrypt MUST attempt to encrypt the plaintext data key using the configured AWS KMS key identifier.
+    TEXT[!MUST]: The keyring MUST call [AWS KMS Encrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html) using the configured AWS KMS client.
+    TEXT[!MUST]: The keyring MUST AWS KMS Encrypt call with a request constructed as follows:
+    TEXT[!MUST]: - `KeyId` MUST be the configured AWS KMS key identifier.
+    TEXT[!MUST]: - `PlaintextDataKey` MUST be the plaintext data key in the [encryption materials](../structures.md#encryption-materials).
+    TEXT[!MUST]: If the call to [AWS KMS Encrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html) does not succeed, OnEncrypt MUST fail.
+    TEXT[!MUST]: If the Encrypt call succeeds the response’s `KeyId` MUST be [A valid AWS KMS key ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn).
+    TEXT[!MUST]: If verified, OnEncrypt MUST append a new [encrypted data key](../structures.md#encrypted-data-key) to the encrypted data key list in the [encryption materials](../structures.md#encryption-materials), constructed as follows:
+    TEXT[!MUST]: - The [ciphertext](../structures.md#ciphertext) MUST be the response `CiphertextBlob`.
+    TEXT[!MUST]: - The [key provider id](../structures.md#key-provider-id) MUST be "aws-kms".
+    TEXT[!MUST]: - The [key provider information](../structures.md#key-provider-information) MUST be the response `KeyId`.
+    TEXT[!MUST]: If all Encrypt calls succeed, OnEncrypt MUST output the modified [encryption materials](../structures.md#encryption-materials).
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: OnDecrypt MUST take [decryption materials](../structures.md#decryption-materials) and
+    TEXT[!MUST]: a list of [encrypted data keys](../structures.md#encrypted-data-key) as input.
+    TEXT[!MUST]: If the [decryption materials](../structures.md#decryption-materials) already contained a valid plaintext data key
+    TEXT[!MUST]: OnDecrypt MUST return an error.
+    TEXT[!MUST]: The set of encrypted data keys MUST first be filtered to match this keyring’s configuration.
+    TEXT[!MUST]: - Its provider ID MUST exactly match the value “aws-kms”.
+    TEXT[!MUST]: - The provider info MUST be a [valid AWS KMS ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn) with a resource type of `key` or OnDecrypt MUST fail.
+    TEXT[!MUST]: - The provider info MUST match the configured AWS KMS key identifier.
+    TEXT[!MUST]: For each encrypted data key in the filtered set, one at a time, the OnDecrypt MUST attempt to decrypt the data key.
+    TEXT[!MUST]: If this attempt results in an error, then these errors MUST be collected.
+    TEXT[!MUST]: To attempt to decrypt a particular [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: OnDecrypt MUST call [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html) with the configured AWS KMS client.
+    TEXT[!MUST]: When calling [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html), the keyring MUST call with a request constructed as follows:
+    TEXT[!MUST]: - `KeyId` MUST be the configured AWS KMS key identifier.
+    TEXT[!MUST]: - `CiphertextBlob` MUST be the [encrypted data key ciphertext](../structures.md#ciphertext).
+    TEXT[!MUST]: - `EncryptionContext` MUST be the [encryption context](../structures.md#encryption-context) included in the input [decryption materials](../structures.md#decryption-materials).
+    TEXT[!MUST]: - `GrantTokens` MUST be this keyring's [grant tokens](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#grant_token).
+    TEXT[!MUST]: - The `KeyId` field in the response MUST equal the configured AWS KMS key identifier.
+    TEXT[!MUST]: - The length of the response’s `Plaintext` MUST equal the [key derivation input length](../algorithm-suites.md#key-derivation-input-length)
+    TEXT[!MUST]:   specified by the [algorithm suite](../algorithm-suites.md) included in the input [decryption materials](../structures.md#decryption-materials).
+    TEXT[!MUST]: If the response does not satisfies these requirements then an error MUST be collected
+    TEXT[!MUST]: and the next encrypted data key in the filtered set MUST be attempted.
+    TEXT[!MUST]: - MUST set the plaintext data key on the [decryption materials](../structures.md#decryption-materials) as the response `Plaintext`.
+    TEXT[!MUST]: - MUST immediately return the modified [decryption materials](../structures.md#decryption-materials).
+    TEXT[!MUST]: If OnDecrypt fails to successfully decrypt any [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: then it MUST yield an error that includes all the collected errors.
+
+SPECIFICATION: [Assert AWS KMS MRK are unique](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-mrk-are-unique.md)
+  SECTION: [Implementation](#implementation)
+    TEXT[!MUST]: The caller MUST provide:
+    TEXT[!MUST]: If the list does not contain any [multi-Region keys](aws-kms-key-arn.md#identifying-an-aws-kms-multi-region-key)
+    TEXT[!MUST]: this function MUST exit successfully.
+    TEXT[!MUST]: If there are zero duplicate resource ids between the multi-region keys,
+    TEXT[!MUST]: this function MUST exit successfully
+    TEXT[!MUST]: If any duplicate multi-region resource ids exist,
+    TEXT[!MUST]: this function MUST yield an error
+    TEXT[!MUST]: that includes all identifiers with duplicate resource ids
+    TEXT[!MUST]: not only the first duplicate found.
+
+SPECIFICATION: [AWS KMS MRK Aware Master Key Provider](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-mrk-aware-master-key-provider.md)
+  SECTION: [Interface](#interface)
+    TEXT[!MUST]: MUST implement the [Master Key Provider Interface](../master-key-provider-interface.md#interface)
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On initialization the caller MUST provide:
+    TEXT[!MUST]: The key id list MUST NOT be empty or null in strict mode.
+    TEXT[!MUST]: The key id list MUST NOT contain any null or empty string values.
+    TEXT[!MUST]: All AWS KMS key identifiers are be passed to [Assert AWS KMS MRK are unique](aws-kms-mrk-are-unique.md#Implementation)
+    TEXT[!MUST]: and the function MUST return success.
+    TEXT[!MUST]: A discovery filter MUST NOT be configured in strict mode.
+    TEXT[!MUST]: A default MRK Region MUST NOT be configured in strict mode.
+    TEXT[!MUST]: In discovery mode if a default MRK Region is not configured
+    TEXT[!MUST]: the AWS SDK Default Region MUST be used.
+    TEXT[!MUST]: If an AWS SDK Default Region can not be obtained initialization MUST fail.
+    TEXT[!MUST]: The key id list MUST be empty in discovery mode.
+    TEXT[!MUST]: The regional client supplier MUST be defined in discovery mode.
+
+  SECTION: [Get Master Key](#get-master-key)
+    TEXT[!MUST]: The input MUST be the same as the [Master Key Provider Get Master Key](../master-key-provider-interface.md#get-master-key) interface.
+    TEXT[!MUST]: The function MUST only provide master keys if the input provider id equals `aws-kms`.
+    TEXT[!MUST]: In strict mode, the requested AWS KMS key ARN MUST match a member of the configured key ids
+    TEXT[!MUST]: by using [AWS KMS MRK Match for Decrypt](aws-kms-mrk-match-for-decrypt.md#implementation)
+    TEXT[!MUST]: otherwise this function MUST error.
+    TEXT[!MUST]: In discovery mode, the requested AWS KMS key identifier MUST be a well formed AWS KMS ARN.
+    TEXT[!MUST]: In discovery mode if a discovery filter is configured
+    TEXT[!MUST]: the requested AWS KMS key ARN’s `partition` MUST match the discovery filter’s `partition`
+    TEXT[!MUST]: and the AWS KMS key ARN’s `account` MUST exist in the discovery filter’s account id set.
+    TEXT[!MUST]: If the requested AWS KMS key identifier is not a well formed ARN
+    TEXT[!MUST]: the AWS Region MUST be the configured default region this SHOULD be obtained from the AWS SDK.
+    TEXT[!MUST]: Otherwise if the requested AWS KMS key identifier is [identified as a multi-Region key](aws-kms-key-arn.md#identifying-an-aws-kms-multi-region-key),
+    TEXT[!MUST]: then AWS Region MUST be the region from the AWS KMS key ARN stored in the provider info from the encrypted data key.
+    TEXT[!MUST]: Otherwise if the mode is discovery then the AWS Region MUST be the discovery MRK region.
+    TEXT[!MUST]: Finally if the provider info is [identified as a multi-Region key](aws-kms-key-arn.md#identifying-an-aws-kms-multi-region-key)
+    TEXT[!MUST]: the AWS Region MUST be the region from the AWS KMS key in the configured key ids matched to
+    TEXT[!MUST]: the requested AWS KMS key by using [AWS KMS MRK Match for Decrypt](aws-kms-mrk-match-for-decrypt.md#implementation).
+    TEXT[!MUST]: An AWS KMS client MUST be obtained by calling the regional client supplier with this AWS Region.
+    TEXT[!MUST]: In strict mode a [AWS KMS MRK Aware Master Key](aws-kms-mrk-aware-master-key.md) MUST be returned configured with
+    TEXT[!MUST]: In discovery mode a [AWS KMS MRK Aware Master Key](aws-kms-mrk-aware-master-key.md) MUST be returned configured with
+    TEXT[!MUST]: The output MUST be the same as the [Master Key Provider Get Master Key](../master-key-provider-interface.md#get-master-key) interface.
+
+  SECTION: [Get Master Keys For Encryption](#get-master-keys-for-encryption)
+    TEXT[!MUST]: The input MUST be the same as the [Master Key Provider Get Master Keys For Encryption](../master-key-provider-interface.md#get-master-keys-for-encryption) interface.
+    TEXT[!MUST]: If the configured mode is discovery the function MUST return an empty list.
+    TEXT[!MUST]: If the configured mode is strict this function MUST return a list of master keys
+    TEXT[!MUST]: obtained by calling [Get Master Key](aws-kms-mrk-aware-master-key-provider.md#get-master-key) for each AWS KMS key identifier in the configured key ids
+    TEXT[!MUST]: The output MUST be the same as the [Master Key Provider Get Master Keys For Encryption](../master-key-provider-interface.md#get-master-keys-for-encryption) interface.
+
+  SECTION: [Decrypt Data Key](#decrypt-data-key)
+    TEXT[!MUST]: The input MUST be the same as the [Master Key Provider Decrypt Data Key](../master-key-provider-interface.md#decrypt-data-key) interface.
+    TEXT[!MUST]: The set of encrypted data keys MUST first be filtered to match this master key’s configuration.
+    TEXT[!MUST]: To match the encrypted data key’s provider ID MUST exactly match the value “aws-kms”.
+    TEXT[!MUST]: Additionally each provider info MUST be a [valid AWS KMS ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn) with a resource type of `key`.
+    TEXT[!MUST]: For each encrypted data key in the filtered set, one at a time,
+    TEXT[!MUST]: the master key provider MUST call [Get Master Key](aws-kms-mrk-aware-master-key-provider.md#get-master-key)
+    TEXT[!MUST]: with the encrypted data key’s provider info as the AWS KMS key ARN.
+    TEXT[!MUST]: It MUST call [Decrypt Data Key](aws-kms-mrk-aware-master-key.md#decrypt-data-key) on this master key with the input algorithm,
+    TEXT[!MUST]: this single encrypted data key, and the input encryption context.
+    TEXT[!MUST]: If this attempt results in an error, then these errors MUST be collected.
+    TEXT[!MUST]: If the decrypt data key call is successful, then this function MUST return this result
+    TEXT[!MUST]: and not attempt to decrypt any more encrypted data keys.
+    TEXT[!MUST]: If all the input encrypted data keys have been processed
+    TEXT[!MUST]: then this function MUST yield an error that includes all the collected errors.
+    TEXT[!MUST]: The output MUST be the same as the [Master Key Provider Decrypt Data Key](../master-key-provider-interface.md#decrypt-data-key) interface.
+
+SPECIFICATION: [AWS KMS MRK Aware Master Key](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-mrk-aware-master-key.md)
+  SECTION: [Interface](#interface)
+    TEXT[!MUST]: MUST implement the [Master Key Interface](../master-key-interface.md#interface)
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On initialization, the caller MUST provide:
+    TEXT[!MUST]: The AWS KMS key identifier MUST NOT be null or empty.
+    TEXT[!MUST]: The AWS KMS key identifier MUST be [a valid identifier](aws-kms-key-arn.md#a-valid-aws-kms-identifier).
+    TEXT[!MUST]: The AWS KMS SDK client MUST not be null.
+    TEXT[!MUST]: The master key MUST be able to be configured with an optional list of Grant Tokens.
+    TEXT[!SHOULD]: This configuration SHOULD be on initialization and SHOULD be immutable.
+
+  SECTION: [Get Master Key](#get-master-key)
+    TEXT[!MUST]: MUST be unchanged from the Master Key interface.
+
+  SECTION: [Get Master Keys For Encryption](#get-master-keys-for-encryption)
+    TEXT[!MUST]: MUST be unchanged from the Master Key interface.
+
+  SECTION: [Decrypt Data Key](#decrypt-data-key)
+    TEXT[!MUST]: The inputs MUST be the same as the [Master Key Decrypt Data Key](../master-key-interface.md#decrypt-data-key) interface.
+    TEXT[!MUST]: The set of encrypted data keys MUST first be filtered to match this master key’s configuration.
+    TEXT[!MUST]: To match the encrypted data key’s provider ID MUST exactly match the value “aws-kms”
+    TEXT[!MUST]: and the the function [AWS KMS MRK Match for Decrypt](aws-kms-mrk-match-for-decrypt.md#implementation) called with the configured AWS KMS key identifier
+    TEXT[!MUST]: and the encrypted data key’s provider info MUST return `true`.
+    TEXT[!MUST]: Additionally each provider info MUST be a [valid AWS KMS ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn) with a resource type of `key`.
+    TEXT[!MUST]: For each encrypted data key in the filtered set, one at a time,
+    TEXT[!MUST]: the master key MUST attempt to decrypt the data key.
+    TEXT[!MUST]: If this attempt results in an error,
+    TEXT[!MUST]: then these errors MUST be collected.
+    TEXT[!MUST]: To decrypt the encrypted data key this master key MUST use the configured AWS KMS client
+    TEXT[!MUST]: to make an [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html) request constructed as follows:
+    TEXT[!MUST]: If the call succeeds then the response’s `KeyId` MUST be equal to the configured AWS KMS key identifier
+    TEXT[!MUST]: otherwise the function MUST collect an error.
+    TEXT[!MUST]: The response’s `Plaintext`’s length MUST equal the length required by the requested algorithm suite
+    TEXT[!MUST]: otherwise the function MUST collect an error.
+    TEXT[!MUST]: If the AWS KMS response satisfies the requirements then it MUST be use and this function MUST return
+    TEXT[!MUST]: and not attempt to decrypt any more encrypted data keys.
+    TEXT[!MUST]: If all the input encrypted data keys have been processed
+    TEXT[!MUST]: then this function MUST yield an error that includes all the collected errors.
+    TEXT[!MUST]: The output MUST be the same as the [Master Key Decrypt Data Key](../master-key-interface.md#decrypt-data-key) interface.
+
+  SECTION: [Generate Data Key](#generate-data-key)
+    TEXT[!MUST]: The inputs MUST be the same as the [Master Key Generate Data Key](../master-key-interface.md#generate-data-key) interface.
+    TEXT[!MUST]: This master key MUST use the configured AWS KMS client
+    TEXT[!MUST]: to make an [AWS KMS GenerateDatakey](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html) request constructed as follows:
+    TEXT[!MUST]: If the call succeeds the AWS KMS Generate Data Key response’s `Plaintext` MUST match the key derivation input length specified by the algorithm suite included in the input.
+    TEXT[!MUST]: The response’s `KeyId` MUST be valid.
+    TEXT[!MUST]: The response’s `Plaintext` MUST be the plaintext in the output.
+    TEXT[!MUST]: The response’s cipher text blob MUST be used as the returned as the ciphertext for the encrypted data key in the output.
+    TEXT[!MUST]: The output MUST be the same as the [Master Key Generate Data Key](../master-key-interface.md#generate-data-key) interface.
+
+  SECTION: [Encrypt Data Key](#encrypt-data-key)
+    TEXT[!MUST]: The inputs MUST be the same as the [Master Key Encrypt Data Key](../master-key-interface.md#encrypt-data-key) interface.
+    TEXT[!MUST]: The master key MUST use the configured AWS KMS client to make an [AWS KMS Encrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html) request constructed as follows:
+    TEXT[!MUST]: The AWS KMS Encrypt response MUST contain a valid `KeyId`.
+    TEXT[!MUST]: The response’s cipher text blob MUST be used as the `ciphertext` for the encrypted data key.
+    TEXT[!MUST]: The output MUST be the same as the [Master Key Encrypt Data Key](../master-key-interface.md#encrypt-data-key) interface.
+
+SPECIFICATION: [AWS KMS MRK Discovery Keyring](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-mrk-discovery-keyring.md)
+  SECTION: [Interface](#interface)
+    TEXT[!MUST]: MUST implement that [AWS Encryption SDK Keyring interface](../keyring-interface.md#interface)
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On initialization the keyring MUST accept the following parameters:
+    TEXT[!MUST]: They keyring MUST fail initialization if any required parameters are missing or null.
+    TEXT[!SHOULD]: The keyring SHOULD fail initialization if the provided region does not match the
+    TEXT[!SHOULD]: region of the KMS client.
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: This function MUST fail.
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: OnDecrypt MUST take [decryption materials](../structures.md#decryption-materials) and
+    TEXT[!MUST]: a list of [encrypted data keys](../structures.md#encrypted-data-key) as input.
+    TEXT[!MUST]: If the [decryption materials](../structures.md#decryption-materials) already contained a valid plaintext data key,
+    TEXT[!MUST]: they keyring MUST fail and MUST NOT modify the [decryption materials](../structures.md#decryption-materials).
+    TEXT[!MUST]: The set of encrypted data keys MUST first be filtered to match this keyring’s configuration.
+    TEXT[!MUST]: - Its provider ID MUST exactly match the value “aws-kms”.
+    TEXT[!MUST]: - The provider info MUST be a [valid AWS KMS ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn) with a resource type of `key` or OnDecrypt MUST fail.
+    TEXT[!MUST]: - If a discovery filter is configured, its partition and the provider info partition MUST match.
+    TEXT[!MUST]: - If a discovery filter is configured, its set of accounts MUST contain the provider info account.
+    TEXT[!MUST]: - If the provider info is not [identified as a multi-Region key](aws-kms-key-arn.md#identifying-an-aws-kms-multi-region-key), then the provider info’s Region MUST match the AWS KMS client region.
+    TEXT[!MUST]: For each encrypted data key in the filtered set, one at a time, the OnDecrypt MUST attempt to decrypt the data key.
+    TEXT[!MUST]: To attempt to decrypt a particular [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: OnDecrypt MUST call [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html) with the configured AWS KMS client.
+    TEXT[!MUST]: When calling [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html), the keyring MUST call with a request constructed as follows:
+    TEXT[!MUST]: - `KeyId`: If the provider info’s resource type is `key` and its resource is a multi-Region key
+    TEXT[!MUST]:   then a new ARN MUST be created where the region part MUST equal the AWS KMS client region
+    TEXT[!MUST]:   and every other part MUST equal the provider info.
+    TEXT[!MUST]: Otherwise it MUST be the provider info.
+    TEXT[!MUST]: - The `KeyId` field in the response MUST equal the requested `KeyId`
+    TEXT[!MUST]: - The length of the response’s `Plaintext` MUST equal the [key derivation input length](../algorithm-suites.md#key-derivation-input-length)
+    TEXT[!MUST]:   specified by the [algorithm suite](../algorithm-suites.md) included in the input [decryption materials](../structures.md#decryption-materials).
+    TEXT[!MUST]: If the response does not satisfies these requirements
+    TEXT[!MUST]: then an error is collected and the next encrypted data key in the filtered set MUST be attempted.
+    TEXT[!MUST]: Since the response does satisfies these requirements
+    TEXT[!MUST]: then OnDecrypt MUST do the following with the response:
+    TEXT[!MUST]: If OnDecrypt fails to successfully decrypt any [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: then it MUST yield an error that includes all collected errors.
+
+SPECIFICATION: [AWS KMS MRK Keyring](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-mrk-keyring.md)
+  SECTION: [Interface](#interface)
+    TEXT[!MUST]: MUST implement the [AWS Encryption SDK Keyring interface](../keyring-interface.md#interface)
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On initialization the caller MUST provide:
+    TEXT[!MUST]: The AWS KMS key identifier MUST NOT be null or empty.
+    TEXT[!MUST]: The AWS KMS key identifier MUST be [a valid identifier](aws-kms-key-arn.md#a-valid-aws-kms-identifier).
+    TEXT[!MUST]: The AWS KMS SDK client MUST NOT be null.
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: OnEncrypt MUST take [encryption materials](../structures.md#encryption-materials) as input.
+    TEXT[!MUST]: If the input [encryption materials](../structures.md#encryption-materials) do not contain a plaintext data key
+    TEXT[!MUST]: OnEncrypt MUST attempt to generate a new plaintext data key
+    TEXT[!MUST]: by calling [AWS KMS GenerateDataKey](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html).
+    TEXT[!MUST]: If the keyring calls AWS KMS GenerateDataKeys,
+    TEXT[!MUST]: it MUST use the configured AWS KMS client to make the call.
+    TEXT[!MUST]: The keyring MUST call AWS KMS GenerateDataKeys with a request constructed as follows:
+    TEXT[!MUST]: If the call to [AWS KMS GenerateDataKey](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html) does not succeed,
+    TEXT[!MUST]: OnEncrypt MUST NOT modify the [encryption materials](../structures.md#encryption-materials) and MUST fail.
+    TEXT[!MUST]: If the Generate Data Key call succeeds, OnEncrypt MUST verify that the response `Plaintext` length matches
+    TEXT[!MUST]: the specification of the [algorithm suite](../algorithm-suites.md)'s Key Derivation Input Length field.
+    TEXT[!MUST]: The Generate Data Key response’s `KeyId` MUST be [A valid AWS KMS key ARN](aws-kms-key-arn.md#identifying-an-aws-kms-multi-region-key).
+    TEXT[!MUST]: If verified, OnEncrypt MUST do the following with the response from [AWS KMS GenerateDataKey](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html):
+    TEXT[!MUST]: - OnEncrypt MUST output the modified [encryption materials](../structures.md#encryption-materials)
+    TEXT[!MUST]: If the input [encryption materials](../structures.md#encryption-materials) do contain a plaintext data key,
+    TEXT[!MUST]: OnEncrypt MUST attempt to encrypt the plaintext data key using the configured AWS KMS key identifier.
+    TEXT[!MUST]: The keyring MUST call [AWS KMS Encrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html) using the configured AWS KMS client.
+    TEXT[!MUST]: The keyring MUST AWS KMS Encrypt call with a request constructed as follows:
+    TEXT[!MUST]: If the call to [AWS KMS Encrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html) does not succeed, OnEncrypt MUST fail.
+    TEXT[!MUST]: If the Encrypt call succeeds the response’s `KeyId` MUST be [A valid AWS KMS key ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn).
+    TEXT[!MUST]: If verified, OnEncrypt MUST do the following with the response from [AWS KMS Encrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Encrypt.html):
+    TEXT[!MUST]: If all Encrypt calls succeed, OnEncrypt MUST output the modified [encryption materials](../structures.md#encryption-materials).
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: OnDecrypt MUST take [decryption materials](../structures.md#decryption-materials) and
+    TEXT[!MUST]: a list of [encrypted data keys](../structures.md#encrypted-data-key) as input.
+    TEXT[!MUST]: If the [decryption materials](../structures.md#decryption-materials) already contained a valid plaintext data key
+    TEXT[!MUST]: OnDecrypt MUST immediately return the unmodified [decryption materials](../structures.md#decryption-materials).
+    TEXT[!MUST]: The set of encrypted data keys MUST first be filtered to match this keyring’s configuration.
+    TEXT[!MUST]: - Its provider ID MUST exactly match the value “aws-kms”.
+    TEXT[!MUST]: - The provider info MUST be a [valid AWS KMS ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn) with a resource type of `key` or OnDecrypt MUST fail.
+    TEXT[!MUST]: - The the function [AWS KMS MRK Match for Decrypt](aws-kms-mrk-match-for-decrypt.md#implementation)
+    TEXT[!MUST]:   called with the configured AWS KMS key identifier and the provider info MUST return `true`.
+    TEXT[!MUST]: For each encrypted data key in the filtered set, one at a time, the OnDecrypt MUST attempt to decrypt the data key.
+    TEXT[!MUST]: If this attempt results in an error, then these errors MUST be collected.
+    TEXT[!MUST]: To attempt to decrypt a particular [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: OnDecrypt MUST call [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html) with the configured AWS KMS client.
+    TEXT[!MUST]: When calling [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html), the keyring MUST call with a request constructed as follows:
+    TEXT[!MUST]: - The `KeyId` field in the response MUST equal the configured AWS KMS key identifier.
+    TEXT[!MUST]: - The length of the response’s `Plaintext` MUST equal the [key derivation input length](../algorithm-suites.md#key-derivation-input-length)
+    TEXT[!MUST]:   specified by the [algorithm suite](../algorithm-suites.md) included in the input [decryption materials](../structures.md#decryption-materials).
+    TEXT[!MUST]: If the response does not satisfies these requirements then an error MUST be collected
+    TEXT[!MUST]: and the next encrypted data key in the filtered set MUST be attempted.
+    TEXT[!MUST]: If the response does satisfies these requirements then OnDecrypt MUST do the following with the response:
+    TEXT[!MUST]: If OnDecrypt fails to successfully decrypt any [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: then it MUST yield an error that includes all the collected errors.
+
+SPECIFICATION: [AWS KMS MRK Match for Decrypt](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-mrk-match-for-decrypt.md)
+  SECTION: [Implementation](#implementation)
+    TEXT[!MUST]: The caller MUST provide:
+    TEXT[!MUST]: If both identifiers are identical, this function MUST return `true`.
+    TEXT[!MUST]: Otherwise if either input is not [identified as a multi-Region key](aws-kms-key-arn.md#identifying-an-aws-kms-multi-region-key),
+    TEXT[!MUST]: then this function MUST return `false`.
+    TEXT[!MUST]: Otherwise if both inputs are [identified as a multi-Region keys](aws-kms-key-arn.md#identifying-an-aws-kms-multi-region-key),
+    TEXT[!MUST]: this function MUST return the result of comparing
+    TEXT[!MUST]: the `partition`, `service`, `accountId`, `resourceType`, and `resource` parts of both ARN inputs.
+
+SPECIFICATION: [AWS KMS MRK Multi Keyrings](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-mrk-multi-keyrings.md)
+  SECTION: [AWS KMS MRK Multi-Keyring](#aws-kms-mrk-multi-keyring)
+    TEXT[!MUST]: The caller MUST provide:
+    TEXT[!MUST]: If any of the AWS KMS key identifiers is not a [valid AWS KMS key ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn), this function MUST fail
+    TEXT[!MUST]: All AWS KMS identifiers are passed to [Assert AWS KMS MRK are unique](aws-kms-mrk-are-unique.md#Implementation)
+    TEXT[!MUST]: and the function MUST return success otherwise this MUST fail.
+    TEXT[!MUST]: If a regional client supplier is not passed, then a default MUST be created that takes a region string and generates a default AWS SDK client for the given region.
+    TEXT[!MUST]: If there is a generator input then the generator keyring MUST be a [AWS KMS MRK Keyring](aws-kms-mrk-keyring.md) initialized with
+    TEXT[!MUST]: - The AWS KMS client that MUST be created by the regional client supplier
+    TEXT[!MUST]:   when called with the region part of the generator ARN
+    TEXT[!MUST]:   or a signal for the AWS SDK to select the default region.
+    TEXT[!MUST]: If there is a set of child identifiers then a set of [AWS KMS MRK Keyring](aws-kms-mrk-keyring.md) MUST be created for each AWS KMS key identifier by initialized each keyring with
+    TEXT[!MUST]: - The AWS KMS client that MUST be created by the regional client supplier
+    TEXT[!MUST]:   when called with the region part of the AWS KMS key identifier
+    TEXT[!MUST]:   or a signal for the AWS SDK to select the default region.
+    TEXT[!SHOULD]: NOTE: The AWS Encryption SDK SHOULD NOT attempt to evaluate its own default region.
+    TEXT[!MUST]: Then a [Multi-Keyring](../multi-keyring.md#inputs) MUST be initialize by using this generator keyring as the [generator keyring](../multi-keyring.md#generator-keyring) and this set of child keyrings as the [child keyrings](../multi-keyring.md#child-keyrings).
+    TEXT[!MUST]: This Multi-Keyring MUST be this functions output.
+
+  SECTION: [AWS KMS MRK Discovery Multi-Keyring](#aws-kms-mrk-discovery-multi-keyring)
+    TEXT[!MUST]: The caller MUST provide:
+    TEXT[!MUST]: If an empty set of Region is provided this function MUST fail.
+    TEXT[!MUST]: If any element of the set of regions is null or an empty string this function MUST fail.
+    TEXT[!MUST]: If a regional client supplier is not passed, then a default MUST be created that takes a region string and generates a default AWS SDK client for the given region.
+    TEXT[!MUST]: A set of AWS KMS clients MUST be created by calling regional client supplier for each region in the input set of regions.
+    TEXT[!MUST]: Then a set of [AWS KMS MRK Discovery Keyring](aws-kms-mrk-discovery-keyring.md) MUST be created for each AWS KMS client by initializing each keyring with
+    TEXT[!MUST]: Then a [Multi-Keyring](../multi-keyring.md#inputs) MUST be initialize by using this set of discovery keyrings as the [child keyrings](../multi-keyring.md#child-keyrings).
+    TEXT[!MUST]: This Multi-Keyring MUST be this functions output.
+
+SPECIFICATION: [AWS KMS Multi Keyrings](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-multi-keyrings.md)
+  SECTION: [AWS KMS Multi-Keyring](#aws-kms-multi-keyring)
+    TEXT[!MUST]: The caller MUST provide:
+    TEXT[!MUST]: If any of the AWS KMS key identifiers is not a [valid AWS KMS key ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn), this function MUST fail.
+    TEXT[!MUST]: If a regional client supplier is not passed, then a default MUST be created that takes a region string and generates a default AWS SDK client for the given region.
+    TEXT[!MUST]: If there is a generator input then the generator keyring MUST be a [AWS KMS Keyring](aws-kms-keyring.md) initialized with
+    TEXT[!MUST]: - The AWS KMS client that MUST be created by the regional client supplier
+    TEXT[!MUST]:   when called with the region part of the generator ARN
+    TEXT[!MUST]:   or a signal for the AWS SDK to select the default region.
+    TEXT[!MUST]: If there is a set of child identifiers then a set of [AWS KMS Keyring](aws-kms-keyring.md) MUST be created for each AWS KMS key identifier by initializing each keyring with
+    TEXT[!MUST]: - The AWS KMS client that MUST be created by the regional client supplier
+    TEXT[!MUST]:   when called with the region part of the AWS KMS key identifier
+    TEXT[!MUST]:   or a signal for the AWS SDK to select the default region.
+    TEXT[!SHOULD]: NOTE: The AWS Encryption SDK SHOULD NOT attempt to evaluate its own default region.
+    TEXT[!MUST]: Then a [Multi-Keyring](../multi-keyring.md#inputs) MUST be initialize by using this generator keyring as the [generator keyring](../multi-keyring.md#generator-keyring) and this set of child keyrings as the [child keyrings](../multi-keyring.md#child-keyrings).
+    TEXT[!MUST]: This Multi-Keyring MUST be this function's output.
+
+  SECTION: [AWS KMS Discovery Multi-Keyring](#aws-kms-discovery-multi-keyring)
+    TEXT[!MUST]: The caller MUST provide:
+    TEXT[!MUST]: If an empty set of Region is provided this function MUST fail.
+    TEXT[!MUST]: If any element of the set of regions is null or an empty string this function MUST fail.
+    TEXT[!MUST]: If a regional client supplier is not passed, then a default MUST be created that takes a region string and generates a default AWS SDK client for the given region.
+    TEXT[!MUST]: A set of AWS KMS clients MUST be created by calling regional client supplier for each region in the input set of regions.
+    TEXT[!MUST]: Then a set of [AWS KMS Discovery Keyring](aws-kms-discovery-keyring.md) MUST be created for each AWS KMS client by initializing each keyring with
+    TEXT[!MUST]: Then a [Multi-Keyring](../multi-keyring.md#inputs) MUST be initialize by using this set of discovery keyrings as the [child keyrings](../multi-keyring.md#child-keyrings).
+    TEXT[!MUST]: This Multi-Keyring MUST be this functions output.
+
+SPECIFICATION: [AWS KMS RSA Keyring](aws-encryption-sdk-specification/framework/aws-kms/aws-kms-rsa-keyring.md)
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: - MUST provide an AWS KMS key identifier
+    TEXT[!MUST]: - MUST provide an [AWS KMS Encryption Algorithm](#supported-padding-schemes)
+    TEXT[!MAY]: - MAY provide a PEM encoded Public Key
+    TEXT[!MAY]: - MAY provide an AWS KMS SDK client
+    TEXT[!MAY]: - MAY provide a list of Grant Tokens
+    TEXT[!MUST]: The AWS KMS key identifier MUST NOT be null or empty.
+    TEXT[!MUST]: The AWS KMS key identifier MUST be [a valid identifier](../../framework/aws-kms/aws-kms-key-arn.md#a-valid-aws-kms-identifier).
+    TEXT[!MUST]: The AWS KMS key identifier MUST NOT be an AWS KMS alias.
+    TEXT[!MUST]: If provided the Public Key
+    TEXT[!MUST]: MUST have an RSA modulus bit length greater than or equal to 2048.
+
+  SECTION: [AWS KMS Encryption Algorithm](#aws-kms-encryption-algorithm)
+    TEXT[!MUST]: This value MUST correspond with one of the [supported padding schemes](#supported-padding-schemes).
+
+  SECTION: [Supported Padding Schemes](#supported-padding-schemes)
+    TEXT[!MUST]: This keyring MUST NOT use a padding scheme outside those defined above.
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: OnEncrypt MUST fail if this keyring does not have a specified Public Key.
+    TEXT[!MUST]: OnEncrypt MUST fail if the input [encryption materials](../structures.md#encryption-materials)
+    TEXT[!MUST]: contains an [algorithm suite](../algorithm-suites.md) containing an
+    TEXT[!MUST]: [asymmetric signature](../algorithm-suites.md#asymmetric-signature-algorithm).
+    TEXT[!MUST]: OnEncrypt MUST take [encryption materials](../structures.md#encryption-materials) as input.
+    TEXT[!MUST]: If the [encryption materials](structures.md#encryption-materials) do not contain a plaintext data key,
+    TEXT[!MUST]: OnEncrypt MUST generate a random plaintext data key and set it on the [encryption materials](structures.md#encryption-materials).
+    TEXT[!MUST]: OnEncrypt MUST calculate a Encryption Context Digest by:
+    TEXT[!MUST]: The keyring MUST determine the [Padding Scheme](#padding-scheme)
+    TEXT[!MUST]: using the configured [AWS KMS Encryption Algorithm]((https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html#KMS-Decrypt-request-EncryptionAlgorithm).
+    TEXT[!MUST]: If `RSAES_OAEP_SHA_256` the keyring
+    TEXT[!MUST]: MUST use [OAEP with SHA-256 and MGF1 with SHA-256 Padding](https://tools.ietf.org/html/rfc8017#section-7.1).
+    TEXT[!MUST]: If `RSAES_OAEP_SHA_1` the keyring
+    TEXT[!MUST]: MUST use [OAEP with SHA-1 and MGF1 with SHA-1 Padding](https://tools.ietf.org/html/rfc8017#section-7.1)
+    TEXT[!MUST]: The keyring MUST attempt to encrypt the plaintext data key in the
+    TEXT[!MUST]: [encryption materials](structures.md#encryption-materials) using RSA.
+    TEXT[!MUST]: If RSA encryption was successful, OnEncrypt MUST return the input
+    TEXT[!MUST]: [encryption materials](structures.md#encryption-materials), modified in the following ways:
+    TEXT[!MUST]:   - The [ciphertext](../structures.md#ciphertext) MUST field is the ciphertext output by the RSA encryption.
+    TEXT[!MUST]:   - The [key provider id](../structures.md#key-provider-id) MUST be "aws-kms-rsa".
+    TEXT[!MUST]:   - The [key provider information](../structures.md#key-provider-information) MUST be
+    TEXT[!MUST]:     the configured `AWS KMS key identifier`.
+    TEXT[!MUST]: If RSA encryption was NOT successful, OnEncrypt MUST fail.
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: OnDecrypt MUST fail if this keyring does not have a specified AWS KMS SDK client.
+    TEXT[!MUST]: OnDecrypt MUST fail if the input [decryption materials](../structures.md#decryption-materials)
+    TEXT[!MUST]: contains an [algorithm suite](../algorithm-suites.md) containing an
+    TEXT[!MUST]: [asymmetric signature](../algorithm-suites.md#asymmetric-signature-algorithm).
+    TEXT[!MUST]: OnDecrypt MUST take [decryption materials](../structures.md#decryption-materials) and
+    TEXT[!MUST]: a list of [encrypted data keys](../structures.md#encrypted-data-key) as input.
+    TEXT[!MUST]: If the [decryption materials](../structures.md#decryption-materials) already contained a valid plaintext data key
+    TEXT[!MUST]: OnDecrypt MUST return an error.
+    TEXT[!MUST]: The set of encrypted data keys MUST first be filtered to match this keyring’s configuration.
+    TEXT[!MUST]: - Its provider ID MUST exactly match the value “aws-kms-rsa”.
+    TEXT[!MUST]: - The provider info MUST be a [valid AWS KMS ARN](aws-kms-key-arn.md#a-valid-aws-kms-arn)
+    TEXT[!MUST]:   with a resource type of `key` or OnDecrypt MUST fail.
+    TEXT[!MUST]: - The function [AWS KMS MRK Match for Decrypt](aws-kms-mrk-match-for-decrypt.md#implementation)
+    TEXT[!MUST]:   called with the configured AWS KMS key identifier and the provider info MUST return `true`.
+    TEXT[!MUST]: OnDecrypt MUST calculate a Encryption Context Digest Prime by:
+    TEXT[!MUST]: For each encrypted data key in the filtered set,
+    TEXT[!MUST]: one at a time,
+    TEXT[!MUST]: the OnDecrypt MUST attempt to decrypt the data key.
+    TEXT[!MUST]: If this attempt results in an error,
+    TEXT[!MUST]: then these errors MUST be collected.
+    TEXT[!MUST]: To attempt to decrypt a particular [encrypted data key](../structures.md#encrypted-data-key),
+    TEXT[!MUST]: OnDecrypt MUST call [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html)
+    TEXT[!MUST]: with the configured AWS KMS client.
+    TEXT[!MUST]: When calling [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html),
+    TEXT[!MUST]: the keyring MUST call with a request constructed as follows:
+    TEXT[!MUST]: - `KeyId` MUST be the configured AWS KMS key identifier.
+    TEXT[!MUST]: - `CiphertextBlob` MUST be the [encrypted data key ciphertext](../structures.md#ciphertext).
+    TEXT[!MUST]: - `GrantTokens` MUST be this keyring's [grant tokens](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#grant_token).
+    TEXT[!MUST]: - `EncryptionAlgorithm` MUST be configured value.
+    TEXT[!MUST]: - The `KeyId` field in the response MUST equal the configured AWS KMS key identifier.
+    TEXT[!MUST]: If any decryption succeeds,
+    TEXT[!MUST]: the result of this decryption MUST be split into
+    TEXT[!MUST]: the encryption context digest and plaintext data key by:
+    TEXT[!MUST]: The keyring MUST compare the decrypted encryption context digest
+    TEXT[!MUST]: to the encryption context digest prime;
+    TEXT[!MUST]: if the two are not equal,
+    TEXT[!MUST]: the keyring MUST fail and
+    TEXT[!MUST]: MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+    TEXT[!MUST]: Otherwise, this keyring MUST immediately return the input
+    TEXT[!MUST]: [decryption materials](structures.md#decryption-materials), modified in the following ways:
+    TEXT[!MUST]: If no decryption and keyring digest check succeeds,
+    TEXT[!MUST]: the keyring MUST fail
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+
+  SECTION: [Encryption Context Digest](#encryption-context-digest)
+    TEXT[!MUST]: The fact that this digest is not truncated
+    TEXT[!MUST]: means that this keyring MUST NOT
+    TEXT[!MUST]: support 1024 bit keys.
+
+SPECIFICATION: [Keystore](aws-encryption-sdk-specification/framework/branch-key-store.md)
+  SECTION: [Initialization](#initialization)
+    TEXT[!MAY]: The following inputs MAY be specified to create a KeyStore:
+    TEXT[!MUST]: The following inputs MUST be specified to create a KeyStore:
+
+  SECTION: [Keystore ID](#keystore-id)
+    TEXT[!MUST]: If one is not supplied, then a [version 4 UUID](https://www.ietf.org/rfc/rfc4122.txt) MUST be used.
+
+  SECTION: [KMS Client](#kms-client)
+    TEXT[!MUST]: On initialization the KeyStore MUST append a user agent string to the AWS KMS SDK Client with the
+    TEXT[!MUST]: value `aws-kms-hierarchy`.
+
+  SECTION: [Logical KeyStore Name](#logical-keystore-name)
+    TEXT[!MUST]: The logical keystore name MUST be bound to every created key.
+
+  SECTION: [Operations](#operations)
+    TEXT[!MUST]: The Keystore MUST support the following operations:
+
+  SECTION: [GetKeyStoreInfo](#getkeystoreinfo)
+    TEXT[!MUST]: This operation MUST return the keystore information in this keystore configuration.
+    TEXT[!MUST]: This MUST include:
+
+  SECTION: [CreateKeyStore](#createkeystore)
+    TEXT[!MUST]: This operation MUST first calls the DDB::DescribeTable API with the configured `tableName`.
+    TEXT[!MUST]: If the [KeySchema](#keyschema) does not match
+    TEXT[!MUST]: this operation MUST yield an error.
+    TEXT[!MAY]: The table MAY have additional information,
+    TEXT[!MAY]: like GlobalSecondaryIndex defined.
+    TEXT[!MUST]: If the client responds with a `ResourceNotFoundException`,
+    TEXT[!MUST]: then this operation MUST continue and
+    TEXT[!MUST]: MUST call [AWS DDB CreateTable](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_CreateTable.html)
+    TEXT[!MUST]: with the following specifics:
+    TEXT[!MUST]: If the operation fails to create table, the operation MUST fail.
+    TEXT[!MUST]: If the operation successfully creates a table, the operation MUST return the AWS DDB Table Arn
+    TEXT[!MUST]: back to the caller.
+
+  SECTION: [KeySchema](#keyschema)
+    TEXT[!MUST]: The following KeySchema MUST be configured on the table:
+
+  SECTION: [CreateKey](#createkey)
+    TEXT[!MUST]: The CreateKey caller MUST provide:
+    TEXT[!MUST]: If an optional branch key id is provided
+    TEXT[!MUST]: and no encryption context keys are provided this operation MUST fail.
+    TEXT[!MUST]: If no branch key id is provided,
+    TEXT[!MUST]: then this operation MUST create a [version 4 UUID](https://www.ietf.org/rfc/rfc4122.txt)
+    TEXT[!MUST]: to be used as the branch key id.
+    TEXT[!MUST]: This operation MUST create a [branch key](#branch-key) and a [beacon key](#beacon-key) according to
+    TEXT[!MUST]: the [Branch Key and Beacon Key Creation](#branch-key-and-beacon-key-creation) section.
+    TEXT[!MUST]: If creation of the keys are successful,
+    TEXT[!MUST]: the operation MUST call Amazon DynamoDB TransactWriteItems according to the [write key material](#writing-branch-key-and-beacon-key-to-key-store) section.
+    TEXT[!MUST]: If writing to the keystore succeeds,
+    TEXT[!MUST]: the operation MUST return the branch-key-id that maps to both
+    TEXT[!MUST]: the branch key and the beacon key.
+    TEXT[!MUST]: Otherwise, this operation MUST yield an error.
+
+  SECTION: [Branch Key and Beacon Key Creation](#branch-key-and-beacon-key-creation)
+    TEXT[!MUST]: To create a branch key, this operation MUST take the following:
+    TEXT[!MUST]: This guid MUST be [version 4 UUID](https://www.ietf.org/rfc/rfc4122.txt)
+    TEXT[!MUST]:   This timestamp MUST be in ISO 8601 format in UTC, to microsecond precision (e.g.
+    TEXT[!MUST]: The wrapped Branch Keys, DECRYPT_ONLY and ACTIVE, MUST be created according to [Wrapped Branch Key Creation](#wrapped-branch-key-creation).
+    TEXT[!MUST]: The operation MUST call [AWS KMS API GenerateDataKeyWithoutPlaintext](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKeyWithoutPlaintext.html).
+    TEXT[!MUST]: The call to AWS KMS GenerateDataKeyWithoutPlaintext MUST use the configured AWS KMS client to make the call.
+    TEXT[!MUST]: The operation MUST call AWS KMS GenerateDataKeyWithoutPlaintext with a request constructed as follows:
+    TEXT[!MUST]: - `KeyId` MUST be the configured `AWS KMS Key ARN` in the [AWS KMS Configuration](#aws-kms-configuration) for this keystore
+    TEXT[!MUST]: - `NumberOfBytes` MUST be 32.
+    TEXT[!MUST]: - `EncryptionContext` MUST be the [encryption context for beacon keys](#beacon-key-encryption-context).
+    TEXT[!MUST]: - `GrantTokens` MUST be this keystore's [grant tokens](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#grant_token).
+    TEXT[!MUST]: If the call to AWS KMS GenerateDataKeyWithoutPlaintext succeeds,
+    TEXT[!MUST]: the operation MUST use the `CiphertextBlob` as the wrapped Beacon Key.
+
+  SECTION: [Wrapped Branch Key Creation](#wrapped-branch-key-creation)
+    TEXT[!MUST]: The operation MUST call [AWS KMS API GenerateDataKeyWithoutPlaintext](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKeyWithoutPlaintext.html).
+    TEXT[!MUST]: The call to AWS KMS GenerateDataKeyWithoutPlaintext MUST use the configured AWS KMS client to make the call.
+    TEXT[!MUST]: The operation MUST call AWS KMS GenerateDataKeyWithoutPlaintext with a request constructed as follows:
+    TEXT[!MUST]: - `KeyId` MUST be the configured `AWS KMS Key ARN` in the [AWS KMS Configuration](#aws-kms-configuration) for this keystore
+    TEXT[!MUST]: - `NumberOfBytes` MUST be 32.
+    TEXT[!MUST]: - `EncryptionContext` MUST be the [DECRYPT_ONLY encryption context for branch keys](#decrypt_only-encryption-context).
+    TEXT[!MUST]: - GenerateDataKeyWithoutPlaintext `GrantTokens` MUST be this keystore's [grant tokens](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#grant_token).
+    TEXT[!MUST]: If the call to AWS KMS GenerateDataKeyWithoutPlaintext succeeds,
+    TEXT[!MUST]: the operation MUST use the GenerateDataKeyWithoutPlaintext result `CiphertextBlob`
+    TEXT[!MUST]: as the wrapped DECRYPT_ONLY Branch Key.
+    TEXT[!MUST]: The operation MUST call [AWS KMS API ReEncrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_ReEncrypt.html)
+    TEXT[!MUST]: with a request constructed as follows:
+    TEXT[!MUST]: - `SourceEncryptionContext` MUST be the [DECRYPT_ONLY encryption context for branch keys](#decrypt_only-encryption-context).
+    TEXT[!MUST]: - `SourceKeyId` MUST be the configured `AWS KMS Key ARN` in the [AWS KMS Configuration](#aws-kms-configuration) for this keystore
+    TEXT[!MUST]: - `CiphertextBlob` MUST be the wrapped DECRYPT_ONLY Branch Key.
+    TEXT[!MUST]: - ReEncrypt `GrantTokens` MUST be this keystore's [grant tokens](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#grant_token).
+    TEXT[!MUST]: - `DestinationKeyId` MUST be the configured `AWS KMS Key ARN` in the [AWS KMS Configuration](#aws-kms-configuration) for this keystore
+    TEXT[!MUST]: - `DestinationEncryptionContext` MUST be the [ACTIVE encryption context for branch keys](#active-encryption-context).
+    TEXT[!MUST]: If the call to AWS KMS ReEncrypt succeeds,
+    TEXT[!MUST]: the operation MUST use the ReEncrypt result `CiphertextBlob`
+    TEXT[!MUST]: as the wrapped ACTIVE Branch Key.
+
+  SECTION: [Writing Branch Key and Beacon Key to Keystore](#writing-branch-key-and-beacon-key-to-keystore)
+    TEXT[!MUST]: To add the branch keys and a beacon key to the keystore the
+    TEXT[!MUST]: operation MUST call [Amazon DynamoDB API TransactWriteItems](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html).
+    TEXT[!MUST]: The call to Amazon DynamoDB TransactWriteItems MUST use the configured Amazon DynamoDB Client to make the call.
+    TEXT[!MUST]: The operation MUST call Amazon DynamoDB TransactWriteItems with a request constructed as follows:
+    TEXT[!MUST]: If DDB TransactWriteItems is successful, this operation MUST return a successful response containing no additional data.
+    TEXT[!MUST]: Otherwise, this operation MUST yield an error.
+
+  SECTION: [VersionKey](#versionkey)
+    TEXT[!MUST]: - MUST supply a `branch-key-id`
+    TEXT[!MUST]: VersionKey MUST first get the active version for the branch key from the keystore
+    TEXT[!MUST]: by calling AWS DDB `GetItem`
+    TEXT[!MUST]: using the `branch-key-id` as the Partition Key and `"branch:ACTIVE"` value as the Sort Key.
+    TEXT[!MUST]: The values on the AWS DDB response item
+    TEXT[!MUST]: MUST be authenticated according to [authenticating a keystore item](#authenticating-a-keystore-item).
+    TEXT[!MUST]: If the item fails to authenticate this operation MUST fail.
+    TEXT[!MUST]: The wrapped Branch Keys, DECRYPT_ONLY and ACTIVE, MUST be created according to [Wrapped Branch Key Creation](#wrapped-branch-key-creation).
+    TEXT[!MUST]: To add the new branch key to the keystore,
+    TEXT[!MUST]: the operation MUST call [Amazon DynamoDB API TransactWriteItems](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html).
+    TEXT[!MUST]: The call to Amazon DynamoDB TransactWriteItems MUST use the configured Amazon DynamoDB Client to make the call.
+    TEXT[!MUST]: The operation MUST call Amazon DynamoDB TransactWriteItems with a request constructed as follows:
+    TEXT[!MUST]: If DDB TransactWriteItems is successful, this operation MUST return a successful response containing no additional data.
+    TEXT[!MUST]: Otherwise, this operation MUST yield an error.
+
+  SECTION: [Authenticating a Keystore item](#authenticating-a-keystore-item)
+    TEXT[!MUST]: The operation MUST use the configured `KMS SDK Client` to authenticate the value of the keystore item.
+    TEXT[!MUST]: Every key in the constructed [encryption context](#encryption-context)
+    TEXT[!MUST]: except `tableName`
+    TEXT[!MUST]: MUST exist as a string attribute in the AWS DDB response item.
+    TEXT[!MUST]: Every value in the constructed [encryption context](#encryption-context)
+    TEXT[!MUST]: except the logical table name
+    TEXT[!MUST]: MUST equal the value with the same key in the AWS DDB response item.
+    TEXT[!MUST]: The key `enc` MUST NOT exist in the constructed [encryption context](#encryption-context).
+    TEXT[!MUST]: The operation MUST call [AWS KMS API ReEncrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_ReEncrypt.html)
+    TEXT[!MUST]: with a request constructed as follows:
+    TEXT[!MUST]: - `SourceEncryptionContext` MUST be the [encryption context](#encryption-context) constructed above
+    TEXT[!MUST]: - `SourceKeyId` MUST be the configured `AWS KMS Key ARN` in the [AWS KMS Configuration](#aws-kms-configuration) for this keystore
+    TEXT[!MUST]: - `CiphertextBlob` MUST be the `enc` attribute value on the AWS DDB response item
+    TEXT[!MUST]: - `GrantTokens` MUST be the configured [grant tokens](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#grant_token).
+    TEXT[!MUST]: - `DestinationKeyId` MUST be the configured `AWS KMS Key ARN` in the [AWS KMS Configuration](#aws-kms-configuration) for this keystore
+    TEXT[!MUST]: - `DestinationEncryptionContext` MUST be the [encryption context](#encryption-context) constructed above
+
+  SECTION: [GetActiveBranchKey](#getactivebranchkey)
+    TEXT[!MUST]: - MUST supply a `branch-key-id`
+    TEXT[!MUST]: To get the active version for the branch key id from the keystore
+    TEXT[!MUST]: this operation MUST call AWS DDB `GetItem`
+    TEXT[!MUST]: using the `branch-key-id` as the Partition Key and `"branch:ACTIVE"` value as the Sort Key.
+    TEXT[!MUST]: The AWS DDB response MUST contain the fields defined in the [branch keystore record format](#record-format).
+    TEXT[!MUST]: If the record does not contain the defined fields, this operation MUST fail.
+    TEXT[!MUST]: The operation MUST decrypt the branch key according to the [AWS KMS Branch Key Decryption](#aws-kms-branch-key-decryption) section.
+    TEXT[!MUST]: If the branch key fails to decrypt, GetActiveBranchKey MUST fail.
+    TEXT[!MUST]: This GetActiveBranchKey MUST construct [branch key materials](./structures.md#branch-key-materials)
+    TEXT[!MUST]: according to [Branch Key Materials From Authenticated Encryption Context](#branch-key-materials-from-authenticated-encryption-context).
+    TEXT[!MUST]: This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
+
+  SECTION: [GetBranchKeyVersion](#getbranchkeyversion)
+    TEXT[!MUST]: - MUST supply a `branch-key-id`
+    TEXT[!MUST]: - MUST supply a `branchKeyVersion`
+    TEXT[!MUST]: To get a branch key from the keystore this operation MUST call AWS DDB `GetItem`
+    TEXT[!MUST]: using the `branch-key-id` as the Partition Key and "branch:version:" + `branchKeyVersion` value as the Sort Key.
+    TEXT[!MUST]: The AWS DDB response MUST contain the fields defined in the [branch keystore record format](#record-format).
+    TEXT[!MUST]: If the record does not contain the defined fields, this operation MUST fail.
+    TEXT[!MUST]: The operation MUST decrypt the branch key according to the [AWS KMS Branch Key Decryption](#aws-kms-branch-key-decryption) section.
+    TEXT[!MUST]: If the branch key fails to decrypt, this operation MUST fail.
+    TEXT[!MUST]: This GetBranchKeyVersion MUST construct [branch key materials](./structures.md#branch-key-materials)
+    TEXT[!MUST]: according to [Branch Key Materials From Authenticated Encryption Context](#branch-key-materials-from-authenticated-encryption-context).
+    TEXT[!MUST]: This operation MUST return the constructed [branch key materials](./structures.md#branch-key-materials).
+
+  SECTION: [GetBeaconKey](#getbeaconkey)
+    TEXT[!MUST]: - MUST supply a `branch-key-id`
+    TEXT[!MUST]: To get a branch key from the keystore this operation MUST call AWS DDB `GetItem`
+    TEXT[!MUST]: using the `branch-key-id` as the Partition Key and "beacon:ACTIVE" value as the Sort Key.
+    TEXT[!MUST]: The AWS DDB response MUST contain the fields defined in the [branch keystore record format](#record-format).
+    TEXT[!MUST]: If the record does not contain the defined fields, this operation MUST fail.
+    TEXT[!MUST]: The operation MUST decrypt the beacon key according to the [AWS KMS Branch Key Decryption](#aws-kms-branch-key-decryption) section.
+    TEXT[!MUST]: If the beacon key fails to decrypt, this operation MUST fail.
+    TEXT[!MUST]: This GetBeaconKey MUST construct [beacon key materials](./structures.md#beacon-key-materials) from the decrypted branch key material
+    TEXT[!MUST]: and the `branchKeyId` from the returned `branch-key-id` field.
+    TEXT[!MUST]: This operation MUST return the constructed [beacon key materials](./structures.md#beacon-key-materials).
+
+  SECTION: [Encryption Context](#encryption-context)
+    TEXT[!MUST]: - MUST have a `branch-key-id` attribute
+    TEXT[!MUST]: - The `branch-key-id` field MUST not be an empty string
+    TEXT[!MUST]: - MUST have a `type` attribute
+    TEXT[!MUST]: - The `type` field MUST not be an empty string
+    TEXT[!MUST]: - MUST have a `create-time` attribute
+    TEXT[!MUST]: - MUST have a `tablename` attribute to store the logicalKeyStoreName
+    TEXT[!MUST]: - MUST have a `kms-arn` attribute
+    TEXT[!MUST]: - MUST have a `hierarchy-version`
+    TEXT[!MUST]: - MUST NOT have a `enc` attribute
+    TEXT[!MUST]: Any additionally attributes on the DynamoDB item
+    TEXT[!MUST]: MUST be added to the encryption context.
+
+  SECTION: [ACTIVE Encryption Context](#active-encryption-context)
+    TEXT[!MUST]: The ACTIVE encryption context value of the `type` attribute MUST equal to `"branch:ACTIVE"`.
+    TEXT[!MUST]: The ACTIVE encryption context MUST have a `version` attribute.
+    TEXT[!MUST]: The `version` attribute MUST store the branch key version formatted like `"branch:version:"` + `version`.
+
+  SECTION: [DECRYPT_ONLY Encryption Context](#decrypt-only-encryption-context)
+    TEXT[!MUST]: The DECRYPT_ONLY encryption context MUST NOT have a `version` attribute.
+    TEXT[!MUST]: The `type` attribute MUST stores the branch key version formatted like `"branch:version:"` + `version`.
+
+  SECTION: [Beacon Key Encryption Context](#beacon-key-encryption-context)
+    TEXT[!MUST]: The Beacon key encryption context value of the `type` attribute MUST equal to `"beacon:ACTIVE"`.
+    TEXT[!MUST]: The Beacon key encryption context MUST NOT have a `version` attribute.
+
+  SECTION: [Custom Encryption Context](#custom-encryption-context)
+    TEXT[!MUST]: If custom [encryption context](./structures.md#encryption-context-3)
+    TEXT[!MUST]: is associated with the branch key these values MUST be added to the AWS KMS encryption context.
+    TEXT[!MUST]: To avoid name collisions each added attribute from the custom [encryption context](./structures.md#encryption-context-3)
+    TEXT[!MUST]: MUST be prefixed with `aws-crypto-ec:`.
+    TEXT[!MUST]: The added values MUST be equal.
+
+  SECTION: [AWS KMS Branch Key Decryption](#aws-kms-branch-key-decryption)
+    TEXT[!MUST]: The operation MUST use the configured `KMS SDK Client` to decrypt the value of the branch key field.
+    TEXT[!MUST]: Every attribute except for `enc` on the AWS DDB response item
+    TEXT[!MUST]: MUST be authenticated in the decryption of `enc`
+    TEXT[!MUST]: Every key in the constructed [encryption context](#encryption-context)
+    TEXT[!MUST]: except `tableName`
+    TEXT[!MUST]: MUST exist as a string attribute in the AWS DDB response item.
+    TEXT[!MUST]: Every value in the constructed [encryption context](#encryption-context)
+    TEXT[!MUST]: except the logical table name
+    TEXT[!MUST]: MUST equal the value with the same key in the AWS DDB response item.
+    TEXT[!MUST]: The key `enc` MUST NOT exist in the constructed [encryption context](#encryption-context).
+    TEXT[!MUST]: When calling [AWS KMS Decrypt](https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html),
+    TEXT[!MUST]: the keystore operation MUST call with a request constructed as follows:
+    TEXT[!MUST]: - `KeyId` MUST be the configured `AWS KMS Key ARN` in the [AWS KMS Configuration](#aws-kms-configuration) for this keystore
+    TEXT[!MUST]: - `CiphertextBlob` MUST be the `enc` attribute value on the AWS DDB response item
+    TEXT[!MUST]: - `EncryptionContext` MUST be the [encryption context](#encryption-context) constructed above
+    TEXT[!MUST]: - `GrantTokens` MUST be this keystore's [grant tokens](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#grant_token).
+
+  SECTION: [Record Format](#record-format)
+    TEXT[!MUST]: A branch key record MUST include the following key-value pairs:
+    TEXT[!MAY]: A branch key record MAY include [custom encryption context](#custom-encryption-context) key-value pairs.
+
+  SECTION: [Branch Key Materials From Authenticated Encryption Context](#branch-key-materials-from-authenticated-encryption-context)
+    TEXT[!MUST]: The `type` attribute MUST either be equal to `"branch:ACTIVE"` or start with `"branch:version:"`.
+    TEXT[!MUST]: If the `type` attribute is equal to `"branch:ACTIVE"`
+    TEXT[!MUST]: then the authenticated encryption context MUST have a `version` attribute
+    TEXT[!MUST]: and the version string is this value.
+    TEXT[!MUST]: If the `type` attribute start with `"branch:version:"` then the version string MUST be equal to this value.
+    TEXT[!MUST]: - [Branch Key](./structures.md#branch-key) MUST be the [decrypted branch key material](#aws-kms-branch-key-decryption)
+    TEXT[!MUST]: - [Branch Key Id](./structures.md#branch-key-id) MUST be the `branch-key-id`
+    TEXT[!MUST]: - [Branch Key Version](./structures.md#branch-key-version)
+    TEXT[!MUST]:   The version string MUST start with `branch:version:`.
+    TEXT[!MUST]:   The remaining string encoded as UTF8 bytes MUST be the Branch Key version.
+    TEXT[!MUST]: - [Encryption Context](./structures.md#encryption-context-3) MUST be constructed by
+    TEXT[!MUST]:   [Custom Encryption Context From Authenticated Encryption Context](#custom-encryption-context-from-authenticated-encryption-context)
+
+  SECTION: [Custom Encryption Context From Authenticated Encryption Context](#custom-encryption-context-from-authenticated-encryption-context)
+    TEXT[!MUST]: For every key in the [encryption context](./structures.md#encryption-context-3)
+    TEXT[!MUST]: the string `aws-crypto-ec:` + the UTF8 decode of this key
+    TEXT[!MUST]: MUST exist as a key in the authenticated encryption context.
+    TEXT[!MUST]: Also, the value in the [encryption context](./structures.md#encryption-context-3) for this key
+    TEXT[!MUST]: MUST equal the value in the authenticated encryption context
+    TEXT[!MUST]: for the constructed key.
+
+SPECIFICATION: [Caching Cryptographic Materials Manager](aws-encryption-sdk-specification/framework/caching-cmm.md)
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On caching CMM initialization,
+    TEXT[!MUST]: the caller MUST provide the following values:
+    TEXT[!MUST]: Additionally, the caller MUST provide one of the following values:
+    TEXT[!MUST]: If the caller provides a keyring,
+    TEXT[!MUST]: then the caching CMM MUST set its underlying CMM
+    TEXT[!MUST]: to a [default CMM](default-cmm.md) initialized with the keyring.
+    TEXT[!MUST]: Finally, the caching CMM MUST optionally accept the following values:
+
+  SECTION: [Underlying Cryptographic Materials Cache](#underlying-cryptographic-materials-cache)
+    TEXT[!MUST]: Multiple caching CMMs MAY share the same cryptographic materials cache,
+    TEXT[!MUST]: but by default MUST NOT use each other's cache entries.
+
+  SECTION: [Cache Limit TTL](#cache-limit-ttl)
+    TEXT[!MUST]: The Caching CMM MUST set a time-to-live (TTL) for data keys in the CMC.
+
+  SECTION: [Partition ID](#partition-id)
+    TEXT[!MUST]: If this parameter is not set, the caching CMM MUST set a partition ID
+    TEXT[!MUST]: that uniquely identifies the respective caching CMM.
+    TEXT[!MUST]: The Partition ID MUST NOT be changed after initialization.
+
+  SECTION: [Limit Bytes](#limit-bytes)
+    TEXT[!MAY]: The maximum number of bytes that MAY be encrypted by a single data key.
+    TEXT[!MUST]: If this parameter is not set, the caching CMM MUST set it to a value no more than 2^63-1.
+
+  SECTION: [Limit Messages](#limit-messages)
+    TEXT[!MAY]: The maximum number of messages that MAY be encrypted by a single data key.
+    TEXT[!MUST]: If this parameter is not set, the caching CMM MUST set it to 2^32.
+    TEXT[!MUST]: The caching CMM MUST provide a structure as defined below,
+    TEXT[!MUST]: to track usage statistics.
+
+  SECTION: [Usage Stats](#usage-stats)
+    TEXT[!MUST]: When the caching CMM stores encryption materials into the cryptographic materials cache,
+    TEXT[!MUST]: the caching CMM MUST set the initial usage stats for the cache entry.
+    TEXT[!MUST]: When the caching CMM obtains encryption materials from the cryptographic materials cache,
+    TEXT[!MUST]: the caching CMM MUST update the usage stats for the cache entry retrieved.
+
+  SECTION: [Get Encryption Materials](#get-encryption-materials)
+    TEXT[!MUST]: If the [algorithm suite](algorithm-suites.md) requested contains a [Identity KDF](algorithm-suites.md#identity-kdf),
+    TEXT[!MUST]: the caching CMM MUST obtain the encryption materials by making a call to the underlying CMM's [Get Encryption Materials](cmm-interface.md#get-encryption-materials) function.
+    TEXT[!MUST]: Otherwise, the caching CMM MUST attempt to find the [encryption materials](structures.md#encryption-materials)
+    TEXT[!MUST]: from the underlying [cryptographic materials cache (CMC)](#underlying-cryptographic-materials-cache).
+    TEXT[!MUST]: The caching CMM MUST use the formulas specified in [Appendix A](#appendix-a-cache-entry-identifier-formulas)
+    TEXT[!MUST]: in order to compute the [cache entry identifier](cryptographic-materials-cache.md#cache-identifier).
+    TEXT[!MUST]: If a cache entry is found, the caching CMM MUST return the encryption materials retrieved.
+    TEXT[!MUST]: If a cache entry is not found or the cache entry is expired, the caching CMM MUST then attempt to obtain the encryption materials
+    TEXT[!MUST]: by making a call to the underlying CMM's [Get Encryption Materials](cmm-interface.md#get-encryption-materials).
+    TEXT[!MUST]: If the [algorithm suite](algorithm-suites.md) requested does not contain an [Identity KDF](algorithm-suites.md#identity-kdf),
+    TEXT[!MUST]: the caching CMM MUST add the encryption materials obtained from the underlying CMM into the underlying CMC.
+    TEXT[!MUST]: If the [algorithm suite](algorithm-suites.md) requested contains an Identity KDF,
+    TEXT[!MUST]: the caching CMM MUST NOT store the encryption materials in the underlying CMC.
+
+  SECTION: [Decrypt Materials](#decrypt-materials)
+    TEXT[!MUST]: If the [algorithm suite](algorithm-suites.md) requested contains a [Identity KDF](algorithm-suites.md#identity-kdf),
+    TEXT[!MUST]: the caching CMM MUST obtain the decryption materials by making a call to the underlying CMM's [Decrypt Materials](cmm-interface.md#decrypt-materials) function.
+    TEXT[!MUST]: Otherwise, the caching CMM MUST attempt to find the [decryption materials](structures.md#decryption-materials)
+    TEXT[!MUST]: from the [underlying CMC](#underlying-cryptographic-materials-cache).
+    TEXT[!MUST]: The caching CMM MUST use the formulas specified in [Appendix A](#appendix-a-cache-entry-identifier-formulas)
+    TEXT[!MUST]: in order to compute the [cache entry identifier](cryptographic-materials-cache.md#cache-identifier).
+    TEXT[!MUST]: If a cache entry is found, the caching CMM MUST return the decryption materials retrieved.
+    TEXT[!MUST]: If a cache entry is not found or the cache entry is expired, the caching CMM MUST attempt to obtain the decryption materials
+    TEXT[!MUST]: by making a call to the underlying CMM's [Decrypt Materials](cmm-interface.md#decrypt-materials).
+    TEXT[!MUST]: If the [algorithm suite](algorithm-suites.md) requested does not contain an [Identity KDF](algorithm-suites.md#identity-kdf),
+    TEXT[!MUST]: the caching CMM MUST add the decryption materials obtained from the underlying CMM into the underlying CMC.
+    TEXT[!MUST]: If the [algorithm suite](algorithm-suites.md) requested contains an Identity KDF,
+    TEXT[!MUST]: the caching CMM MUST NOT store the decryption materials in the underlying CMC.
+
+  SECTION: [Appendix A: Cache Entry Identifier Formulas](#appendix-a-cache-entry-identifier-formulas)
+    TEXT[!MUST]: When accessing the underlying CMC,
+    TEXT[!MUST]: the caching CMM MUST use the formulas specified in this appendix
+    TEXT[!MUST]: in order to compute the [cache entry identifier](cryptographic-materials-cache.md#cache-identifier).
+
+  SECTION: [Encryption Materials, Without Algorithm Suite](#encryption-materials-without-algorithm-suite)
+    TEXT[!MUST]: If the Get Encryption Materials request does not specify an algorithm suite,
+    TEXT[!MUST]: then the cache entry identifier MUST be calculated
+    TEXT[!MUST]: as the SHA-512 hash of the concatenation of the following byte strings,
+    TEXT[!MUST]: in the order listed:
+
+  SECTION: [Encryption Materials, With Algorithm Suite](#encryption-materials-with-algorithm-suite)
+    TEXT[!MUST]: If the Get Encryption Materials request does specify an algorithm suite,
+    TEXT[!MUST]: then the cache entry identifier MUST be calculated
+    TEXT[!MUST]: as the SHA-512 hash of the concatenation of the following byte strings,
+    TEXT[!MUST]: in the order listed:
+
+  SECTION: [Decryption Materials](#decryption-materials)
+    TEXT[!MUST]: When the caching CMM receives a Decrypt Materials request,
+    TEXT[!MUST]: it MUST calculate the cache entry identifier as
+    TEXT[!MUST]: the SHA-512 hash of the concatenation of the following byte strings,
+    TEXT[!MUST]: in the order listed:
+
+SPECIFICATION: [Cryptographic Materials Manager Interface](aws-encryption-sdk-specification/framework/cmm-interface.md)
+  SECTION: [Overview](#overview)
+    TEXT[!MUST]: The CMM interface describes the interface that all CMMs MUST implement.
+
+  SECTION: [Supported CMMs](#supported-cmms)
+    TEXT[!MAY]: Note: A user MAY create their own custom CMM.
+
+  SECTION: [Encryption Materials Request](#encryption-materials-request)
+    TEXT[!MUST]: The encryption materials request MUST include the following:
+    TEXT[!MAY]:   - The encryption context provided MAY be empty.
+    TEXT[!MAY]: The encryption request MAY include the following:
+    TEXT[!MUST]:     The length of the plaintext to be encrypted MUST not be larger than this value.
+
+  SECTION: [Decrypt Materials Request](#decrypt-materials-request)
+    TEXT[!MUST]: The decrypt materials request MUST include the following:
+    TEXT[!MAY]:   - The encryption context provided MAY be empty.
+    TEXT[!MAY]: The decrypt materials request MAY include the following:
+
+  SECTION: [Behaviors](#behaviors)
+    TEXT[!MUST]: The CMM Interface MUST support the following behaviors:
+
+  SECTION: [Get Encryption Materials](#get-encryption-materials)
+    TEXT[!MUST]: When the CMM gets an [encryption materials request](#encryption-materials-request),
+    TEXT[!MUST]: it MUST return [encryption materials](structures.md#encryption-materials) appropriate for the request.
+    TEXT[!MUST]: The encryption materials returned MUST include the following:
+    TEXT[!SHOULD]:   - If the encryption materials request contains an algorithm suite, the encryption materials returned SHOULD contain the same algorithm suite.
+    TEXT[!MUST]:   - Every encrypted data key in this list MUST correspond to the above plaintext data key.
+    TEXT[!MAY]:   - The CMM MAY modify the encryption context.
+    TEXT[!MUST]: - The CMM MUST include a [signing key](structures.md#signing-key).
+    TEXT[!SHOULD]: - The CMM SHOULD also add a key-value pair using the reserved key `aws-crypto-public-key` to the encryption context.
+    TEXT[!SHOULD]:   If it does, the mapped value SHOULD be the signature verification key corresponding to the signing key.
+    TEXT[!SHOULD]: - The CMM SHOULD NOT add a key-value pair using the reserved key `aws-crypto-public-key` to the encryption context.
+    TEXT[!MUST]: The CMM MUST ensure that the encryption materials returned are valid.
+    TEXT[!MUST]: - The encryption materials returned MUST follow the specification for [encryption-materials](structures.md#encryption-materials).
+    TEXT[!MUST]: - The value of the plaintext data key MUST be non-NULL.
+    TEXT[!MUST]: - The plaintext data key length MUST be equal to the [key derivation input length](algorithm-suites.md#key-derivation-input-length).
+    TEXT[!MUST]: - The encrypted data keys list MUST contain at least one encrypted data key.
+    TEXT[!MUST]: - If the algorithm suite contains a signing algorithm, the encryption materials returned MUST include the generated signing key.
+    TEXT[!MUST]: - For every key in [Required Encryption Context Keys](structures.md#required-encryption-context-keys)
+    TEXT[!MUST]:   there MUST be a matching key in the [Encryption Context](structures.md#encryption-context-1).
+    TEXT[!MUST]: - The [Required Encryption Context Keys](structures.md#required-encryption-context-keys) MUST be
+    TEXT[!MUST]:   a super set of the Required Encryption Context Keys in the [encryption materials request](#encryption-materials-request).
+
+  SECTION: [Decrypt Materials](#decrypt-materials)
+    TEXT[!MUST]: When the CMM gets a [decrypt materials request](#decrypt-materials-request),
+    TEXT[!MUST]: it MUST return [decryption materials](structures.md#decryption-materials) appropriate for the request.
+    TEXT[!SHOULD]: If the requested algorithm suite does not include a signing algorithm but the encryption context includes the reserved `aws-crypto-public-key` key, the operation SHOULD fail.
+    TEXT[!SHOULD]: Likewise, if the requested algorithm suite includes a signing algorithm but the encryption context does not include the reserved `aws-crypto-public-key` key, the operation SHOULD fail.
+    TEXT[!MUST]: The CMM MUST validate the [Encryption Context](structures.md#encryption-context)
+    TEXT[!MUST]: by comparing it to the customer supplied [Reproduced Encryption Context](structures.md#encryption-context)
+    TEXT[!MUST]: in [decrypt materials request](#decrypt-materials-request).
+    TEXT[!MUST]: For every key that exists in both [Reproduced Encryption Context](structures.md#encryption-context)
+    TEXT[!MUST]: and [Encryption Context](structures.md#encryption-context),
+    TEXT[!MUST]: the values MUST be equal or the operation MUST fail.
+    TEXT[!MAY]: The CMM MAY fail if it expects key-value pairs
+    TEXT[!MAY]: that do not exist in [Reproduced Encryption Context](structures.md#encryption-context)
+    TEXT[!MAY]: on the [decrypt materials request](#decrypt-materials-request).
+    TEXT[!MUST]: The decryption materials returned MUST include the following:
+    TEXT[!MAY]:   - The CMM MAY modify the encryption context.
+    TEXT[!SHOULD]:   - The operations made on the encryption context on the Get Encryption Materials call
+    TEXT[!SHOULD]:     SHOULD be inverted on the Decrypt Materials call.
+    TEXT[!SHOULD]:   - All key-value pairs that exist in [Reproduced Encryption Context](structures.md#encryption-context)
+    TEXT[!SHOULD]:     but do not exist in encryption context on the [decrypt materials request](#decrypt-materials-request)
+    TEXT[!SHOULD]:     SHOULD be appended to the decryption materials.
+    TEXT[!SHOULD]:   - If the decrypt materials request contains an algorithm suite,
+    TEXT[!SHOULD]:     the decryption materials returned SHOULD contain the same algorithm suite.
+    TEXT[!MUST]:   - This set MUST include all keys added to the decryption materials encryption context
+    TEXT[!MUST]:     that existed in the [decrypt materials request's](#decrypt-materials-request) reproduced encryption context
+    TEXT[!MUST]:     but did not exist in the [decrypt materials request's](#decrypt-materials-request) encryption context.
+    TEXT[!MUST]:   - All keys in this set MUST exist in the decryption materials encryption context.
+    TEXT[!MUST]: If the algorithm suite obtained from the decryption request contains a [signing algorithm](algorithm-suites.md#signature-algorithm),
+    TEXT[!MUST]: the decryption materials MUST include the [signature verification key](structures.md#verification-key).
+    TEXT[!MUST]: The CMM MUST ensure that the decryption materials returned are valid.
+    TEXT[!MUST]: - The decryption materials returned MUST follow the specification for [decryption-materials](structures.md#decryption-materials).
+    TEXT[!MUST]: - The value of the plaintext data key MUST be non-NULL.
+    TEXT[!MUST]: - The plaintext data key returned MUST correspond with at least one of the encrypted data keys.
+
+SPECIFICATION: [Commitment Policy](aws-encryption-sdk-specification/framework/commitment-policy.md)
+  SECTION: [Supported Format Commitment Policy ENUM](#supported-format-commitment-policy-enum)
+    TEXT[!MUST]: The Material Providers Library MUST provide
+    TEXT[!MUST]: a distinct commitment policy ENUM for each format.
+
+  SECTION: [Supported Commitment Policy ENUM](#supported-commitment-policy-enum)
+    TEXT[!MUST]: The Material Providers Library also MUST provide
+    TEXT[!MUST]: a union ENUM for all distinct commitment policy ENUMs
+    TEXT[!MUST]: called the Commitment Policy ENUM.
+    TEXT[!MAY]: This means that different formats MAY have duplicate Format Commitment Policy ENUM.
+
+  SECTION: [ESDK.FORBID_ENCRYPT_ALLOW_DECRYPT](#esdk-forbid-encrypt-allow-decrypt)
+    TEXT[!MUST]: - `ESDK.ALG_AES_256_GCM_IV12_TAG16_NO_KDF` MUST be the default algorithm suite
+    TEXT[!MUST]: - [Get Encryption Materials](./cmm-interface.md#get-encryption-materials) MUST only support algorithm suites that have a [Key Commitment](./algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of False
+    TEXT[!MUST]: - [Decrypt Materials](./cmm-interface.md#decrypt-materials) MUST support all algorithm suites
+
+  SECTION: [ESDK.REQUIRE_ENCRYPT_ALLOW_DECRYPT](#esdk-require-encrypt-allow-decrypt)
+    TEXT[!MUST]: - `05 78` MUST be the default algorithm suite
+    TEXT[!MUST]: - [Get Encryption Materials](./cmm-interface.md#get-encryption-materials) MUST only support algorithm suites that have a [Key Commitment](./algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of True
+    TEXT[!MUST]: - [Decrypt Materials](./cmm-interface.md#decrypt-materials) MUST support all algorithm suites
+
+  SECTION: [ESDK.REQUIRE_ENCRYPT_REQUIRE_DECRYPT](#esdk-require-encrypt-require-decrypt)
+    TEXT[!MUST]: - `05 78` MUST be the default algorithm suite
+    TEXT[!MUST]: - [Get Encryption Materials](./cmm-interface.md#get-encryption-materials) MUST only support algorithm suites that have a [Key Commitment](./algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of True
+    TEXT[!MUST]: - [Decrypt Materials](./cmm-interface.md#decrypt-materials) MUST only support algorithm suites that have a [Key Commitment](./algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of True
+
+  SECTION: [DBE.REQUIRE_ENCRYPT_REQUIRE_DECRYPT](#dbe-require-encrypt-require-decrypt)
+    TEXT[!MUST]: - `67 01` MUST be the default algorithm suite
+    TEXT[!MUST]: - [Get Encryption Materials](./cmm-interface.md#get-encryption-materials) MUST only support algorithm suites that have a [Key Commitment](./algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of True
+    TEXT[!MUST]: - [Decrypt Materials](./cmm-interface.md#decrypt-materials) MUST only support algorithm suites that have a [Key Commitment](./algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings) value of True
+
+SPECIFICATION: [Cryptographic Materials Cache Interface](aws-encryption-sdk-specification/framework/cryptographic-materials-cache.md)
+  SECTION: [Overview](#overview)
+    TEXT[!MUST]: This document describes the interface that all CMCs MUST implement.
+
+  SECTION: [Cache Entry](#cache-entry)
+    TEXT[!MUST]: A cache entry represents an entry in the cryptographic materials cache
+    TEXT[!MUST]: and MUST have the following information.
+
+  SECTION: [Usage Metadata](#usage-metadata)
+    TEXT[!SHOULD]: Updating usage metadata SHOULD be atomic.
+
+  SECTION: [Time-to-live (TTL)](#time-to-live-ttl)
+    TEXT[!MUST]: Each cache entry has a time-to-live (TTL)
+    TEXT[!MUST]: that represents a point in time at which the cache entry
+    TEXT[!MUST]: MUST be considered invalid.
+    TEXT[!MUST]: After a cache entry's TTL has elapsed,
+    TEXT[!MUST]: we say that the entry is _TTL-expired_,
+    TEXT[!MUST]: and a CMC MUST NOT return the entry to any caller.
+
+  SECTION: [Put Cache Entry](#put-cache-entry)
+    TEXT[!MUST]: The CMC MUST create a new cache entry for the specified cache ID.
+    TEXT[!MUST]: This operation MUST NOT return the inserted cache entry.
+    TEXT[!MUST]: The cache entry MUST include all [usage metadata](#usage-metadata)
+    TEXT[!MUST]: since this information can not be updated after the put operation.
+    TEXT[!MAY]: If used in a multi-threaded context,
+    TEXT[!MAY]: the next [Get Cache Entry](#get-cache-entry) operation
+    TEXT[!MAY]: MAY not return the entry just added.
+
+  SECTION: [Get Cache Entry](#get-cache-entry)
+    TEXT[!MUST]: The CMC MUST validate that the cache entry
+    TEXT[!MUST]: has not exceeded it's stored [TTL](#time-to-live-ttl).
+    TEXT[!MAY]: - Get Cache Entry MAY return a cache miss when the TTL has net yet been exceeded.
+    TEXT[!MAY]: - Get Cache Entry MAY not return immediately if no cache entry exists for the specified cache ID,
+    TEXT[!MAY]:   and a cache miss was recently returned for another thread.
+
+  SECTION: [Background Processing](#background-processing)
+    TEXT[!SHOULD]: An implementation SHOULD provide a way to avoid this, for example,
+    TEXT[!SHOULD]: by spawning a background thread to occasionally remove expired entries.
+
+SPECIFICATION: [Default Cryptographic Materials Manager](aws-encryption-sdk-specification/framework/default-cmm.md)
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On default CMM initialization,
+    TEXT[!MUST]: the caller MUST provide the following value:
+
+  SECTION: [Get Encryption Materials](#get-encryption-materials)
+    TEXT[!SHOULD]: Adding the key `aws-crypto-public-key` SHOULD be done to a copy of the encryption context
+    TEXT[!SHOULD]: so that the caller's encryption context is not mutated.
+    TEXT[!MUST]: If the encryption context included in the [encryption materials request](cmm-interface.md#encryption-materials-request)
+    TEXT[!MUST]: already contains the `aws-crypto-public-key` key,
+    TEXT[!MUST]: this operation MUST fail rather than overwrite the associated value.
+    TEXT[!MUST]: - If the [encryption materials request](cmm-interface.md#encryption-materials-request) does not contain an algorithm suite,
+    TEXT[!MUST]:   the operation MUST add the default algorithm suite for the [commitment policy](./commitment-policy.md#supported-commitment-policy-enum)
+    TEXT[!MUST]:   as the algorithm suite in the encryption materials returned.
+    TEXT[!MUST]: - If the [encryption materials request](cmm-interface.md#encryption-materials-request) does contain an algorithm suite,
+    TEXT[!MUST]:   the request MUST fail if the algorithm suite is not supported by the [commitment policy](./commitment-policy.md#supported-commitment-policy-enum) on the request.
+    TEXT[!MUST]: - If the [encryption materials request](cmm-interface.md#encryption-materials-request) does contain an algorithm suite,
+    TEXT[!MUST]:   the encryption materials returned MUST contain the same algorithm suite.
+    TEXT[!MUST]: If the algorithm suite contains a [signing algorithm](algorithm-suites.md#signature-algorithm),
+    TEXT[!MUST]: the default CMM MUST Generate a [signing key](structures.md#signing-key).
+    TEXT[!MUST]: If the algorithm suite contains a [signing algorithm](algorithm-suites.md#signature-algorithm),
+    TEXT[!MUST]: the default CMM MUST Add the key-value pair of
+    TEXT[!MUST]: key `aws-crypto-public-key`,
+    TEXT[!MUST]: value `base64-encoded public verification key`
+    TEXT[!MUST]: to the [encryption context](structures.md#encryption-context).
+    TEXT[!MUST]: On each call to Get Encryption Materials,
+    TEXT[!MUST]: the default CMM MUST make a call to its [keyring's](#keyring)
+    TEXT[!MUST]: [On Encrypt](keyring-interface.md#onencrypt) operation.
+    TEXT[!MUST]: The default CMM MUST obtain the Plaintext Data Key from the
+    TEXT[!MUST]: On Encrypt Response and include it in the
+    TEXT[!MUST]: [encryption materials](structures.md#encryption-materials) returned.
+    TEXT[!MUST]: The default CMM MUST obtain the
+    TEXT[!MUST]: [Encrypted Data Keys](structures.md#encrypted-data-keys)
+    TEXT[!MUST]: from the On Encrypt Response and include it
+    TEXT[!MUST]: in the [encryption materials](structures.md#encryption-materials) returned.
+
+  SECTION: [Decrypt Materials](#decrypt-materials)
+    TEXT[!MUST]: If the algorithm suite contains a [signing algorithm](algorithm-suites.md#signature-algorithm),
+    TEXT[!MUST]: the default CMM MUST extract the verification key
+    TEXT[!MUST]: from the encryption context under the reserved `aws-crypto-public-key` key.
+    TEXT[!MUST]: If this key is not present in the encryption context, the operation MUST fail
+    TEXT[!MUST]: without returning any decryption materials.
+    TEXT[!MUST]: If the algorithm suite does not contain a [signing algorithm](algorithm-suites.md#signature-algorithm),
+    TEXT[!MUST]: but the encryption context includes the reserved `aws-crypto-public-key` key,
+    TEXT[!MUST]: the operation MUST fail without returning any decryption materials.
+    TEXT[!MUST]: The request MUST fail if the algorithm suite on the request is not supported by the [commitment policy](./commitment-policy.md#supported-commitment-policy-enum) on the request.
+    TEXT[!MUST]: On each call to Decrypt Materials,
+    TEXT[!MUST]: the default CMM MUST make a call to its [keyring's](#keyring)
+    TEXT[!MUST]: [On Decrypt](keyring-interface.md#ondecrypt) operation.
+    TEXT[!MUST]: The default CMM MUST obtain the Plaintext Data Key from
+    TEXT[!MUST]: the On Decrypt response and include it in the decrypt
+    TEXT[!MUST]: materials returned.
+
+  SECTION: [Legacy Behavior : Master Key Providers](#legacy-behavior-master-key-providers)
+    TEXT[!MUST]: For implementations that support [master key providers](master-key-provider-interface.md),
+    TEXT[!MUST]: the default CMM MUST support generating, encrypting, and decrypting data keys
+    TEXT[!MUST]: using master key providers.
+
+  SECTION: [Legacy](#legacy)
+    TEXT[!SHOULD]: Master key providers SHOULD NOT be included in any additional implementations.
+
+  SECTION: [Initialization](#initialization-1)
+    TEXT[!MUST]: On default CMM initialization,
+    TEXT[!MUST]: the caller MUST provide the following value:
+
+  SECTION: [Get Encryption Materials (master key provider)](#get-encryption-materials-master-key-provider)
+    TEXT[!MUST]: The default CMM MUST call its master key provider's
+    TEXT[!MUST]: [Get Master Keys for Encryption](master-key-provider-interface.md#get-master-keys-for-encryption) operation
+    TEXT[!MUST]: to obtain a list of master keys to use.
+    TEXT[!MUST]: If the master key provider does not identify which master key MUST generate the data key,
+    TEXT[!MUST]: the default CMM MUST use the first master key in the list for that purpose.
+    TEXT[!MUST]: The default CMM MUST generate the data key using this master key's
+    TEXT[!MUST]: [Generate Data Key](master-key-interface.md#generate-data-key) operation.
+    TEXT[!MUST]: For each remaining master key,
+    TEXT[!MUST]: the default CMM MUST call the master key's
+    TEXT[!MUST]: [Encrypt Data Key](master-key-interface.md#encrypt-data-key) operation
+    TEXT[!MUST]: with the plaintext data key.
+
+  SECTION: [Decrypt Materials (master key provider)](#decrypt-materials-master-key-provider)
+    TEXT[!MUST]: The default CMM MUST call its master key provider's
+    TEXT[!MUST]: [Decrypt Data Key](master-key-provider-interface.md#decrypt-data-key) operation.
+
+SPECIFICATION: [Keyring Interface](aws-encryption-sdk-specification/framework/keyring-interface.md)
+  SECTION: [Overview](#overview)
+    TEXT[!MUST]: The keyring interface specified in this document describes the interface all keyrings MUST implement.
+
+  SECTION: [key namespace](#key-namespace)
+    TEXT[!MUST]: The key namespace MUST be a string value.
+
+  SECTION: [key name](#key-name)
+    TEXT[!MUST]: The key name MUST be a string value.
+
+  SECTION: [key provider ID](#key-provider-id)
+    TEXT[!MUST]: The key provider ID MUST be a binary value
+    TEXT[!MUST]: and SHOULD be equal to a UTF-8 encoding of the key namespace.
+    TEXT[!MUST]: This value MUST NOT be or start with "aws-kms"
+    TEXT[!MUST]: unless this encrypted data key was produced by one of the [AWS KMS Keyrings](./aws-kms/).
+
+  SECTION: [key provider info](#key-provider-info)
+    TEXT[!MUST]: The key provider info MUST be a binary value
+    TEXT[!MUST]: and SHOULD be equal to a UTF-8 encoding of the key name.
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: This interface MUST take [encryption materials](structures.md#encryption-materials) as input.
+    TEXT[!MUST]: It MUST modify it with at least one of the following behaviors:
+    TEXT[!MUST]: If this keyring attempted any of the above behaviors, and successfully completed those behaviors,
+    TEXT[!MUST]: it MUST output the modified [encryption materials](structures.md#encryption-materials).
+    TEXT[!MUST]: If the keyring did not attempt any of the above behaviors, it MUST fail
+    TEXT[!MUST]: and it MUST NOT modify the [encryption materials](structures.md#encryption-materials).
+    TEXT[!SHOULD]: The keyring SHOULD NOT attempt to store the encryption context
+    TEXT[!SHOULD]: in the [encrypted data key's](structures.md#encrypted-data-key) properties.
+
+  SECTION: [Generate Data Key](#generate-data-key)
+    TEXT[!MUST]: If the [encryption materials](structures.md#encryption-materials) do not contain a plaintext data key,
+    TEXT[!MUST]: OnEncrypt MUST generate a data key.
+    TEXT[!MUST]: If the encryption materials contain a plaintext data key, OnEncrypt MUST NOT generate a data key.
+    TEXT[!MUST]: Generate Data Key MUST modify the following fields in the [encryption materials](structures.md#encryption-materials):
+    TEXT[!MUST]: The length of the output plaintext data key MUST be equal to the KDF input length of the [algorithm suite](algorithm-suites.md)
+    TEXT[!MUST]: specified in the [encryption materials](structures.md#encryption-materials).
+    TEXT[!MUST]: The value of the plaintext data key MUST consist of cryptographically secure (pseudo-)random bits.
+    TEXT[!MAY]: Note: If the keyring successfully performs this behavior, this means that the keyring MAY then
+    TEXT[!MAY]: perform the [Encrypt Data Key](#encrypt-data-key) behavior.
+
+  SECTION: [Encrypt Data Key](#encrypt-data-key)
+    TEXT[!MUST]: If the [encryption materials](structures.md#encryption-materials) contain a plaintext data key,
+    TEXT[!MUST]: OnEncrypt MUST encrypt a data key.
+    TEXT[!MUST]: If the encryption materials do not contain a plaintext data key, OnEncrypt MUST NOT encrypt a data key.
+    TEXT[!MUST]: Encrypt Data Key MUST modify the following fields in the [encryption materials](structures.md#encryption-materials):
+    TEXT[!MUST]: The [encrypted data keys](structures.md#encrypted-data-key) produced by this keyring MUST
+    TEXT[!MUST]: have [ciphertexts](structures.md#ciphertext) that can be decrypted to the plaintext data key in the
+    TEXT[!MUST]: [encryption materials](structures.md#encryption-materials).
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: This interface MUST take [decryption materials](structures.md#decryption-materials) and
+    TEXT[!MUST]: a list of [encrypted data keys](structures.md#encrypted-data-key) as input.
+    TEXT[!MUST]: It MUST modify it with the following behavior:
+    TEXT[!MUST]: If the decryption materials already contain a plaintext data key,
+    TEXT[!MUST]: the keyring MUST fail
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+    TEXT[!MUST]: If this keyring attempted the above behavior, and succeeded, it MUST output the modified [decryption materials](structures.md#decryption-materials).
+    TEXT[!MUST]: If the keyring did not attempt the above behavior,
+    TEXT[!MUST]: the keyring MUST fail
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+
+  SECTION: [Decrypt Data Key](#decrypt-data-key)
+    TEXT[!MUST]: If the encryption materials do contain a plaintext data key, OnDecrypt MUST NOT decrypt a data key.
+    TEXT[!MUST]: If the [decryption materials](structures.md#decryption-materials) do not include a plaintext data key,
+    TEXT[!MUST]: OnDecrypt MUST decrypt a data key.
+    TEXT[!MUST]: The decrypt data key MUST modify the following fields in the [decryption materials](structures.md#decryption-materials):
+    TEXT[!SHOULD]: If the keyring is able to successfully get at least one plaintext data key from any [encrypted data key](structures.md#encrypted-data-key)
+    TEXT[!SHOULD]: and the [decryption materials](structures.md#decryption-materials) still do not include a plaintext data key,
+    TEXT[!SHOULD]: it SHOULD set one resulting plaintext data key on the [decryption materials](structures.md#decryption-materials).
+    TEXT[!MUST]: If the keyring is unable to get any plaintext data key using the input [encrypted data keys](structures.md#encrypted-data-key),
+    TEXT[!MUST]: the keyring MUST NOT not update the [decryption materials](structures.md#decryption-materials) and MUST return failure.
+
+  SECTION: [Security Considerations](#security-considerations)
+    TEXT[!SHOULD]: Keyring implementations SHOULD provide integrity guarantees for the [encrypted data keys](structures.md#encrypted-data-key)
+    TEXT[!SHOULD]: they return on [OnEncrypt](#onencrypt) such that tampered versions of those encrypted data keys,
+    TEXT[!SHOULD]: if input into [OnDecrypt](#ondecrypt), are overwhelmingly likely to cause a decryption failure
+    TEXT[!SHOULD]: (i.e.
+    TEXT[!SHOULD]: Such integrity guarantees SHOULD include the integrity of the [encryption context](structures.md#encryption-context)
+    TEXT[!SHOULD]: such that, if the encryption context used as input to OnEncrypt to produce an encrypted data key is
+    TEXT[!SHOULD]: different than the encryption context input to OnDecrypt to decrypt that encrypted data key,
+    TEXT[!SHOULD]: the decryption is overwhelmingly likely to fail.
+    TEXT[!SHOULD]: Users SHOULD use a keyring that protects wrapping keys and performs cryptographic operations within a secure boundary.
+    TEXT[!MAY]: The [raw AES keyring](raw-aes-keyring.md) and [raw RSA keyring](raw-rsa-keyring.md) MAY be used,
+    TEXT[!MAY]: however users should refer to their specification for notes on their respective security considerations.
+
+  SECTION: [Why should I use Keyrings instead of Master Key Providers and Master Keys?](#why-should-i-use-keyrings-instead-of-master-key-providers-and-master-keys)
+    TEXT[!SHOULD]: Due to this simplified architecture, master keys and master key providers are going to be deprecated in the future,
+    TEXT[!SHOULD]: and new implementations SHOULD use keyrings.
+
+SPECIFICATION: [Local Cryptographic Materials Cache](aws-encryption-sdk-specification/framework/local-cryptographic-materials-cache.md)
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On initialization of the local CMC,
+    TEXT[!MUST]: the caller MUST provide the following:
+    TEXT[!MUST]: The local CMC MUST also define the following:
+
+  SECTION: [Entry Capacity](#entry-capacity)
+    TEXT[!MUST]: The local CMC MUST NOT store more entries than this value,
+    TEXT[!MUST]: except temporarily while performing a Put Cache Entry operation.
+    TEXT[!MUST]: The local CMC MUST accept entry capacity values between zero
+    TEXT[!MUST]: and an implementation-defined maximum, inclusive.
+
+  SECTION: [Entry Pruning Tail Size](#entry-pruning-tail-size)
+    TEXT[!MUST]: The _entry pruning tail size_
+    TEXT[!MUST]: is the number of least recently used entries that the local CMC
+    TEXT[!MUST]: MUST check during [pruning](#pruning)
+    TEXT[!MUST]: for TTL-expired entries to evict.
+
+  SECTION: [Put Cache Entry](#put-cache-entry)
+    TEXT[!MAY]: While performing a Put Cache Entry operation,
+    TEXT[!MAY]: the local CMC MAY store more entries than the entry capacity.
+    TEXT[!MUST]: However, before returning, the local CMC MUST evict least-recently used entries
+    TEXT[!MUST]: until the number of stored entries does not exceed the entry capacity.
+
+  SECTION: [Get Cache Entry](#get-cache-entry)
+    TEXT[!MUST]: When performing a Get Cache Entry operation,
+    TEXT[!MUST]: the local CMC MUST [prune TTL-expired cache entries](#pruning).
+    TEXT[!MUST]: The local CMC MUST NOT return any TTL-expired entry.
+
+  SECTION: [Pruning](#pruning)
+    TEXT[!MUST]: To prune TTL-expired cache entries,
+    TEXT[!MUST]: the local CMC MUST evict all TTL-expired entries
+    TEXT[!MUST]: among the `N` least recently used entries,
+    TEXT[!MUST]: where `N` is the [Entry Pruning Tail Size](#entry-pruning-tail-size).
+    TEXT[!SHOULD]: The local CMC SHOULD also periodically evict all TTL-expired entries
+    TEXT[!SHOULD]: among the `N` least recently used entries.
+
+SPECIFICATION: [Master Key Interface](aws-encryption-sdk-specification/framework/master-key-interface.md)
+  SECTION: [Legacy](#legacy)
+    TEXT[!SHOULD]: Master keys SHOULD NOT be included in any additional implementations.
+    TEXT[!MUST]: Any new implementations MUST include [Keyrings](./keyring-interface.md) instead.
+
+  SECTION: [Consistency](#consistency)
+    TEXT[!MUST]: This specification defines the common behavior between the two implementations
+    TEXT[!MUST]: that determine the REQUIRED functionality.
+
+  SECTION: [Get Master Key](#get-master-key)
+    TEXT[!MUST]: A master key MUST supply itself and MUST NOT supply any other master keys.
+
+  SECTION: [Get Master Keys For Encryption](#get-master-keys-for-encryption)
+    TEXT[!MUST]: A master key MUST supply itself and MUST NOT supply any other master keys.
+
+  SECTION: [Decrypt Data Key](#decrypt-data-key)
+    TEXT[!SHOULD]: A master key SHOULD attempt to decrypt a data key using itself.
+    TEXT[!MUST]: A master key MUST not attempt to use any other master keys.
+
+  SECTION: [Generate Data Key](#generate-data-key)
+    TEXT[!MUST]: The master key MUST generate a data key and MUST then encrypt that data key.
+    TEXT[!MUST]: Inputs to this interface MUST include
+    TEXT[!MUST]: the algorithm suite
+    TEXT[!MUST]: and the encryption context.
+    TEXT[!MUST]: The output of this interface MUST include
+    TEXT[!MUST]: the plaintext data key,
+    TEXT[!MUST]: the data key encrypted under the master key,
+    TEXT[!MUST]: and information that can identify which master key
+    TEXT[!MUST]: was used to generate and encrypt the data key.
+    TEXT[!MUST]: If the master key cannot generate or encrypt the data key,
+    TEXT[!MUST]: the call MUST result in an error.
+
+  SECTION: [Encrypt Data Key](#encrypt-data-key)
+    TEXT[!MUST]: The master key MUST encrypt the data key.
+    TEXT[!MUST]: Inputs to this interface MUST include
+    TEXT[!MUST]: the algorithm suite,
+    TEXT[!MUST]: the encryption context,
+    TEXT[!MUST]: the encrypted data key,
+    TEXT[!MUST]: and information that can identify which master key
+    TEXT[!MUST]: was used to encrypt the data key.
+    TEXT[!MUST]: The output of this interface MUST include
+    TEXT[!MUST]: a value that this master key can use to obtain
+    TEXT[!MUST]: the plaintext data key.
+    TEXT[!MUST]: If the master key cannot encrypt the data key,
+    TEXT[!MUST]: the call MUST result in an error.
+
+SPECIFICATION: [Master Key Provider Interface](aws-encryption-sdk-specification/framework/master-key-provider-interface.md)
+  SECTION: [Legacy](#legacy)
+    TEXT[!SHOULD]: Master key providers SHOULD NOT be included in any additional implementations.
+    TEXT[!MUST]: Any new implementations MUST include [Keyrings](./keyring-interface.md) instead.
+
+  SECTION: [Consistency](#consistency)
+    TEXT[!MUST]: This specification defines the common behavior between the two implementations
+    TEXT[!MUST]: that determine the REQUIRED functionality.
+
+  SECTION: [Terms](#terms)
+    TEXT[!MUST]:   This MUST always be equal to the master key's key ID
+    TEXT[!MUST]:   with the exception of the raw AES master key.
+
+  SECTION: [Get Master Key](#get-master-key)
+    TEXT[!MUST]: An implementation MUST support master key selection by key ID.
+    TEXT[!MAY]: An implementation MAY support master key selection by provider info or provider ID.
+    TEXT[!MUST]: The output of this interface MUST be a master key.
+    TEXT[!MUST]: If the master key provider cannot locate an appropriate master key,
+    TEXT[!MUST]: the call MUST result in an error.
+
+  SECTION: [Get Master Keys For Encryption](#get-master-keys-for-encryption)
+    TEXT[!SHOULD]: This interface provides a way for a master key provider to indicate which master keys
+    TEXT[!SHOULD]: SHOULD be used for encryption.
+    TEXT[!MUST]: Inputs to this interface MUST include the encryption context.
+    TEXT[!MAY]: Inputs MAY include the plaintext body and plaintext size.
+    TEXT[!MUST]: The output of this interface MUST include a list of all master keys that
+    TEXT[!MUST]: SHOULD be used for encryption.
+    TEXT[!MUST]: The output of this interface MUST indicate which one of those master keys
+    TEXT[!MUST]: MUST be used to generate the data key.
+
+  SECTION: [Decrypt Data Key](#decrypt-data-key)
+    TEXT[!SHOULD]: The master key provider SHOULD attempt to decrypt the data key
+    TEXT[!SHOULD]: by passing the request to any master keys that it has access to
+    TEXT[!SHOULD]: until it has either exhausted available master keys
+    TEXT[!SHOULD]: or obtained a plaintext data key.
+    TEXT[!MUST]: Inputs to this interface MUST include
+    TEXT[!MUST]: the algorithm suite,
+    TEXT[!MUST]: the encryption context,
+    TEXT[!MUST]: and a list of encrypted data keys.
+    TEXT[!MUST]: The output of this interface MUST include
+    TEXT[!MUST]: the decrypted data key
+    TEXT[!MUST]: and information that can identify which master key
+    TEXT[!MUST]: decrypted the data key.
+    TEXT[!MUST]: If the master key provider cannot decrypt the data key,
+    TEXT[!MUST]: the call MUST result in an error.
+
+SPECIFICATION: [Multi-Keyring](aws-encryption-sdk-specification/framework/multi-keyring.md)
+  SECTION: [Inputs](#inputs)
+    TEXT[!MUST]: On keyring initialization, a keyring MUST define at least one of the following:
+
+  SECTION: [Generator Keyring](#generator-keyring)
+    TEXT[!MUST]: This keyring MUST implement the [Generate Data Key](keyring-interface.md#generate-data-key) behavior
+    TEXT[!MUST]: during [OnEncrypt](keyring-interface.md#onencrypt).
+    TEXT[!MUST]: This means that this keyring MUST return [encryption materials](structures.md#encryption-materials) containing
+    TEXT[!MUST]: a plaintext data key on [OnEncrypt](keyring-interface.md#onencrypt).
+    TEXT[!MUST]: If the list of [child keyrings](#child-keyrings) is empty,
+    TEXT[!MUST]: a [generator keyring](#generator-keyring) MUST be defined for the keyring.
+
+  SECTION: [Child Keyrings](#child-keyrings)
+    TEXT[!MUST]: If this keyring does not have a [generator keyring](#generator-keyring), this list MUST NOT be empty.
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: If this keyring has a generator keyring,
+    TEXT[!MUST]: this keyring MUST first generate a plaintext data key using the generator keyring:
+    TEXT[!MUST]: - If the input encryption materials already include a plaintext data key,
+    TEXT[!MUST]:   OnEncrypt MUST fail.
+    TEXT[!MUST]: - This keyring MUST first call the generator keyring's OnEncrypt
+    TEXT[!MUST]:   using the input encryption materials as input.
+    TEXT[!MUST]: - If the generator keyring fails OnEncrypt,
+    TEXT[!MUST]:   this OnEncrypt MUST also fail.
+    TEXT[!MUST]: - If the generator keyring returns encryption materials missing a plaintext data key,
+    TEXT[!MUST]:   OnEncrypt MUST fail.
+    TEXT[!MUST]: If this keyring does not have a [generator keyring](#generator-keyring),
+    TEXT[!MUST]: and the input [encryption materials](structures.md#encryption-materials)
+    TEXT[!MUST]: does not include a plaintext data key, OnEncrypt MUST fail.
+    TEXT[!MUST]: Next, for each [keyring](keyring-interface.md) in this keyring's list of [child keyrings](#child-keyrings),
+    TEXT[!MUST]: the keyring MUST call [OnEncrypt](keyring-interface.md#onencrypt).
+    TEXT[!MUST]: If the child keyring's [OnEncrypt](keyring-interface.md#onencrypt) fails, this OnEncrypt MUST also fail.
+    TEXT[!MUST]: If all previous [OnEncrypt](keyring-interface.md#onencrypt) calls succeeded, this keyring MUST return
+    TEXT[!MUST]: the [encryption materials](structures.md#encryption-materials) returned by the last OnEncrypt call.
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: If the decryption materials already contain a plaintext data key,
+    TEXT[!MUST]: the keyring MUST fail
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+    TEXT[!MUST]: Otherwise, OnDecrypt MUST first attempt to decrypt the [encrypted data keys](structures.md#encrypted-data-keys-1)
+    TEXT[!MUST]: in the input [decryption materials](structures.md#decryption-materials) using its
+    TEXT[!MUST]: [generator keyring](#generator-keyring).
+    TEXT[!MUST]: If the generator keyring is unable to decrypt
+    TEXT[!MUST]: the materials, the multi-keyring MUST attempt to decrypt using its child keyrings,
+    TEXT[!MUST]: until one either succeeds in decryption or all have failed.
+    TEXT[!MUST]: For each [keyring](keyring-interface.md) to be used for decryption,
+    TEXT[!MUST]: the multi-keyring MUST call that keyring's [OnDecrypt](keyring-interface.md#ondecrypt) using
+    TEXT[!MUST]: the unmodified [decryption materials](structures.md#decryption-materials) and the input
+    TEXT[!MUST]: [encrypted data key](structures.md#encrypted-data-key) list.
+    TEXT[!MUST]: If [OnDecrypt](keyring-interface.md#ondecrypt) returns [decryption materials](structures.md#decryption-materials)
+    TEXT[!MUST]: containing a plaintext data key, the multi-keyring MUST immediately return the modified decryption materials.
+    TEXT[!MUST]: If the child keyring's OnDecrypt call fails, the multi-keyring MUST collect the error and continue
+    TEXT[!MUST]: to the next keyring, if any.
+    TEXT[!MUST]: If, after calling [OnDecrypt](keyring-interface.md#ondecrypt) on every [child keyring](#child-keyrings)
+    TEXT[!MUST]: (and possibly the [generator keyring](#generator-keyring)), the [decryption materials](structures.md#decryption-materials)
+    TEXT[!MUST]: still do not contain a plaintext data key, OnDecrypt MUST return a failure message containing the
+    TEXT[!MUST]: collected failure messages from the child keyrings.
+
+  SECTION: [Security Considerations](#security-considerations)
+    TEXT[!SHOULD]: Users SHOULD examine the [keyrings](keyring-interface.md) they include in a multi-keyring to ensure
+    TEXT[!SHOULD]: that they understand what set of keyrings will be capable of obtaining the plaintext data key from
+    TEXT[!SHOULD]: the returned set of encrypted data keys.
+
+SPECIFICATION: [Raw AES Keyring](aws-encryption-sdk-specification/framework/raw-aes-keyring.md)
+  SECTION: [Changelog](#changelog)
+    TEXT[!MUST]:   - [Raw AES keyring MUST NOT accept a key namespace of "aws-kms".](https://github.com/awslabs/aws-encryption-sdk-specification/issues/101)
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On keyring initialization,
+    TEXT[!MUST]: the caller MUST provide the following:
+
+  SECTION: [Wrapping Key](#wrapping-key)
+    TEXT[!MUST]: The wrapping key MUST be a secret value consisting of cryptographically secure pseudo-random bytes.
+    TEXT[!MUST]: It MUST be randomly generated from a cryptographically secure entropy source.
+    TEXT[!MUST]: The length of the wrapping key MUST be 128, 192, or 256.
+
+  SECTION: [Wrapping Algorithm](#wrapping-algorithm)
+    TEXT[!MUST]: The keyring MUST support the following algorithm configurations:
+    TEXT[!MUST]: Initialization MUST fail if the length of the [wrapping key](#wrapping-key) does not match the length specified by the wrapping algorithm.
+
+  SECTION: [Authentication Tag Length](#authentication-tag-length)
+    TEXT[!MUST]: This value MUST match the authentication tag length of the keyring's configured [wrapping algorithm](#wrapping-algorithm).
+
+  SECTION: [IV Length](#iv-length)
+    TEXT[!MUST]: This value MUST match the IV length of the keyring's configured [wrapping algorithm](#wrapping-algorithm).
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: OnEncrypt MUST take [encryption materials](structures.md#encryption-materials) as input.
+    TEXT[!MUST]: If the [encryption materials](structures.md#encryption-materials) do not contain a plaintext data key,
+    TEXT[!MUST]: OnEncrypt MUST generate a random plaintext data key and set it on the [encryption materials](structures.md#encryption-materials).
+    TEXT[!MUST]: The keyring MUST encrypt the plaintext data key in the [encryption materials](structures.md#encryption-materials)
+    TEXT[!MUST]: using AES-GCM.
+    TEXT[!MUST]: The keyring MUST attempt to serialize the [encryption materials'](structures.md#encryption-materials)
+    TEXT[!MUST]: [encryption context](structures.md#encryption-context-1) according to the [encryption context serialization specification](structures.md#serialization).
+    TEXT[!MUST]: If the keyring cannot serialize the encryption context, OnEncrypt MUST fail.
+    TEXT[!MUST]: - It MUST use the serialized [encryption context](structures.md#encryption-context-1) as the additional authenticated data (AAD).
+    TEXT[!MUST]: - It MUST use this keyring's [wrapping key](#wrapping-key) as the AES-GCM cipher key.
+    TEXT[!MUST]: - It MUST use a cryptographically random generated IV of length specified by this keyring's [wrapping algorithm](#wrapping-algorithm).
+    TEXT[!MUST]: - It MUST use an authentication tag bit of length specified by this keyring's [wrapping algorithm](#wrapping-algorithm).
+    TEXT[!MUST]: Based on the ciphertext output of the AES-GCM decryption,
+    TEXT[!MUST]: the keyring MUST construct an [encrypted data key](structures.md#encrypted-data-key) with the following specifics:
+    TEXT[!MUST]: The keyring MUST append the constructed encrypted data key to the encrypted data key list in the
+    TEXT[!MUST]: [encryption materials](structures.md#encryption-materials).
+    TEXT[!MUST]: OnEncrypt MUST output the modified [encryption materials](structures.md#encryption-materials).
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: OnDecrypt MUST take [decryption materials](structures.md#decryption-materials) and
+    TEXT[!MUST]: a list of [encrypted data keys](structures.md#encrypted-data-key) as input.
+    TEXT[!MUST]: If the decryption materials already contain a plaintext data key,
+    TEXT[!MUST]: the keyring MUST fail
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+    TEXT[!MUST]: The keyring MUST attempt to serialize the [decryption materials'](structures.md#decryption-materials)
+    TEXT[!MUST]: [encryption context](structures.md#encryption-context-1) according to the [encryption context serialization specification](structures.md#serialization).
+    TEXT[!MUST]: If the keyring cannot serialize the encryption context, OnDecrypt MUST fail.
+    TEXT[!MUST]: The keyring MUST perform the following actions on each [encrypted data key](structures.md#encrypted-data-key)
+    TEXT[!MUST]: in the input encrypted data key list, serially, until it successfully decrypts one.
+    TEXT[!MUST]: For each [encrypted data key](structures.md#encrypted-data-key),
+    TEXT[!MUST]: the keyring MUST first attempt to deserialize the [serialized ciphertext](#ciphertext)
+    TEXT[!MUST]: to obtain the [encrypted key](#encrypted-key) and [authentication tag](#authentication-tag), and
+    TEXT[!MUST]: deserialize the [serialized key provider info](#key-provider-information) to obtain the [key name](./keyring-interface.md#key-name),
+    TEXT[!MUST]: [IV](#iv), [IV length](#iv-length), and [authentication tag length](#authentication-tag-length).
+    TEXT[!MUST]: - The [ciphertext](#ciphertext) and [key provider information](#key-provider-information) MUST be successfully deserialized.
+    TEXT[!MUST]: - The key name obtained from the encrypted data key's key provider information MUST have a value equal to this keyring's [key name](./keyring-interface.md#key-name).
+    TEXT[!MUST]: - The key provider ID of the encrypted data key MUST have a value equal to this keyring's [key namespace](./keyring-interface.md#key-namespace).
+    TEXT[!MUST]: - The [IV length](#iv-length) obtained from the encrypted data key's key provider information MUST have a value equal to the length specified by this keyring's [wrapping algorithm](#wrapping-algorithm).
+    TEXT[!MUST]: - The [authentication tag length](#authentication-tag-length) obtained from the key provider information MUST have a value equal to the length specified by this keyring's [wrapping algorithm](#wrapping-algorithm).
+    TEXT[!MUST]: - It MUST use the [encrypt key](#encrypted-key) obtained from deserialization as the AES-GCM input ciphertext.
+    TEXT[!MUST]: - It MUST use the [authentication tag](#authentication-tag) obtained from deserialization as the AES-GCM input authentication tag.
+    TEXT[!MUST]: - It MUST use this keyring's [wrapping key](#wrapping-key) as the AES-GCM cipher key.
+    TEXT[!MUST]: - It MUST use the [IV](#iv) obtained from deserialization as the AES-GCM IV.
+    TEXT[!MUST]: - It MUST use the serialized [encryption context](structures.md#encryption-context-1) as the AES-GCM AAD.
+    TEXT[!MUST]: If a decryption succeeds, this keyring MUST
+    TEXT[!MUST]: add the resulting plaintext data key to the decryption materials and return the modified materials.
+    TEXT[!MUST]: If no decryption succeeds,
+    TEXT[!MUST]: the keyring MUST fail
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+
+SPECIFICATION: [Raw RSA Keyring](aws-encryption-sdk-specification/framework/raw-rsa-keyring.md)
+  SECTION: [Changelog](#changelog)
+    TEXT[!MUST]:   - [Raw RSA keyring MUST NOT accept a key namespace of "aws-kms".](https://github.com/awslabs/aws-encryption-sdk-specification/issues/101)
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On keyring initialization,
+    TEXT[!MUST]: the caller MUST provide the following:
+
+  SECTION: [Padding Scheme](#padding-scheme)
+    TEXT[!MUST]: This value MUST correspond with one of the [supported padding schemes](#supported-padding-schemes).
+    TEXT[!MUST]: If the padding scheme uses MGF1 Padding, the hash function used as part of MGF1 MUST be the same hash function
+    TEXT[!MUST]: used to hash the plaintext data key.
+
+  SECTION: [Supported Padding Schemes](#supported-padding-schemes)
+    TEXT[!MUST]: This keyring MUST NOT use a padding scheme outside those defined above.
+
+  SECTION: [Public Key](#public-key)
+    TEXT[!MUST]: The public key MUST follow the [RSA specification for public keys](#rsa).
+    TEXT[!SHOULD]: The raw RSA keyring SHOULD support loading PEM encoded [X.509 SubjectPublicKeyInfo structures](https://tools.ietf.org/html/rfc5280#section-4.1)
+    TEXT[!SHOULD]: as public keys.
+
+  SECTION: [Private Key](#private-key)
+    TEXT[!MUST]: The private key MUST follow the [RSA specification for private keys](#rsa).
+    TEXT[!SHOULD]: The raw RSA keyring SHOULD support loading PEM encoded [PKCS #8 PrivateKeyInfo structures](https://tools.ietf.org/html/rfc5958#section-2)
+    TEXT[!SHOULD]: as private keys.
+    TEXT[!SHOULD]: The private key SHOULD contain all Chinese Remainder Theorem (CRT) components (public exponent, prime factors, CRT exponents, and CRT coefficient).
+
+  SECTION: [OnEncrypt](#onencrypt)
+    TEXT[!MUST]: OnEncrypt MUST fail if this keyring does not have a specified [public key](#public-key).
+    TEXT[!MUST]: The keyring MUST NOT derive a public key from a specified [private key](#private-key).
+    TEXT[!MUST]: OnEncrypt MUST take [encryption materials](structures.md#encryption-materials) as input.
+    TEXT[!MUST]: If the [encryption materials](structures.md#encryption-materials) do not contain a plaintext data key,
+    TEXT[!MUST]: OnEncrypt MUST generate a random plaintext data key and set it on the [encryption materials](structures.md#encryption-materials).
+    TEXT[!MUST]: The keyring MUST attempt to encrypt the plaintext data key in the
+    TEXT[!MUST]: [encryption materials](structures.md#encryption-materials) using RSA.
+    TEXT[!MUST]: If RSA encryption was successful, OnEncrypt MUST return the input
+    TEXT[!MUST]: [encryption materials](structures.md#encryption-materials), modified in the following ways:
+
+  SECTION: [OnDecrypt](#ondecrypt)
+    TEXT[!MUST]: OnDecrypt MUST fail if this keyring does not have a specified [private key](#private-key).
+    TEXT[!MUST]: OnDecrypt MUST take [decryption materials](structures.md#decryption-materials) and
+    TEXT[!MUST]: a list of [encrypted data keys](structures.md#encrypted-data-key) as input.
+    TEXT[!MUST]: If the decryption materials already contain a plaintext data key,
+    TEXT[!MUST]: the keyring MUST fail
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+    TEXT[!MUST]: The keyring MUST attempt to decrypt the input encrypted data keys, in list order, until it successfully decrypts one.
+    TEXT[!MUST]: For each encrypted data key, the keyring MUST attempt to decrypt the encrypted data key into plaintext
+    TEXT[!MUST]: using RSA if and only if the following is true:
+    TEXT[!MUST]: If any decryption succeeds, this keyring MUST immediately return the input
+    TEXT[!MUST]: [decryption materials](structures.md#decryption-materials), modified in the following ways:
+    TEXT[!MUST]: If no decryption succeeds,
+    TEXT[!MUST]: the keyring MUST fail
+    TEXT[!MUST]: and MUST NOT modify the [decryption materials](structures.md#decryption-materials).
+
+SPECIFICATION: [Required Encryption Context Cryptographic Materials Manager](aws-encryption-sdk-specification/framework/required-encryption-context-cmm.md)
+  SECTION: [Overview](#overview)
+    TEXT[!MUST]: This set of keys MUST
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On Required Encryption Context CMM initialization,
+    TEXT[!MUST]: the caller MUST provide the following values:
+    TEXT[!MUST]: Additionally, the caller MUST provide one of the following values:
+    TEXT[!MUST]: If the caller provides a keyring,
+    TEXT[!MUST]: then the Required Encryption Context CMM MUST set its underlying CMM
+    TEXT[!MUST]: to a [default CMM](default-cmm.md) initialized with the keyring.
+
+  SECTION: [Get Encryption Materials](#get-encryption-materials)
+    TEXT[!MUST]: The encryption context on the [encryption materials request](./cmm-interface.md#encryption-materials-request)
+    TEXT[!MUST]: MUST contain a value for every key in the configured [required encryption context keys](#required-encryption-context-keys)
+    TEXT[!MUST]: or this request MUST fail.
+    TEXT[!MUST]: The Required Encryption Context CMM MUST attempt to obtain [encryption materials](./structures.md#encryption-materials)
+    TEXT[!MUST]: by making a call to the [underlying CMM's](#underlying-cryptographic-materials-manager)
+    TEXT[!MUST]: [Get Encryption Materials](cmm-interface.md#get-encryption-materials).
+    TEXT[!MUST]: All configured [required encryption context keys](#required-encryption-context-keys)
+    TEXT[!MUST]: MUST exist in the required encryption context keys
+    TEXT[!MUST]: of the [encryption materials request](./cmm-interface.md#encryption-materials-request)
+    TEXT[!MUST]: to the [underlying CMM's](#underlying-cryptographic-materials-manager).
+    TEXT[!MUST]: The obtained [encryption materials](./structures.md#encryption-materials) MUST
+    TEXT[!MUST]: have all configured [required encryption context keys](#required-encryption-context-keys)
+    TEXT[!MUST]: in it's [required encryption context keys](./structures.md#required-encryption-context-keys).
+
+  SECTION: [Decrypt Materials](#decrypt-materials)
+    TEXT[!MUST]: The reproduced encryption context on the [decrypt materials request](./cmm-interface.md#decrypt-materials-request)
+    TEXT[!MUST]: MUST contain a value for every key in the configured [required encryption context keys](#required-encryption-context-keys)
+    TEXT[!MUST]: or this request MUST fail.
+    TEXT[!MUST]: The Required Encryption Context
+    TEXT[!MUST]: CMM MUST attempt to obtain [decryption materials](./structures.md#decryption-materials)
+    TEXT[!MUST]: by making a call to the [underlying CMM's](#underlying-cryptographic-materials-manager)
+    TEXT[!MUST]: [decrypt materials](cmm-interface.md#decrypt-materials) interface
+    TEXT[!MUST]: with the unchanged [decrypt materials request](./cmm-interface.md#decrypt-materials-request).
+    TEXT[!MUST]: The obtained [decryption materials](./structures.md#decryption-materials) MUST
+    TEXT[!MUST]: have all configured [required encryption context keys](#required-encryption-context-keys)
+    TEXT[!MUST]: in it's [encryption context](./structures.md#encryption-context-2).
+
+SPECIFICATION: [Storm Tracking Cryptographic Materials Cache](aws-encryption-sdk-specification/framework/storm-tracking-cryptographic-materials-cache.md)
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On initialization of the storm tracking CMC,
+    TEXT[!MUST]: the caller MUST provide exactly what is required by a
+    TEXT[!MUST]: [Local CMC](local-cryptographic-materials-cache.md).
+    TEXT[!MUST]: Initialization MUST also provide
+    TEXT[!MUST]: The implementation MUST instantiate a [Local CMC](local-cryptographic-materials-cache.md)
+    TEXT[!MUST]: to do the actual cacheing.
+
+  SECTION: [Behaviors](#behaviors)
+    TEXT[!MUST]: The interface MUST be exactly the same as a [Local CMC](local-cryptographic-materials-cache.md),
+    TEXT[!MUST]: even if used in a multi-threaded context, with two exceptions
+
+  SECTION: [In Flight](#in-flight)
+    TEXT[!MUST]: For each in flight key, the storm tracking CMC MUST keep track of the most recent time
+    TEXT[!MUST]: that NoSuchEntry was returned, with accuracy to the second.
+
+  SECTION: [PutCacheEntry](#putcacheentry)
+    TEXT[!MUST]: PutCacheEntry MUST mark the key as not in flight.
+
+  SECTION: [Within Grace Period](#within-grace-period)
+    TEXT[!MUST]: A time `now` MUST be considered within the [grace period](#grace-period) for an entry that expires
+    TEXT[!MUST]: at a time `expiry` if `(expiry - gracePeriod) <= now`
+
+  SECTION: [Within Grace Interval](#within-grace-interval)
+    TEXT[!MUST]: A time `now` MUST be considered within the [grace interval](#grace-interval)
+    TEXT[!MUST]: of an inflight entry at `inflight` time
+    TEXT[!MUST]: if `now < (inflight + graceInterval)`
+
+  SECTION: [GetCacheEntry](#getcacheentry)
+    TEXT[!MUST]: The implementation MUST call the [Local CMC](local-cryptographic-materials-cache.md)
+    TEXT[!MUST]: to find the cached materials for the key, if any.
+    TEXT[!MUST]: - If the number of things inflight is greater than or equal to the [FanOut](#fanout)
+    TEXT[!MUST]:   GetCacheEntry MUST return the cache entry.
+    TEXT[!MUST]: - If the key's expiration _is not_ [within the grace period](#within-grace-period),
+    TEXT[!MUST]:   GetCacheEntry MUST return the cache entry.
+    TEXT[!MUST]: - If the key's expiration _is_ [within the grace period](#within-grace-period),
+    TEXT[!MUST]:   and the key _is not_ inflight
+    TEXT[!MUST]:   GetCacheEntry MUST return NoSuchEntry and mark that key as inflight at the current time.
+    TEXT[!MUST]: - If the key's expiration _is_ [within the grace period](#within-grace-period),
+    TEXT[!MUST]:   and the key _is_ inflight
+    TEXT[!MUST]:   and the inflight time _is_ [within the grace interval](#within-grace-interval)
+    TEXT[!MUST]:   GetCacheEntry MUST return the cache entry.
+    TEXT[!MUST]: - If the key's expiration _is_ [within the grace period](#within-grace-period),
+    TEXT[!MUST]:   and the key _is_ inflight
+    TEXT[!MUST]:   and the inflight time _is not_ [within the grace interval](#within-grace-interval)
+    TEXT[!MUST]:   GetCacheEntry MUST return NoSuchEntry and update the key as inflight at the current time.
+    TEXT[!MUST]: - If the number of things inflight is greater than or equal to the [FanOut](#fanout)
+    TEXT[!MUST]:   GetCacheEntry MUST block until a [FanOut](#fanout) slot is available, or the key appears in the cache.
+    TEXT[!MUST]: - If the key _is not_ inflight
+    TEXT[!MUST]:   GetCacheEntry MUST return NoSuchEntry and mark that key as inflight at the current time.
+    TEXT[!MUST]: - If the key _is_ inflight
+    TEXT[!MUST]:   and the current time _is_ [within the grace interval](#within-grace-interval)
+    TEXT[!MUST]:   GetCacheEntry MUST block until a [FanOut](#fanout) slot is available, or the key appears in the cache.
+    TEXT[!MUST]: - If the key _is_ inflight
+    TEXT[!MUST]:   and the current time _is not_ [within the grace interval](#within-grace-interval)
+    TEXT[!MUST]:   GetCacheEntry MUST return NoSuchEntry and update the key as inflight at the current time.
+
+SPECIFICATION: [Structures](aws-encryption-sdk-specification/framework/structures.md)
+  SECTION: [Overview](#overview)
+    TEXT[!MUST,implication]: These structures define a group of related fields that MUST hold certain properties.
+    TEXT[!MUST,implication]: Wherever these structures are referenced in this specification,
+    TEXT[!MUST,implication]: implementations MUST ensure that all properties of a structure's fields are upheld.
+    TEXT[!MAY]: While these structures will usually be represented as objects, lower level languages MAY represent
+    TEXT[!MAY]: these fields in a less strictly defined way as long as all field properties are still upheld.
+
+  SECTION: [Structure](#structure)
+    TEXT[!MAY]: This specification uses the terms "encrypt" and "decrypt" for simplicity,
+    TEXT[!MAY]: but the actual process by which a key provider obtains the plaintext data key from the ciphertext
+    TEXT[!MAY]: and vice versa MAY be any reversible operation, though we expect that most will use encryption.
+
+  SECTION: [Ciphertext](#ciphertext)
+    TEXT[!MUST]: Some key provider MUST be capable of deterministically obtaining the plaintext key from the ciphertext.
+
+  SECTION: [Structure](#structure-1)
+    TEXT[!SHOULD]: Users SHOULD use the encryption context to store:
+    TEXT[!MUST]: - Non-secret data that MUST remain associated with the [message](../data-format/message.md) ciphertext.
+    TEXT[!MUST]: Users MUST NOT use the encryption context to store secret data.
+
+  SECTION: [Serialization](#serialization)
+    TEXT[!MUST]: If the encryption context is empty, its serialization MUST be
+    TEXT[!MUST]: an empty byte sequence.
+    TEXT[!MUST]: If the encryption context is not empty, its serialization MUST
+    TEXT[!MUST]: take the following form:
+
+  SECTION: [Key Value Pair Count](#key-value-pair-count)
+    TEXT[!MUST]: The value of this field MUST be greater than 0.
+
+  SECTION: [Key Value Pair Entries](#key-value-pair-entries)
+    TEXT[!MUST]: This sequence MUST NOT contain duplicate entries.
+    TEXT[!MUST]: These entries MUST be sorted, by key,
+    TEXT[!MUST]: in ascending order according to the UTF-8 encoded binary value.
+
+  SECTION: [Structure](#structure-2)
+    TEXT[!MUST]: This structure MUST include the following fields:
+    TEXT[!MAY]: This structure MAY include any of the following fields:
+
+  SECTION: [Encrypted Data Keys](#encrypted-data-keys)
+    TEXT[!MUST]: The [ciphertext](#ciphertext) of each encrypted data key in this list MUST be an opaque form of the
+    TEXT[!MUST]: plaintext data key from this set of encryption materials.
+    TEXT[!MUST]: If the plaintext data key is not included in this set of encryption materials, this list MUST be empty.
+
+  SECTION: [Encryption Context](#encryption-context-1)
+    TEXT[!SHOULD]: If an [encryption material](#encryption-materials) contains a [signing key](#signing-key),
+    TEXT[!SHOULD]: the [encryption context](#encryption-context) SHOULD include the reserved key `aws-crypto-public-key`.
+    TEXT[!SHOULD]: The mapped value from the reserved key `aws-crypto-public-key` SHOULD be the signature verification key
+    TEXT[!SHOULD]: corresponding to the [signing key](#signing-key) stored on the [encryption material](#encryption-materials).
+    TEXT[!SHOULD]: If an [encryption material](#encryption-materials) does not contains a [signing key](#signing-key),
+    TEXT[!SHOULD]: the [encryption context](#encryption-context) SHOULD NOT include the reserved key `aws-crypto-public-key`.
+
+  SECTION: [Plaintext Data Key](#plaintext-data-key)
+    TEXT[!MUST]: The plaintext data key MUST:
+    TEXT[!SHOULD]: The plaintext data key SHOULD be stored as immutable data.
+    TEXT[!SHOULD]: The plaintext data key SHOULD offer an interface to zero the plaintext data key.
+
+  SECTION: [Signing Key](#signing-key)
+    TEXT[!MUST]: The signing key MUST fit the specification described by the [asymmetric signature algorithm](algorithm-suites.md#asymmetric-signature-algorithm)
+    TEXT[!MUST]: included in this encryption material's [algorithm suite](#algorithm-suite).
+    TEXT[!MUST]: If the algorithm suite does not contain an asymmetric signing algorithm, the signing key MUST NOT be present.
+    TEXT[!MUST]: The value of this key MUST be kept secret.
+
+  SECTION: [Required Encryption Context Keys](#required-encryption-context-keys)
+    TEXT[!MUST]: Every key in Required Encryption Context Keys
+    TEXT[!MUST]: MUST be a key in the [encryption context](#encryption-context-1).
+
+  SECTION: [Symmetric Signing Keys](#symmetric-signing-keys)
+    TEXT[!MUST]: If the algorithm suite does not contain a symmetric signing algorithm, this list MUST NOT be included in the materials.
+    TEXT[!MUST]: If the algorithm suite does contain a symmetric signing algorithm, this list MUST have length equal to the [encrypted data key list](#encrypted-data-keys).
+    TEXT[!MUST]: The symmetric signature keys MUST adhere to the specification for [symmetric signature algorithms](./algorithm-suites.md#symmetric-signature-algorithm)
+    TEXT[!MUST]: included in this encryption material's [algorithm suite](#algorithm-suite).
+    TEXT[!MUST]: The value of keys in this list MUST be kept secret.
+
+  SECTION: [Fields](#fields)
+    TEXT[!MUST]: This structure MUST include the following fields:
+    TEXT[!MAY]: This structure MAY include any of the following fields:
+
+  SECTION: [Encryption Context](#encryption-context-2)
+    TEXT[!SHOULD]: If a [decryption materials](#decryption-materials) contains a [verification key](#verification-key),
+    TEXT[!SHOULD]: the [encryption context](#encryption-context) SHOULD include the reserved key `aws-crypto-public-key`.
+    TEXT[!SHOULD]: The mapped value from the reserved key `aws-crypto-public-key`
+    TEXT[!SHOULD]: SHOULD be the signature verification key stored on the [decryption materials](#decryption-materials).
+    TEXT[!SHOULD]: If a [decryption materials](#decryption-materials) does not contain a [verification key](#verification-key),
+    TEXT[!SHOULD]: the [encryption context](#encryption-context) SHOULD NOT include the reserved key `aws-crypto-public-key`.
+
+  SECTION: [Plaintext Data Key](#plaintext-data-key-1)
+    TEXT[!MUST]: The plaintext data key MUST:
+    TEXT[!SHOULD]: The plaintext data key SHOULD be stored as immutable data.
+    TEXT[!SHOULD]: The plaintext data key SHOULD offer an interface to zero the plaintext data key.
+
+  SECTION: [Verification Key](#verification-key)
+    TEXT[!MUST]: The verification key MUST fit the specification for the [asymmetric signature algorithm](algorithm-suites.md#asymmetric-signature-algorithm)
+    TEXT[!MUST]: included in this decryption material's [algorithm suite](#algorithm-suite-1).
+
+  SECTION: [Required Encryption Context Keys](#required-encryption-context-keys-1)
+    TEXT[!MUST]: Every key in Required Encryption Context Keys
+    TEXT[!MUST]: MUST be a key in the [encryption context](#encryption-context-2).
+
+  SECTION: [Symmetric Signing Key](#symmetric-signing-key)
+    TEXT[!MUST]: If the algorithm suite does not contain a symmetric signing algorithm,
+    TEXT[!MUST]: the symmetric signing key MUST NOT be included in the materials.
+    TEXT[!MUST]: If the algorithm suite does contain a symmetric signing algorithm,
+    TEXT[!MUST]: the symmetric signing key MUST also be included in the materials
+    TEXT[!MUST]: if and only if the materials also include a [plaintext data key](#plaintext-data-key-1).
+    TEXT[!MUST]: If included, the symmetric signature key MUST fit the specification for the [symmetric signature algorithm](algorithm-suites.md#symmetric-signature-algorithm)
+    TEXT[!MUST]: included in this decryption material's [algorithm suite](#algorithm-suite-1).
+    TEXT[!MUST]: This value MUST be kept secret.
+
+  SECTION: [Structure](#structure-3)
+    TEXT[!MUST]: This structure MUST include all of the following fields:
+
+  SECTION: [Branch Key](#branch-key)
+    TEXT[!MUST]: This data key MUST only be generated through
+    TEXT[!MUST]: AWS KMS using the [`GenerateDataKeyWithoutPlaintext`](https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKeyWithoutPlaintext.html) API.
+    TEXT[!MUST]: This key MUST be 32 bytes long.
+
+  SECTION: [Branch Key Version](#branch-key-version)
+    TEXT[!MUST]: This value MUST be a version 4 [UUID](https://www.ietf.org/rfc/rfc4122.txt).
+
+  SECTION: [Structure](#structure-4)
+    TEXT[!MUST]: This structure MUST include the following fields:
+    TEXT[!MAY]: This structure MAY include the following fields:
+
+SPECIFICATION: [Synchronized Local Cryptographic Materials Cache](aws-encryption-sdk-specification/framework/synchronized-local-cryptographic-materials-cache.md)
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST]: On initialization of the synchronized local CMC,
+    TEXT[!MUST]: the caller MUST provide exactly what is required by a
+    TEXT[!MUST]: [Local CMC](local-cryptographic-materials-cache.md).
+
+  SECTION: [Behaviors](#behaviors)
+    TEXT[!MUST]: All behaviors MUST be exactly the same as a [Local CMC](local-cryptographic-materials-cache.md),
+    TEXT[!MUST]: even if used in a multi-threaded context.
+
+SPECIFICATION: [Transitive requirements for supported formats](aws-encryption-sdk-specification/framework/transitive-requirements.md)
+  SECTION: [HKDF Encryption Key](#hkdf-encryption-key)
+    TEXT[!MUST]: If an algorithm suite uses HKDF to derive the encryption key
+    TEXT[!MUST]: the AWS Encryption SDK MUST use HKDF with the following specifics:
+    TEXT[!MUST]: - The hash function MUST be specified by the [algorithm suite key derivation settings](#algorithm-suites-encryption-key-derivation-settings).
+    TEXT[!MUST]:   - The input keying material MUST be the data key generated by the key provider.
+    TEXT[!MUST]:   - The length of the input keying material MUST equal the [key derivation input length](#key-derivation-input-length)
+    TEXT[!MUST]:     specified by the [algorithm suite encryption key derivation settings](#algorithm-suites-encryption-key-derivation-settings).
+    TEXT[!MUST]:   - If there is no salt length defined for the [algorithm suite encryption key derivation commitment setting](#algorithm-suites-encryption-key-derivation-settings),
+    TEXT[!MUST]:     the the salt MUST be a byte sequence of 0 as long as the hash length in bytes.
+    TEXT[!MUST]:   - If salt length is defined for the [algorithm suite encryption key derivation commitment setting](#algorithm-suites-encryption-key-derivation-settings),
+    TEXT[!MUST]:     the salt MUST be the [message ID](../data-format/message-header.md#message-id) with a length equal to the salt length.
+    TEXT[!MUST]:   - The input pseudorandom key MUST be the output from the extract step.
+    TEXT[!MUST]:   - The length of the output keying material MUST equal the [encryption key length](#encryption-key-length)
+    TEXT[!MUST]:     specified by the [algorithm suite encryption settings](#algorithm-suites-encryption-settings).
+    TEXT[!MUST]:   - If [key commitment](#key-commitment) for the [algorithm suite encryption key derivation setting](#algorithm-suites-encryption-key-derivation-settings) is True,
+    TEXT[!MUST]:     then the input info MUST be a concatenation of the [algorithm suite ID](#algorithm-suite-id) followed by the string `DERIVEKEY` as UTF8 encoded bytes.
+    TEXT[!MUST]:   - If [key commitment](#key-commitment) for the [algorithm suite encryption key derivation setting](#algorithm-suites-encryption-key-derivation-settings) is False,
+    TEXT[!MUST]:     the the input info MUST be a concatenation of the [algorithm suite ID](#algorithm-suite-id)
+    TEXT[!MUST]:     followed by the [message ID](../data-format/message-header.md#message-id).
+
+  SECTION: [HKDF Commit Key](#hkdf-commit-key)
+    TEXT[!MUST]: If an algorithm suite uses HKDF to derive the commitment key
+    TEXT[!MUST]: the AWS Encryption SDK MUST use HKDF with the following specifics:
+    TEXT[!MUST]: - The hash function MUST be specified by the [algorithm suite commitment settings](#algorithm-suites-commit-key-derivation-settings).
+    TEXT[!MUST]:   - The input keying material MUST be the data key generated by the key provider.
+    TEXT[!MUST]:   - The length of the input keying material MUST equal the [key derivation input length](#key-derivation-input-length)
+    TEXT[!MUST]:     specified by the algorithm suite commit key derivation setting.
+    TEXT[!MUST]:   - The salt MUST be the [message ID](../data-format/message-header.md#message-id) with a length of 256 bits.
+    TEXT[!MUST]:   - The input pseudorandom key MUST be the output from the extract step.
+    TEXT[!MUST]:   - The length of the output keying material MUST equal the [algorithm suite data length](#algorithm-suite-data-length)
+    TEXT[!MUST]:     specified by the [supported algorithm suites](#supported-algorithm-suites).
+    TEXT[!MUST]:   - The input info MUST the string `COMMITKEY` as UTF8 encoded bytes by the algorithm suite commitment settings.
+    TEXT[!SHOULD]: For algorithm suites that support commitment,
+    TEXT[!SHOULD]: the AWS Encryption SDK SHOULD only perform the extract step once
+    TEXT[!SHOULD]: and use the same output from the extract step
+    TEXT[!SHOULD]: for both the encryption key and the commitment key.
+    TEXT[!MUST]: Verification of the commitment key MUST be a constant time comparison.
+
+  SECTION: [ECDSA](#ecdsa)
+    TEXT[!MUST]: If specified to use ECDSA, the AWS Encryption SDK MUST use ECDSA with the following specifics:

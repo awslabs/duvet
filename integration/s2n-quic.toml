@@ -1,5 +1,2 @@
-name = "s2n-quic"
-repo = "https://github.com/aws/s2n-quic"
-version = "005f9461612df4f882b91844fa978a5ee603e9f8"
+source = { repo = "https://github.com/aws/s2n-quic", version = "005f9461612df4f882b91844fa978a5ee603e9f8" }
 cmd = ["bash scripts/compliance"]
-html_report = "target/compliance/report.html"

@@ -58,6 +58,7 @@ pub struct Requirement {
 pub struct Report {
     pub html: HtmlReport,
     pub json: JsonReport,
+    pub snapshot: SnapshotReport,
 }
 
 #[derive(Clone, Debug)]
@@ -81,6 +82,18 @@ pub struct JsonReport {
 }
 
 impl JsonReport {
+    pub fn path(&self) -> Option<&Path> {
+        Some(&self.path).filter(|_| self.enabled)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SnapshotReport {
+    pub enabled: bool,
+    pub path: Path,
+}
+
+impl SnapshotReport {
     pub fn path(&self) -> Option<&Path> {
         Some(&self.path).filter(|_| self.enabled)
     }

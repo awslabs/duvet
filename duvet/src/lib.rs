@@ -16,9 +16,6 @@ mod specification;
 mod target;
 mod text;
 
-#[cfg(test)]
-mod tests;
-
 pub use duvet_core::{diagnostic::Error, Result};
 
 #[allow(clippy::large_enum_variant)]

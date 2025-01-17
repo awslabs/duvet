@@ -10,3 +10,6 @@ blob-link = "https://github.com/awslabs/duvet/blob/${{ GITHUB_SHA || 'main' }}"
 
 [report.json]
 enabled = true
+
+[report.snapshot]
+enabled = true

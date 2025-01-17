@@ -1,3 +1,2054 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:920674bc04f1eb2bf79020b96ef01d0df18611da773193891116288bad2ca204
-size 1189355
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [DynamoDB Attribute Serialization](specification/dynamodb-encryption-client/ddb-attribute-serialization.md)
+  SECTION: [Type ID](#type-id)
+    TEXT[!MUST,implication]: Type ID indicates what type a DynamoDB Attribute Value MUST
+    TEXT[!MUST,implication]: be serialized and deserialized as.
+    TEXT[implication]: | Attribute Value Data Type | Terminal Type ID |
+    TEXT[implication]: | ------------------------- | ---------------- |
+    TEXT[implication]: | Null (NULL)               | 0x0000           |
+    TEXT[implication]: | String (S)                | 0x0001           |
+    TEXT[implication]: | Number (N)                | 0x0002           |
+    TEXT[implication]: | Binary (B)                | 0xFFFF           |
+    TEXT[implication]: | Boolean (BOOL)            | 0x0004           |
+    TEXT[implication]: | String Set (SS)           | 0x0101           |
+    TEXT[implication]: | Number Set (NS)           | 0x0102           |
+    TEXT[implication]: | Binary Set (BS)           | 0x01FF           |
+    TEXT[implication]: | Map (M)                   | 0x0200           |
+    TEXT[implication]: | List (L)                  | 0x0300           |
+
+  SECTION: [Null](#null)
+    TEXT[!MUST,implication]: Null MUST be serialized as a zero-length byte string.
+
+  SECTION: [String](#string)
+    TEXT[!MUST,implication]: String MUST be serialized as UTF-8 encoded bytes.
+
+  SECTION: [Number](#number)
+    TEXT[!MUST,implication]: This value MUST be normalized in the same way as DynamoDB normalizes numbers.
+    TEXT[!MUST,implication]: This normalized value MUST then be serialized as UTF-8 encoded bytes.
+
+  SECTION: [Binary](#binary)
+    TEXT[!MUST,implication]: Binary MUST be serialized with the identity function;
+    TEXT[!MUST,implication]: or more plainly, Binary Attribute Values are used as is.
+
+  SECTION: [Boolean](#boolean)
+    TEXT[!MUST,implication]: Boolean MUST be serialized as:
+    TEXT[implication]: - `0x00` if the value is `false`
+    TEXT[implication]: - `0x01` if the value is `true`
+
+  SECTION: [Set](#set)
+    TEXT[!MUST,implication]: A Set MUST be serialized as:
+    TEXT[implication]: | Field       | Length   |
+    TEXT[implication]: | ----------- | -------- |
+    TEXT[implication]: | Set Count   | 4        |
+    TEXT[implication]: | Set Entries | Variable |
+
+  SECTION: [Set Count](#set-count)
+    TEXT[!MUST,implication]: Set Count MUST be a big-endian unsigned integer
+    TEXT[!MUST,implication]: equal to the number of serialized entries in
+    TEXT[!MUST,implication]: [Set Entries](#set-entries).
+    TEXT[!MAY,implication]: Set Count MAY be `0`,
+    TEXT[!MAY,implication]: in which case [Set Entries](#set-entries) is a zero-length byte string.
+
+  SECTION: [Set Entries](#set-entries)
+    TEXT[!MUST,implication]: Each of these entries MUST be serialized as:
+    TEXT[implication]: | Field            | Length                               |
+    TEXT[implication]: | ---------------- | ------------------------------------ |
+    TEXT[implication]: | Set Entry Length | 4                                    |
+    TEXT[implication]: | Set Entry Value  | Variable. Equal to Set Entry Length. |
+    TEXT[!MUST,implication]: Binary Sets MUST NOT contain duplicate entries.
+    TEXT[!MUST,implementation,test]: Entries in a Binary Set MUST be ordered lexicographically by their underlying bytes in ascending order.
+    TEXT[!MUST,implication]: Number Sets MUST NOT contain duplicate entries.
+    TEXT[!MUST,implementation,test]: Entries in a Number Set MUST be ordered in ascending [UTF-16 binary order](./string-ordering.md#utf-16-binary-order).
+    TEXT[!MUST,implementation,test]: This ordering MUST be applied after normalization of the number value.
+    TEXT[!MUST,implication]: String Sets MUST NOT contain duplicate entries.
+    TEXT[!MUST,implementation,test]: Entries in a String Set MUST be ordered in ascending [UTF-16 binary order](./string-ordering.md#utf-16-binary-order).
+
+  SECTION: [Set Entry Length](#set-entry-length)
+    TEXT[!MUST,implication]: Set Entry Length MUST be a big-endian unsigned integer
+    TEXT[!MUST,implication]: equal to the length of [Set Entry Value](#set-entry-value).
+
+  SECTION: [Map Attribute](#map-attribute)
+    TEXT[!MUST,implication]: Map MUST be serialized as:
+    TEXT[implication]: | Field                  | Length   |
+    TEXT[implication]: | ---------------------- | -------- |
+    TEXT[implication]: | Key Value Pair Count   | 4        |
+    TEXT[implication]: | Key Value Pair Entries | Variable |
+
+  SECTION: [Key Value Pair Count](#key-value-pair-count)
+    TEXT[!MUST,implication]: Key Value Pair Count MUST be a big-endian unsigned integer
+    TEXT[!MUST,implication]: equal to the number of serialized key-value pairs in
+    TEXT[!MUST,implication]: [Key Value Pair Entries](#key-value-pair-entries).
+    TEXT[!MAY,implication]: Key Value Pair Count MAY be `0`,
+    TEXT[!MAY,implication]: in which case [Key Value Pair Entries](#key-value-pair-entries) is an empty bytestring.
+
+  SECTION: [Key Value Pair Entries](#key-value-pair-entries)
+    TEXT[!MUST,implementation,test]: Each key-value pair MUST be serialized as:
+    TEXT[implementation,test]: | Field        | Length   |
+    TEXT[implementation,test]: | ------------ | -------- |
+    TEXT[implementation,test]: | Key Type     | 2        |
+    TEXT[implementation,test]: | Key Length   | 4        |
+    TEXT[implementation,test]: | Map Key      | Variable |
+    TEXT[implementation,test]: | Value Type   | 2        |
+    TEXT[implementation,test]: | Value Length | 4        |
+    TEXT[implementation,test]: | Map Value    | Variable |
+    TEXT[!MUST,implementation,test]: This sequence MUST NOT contain duplicate [Map Keys](#map-key).
+    TEXT[!MUST,implementation,test]: Entries in a serialized Map MUST be ordered by key value,
+    TEXT[!MUST,implementation,test]: ordered in ascending [UTF-16 binary order](./string-ordering.md#utf-16-binary-order).
+
+  SECTION: [Key Type](#key-type)
+    TEXT[!MUST,implication]: Key Type MUST be the [Type ID](#type-id) for Strings.
+
+  SECTION: [Key Length](#key-length)
+    TEXT[!MUST,implication]: Key Length MUST be a non-zero big-endian unsigned integer
+    TEXT[!MUST,implication]: equal to the length of [Map Key](#map-key).
+
+  SECTION: [Map Key](#map-key)
+    TEXT[!MUST,implication]: Map Key MUST be a [String Value](#string).
+
+  SECTION: [Value Type](#value-type)
+    TEXT[!MUST,implementation,test]: Value Type MUST be the [Type ID](#type-id) of the type of [Map Value](#map-value).
+
+  SECTION: [Value Length](#value-length)
+    TEXT[!MUST,implementation,test]: Value Length MUST be a big-endian unsigned integer
+    TEXT[!MUST,implementation,test]: equal to the length of [Map Value](#map-value).
+
+  SECTION: [Map Value](#map-value)
+    TEXT[!MUST,implementation,test]: Map Value MUST be a [Value](#value).
+    TEXT[!MAY,implementation,test]: A Map MAY hold any DynamoDB Attribute Value data type,
+    TEXT[!MAY,implementation,test]: and MAY hold values of different types.
+
+  SECTION: [List](#list)
+    TEXT[!MUST,implication]: List MUST be serialized as:
+    TEXT[implication]: | Field        | Length   |
+    TEXT[implication]: | ------------ | -------- |
+    TEXT[implication]: | List Count   | 4        |
+    TEXT[implication]: | List Entries | Variable |
+
+  SECTION: [List Count](#list-count)
+    TEXT[!MUST,implication]: List Count MUST be a big-endian unsigned integer
+    TEXT[!MUST,implication]: equal to the number of serialized list entries in
+    TEXT[!MUST,implication]: [List Entries](#list-entries).
+    TEXT[!MAY,implication]: List Count MAY be `0`,
+    TEXT[!MAY,implication]: in which case [List Entries](#list-entries) is an empty byte string.
+
+  SECTION: [List Entries](#list-entries)
+    TEXT[!MUST,implementation,test]: Each list entry in the sequence MUST be serialized as:
+    TEXT[implementation,test]: | Field             | Length                     |
+    TEXT[implementation,test]: | ----------------- | -------------------------- |
+    TEXT[implementation,test]: | List Entry Type   | 2                          |
+    TEXT[implementation,test]: | List Entry Length | 4                          |
+    TEXT[implementation,test]: | List Entry Value  | Variable. Equal to Length. |
+    TEXT[!MUST,implementation,test]: The order of these serialized list entries MUST match
+    TEXT[!MUST,implementation,test]: the order of the entries in the original list.
+
+  SECTION: [List Entry Type](#list-entry-type)
+    TEXT[!MUST,implementation,test]: List Entry Type MUST be the [Type ID](#type-id) of the type of [List Entry Value](#list-entry-value).
+
+  SECTION: [List Entry Length](#list-entry-length)
+    TEXT[!MUST,implementation,test]: List Entry Length MUST be a big-endian unsigned integer
+    TEXT[!MUST,implementation,test]: equal to the length of [List Entry Value](#list-entry-value).
+
+  SECTION: [List Entry Value](#list-entry-value)
+    TEXT[!MAY,implementation,test]: A List MAY hold any DynamoDB Attribute Value data type,
+    TEXT[!MAY,implementation,test]: and MAY hold values of different types.
+
+SPECIFICATION: [DynamoDb Encryption Branch Key Supplier](specification/dynamodb-encryption-client/ddb-encryption-branch-key-id-supplier.md)
+  SECTION: [Operation](#operation)
+    TEXT[!MUST,implication]: The `CreateDynamoDbEncryptionBranchKeyIdSupplier` is an operation that MUST be vended alongside the DynamoDb Item Encryptor.
+
+  SECTION: [Input](#input)
+    TEXT[!MUST,implication]: This operation MUST take in a [DynamoDbKeyBranchKeyIdSupplier](#dynamodbkeybranchkeyidsupplier) as input.
+
+  SECTION: [Output](#output)
+    TEXT[!MUST,implication]: This operation MUST output a BranchKeyIdSupplierReference.
+
+  SECTION: [Behavior](#behavior)
+    TEXT[!MUST,implication]: - It MUST deserialize the "aws-crypto-partition-name" value in the input encryption context to determine the partition name.
+    TEXT[!MUST,implication]: - If the partition name does not exist in the encryption context, this operation MUST fail.
+    TEXT[!MUST,implication]: - It MUST get the serialized partition value by grabbing the `aws-crypto-attr.<partition_name>` from the encryption context.
+    TEXT[!MUST,implication]: - If the partition value does not exist in the encryption context, this operation MUST fail.
+    TEXT[!MUST,implication]: - It MUST check for the existence of "aws-crypto-sort-name" in the input encryption context.
+    TEXT[!MUST,implication]:   - If this key exists, it MUST get the serialized sort value by grabbing the `aws-crypto.attr:<sort_name>` from the encryption context.
+    TEXT[!MUST,implication]:   - If the sort value does not exist in the context, this operation MUST fail.
+    TEXT[!MUST,implementation]: - If the field "aws-crypto-legend" exists in the encryption context,
+    TEXT[!MUST,implementation]:   it MUST [deserialize](./ddb-attribute-serialization.md), all values with keys beginning "aws-crypto-attr.",
+    TEXT[!MUST,implementation]:   and create a Key with these values, using names with the "aws-crypto-attr." removed.
+    TEXT[!MUST,implementation]: - If the field "aws-crypto-legend" does not exist in the encryption context, it MUST [deserialize the partition (and optionally sort) value](./ddb-attribute-serialization.md), and create a Key with these values.
+    TEXT[!MUST,implementation]:   - If successful, the resulting string MUST be outputted by this operation.
+    TEXT[!MUST,implementation]:   - Otherwise, this operation MUST fail.
+
+  SECTION: [DynamoDbKeyBranchKeyIdSupplier](#dynamodbkeybranchkeyidsupplier)
+    TEXT[!MUST,implication]: This operation MUST take in a DDB `Key` structure
+    TEXT[!MUST,implication]: (an attribute map containing the partition and sort attributes,
+    TEXT[!MUST,implication]: along with the values of any attributes configured as SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT)
+    TEXT[!MUST,implication]: as input.
+    TEXT[!MUST,implication]: This operation MUST return a branch key id (string) as output.
+
+SPECIFICATION: [DynamoDb Get Encrypted Data Key Description](specification/dynamodb-encryption-client/ddb-get-encrypted-data-key-description.md)
+  SECTION: [Input](#input)
+    TEXT[!MUST,implication]: This operation MUST take in either of the following:
+    TEXT[implication]: - A binary [header](https://github.com/aws/aws-database-encryption-sdk-dynamodb/blob/main/specification/structured-encryption/header.md)
+    TEXT[implication]: - A [encrypted DynamoDB item](https://github.com/aws/aws-database-encryption-sdk-dynamodb/blob/ff9f08a355a20c81540e4ca652e09aaeffe90c4b/specification/dynamodb-encryption-client/encrypt-item.md#encrypted-dynamodb-item)
+
+  SECTION: [Output](#output)
+    TEXT[!MUST,implication]: This operation MUST return the following:
+    TEXT[implication]: - [keyProviderId](https://github.com/aws/aws-database-encryption-sdk-dynamodb/blob/main/specification/structured-encryption/header.md#key-provider-id)
+    TEXT[implication]: - [keyProviderInfo](https://github.com/aws/aws-database-encryption-sdk-dynamodb/blob/main/specification/structured-encryption/header.md#key-provider-information) (only for AWS Cryptographic Materials Provider Keyring)
+    TEXT[implication]: - [branchKeyId](https://github.com/aws/aws-database-encryption-sdk-dynamodb/blob/main/specification/structured-encryption/header.md#key-provider-information) (only for hierarchy keyring)
+    TEXT[implication]: - [branchKeyVersion](https://github.com/aws/aws-database-encryption-sdk-dynamodb/blob/main/specification/structured-encryption/header.md#key-provider-information) (only for hierarchy keyring)
+
+  SECTION: [Behavior](#behavior)
+    TEXT[!MUST]: - The operation MUST NEVER DECRYPT the Data Keys.
+    TEXT[!MUST]: - The operation MUST NOT access the network in any way.
+    TEXT[!MUST,implementation]: - If the input is an encrypted DynamoDB item, it MUST attempt to extract "aws_dbe_head" attribute from the DynamoDB item to get the binary header.
+    TEXT[!MUST,implementation]: - This operation MUST deserialize the header bytes according to the header format.
+    TEXT[!MUST,implementation]: - This operation MUST extract the Format Flavor from the deserialize header.
+    TEXT[!MUST,implementation]: - This operation MUST extract the dataKeys from the deserialize header.
+    TEXT[!MUST,implementation,test]: - For every Data Key in Data Keys, the operation MUST attempt to extract a description of the Data Key.
+    TEXT[!SHOULD]:   - This description SHOULD be as detailed as possible, parsing but NOT decrypting the cipher-text field of the Data Key for embedded fields such as the Hierarchical Keyring’s branchKeyVersion.
+
+SPECIFICATION: [DynamoDB Item Conversion](specification/dynamodb-encryption-client/ddb-item-conversion.md)
+  SECTION: [Convert DDB Item to Structured Data](#convert-ddb-item-to-structured-data)
+    TEXT[!MUST,implication]: - MUST contain a [Structured Data Terminal](../structured-encryption/structures.md#structured-data-terminal)
+    TEXT[!MUST,implication]:   for each attribute on the DynamoDB Item, and no others.
+    TEXT[!MUST,implication]: - The [Terminal Type ID](../structured-encryption/structures.md#terminal-type-id) for each attribute MUST
+    TEXT[!MUST,implication]:   be the [Type ID](./ddb-attribute-serialization.md#type-id) of the [serialization](./ddb-attribute-serialization.md) of this Attribute Value.
+    TEXT[!MUST,implication]: - The [Terminal Value](../structured-encryption/structures.md#terminal-value) for each attribute MUST
+    TEXT[!MUST,implication]:   be the [Value](./ddb-attribute-serialization.md#type-id) of the [serialization](./ddb-attribute-serialization.md) of this Attribute Value.
+    TEXT[!MUST]: - The Structured Data Terminal MUST be located at the top level of the Structured Data,
+    TEXT[!MUST]:   string indexed by the Attribute Name.
+
+  SECTION: [Convert Structured Data to DDB Item](#convert-structured-data-to-ddb-item)
+    TEXT[!MUST,implication]: - MUST NOT have any `Key` strings that are invalid DynamoDB AttributeNames, that is, with more than 65535 characters.
+    TEXT[!MUST,implication]: - MUST contain an Attribute for every [Structured Data Terminal](../structured-encryption/structures.md#structured-data-terminal)
+    TEXT[!MUST,implication]:   on the Structured Data, and no other Attributes.
+    TEXT[!MUST,implication]: - Each Attribute MUST be deserializable
+    TEXT[!MUST,implication]:   according to [the serialization scheme](./ddb-attribute-serialization.md#value).
+
+  SECTION: [Duplicates](#duplicates)
+    TEXT[!MUST,implementation,test]: - Conversion from a Structured Data Map MUST fail if it has duplicate keys
+    TEXT[!MUST,implication]: - Conversion from a Structured Data Number Set MUST fail if it has duplicate values
+    TEXT[!MUST,implication]: - Conversion from a Structured Data String Set MUST fail if it has duplicate values
+    TEXT[!MUST,implication]: - Conversion from a Structured Data Binary Set MUST fail if it has duplicate values
+
+SPECIFICATION: [DynamoDB Item Encryptor](specification/dynamodb-encryption-client/ddb-item-encryptor.md)
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST,implication]: On initialization of the DynamoDB Item Encryptor
+    TEXT[!MUST,implication]: the caller MUST provide:
+    TEXT[implication]: - [DynamoDB Table Name](./ddb-table-encryption-config.md#dynamodb-table-name)
+    TEXT[implication]: - [DynamoDB Partition Key Name](./ddb-table-encryption-config.md#dynamodb-partition-key-name)
+    TEXT[implication]: - [Attribute Actions](./ddb-table-encryption-config.md#attribute-actions)
+    TEXT[implication]: - A [CMM](./ddb-table-encryption-config.md#cmm) or [Keyring](./ddb-table-encryption-config.md#keyring)
+    TEXT[!MAY,implication]: The following are OPTIONAL for the DynamoDB Item Encryptor:
+    TEXT[implication]: - [DynamoDB Sort Key Name](./ddb-table-encryption-config.md#dynamodb-sort-key-name)
+    TEXT[implication]: - [Unauthenticated Attributes](./ddb-table-encryption-config.md#unauthenticated-attributes)
+    TEXT[implication]: - [Unauthenticated Attribute Name Prefix](./ddb-table-encryption-config.md#unauthenticated-attribute-prefix)
+    TEXT[implication]: - [Algorithm Suite](./ddb-table-encryption-config.md#algorithm-suite)
+    TEXT[implication]: - [Legacy Config](./ddb-table-encryption-config.md#legacy-config)
+    TEXT[implication]: - [Plaintext Policy](./ddb-table-encryption-config.md#plaintext-policy)
+
+  SECTION: [EncryptItem](#encryptitem)
+    TEXT[!MUST,implication]: The DynamoDB Item Encryptor MUST provide a function that adheres to [EncryptItem](./encrypt-item.md).
+
+  SECTION: [DecryptItem](#decryptitem)
+    TEXT[!MUST,implication]: The DynamoDB Item Encryptor MUST provide a function that adheres to [DecryptItem](./decrypt-item.md).
+
+SPECIFICATION: [DynamoDB SDK Integration](specification/dynamodb-encryption-client/ddb-sdk-integration.md)
+  SECTION: [Overview](#overview)
+    TEXT[!MUST]: There MUST be some process by which
+    TEXT[!MUST]: the customer can create this AWS SDK with
+    TEXT[!MUST]: additional encryption behavior, which
+    TEXT[!MUST]: this document will refer to as a [DynamoDB Encryption Client](#dynamodb-encryption-client).
+    TEXT[!MUST]: There is no restriction on what this process is,
+    TEXT[!MUST]: other than the fact that at some point the customer
+    TEXT[!MUST]: MUST specify a [DynamoDB Encryption Client Configuration](#dynamodb-encryption-client-configuration).
+    TEXT[!MUST]: This configuration MUST be the configuration ultimately used by
+    TEXT[!MUST]: the behaviors within the DynamoDB Encryption Client.
+    TEXT[!MAY]: For AWS SDKs that do not support an idiomatic way to hook new
+    TEXT[!MAY]: behavior before and after API calls,
+    TEXT[!MAY]: this MAY be implemented by providing an
+    TEXT[!MAY]: implementation of AWS SDK APIs that wrap
+    TEXT[!MAY]: the relevant APIs with the necessary encryption and decryption logic.
+    TEXT[!SHOULD]: This new implementation SHOULD be a drop-in replacement of the
+    TEXT[!SHOULD]: regular AWS SDK.
+
+  SECTION: [DynamoDB Encryption Client Configuration](#dynamodb-encryption-client-configuration)
+    TEXT[!MUST]: The DynamoDB Encryption Client Configuration is a structure that
+    TEXT[!MUST]: the customer MUST provide in the process of creating a [DynamoDB Encryption Client](#dynamodb-encryption-client).
+    TEXT[!MUST,implication]: The client configuration consists of the following REQUIRED field:
+    TEXT[implication]: - [DynamoDb Table Encryption Configs](#dynamodb-table-encryption-configs)
+
+  SECTION: [DynamoDb Table Encryption Configs](#dynamodb-table-encryption-configs)
+    TEXT[!MUST,implication]: A map of DynamoDb table names to a structure that MUST contain
+    TEXT[!MUST,implication]: data as described by [DynamoDb Table Encryption Config](./ddb-table-encryption-config.md).
+    TEXT[!MUST,implementation]: During initialization, this client MUST construct a
+    TEXT[!MUST,implementation]: [DynamoDb Item Encryptor](./ddb-table-encryption-config.md)
+    TEXT[!MUST,implementation]: per configured table, using these table encryption configs.
+
+  SECTION: [API modification](#api-modification)
+    TEXT[!MUST]: DynamoDB API calls
+    TEXT[!MUST]: MUST have the following modified behavior:
+    TEXT[!MUST]: The [Allowed Passthrough DynamoDB APIs](#allowed-passthrough-dynamodb-apis)
+    TEXT[!MUST]: MUST NOT be modified.
+    TEXT[!MUST]: Any DynamoDB API not specified is this document either
+    TEXT[!MUST]: MUST NOT be callable or MUST yield an error,
+    TEXT[!MUST]: and that error SHOULD indicate that the operation
+    TEXT[!MUST]: is not supported with DynamoDB client-side encryption.
+
+  SECTION: [Encrypt before PutItem](#encrypt-before-putitem)
+    TEXT[!MUST,implication]: If the `TableName` in the request does not refer to an [encrypted-table](#encrypted-table),
+    TEXT[!MUST,implication]: the PutItem request MUST be unchanged.
+    TEXT[!MUST,implication]: The PutItem request MUST NOT refer to any legacy parameters,
+    TEXT[!MUST,implication]: specifically Expected and ConditionalOperator MUST NOT be set.
+    TEXT[!MUST,implication]: The Item MUST be [writable](ddb-support.md#writable).
+    TEXT[!MUST,implication]: The ConditionExpression MUST be [valid](ddb-support.md#testconditionexpression).
+    TEXT[!MUST]: Signed Beacons MUST be [added](ddb-support.md#addsignedbeacons).
+    TEXT[!MUST]: If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]: is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]: the [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]: MUST be [handled](./ddb-support.md#handlebeaconkeyfieldname).
+    TEXT[!MUST]: If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]: is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]: the [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST]: [Encrypt Item](./encrypt-item.md),
+    TEXT[!MUST]: where the input [DynamoDB Item](./encrypt-item.md#dynamodb-item)
+    TEXT[!MUST]: is output of [handling the beacon key field name](ddb-support.md#handlebeaconkeyfieldname) operation.
+    TEXT[!MUST]: If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]: is a [Single Key Store](../searchable-encryption/search-config.md#single-key-store-initialization)
+    TEXT[!MUST]: the [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST]: [Encrypt Item](./encrypt-item.md),
+    TEXT[!MUST]: where the input [DynamoDB Item](./encrypt-item.md#dynamodb-item)
+    TEXT[!MUST]: is output of [adding the signed beacons](ddb-support.md#addsignedbeacons) operation.
+    TEXT[!MUST]: If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]: is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]: and a `branch key id` was returned from [handling the beacon key field name](ddb-support.md#handlebeaconkeyfieldname)
+    TEXT[!MUST]: this `branch key id` MUST match the value
+    TEXT[!MUST]: returned from [Get beacon key id from Parsed Header](../searchable-encryption/search-config.md#get-beacon-key-id-from-parsed-header).
+    TEXT[!MUST]: Encrypted Beacons MUST be [added](ddb-support.md#addencryptedbeacons).
+    TEXT[!MUST]: If any of the above fails,
+    TEXT[!MUST]: the client MUST NOT make a network call to DynamoDB,
+    TEXT[!MUST]: and PutItem MUST yield an error.
+    TEXT[!MUST]: The PutItem request's `Item` field MUST be replaced
+    TEXT[!MUST]: with a value that is equivalent to
+    TEXT[!MUST]: the output of the [add encrypted beacons](ddb-support.md#addencryptedbeacons) operation
+    TEXT[!MUST]: calculated above.
+
+  SECTION: [Encrypt before BatchWriteItem](#encrypt-before-batchwriteitem)
+    TEXT[!MUST,implementation]: If the table name does not refer to an [encrypted-table](#encrypted-table),
+    TEXT[!MUST,implementation]: the list of operations MUST be unchanged.
+    TEXT[!MUST,implementation]: The Item MUST be [writable](ddb-support.md#writable).
+    TEXT[!MUST]: Signed Beacons MUST be [added](ddb-support.md#addsignedbeacons).
+    TEXT[!MUST]: If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]: is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]: the [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]: MUST be [handled](./ddb-support.md#handlebeaconkeyfieldname).
+    TEXT[!MUST]: If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]: is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]: the [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST]: [Encrypt Item](./encrypt-item.md),
+    TEXT[!MUST]: where the input [DynamoDB Item](./encrypt-item.md#dynamodb-item)
+    TEXT[!MUST]: is output of [handling the beacon key field name](ddb-support.md#handlebeaconkeyfieldname) operation.
+    TEXT[!MUST]: If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]: is a [Single Key Store](../searchable-encryption/search-config.md#single-key-store-initialization)
+    TEXT[!MUST]: the [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST]: [Encrypt Item](./encrypt-item.md),
+    TEXT[!MUST]: where the input [DynamoDB Item](./encrypt-item.md#dynamodb-item)
+    TEXT[!MUST]: is output of [adding the signed beacons](ddb-support.md#addsignedbeacons) operation.
+    TEXT[!MUST]: If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]: is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]: and a `branch key id` was returned from [handling the beacon key field name](ddb-support.md#handlebeaconkeyfieldname)
+    TEXT[!MUST]: this `branch key id` MUST match the value
+    TEXT[!MUST]: returned from [Get beacon key id from Parsed Header](../searchable-encryption/search-config.md#get-beacon-key-id-from-parsed-header).
+    TEXT[!MUST]: Encrypted Beacons MUST be [added](ddb-support.md#addencryptedbeacons).
+    TEXT[!MUST]: If any of the above fails,
+    TEXT[!MUST]: the client MUST NOT make a network call to DynamoDB,
+    TEXT[!MUST]: and BatchWriteItem MUST yield an error.
+    TEXT[!MUST,implementation]: The PutRequest request's `Item` field MUST be replaced
+    TEXT[!MUST,implementation]: with a value that is equivalent to
+    TEXT[!MUST,implementation]: the result [Encrypted DynamoDB Item](./encrypt-item.md#encrypted-dynamodb-item)
+    TEXT[!MUST,implementation]: calculated above.
+
+  SECTION: [Encrypt before TransactWriteItems](#encrypt-before-transactwriteitems)
+    TEXT[!MUST,implementation]: To protect against a possible fifth field being added to the TransactWriteItem structure in the future,
+    TEXT[!MUST,implementation]: the client MUST fail if none of the `Update`, `ConditionCheck`, `Delete` and `Put` fields are set.
+    TEXT[!MUST,implementation]: Any actions other than `Put`, MUST be unchanged.
+    TEXT[!MUST,implementation]: Any `Put` actions with a `TableName` that does not refer to an [encrypted-table](#encrypted-table),
+    TEXT[!MUST,implementation]: MUST be unchanged.
+    TEXT[!MUST,implementation]: - The UpdateExpression of the `Update` MUST be [valid](ddb-support.md#testupdateexpression).
+    TEXT[!MUST,implementation]: - The ConditionExpression of the `Update` MUST be [valid](ddb-support.md#testconditionexpression).
+    TEXT[!MUST,implementation]: - The ConditionExpression of the `ConditionCheck` MUST be [valid](ddb-support.md#testconditionexpression).
+    TEXT[!MUST,implementation]: - The ConditionExpression of the `Delete` MUST be [valid](ddb-support.md#testconditionexpression).
+    TEXT[!MUST,implementation]: - The Item MUST be [writable](ddb-support.md#writable).
+    TEXT[!MUST,implementation]: - The ConditionExpression `Put` MUST be [valid](ddb-support.md#testconditionexpression).
+    TEXT[!MUST]: - Signed Beacons MUST be [added](ddb-support.md#addsignedbeacons).
+    TEXT[!MUST]: - If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]:   is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]:   the [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]:   MUST be [handled](./ddb-support.md#handlebeaconkeyfieldname).
+    TEXT[!MUST]: - If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]:   is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]:   the [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST]:   [Encrypt Item](./encrypt-item.md),
+    TEXT[!MUST]:   where the input [DynamoDB Item](./encrypt-item.md#dynamodb-item)
+    TEXT[!MUST]:   is output of [handling the beacon key field name](ddb-support.md#handlebeaconkeyfieldname) operation.
+    TEXT[!MUST]: - If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]:   is a [Single Key Store](../searchable-encryption/search-config.md#single-key-store-initialization)
+    TEXT[!MUST]:   the [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST]:   [Encrypt Item](./encrypt-item.md),
+    TEXT[!MUST]:   where the input [DynamoDB Item](./encrypt-item.md#dynamodb-item)
+    TEXT[!MUST]:   is output of [adding the signed beacons](ddb-support.md#addsignedbeacons) operation.
+    TEXT[!MUST]: - If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]:   is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]:   and a `branch key id` was returned from [handling the beacon key field name](ddb-support.md#handlebeaconkeyfieldname)
+    TEXT[!MUST]:   this `branch key id` MUST match the value
+    TEXT[!MUST]:   returned from [Get beacon key id from Parsed Header](../searchable-encryption/search-config.md#get-beacon-key-id-from-parsed-header).
+    TEXT[!MUST]: - Encrypted Beacons MUST be [added](ddb-support.md#addencryptedbeacons).
+    TEXT[!MUST]: - If any of the above fails,
+    TEXT[!MUST]:   the client MUST NOT make a network call to DynamoDB,
+    TEXT[!MUST]:   and PutItem MUST yield an error.
+    TEXT[!MUST,implementation]: - The PutItem request's `Item` field MUST be replaced
+    TEXT[!MUST,implementation]:   with a value that is equivalent to
+    TEXT[!MUST,implementation]:   the result [Encrypted DynamoDB Item](./encrypt-item.md#encrypted-dynamodb-item)
+    TEXT[!MUST,implementation]:   calculated above.
+
+  SECTION: [Decrypt after GetItem](#decrypt-after-getitem)
+    TEXT[!MUST,implication]: After a [GetItem](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html)
+    TEXT[!MUST,implication]: call is made to DynamoDB,
+    TEXT[!MUST,implication]: the resulting response MUST be modified before
+    TEXT[!MUST,implication]: being returned to the caller if there exists
+    TEXT[!MUST,implication]: an Item Encryptor specified within the [DynamoDB Encryption Client Config](#dynamodb-encryption-client-configuration)
+    TEXT[!MUST,implication]: with a [DynamoDB Table Name](./ddb-item-encryptor.md#dynamodb-table-name)
+    TEXT[!MUST,implication]: equal to the `TableName` on the GetItem request.
+    TEXT[!MUST,implication]: The [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST,implication]: [Decrypt Item](./decrypt-item.md) where the input
+    TEXT[!MUST,implication]: [DynamoDB Item](./decrypt-item.md#dynamodb-item)
+    TEXT[!MUST,implication]: is the `Item` field in the original response
+    TEXT[!MUST,implication]: Beacons MUST be [removed](ddb-support.md#removebeacons) from the result.
+    TEXT[!MUST,implication]: The GetItem response's `Item` field MUST be
+    TEXT[!MUST,implication]: replaced by the encrypted DynamoDb Item outputted above.
+
+  SECTION: [Decrypt after PutItem](#decrypt-after-putitem)
+    TEXT[!MUST,implication]: After a [PutItem](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html)
+    TEXT[!MUST,implication]: call is made to DynamoDB,
+    TEXT[!MUST,implication]: the resulting response MUST be modified before
+    TEXT[!MUST,implication]: being returned to the caller if:
+    TEXT[!MUST,implication]: In this case, the [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST,implication]: [Decrypt Item](./decrypt-item.md) where the input
+    TEXT[!MUST,implication]: [DynamoDB Item](./decrypt-item.md#dynamodb-item)
+    TEXT[!MUST,implication]: is the `Attributes` field in the original response
+    TEXT[!MUST,implication]: Beacons MUST be [removed](ddb-support.md#removebeacons) from the result.
+    TEXT[!MUST,implication]: The PutItem response's `Attributes` field MUST be
+    TEXT[!MUST,implication]: replaced by the encrypted DynamoDb Item outputted above.
+
+  SECTION: [Decrypt after DeleteItem](#decrypt-after-deleteitem)
+    TEXT[!MUST,implication]: After a [DeleteItem](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DeleteItem.html)
+    TEXT[!MUST,implication]: call is made to DynamoDB,
+    TEXT[!MUST,implication]: the resulting response MUST be modified before
+    TEXT[!MUST,implication]: being returned to the caller if:
+    TEXT[!MUST,implication]: In this case, the [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST,implication]: [Decrypt Item](./decrypt-item.md) where the input
+    TEXT[!MUST,implication]: [DynamoDB Item](./decrypt-item.md#dynamodb-item)
+    TEXT[!MUST,implication]: is the `Attributes` field in the original response
+    TEXT[!MUST,implication]: Beacons MUST be [removed](ddb-support.md#removebeacons) from the result.
+    TEXT[!MUST,implication]: The DeleteItem response's `Attributes` field MUST be
+    TEXT[!MUST,implication]: replaced by the encrypted DynamoDb Item outputted above.
+
+  SECTION: [Decrypt after UpdateItem](#decrypt-after-updateitem)
+    TEXT[!MUST,implication]: After a [UpdateItem](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateItem.html)
+    TEXT[!MUST,implication]: call is made to DynamoDB,
+    TEXT[!MUST,implication]: the resulting response MUST be modified before
+    TEXT[!MUST,implication]: being returned to the caller if:
+    TEXT[!MUST,implication]: In this case, the [Item Encryptor](./ddb-item-encryptor.md) MUST perform
+    TEXT[!MUST,implication]: [Decrypt Item](./decrypt-item.md) where the input
+    TEXT[!MUST,implication]: [DynamoDB Item](./decrypt-item.md#dynamodb-item)
+    TEXT[!MUST,implication]: is the `Attributes` field in the original response
+    TEXT[!MUST,implication]: Beacons MUST be [removed](ddb-support.md#removebeacons) from the result.
+    TEXT[!MUST,implication]: The UpdateItem response's `Attributes` field MUST be
+    TEXT[!MUST,implication]: replaced by the encrypted DynamoDb Item outputted above.
+    TEXT[!MUST,implication]: In all other cases, the UpdateItem response MUST NOT be modified.
+    TEXT[!MUST,implication]: Additionally, if a value of `UPDATED_OLD` or `UPDATED_NEW` was used,
+    TEXT[!MUST,implication]: and any Attributes in the response are authenticated
+    TEXT[!MUST,implication]: per the [DynamoDB Encryption Client Config](#dynamodb-encryption-client-configuration),
+    TEXT[!MUST,implication]: an error MUST be raised.
+
+  SECTION: [Decrypt after BatchGetItem](#decrypt-after-batchgetitem)
+    TEXT[!MUST,implementation]: For each list item under each key in `Responses`,
+    TEXT[!MUST,implementation]: if there is a configured Item Encryptor with [DynamoDB Table Name](./ddb-item-encryptor.md#dynamodb-table-name) equal to the key,
+    TEXT[!MUST,implementation]: that Item Encryptor MUST perform [Decrypt Item](./decrypt-item.md) where the input
+    TEXT[!MUST,implementation]: [DynamoDB Item](./decrypt-item.md#dynamodb-item)
+    TEXT[!MUST,implementation]: is the `Item` field in the original response.
+    TEXT[!MUST,implementation]: Beacons MUST be [removed](ddb-support.md#removebeacons) from the result.
+    TEXT[!MUST,implementation]: Each of these items on the original response MUST be replaced
+    TEXT[!MUST,implementation]: with a value that is equivalent to
+    TEXT[!MUST,implementation]: this result.
+    TEXT[!MUST,implementation]: If any [Decrypt Item](./decrypt-item.md) operation fails,
+    TEXT[!MUST,implementation]: BatchGetItem MUST yield an error.
+
+  SECTION: [Decrypt after Scan](#decrypt-after-scan)
+    TEXT[!MUST]: For each list entry in `Items` in the response,
+    TEXT[!MUST]: if there exists an Item Encryptor specified within the
+    TEXT[!MUST]: [DynamoDB Encryption Client Config](#dynamodb-encryption-client-configuration)
+    TEXT[!MUST]: with a [DynamoDB Table Name](./ddb-item-encryptor.md#dynamodb-table-name)
+    TEXT[!MUST]: equal to the `TableName` on the request,
+    TEXT[!MUST]: the corresponding Item Encryptor MUST perform [Decrypt Item](./decrypt-item.md)
+    TEXT[!MUST]: where the input [DynamoDB Item](./decrypt-item.md#dynamodb-item)
+    TEXT[!MUST]: is this list entry.
+    TEXT[!MUST,implementation]: Each of these entries on the original response MUST be replaced
+    TEXT[!MUST,implementation]: with the resulting decrypted
+    TEXT[!MUST,implementation]: [DynamoDB Item](./decrypt-item.md#dynamodb-item-1).
+    TEXT[!MUST]: If any [Decrypt Item](./decrypt-item.md) operation fails,
+    TEXT[!MUST]: Scan MUST yield an error.
+    TEXT[!MUST,implementation]: The resulting decrypted response MUST be [filtered](ddb-support.md#scanoutputforbeacons) from the result.
+
+  SECTION: [Decrypt after Query](#decrypt-after-query)
+    TEXT[!MUST]: For each list entry in `Items` in the response,
+    TEXT[!MUST]: if there exists an Item Encryptor specified within the
+    TEXT[!MUST]: [DynamoDB Encryption Client Config](#dynamodb-encryption-client-configuration)
+    TEXT[!MUST]: with a [DynamoDB Table Name](./ddb-item-encryptor.md#dynamodb-table-name)
+    TEXT[!MUST]: equal to the `TableName` on the request,
+    TEXT[!MUST]: the corresponding Item Encryptor MUST perform [Decrypt Item](./decrypt-item.md)
+    TEXT[!MUST]: where the input [DynamoDB Item](./decrypt-item.md#dynamodb-item)
+    TEXT[!MUST]: is this list entry.
+    TEXT[!MUST,implementation]: Each of these entries on the original response MUST be replaced
+    TEXT[!MUST,implementation]: with the resulting decrypted [DynamoDB Item](./decrypt-item.md#dynamodb-item-1).
+    TEXT[!MUST]: If any [Decrypt Item](./decrypt-item.md) fails,
+    TEXT[!MUST]: Query MUST yield an error.
+    TEXT[!MUST,implementation]: The resulting decrypted response MUST be [filtered](ddb-support.md#queryoutputforbeacons) from the result.
+
+  SECTION: [Decrypt after TransactGetItems](#decrypt-after-transactgetitems)
+    TEXT[!MUST,implementation]: For each list item under each key in `Responses`,
+    TEXT[!MUST,implementation]: if there exists an Item Encryptor specified within
+    TEXT[!MUST,implementation]: the [DynamoDB Encryption Client Config](#dynamodb-encryption-client-configuration)
+    TEXT[!MUST,implementation]: with a [DynamoDB Table Name](./ddb-item-encryptor.md#dynamodb-table-name)
+    TEXT[!MUST,implementation]: equal to the key,
+    TEXT[!MUST,implementation]: the Item Encryptor that corresponds to the key in the request
+    TEXT[!MUST,implementation]: MUST perform [Decrypt Item](./decrypt-item.md) where the input
+    TEXT[!MUST,implementation]: [DynamoDB Item](./decrypt-item.md#dynamodb-item) is the `Item` in the original response.
+    TEXT[!MUST,implementation]: Beacons MUST be [removed](ddb-support.md#removebeacons) from the result.
+    TEXT[!MUST,implementation]: Each of these items on the original response MUST be replaced
+    TEXT[!MUST,implementation]: with a value that is equivalent to the resulting item.
+    TEXT[!MUST,implementation]: If any [Decrypt Item](./decrypt-item.md) fails,
+    TEXT[!MUST,implementation]: TransactGetItems MUST yield an error.
+
+  SECTION: [Validate Before UpdateItem](#validate-before-updateitem)
+    TEXT[!MUST,implication]: If the `TableName` in the request does not refer to an [encrypted-table](#encrypted-table),
+    TEXT[!MUST,implication]: the UpdateItem request MUST be unchanged.
+    TEXT[!MUST,implication]: The UpdateItem request MUST NOT refer to any legacy parameters,
+    TEXT[!MUST,implication]: specifically Expected, AttributeUpdates and ConditionalOperator MUST NOT be set.
+    TEXT[!MUST,implication]: The UpdateExpression MUST be [valid](ddb-support.md#testupdateexpression).
+    TEXT[!MUST,implication]: If all of the above validation succeeds, the UpdateItem request MUST be unchanged.
+
+  SECTION: [Validate Before DeleteItem](#validate-before-deleteitem)
+    TEXT[!MUST,implication]: If the `TableName` in the request does not refer to an [encrypted-table](#encrypted-table),
+    TEXT[!MUST,implication]: the DeleteItem request MUST be unchanged.
+    TEXT[!MUST,implication]: The DeleteItem request MUST NOT refer to any legacy parameters,
+    TEXT[!MUST,implication]: specifically Expected and ConditionalOperator MUST NOT be set.
+    TEXT[!MUST,implication]: The ConditionExpression MUST be [valid](ddb-support.md#testconditionexpression).
+    TEXT[!MUST,implication]: If all of the above validation succeeds, the DeleteItem request MUST be unchanged.
+
+  SECTION: [Validate Before ExecuteStatement](#validate-before-executestatement)
+    TEXT[!MUST,implication]: The request MUST fail, and the client make no network call to DynamoDB,
+    TEXT[!MUST,implication]: if there exists an Item Encryptor
+    TEXT[!MUST,implication]: specified within the [DynamoDB Encryption Client Config](#dynamodb-encryption-client-configuration)
+    TEXT[!MUST,implication]: with a [DynamoDB Table Name](./ddb-item-encryptor.md#dynamodb-table-name)
+    TEXT[!MUST,implication]: equal to table named in the request.
+    TEXT[!MUST,implication]: If no such Item Encryptor exists,
+    TEXT[!MUST,implication]: there MUST NOT be any modification
+    TEXT[!MUST,implication]: to the ExecuteStatement request.
+
+  SECTION: [Validate Before BatchExecuteStatement](#validate-before-batchexecutestatement)
+    TEXT[!MUST,implication]: The request MUST fail, and the client make no network call to DynamoDB,
+    TEXT[!MUST,implication]: if there exists an Item Encryptor
+    TEXT[!MUST,implication]: specified within the [DynamoDB Encryption Client Config](#dynamodb-encryption-client-configuration)
+    TEXT[!MUST,implication]: with a [DynamoDB Table Name](./ddb-item-encryptor.md#dynamodb-table-name)
+    TEXT[!MUST,implication]: equal to table named in any of the `Statements` of the request.
+    TEXT[!MUST,implication]: If no such Item Encryptor exists,
+    TEXT[!MUST,implication]: there MUST NOT be any modification
+    TEXT[!MUST,implication]: to the BatchExecuteStatement request.
+
+  SECTION: [Validate Before ExecuteTransaction](#validate-before-executetransaction)
+    TEXT[!MUST,implication]: The request MUST fail, and the client make no network call to DynamoDB,
+    TEXT[!MUST,implication]: if there exists an Item Encryptor
+    TEXT[!MUST,implication]: specified within the [DynamoDB Encryption Client Config](#dynamodb-encryption-client-configuration)
+    TEXT[!MUST,implication]: with a [DynamoDB Table Name](./ddb-item-encryptor.md#dynamodb-table-name)
+    TEXT[!MUST,implication]: equal to table named in any of the `TransactStatements` of the request.
+    TEXT[!MUST,implication]: If no such Item Encryptor exists,
+    TEXT[!MUST,implication]: there MUST NOT be any modification
+    TEXT[!MUST,implication]: to the ExecuteTransaction request.
+
+  SECTION: [Modify before Scan](#modify-before-scan)
+    TEXT[!MUST,implication]: If the `TableName` in the request does not refer to an [encrypted-table](#encrypted-table),
+    TEXT[!MUST,implication]: the Scan request MUST be unchanged.
+    TEXT[!MUST,implication]: The Scan request MUST NOT refer to any legacy parameters,
+    TEXT[!MUST,implication]: specifically AttributesToGet, ScanFilter and ConditionalOperator MUST NOT be set.
+    TEXT[!MUST]: The request MUST be [altered](./ddb-support.md#scaninputforbeacons)
+    TEXT[!MUST]: to transform any references to encrypted attributes into references to beacons.
+
+  SECTION: [Modify before Query](#modify-before-query)
+    TEXT[!MUST,implication]: If the `TableName` in the request does not refer to an [encrypted-table](#encrypted-table),
+    TEXT[!MUST,implication]: the Query request MUST be unchanged.
+    TEXT[!MUST,implication]: The Query request MUST NOT refer to any legacy parameters,
+    TEXT[!MUST,implication]: specifically AttributesToGet, KeyConditions, QueryFilter and ConditionalOperator MUST NOT be set.
+    TEXT[!MUST]: The request MUST be [altered](./ddb-support.md#queryinputforbeacons)
+    TEXT[!MUST]: to transform any references to encrypted attributes into references to beacons.
+
+SPECIFICATION: [DynamoDB Support Layer](specification/dynamodb-encryption-client/ddb-support.md)
+  SECTION: [Writable](#writable)
+    TEXT[!MUST,implication]: Writeable MUST reject any item containing an attribute which begins with `aws_dbe_`.
+
+  SECTION: [TestConditionExpression](#testconditionexpression)
+    TEXT[!MUST,implication]: TestConditionExpression MUST fail if any operand in the condition expression is an encrypted attribute name.
+
+  SECTION: [TestUpdateExpression](#testupdateexpression)
+    TEXT[!MUST,implication]: TestUpdateExpression MUST fail if any operand in the update expression is a signed attribute name.
+
+  SECTION: [AddSignedBeacons](#addsignedbeacons)
+    TEXT[!MUST,implementation]: AddSignedBeacons MUST only operate on [compound beacons](../searchable-encryption/beacons.md#compound-beacon)
+    TEXT[!MUST,implementation]: that do not have any [encrypted parts](../searchable-encryption/beacons.md#compound-beacon-initialization).
+    TEXT[!MUST,implementation]: For every configured compound beacons which only contains non encrypted parts
+    TEXT[!MUST,implementation]: that can be successfully built from the attributes in the input AttributeMap,
+    TEXT[!MUST,implementation]: AddSignedBeacons MUST add an attribute named NAME,
+    TEXT[!MUST,implementation]: where NAME is the name of the beacon.
+    TEXT[!MUST,implementation]: The value of this attribute MUST be a string,
+    TEXT[!MUST,implementation]: and must have the value defined in [beacons](../searchable-encryption/beacons.md#beacon-value).
+    TEXT[!MUST,implementation]: If the attribute NAME already exists,
+    TEXT[!MUST,implementation]: if the constructed compound beacon does not match
+    TEXT[!MUST,implementation]: the existing attribute value AddSignedBeacons MUST fail.
+    TEXT[!MUST,implication]: AddSignedBeacons MUST also add an attribute with name `aws_dbe_v_1` and whose value is a string containing a single space.
+    TEXT[!MUST,implementation]: The result of AddSignedBeacons MUST be a super set of everything in the input AttributeMap.
+
+  SECTION: [GetEncryptedBeacons](#getencryptedbeacons)
+    TEXT[!MUST,implementation]: To obtain [Beacon Key Materials] GetEncryptedBeacons
+    TEXT[!MUST,implementation]: MUST call [Get beacon key after encrypt](../searchable-encryption/search-config.md#get-beacon-key-after-encrypt).
+    TEXT[!MUST,implementation]: GetEncryptedBeacons MUST NOT operate on [compound beacons](../searchable-encryption/beacons.md#compound-beacon)
+    TEXT[!MUST,implementation]: that only have [signed parts](../searchable-encryption/beacons.md#compound-beacon-initialization).
+    TEXT[!MUST,implementation]: For all other configured beacons
+    TEXT[!MUST,implementation]: that can be successfully built from the attributes in the input AttributeMap,
+    TEXT[!MUST,implementation]: GetEncryptedBeacons MUST add an attribute named aws_dbe_b_NAME,
+    TEXT[!MUST,implementation]: where NAME is the name of the beacon.
+    TEXT[!MUST,implementation]: The value of this attribute MUST be a string,
+    TEXT[!MUST,implementation]: and must have the value defined in [beacons](../searchable-encryption/beacons.md#beacon-value)
+    TEXT[!MUST,implementation]: The result of GetEncryptedBeacons MUST NOT contain any keys
+    TEXT[!MUST,implementation]: in the [Encrypt Item Output](./encrypt-item.md#output) AttributeMap.
+
+  SECTION: [RemoveBeacons](#removebeacons)
+    TEXT[!MUST,implication]: RemoveBeacons MUST remove any attributes whose name begins with `aws_dbe_`,
+    TEXT[!MUST,implication]: and leave all other attributes unchanged.
+
+  SECTION: [HandleBeaconKeyFieldName](#handlebeaconkeyfieldname)
+    TEXT[!MUST]: The [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source)
+    TEXT[!MUST]: MUST be [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]: or HandleBeaconKeyFieldName MUST fail.
+    TEXT[!MUST]: If the AttributeMap does not have a key
+    TEXT[!MUST]: equal to [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]: HandleBeaconKeyFieldName MUST return a `beacon key id` of None
+    TEXT[!MUST]: and the unaltered AttributeMap.
+    TEXT[!MUST]: If the AttributeMap does have a key
+    TEXT[!MUST]: equal to [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]: then the `beacon key id` MUST be the value of this Attribute.
+    TEXT[!MUST]: If there is not an [Attribute Action](./ddb-table-encryption-config.md#attribute-actions)
+    TEXT[!MUST]: configured for the [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]: HandleBeaconKeyFieldName MUST remove the [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]: from the AttributeMap and return the `beacon key id` and the altered AttributeMap.
+    TEXT[!MUST]: If there is an [Attribute Action](./ddb-table-encryption-config.md#attribute-actions)
+    TEXT[!MUST]: configured for the [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]: and that action is [DO_NOTHING](../structured-encryption/structures.md#do_nothing)
+    TEXT[!MUST]: HandleBeaconKeyFieldName MUST remove the [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]: from the AttributeMap and return the `beacon key id` and the altered AttributeMap.
+    TEXT[!MUST]: If there is an [Attribute Action](./ddb-table-encryption-config.md#attribute-actions)
+    TEXT[!MUST]: configured for the [Beacon Key Field Name](../searchable-encryption/search-config.md#beacon-key-field-name)
+    TEXT[!MUST]: and that action is [SIGN_ONLY](../structured-encryption/structures.md#sign_only)
+    TEXT[!MUST]: HandleBeaconKeyFieldName MUST return the `beacon key id`
+    TEXT[!MUST]: and the unaltered AttributeMap.
+
+  SECTION: [QueryInputForBeacons](#queryinputforbeacons)
+    TEXT[!MUST]: The KeyConditions property MUST NOT be defined on [QueryInput](#queryinput).
+    TEXT[!MUST]: If the [QueryObject has encrypted values](#queryobject-has-encrypted-values)
+    TEXT[!MUST]: then QueryInputForBeacons MUST obtain [Beacon Key Materials](../searchable-encryption/search-config.md#beacon-key-materials)
+    TEXT[!MUST]: from [Get beacon key for query](../searchable-encryption/search-config.md#get-beacon-key-for-query).
+    TEXT[!MUST]: If the [QueryObject does not have encrypted values](#queryobject-has-encrypted-values)
+    TEXT[!MUST]: then QueryInputForBeacons MUST NOT attempt to obtain [Beacon Key Materials](../searchable-encryption/search-config.md#beacon-key-materials).
+    TEXT[!MUST]: For any operand in the KeyConditionExpression or FilterExpression which is a beacon name,
+    TEXT[!MUST]: the name MUST be replaced by the internal beacon name (i.e.
+    TEXT[!MUST]: If the name is used directly in the expression, the name MUST be changed in the expression.
+    TEXT[!MUST]: If the name is used indirectly through the ExpressionAttributeNames mapping,
+    TEXT[!MUST]: the name MUST be changed in the ExpressionAttributeNames.
+    TEXT[!MUST]: Similarly, any values in ExpressionAttributeValues that are referred to by a beacon name
+    TEXT[!MUST]: MUST be changed to the beacon value, as calculated defined in [beacons](../searchable-encryption/beacons.md#beacon-value).
+    TEXT[!MUST]: The [hmac key](./search-config.md#hmac-key-generation) used
+    TEXT[!MUST]: MUST be obtained from the [Beacon Key Materials](../searchable-encryption/search-config.md#beacon-key-materials)
+    TEXT[!MUST]: [HMAC Keys map](../searchable-encryption/search-config.md#hmac-keys) using the beacon name
+    TEXT[!MUST]: as the key.
+    TEXT[!MUST,implementation,test]: If a single value in ExpressionAttributeValues is used in more than one context,
+    TEXT[!MUST,implementation,test]: for example an expression of `this = :foo OR that = :foo` where `this` and `that`
+    TEXT[!MUST,implementation,test]: are both beacons, this operation MUST fail.
+
+  SECTION: [QueryObject has encrypted values](#queryobject-has-encrypted-values)
+    TEXT[!MUST]: If there are any ExpressionAttributeValues that are referred to by
+    TEXT[!MUST]: a beacon name that contain encrypted values (ENCRYPT_AND_SIGN field)
+    TEXT[!MUST]: then QueryObject has encrypted values MUST return true.
+    TEXT[!MUST]: Otherwise it MUST return false.
+
+  SECTION: [QueryOutputForBeacons](#queryoutputforbeacons)
+    TEXT[!MUST]: If the [QueryObject does not have encrypted values](#queryobject-has-encrypted-values)
+    TEXT[!MUST]: then QueryOutputForBeacons MUST not filter the results and MUST return.
+    TEXT[!MUST]: If the [Beacon Key Source](../searchable-encryption/search-config.md#beacon-key-source) for the configured table
+    TEXT[!MUST]: is a [Multi Key Store](../searchable-encryption/search-config.md#multi-key-store-initialization)
+    TEXT[!MUST]: you MUST construct an `expected beacon key id` equal to the [Beacon Key Id](../searchable-encryption/search-config.md#beacon-key-materials)
+    TEXT[!MUST]: on materials obtained from [Get beacon key for query](../searchable-encryption/search-config.md#get-beacon-key-for-query)
+    TEXT[!MUST]: These [Beacon Key Materials](../searchable-encryption/search-config.md#beacon-key-materials)
+    TEXT[!MUST]: SHOULD then be discarded.
+    TEXT[!MUST]: Using the constructed `expected beacon key id`,
+    TEXT[!MUST]: for each item the result
+    TEXT[!MUST]: the [Get beacon key id from Parsed Header](../searchable-encryption/search-config.md#get-beacon-key-id-from-parsed-header)
+    TEXT[!MUST]: MUST match the `expected beacon key id`.
+    TEXT[!MUST]: If [Get beacon key id from Parsed Header](../searchable-encryption/search-config.md#get-beacon-key-id-from-parsed-header)
+    TEXT[!MUST]: fails or an item does not match it MUST be discarded.
+    TEXT[!MUST]: For each item, we MUST evaluate the query expressions supplied in the QueryInput
+    TEXT[!MUST]: against the decrypted field values returned by the query.
+    TEXT[!MUST]: Any items that do not match MUST be discarded.
+    TEXT[!MUST]: The `Count` field, MUST be updated to reflect the new item count.
+    TEXT[!MUST]: For this reason,
+    TEXT[!MUST]: any error encountered during filtering MUST result in a failure of the query operation.
+
+SPECIFICATION: [DynamoDB Table Encryption Config](specification/dynamodb-encryption-client/ddb-table-encryption-config.md)
+  SECTION: [Structure](#structure)
+    TEXT[!MUST,implication]: The physical [DynamoDB Table Name](#dynamodb-table-name) is REQUIRED
+    TEXT[!MUST,implication]: to be associated with the DynamoDb Table Encryption Configuration.
+    TEXT[!MUST,implication]: The following are REQUIRED for DynamoDb Table Encryption Configuration:
+    TEXT[implication]: - [Logical Table Name](#logical-table-name)
+    TEXT[implication]: - [DynamoDB Partition Key Name](#dynamodb-partition-key-name)
+    TEXT[implication]: - [Attribute Actions](#attribute-actions)
+    TEXT[implication]: - A [CMM](#cmm) or [Keyring](#keyring)
+    TEXT[!MAY,implication]: The following are OPTIONAL for DynamoDb Table Encryption Configuration:
+    TEXT[implication]: - [DynamoDB Sort Key Name](#dynamodb-sort-key-name)
+    TEXT[implication]: - [Unauthenticated Attributes](#unauthenticated-attributes)
+    TEXT[implication]: - [Unauthenticated Attribute Name Prefix](#unauthenticated-attribute-prefix)
+    TEXT[implication]: - [Algorithm Suite](#algorithm-suite)
+    TEXT[implication]: - [Legacy Config](#legacy-config)
+    TEXT[implication]: - [Plaintext Policy](#plaintext-policy)
+    TEXT[!MUST,implementation]: A [Legacy Config](#legacy-config)
+    TEXT[!MUST,implementation]: and a [Plaintext Policy](#plaintext-policy)
+    TEXT[!MUST,implementation]: both specified on the same config is invalid,
+    TEXT[!MUST,implementation]: and MUST result in an error.
+    TEXT[!MUST]: A [Searchable Encryption Config](../searchable-encryption/search-config.md)
+    TEXT[!MUST]: and either a [Legacy Config](./ddb-table-encryption-config.md#legacy-config)
+    TEXT[!MUST]: or a [Plaintext Policy](./ddb-table-encryption-config.md#plaintext-policy)
+    TEXT[!MUST]: being specified on the same config is invalid,
+    TEXT[!MUST]: and MUST result in an error.
+
+  SECTION: [DynamoDB Table Name](#dynamodb-table-name)
+    TEXT[!MUST,implication]: This Table Name MUST be a valid DynamoDB Table Name.
+    TEXT[!MAY,implication]: If this config is being organized with other table configs in a map,
+    TEXT[!MAY,implication]: this value MAY exist as a key value to identify other data in this config,
+    TEXT[!MAY,implication]: instead of existing alongside this data in the same object.
+
+  SECTION: [Logical Table Name](#logical-table-name)
+    TEXT[!MUST,implementation,implication]: When mapping [DynamoDB Table Names](#dynamodb-table-name) to [logical table name](#logical-table-name)
+    TEXT[!MUST,implementation,implication]: there MUST a one to one mapping between the two.
+
+  SECTION: [DynamoDB Partition Key Name](#dynamodb-partition-key-name)
+    TEXT[!MUST,implication]: This Partition Key Name MUST be a valid DynamoDB Key Schema Attribute Name
+
+  SECTION: [DynamoDB Sort Key Name](#dynamodb-sort-key-name)
+    TEXT[!MUST,implication]: This Sort Key Name MUST be a valid DynamoDB Key Schema Attribute Name
+
+  SECTION: [Configuration Version](#configuration-version)
+    TEXT[!MUST,implication]: If any of the [Attribute Actions](#attribute-actions) are configured as
+    TEXT[!MUST,implication]: [SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT](../structured-encryption/structures.md#contextandsign)
+    TEXT[!MUST,implication]: then the configuration version MUST be 2; otherwise,
+    TEXT[!MUST,implication]: the configuration version MUST be 1.
+
+  SECTION: [Key Action](#key-action)
+    TEXT[!MUST,implication]: if the [configuration version](#configuration-version) is 2, then
+    TEXT[!MUST,implication]: the key action MUST be [SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT](../structured-encryption/structures.md#contextandsign);
+    TEXT[!MUST,implication]: otherwise, the key action MUST be [SIGN_ONLY](../structured-encryption/structures.md#signonly).
+
+  SECTION: [Attribute Actions](#attribute-actions)
+    TEXT[!MUST,implication]: The [Key Action](#key-action)
+    TEXT[!MUST,implication]: MUST be configured to the partition attribute and, if present, sort attribute.
+
+  SECTION: [CMM](#cmm)
+    TEXT[!MUST,implication]: If not supplied during initialization,
+    TEXT[!MUST,implication]: the CMM considered "configured" to this
+    TEXT[!MUST,implication]: Item Encryptor MUST be a
+    TEXT[!MUST,implication]: [default CMM](https://github.com/awslabs/aws-encryption-sdk-specification/blob/master/framework/default-cmm.md)
+    TEXT[!MUST,implication]: constructed using the [supplied keyring](#keyring) as input.
+
+  SECTION: [Unauthenticated Attributes](#unauthenticated-attributes)
+    TEXT[!MUST,implication]: Unauthenticated Attributes MUST be a set of Attribute Names.
+
+  SECTION: [Unauthenticated Attribute Prefix](#unauthenticated-attribute-prefix)
+    TEXT[!MUST,implication]: Unauthenticated Attribute Prefix MUST be a string.
+
+  SECTION: [Algorithm Suite](#algorithm-suite)
+    TEXT[!SHOULD,implication]: The [algorithm suite](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md) that SHOULD be used for encryption.
+    TEXT[!MUST,implication]: This algorithm suite MUST be a [Structured Encryption Library Supported algorithm suite](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md).
+
+  SECTION: [Legacy Config](#legacy-config)
+    TEXT[!MUST,implication]: This config MUST contain:
+    TEXT[implication]: - [Legacy Encryptor](#legacy-encryptor)
+    TEXT[implication]: - [Attributes Flags](#attribute-flags)
+    TEXT[implication]: - [Legacy Policy](#legacy-policy)
+
+  SECTION: [Attribute Flags](#attribute-flags)
+    TEXT[!MAY,implication]: This map MAY be different from the top level [Attribute Actions](#attribute-actions).
+
+  SECTION: [Plaintext Policy](#plaintext-policy)
+    TEXT[!MUST,implementation]: If not specified, encryption and decryption MUST behave according to `FORBID_PLAINTEXT_WRITE_FORBID_PLAINTEXT_READ`.
+
+SPECIFICATION: [Decrypt Item](specification/dynamodb-encryption-client/decrypt-item.md)
+  SECTION: [Input](#input)
+    TEXT[!MUST,implication]: The following inputs to this behavior are REQUIRED:
+    TEXT[implication]: - [DynamoDb Item](#input-dynamodb-item)
+
+  SECTION: [Input DynamoDB Item](#input-dynamodb-item)
+    TEXT[!MUST,implication]: This item MUST include an Attribute with a name that matches the
+    TEXT[!MUST,implication]: [DynamoDB Partition Key Name](./ddb-table-encryption-config.md#dynamodb-partition-key-name)
+    TEXT[!MUST,implication]: configured on the [DynamoDB Item Encryptor](./ddb-item-encryptor.md).
+    TEXT[!MUST,implication]: Otherwise this operation MUST yield an error.
+    TEXT[!MUST,implication]: If the [DynamoDB Item Encryptor](./ddb-item-encryptor.md)
+    TEXT[!MUST,implication]: has a [DynamoDB Sort Key Name](./ddb-table-encryption-config.md#dynamodb-sort-key-name) configured,
+    TEXT[!MUST,implication]: this item MUST include an Attribute with that name.
+
+  SECTION: [Output](#output)
+    TEXT[!MUST,implication]: This operation MUST output the following:
+    TEXT[implication]: - [DynamoDb Item](#output-dynamodb-item)
+    TEXT[!MUST,implication]: This operation MUST also output a [Parsed Header](#parsed-header) if the following is true:
+    TEXT[implication]: - The operation is not using a [Legacy Policy](./ddb-table-encryption-config.md#legacy-policy) that allows legacy decrypts,
+    TEXT[implication]:   and the input item is a [legacy item](#determining-legacy-items).
+    TEXT[implication]: - The operation is not using a [Plaintext Policy](./ddb-table-encryption-config.md#plaintext-policy) that allows plaintext reads,
+    TEXT[implication]:   and the input item is a [plaintext item](#determining-plaintext-items).
+
+  SECTION: [Parsed Header](#parsed-header)
+    TEXT[!MUST,implication]: This structure MUST contain the following values,
+    TEXT[!MUST,implication]: representing the deserialized form of the header of the input encrypted structure:
+    TEXT[implication]: - [Algorithm Suite ID](./header.md#format-flavor): The Algorithm Suite ID associated with the Format Flavor on the header.
+    TEXT[implication]: - [Attribute Actions](./ddb-table-encryption-config.md#attribute-actions): The Crypto Schema for each signed attribute,
+    TEXT[implication]:   calculated using the Crypto Legend in the header, the signature scope used for decryption, and the data in the structure,
+    TEXT[implication]:   converted into Attribute Actions.
+    TEXT[implication]: - [Encrypted Data Keys](./header.md#encrypted-data-keys): The Encrypted Data Keys stored in the header.
+    TEXT[implication]: - [Stored Encryption Context](../structured-encryption/header.md#encryption-context): The Encryption Context stored in the header.
+    TEXT[implication]: - [Encryption Context](../structured-encryption/decrypt-structure#encryption-context): The full Encryption Context used.
+    TEXT[implication]: - Selector Context : the AttributeMap as passed to the [Branch Key Supplier](./ddb-encryption-branch-key-id-supplier.md)
+
+  SECTION: [Behavior](#behavior)
+    TEXT[!MUST,implementation]: If a [Legacy Policy](./ddb-table-encryption-config.md#legacy-policy) of
+    TEXT[!MUST,implementation]: `FORBID_LEGACY_ENCRYPT_FORBID_LEGACY_DECRYPT` is configured,
+    TEXT[!MUST,implementation]: and the input item [is an item written in the legacy format](#determining-legacy-items),
+    TEXT[!MUST,implementation]: this operation MUST fail.
+    TEXT[!MUST,implementation]: If a [Legacy Policy](./ddb-table-encryption-config.md#legacy-policy) of
+    TEXT[!MUST,implementation]: `FORCE_LEGACY_ENCRYPT_ALLOW_LEGACY_DECRYPT` or `FORBID_LEGACY_ENCRYPT_ALLOW_LEGACY_DECRYPT` is configured,
+    TEXT[!MUST,implementation]: and the input item [is an item written in the legacy format](#determining-legacy-items),
+    TEXT[!MUST,implementation]: this operation MUST delegate decryption of this item to the
+    TEXT[!MUST,implementation]: [Legacy Encryptor](./ddb-table-encryption-config.md#legacy-encryptor),
+    TEXT[!MUST,implementation]: using the configured [Attribute Flags](./ddb-table-encryption-config.md) as input.
+    TEXT[!MUST,implementation]: The item returned by this operation MUST be the item outputted by the
+    TEXT[!MUST,implementation]: [Legacy Encryptor](./ddb-table-encryption-config.md#legacy-encryptor).
+    TEXT[!MUST,implication]: If a [Plaintext Policy](./ddb-table-encryption-config.md#plaintext-policy) of
+    TEXT[!MUST,implication]: `FORCE_PLAINTEXT_WRITE_ALLOW_PLAINTEXT_READ` or `FORBID_PLAINTEXT_WRITE_ALLOW_PLAINTEXT_READ` is specified,
+    TEXT[!MUST,implication]: and the input item [is a plaintext item](#determining-plaintext-items)
+    TEXT[!MUST,implication]: this operation MUST NOT decrypt the input item,
+    TEXT[!MUST,implication]: and MUST passthrough that item as the output.
+    TEXT[!MUST,implementation]: This operation MUST create a
+    TEXT[!MUST,implementation]: [Required Encryption Context CMM](https://github.com/awslabs/private-aws-encryption-sdk-specification-staging/blob/dafny-verified/framework/required-encryption-context-cmm.md)
+    TEXT[!MUST,implementation]: with the following inputs:
+    TEXT[implementation]: - This item encryptor's [CMM](./ddb-table-encryption-config.md#cmm) as the underlying CMM.
+    TEXT[implementation]: - The keys from the [DynamoDB Item Base Context](#dynamodb-item-base-context).
+    TEXT[!MUST,implication]: Given the converted [Structured Data](../structured-encryption/structures.md#structured-data),
+    TEXT[!MUST,implication]: this operation MUST delegate decryption of this data to
+    TEXT[!MUST,implication]: Structured Encryption Client's [Decrypt Structure](../structured-encryption/encrypt-structure.md),
+    TEXT[!MUST,implication]: with the following inputs:
+    TEXT[!MUST,implication]: - Encrypted Structured Data MUST be the Structured Data converted above.
+    TEXT[!MUST,implication]: - Authenticate Schema MUST be a [Authenticate Schema](../structured-encryption/structures.md#crypto-schema)
+    TEXT[!MUST,implication]:   built with the following requirements:
+    TEXT[!MUST,implication]:   - For every Attribute in the [input DynamoDB Item](#input-dynamodb-item)
+    TEXT[!MUST,implication]:     that is in the [signature scope](#signature-scope),
+    TEXT[!MUST,implication]:     there MUST exist a [SIGN Authenticate Action](../structured-encryption/structures.md#sign)
+    TEXT[!MUST,implication]:     in the Authenticate Schema,
+    TEXT[!MUST,implication]:     string indexed at the top level by that attribute name.
+    TEXT[!MUST,implication]:   - For every Attribute in the [input DynamoDB Item](#input-dynamodb-item)
+    TEXT[!MUST,implication]:     that is not in the [signature scope](#signature-scope),
+    TEXT[!MUST,implication]:     there MUST exist a [DO_NOT_SIGN Authenticate Action](../structured-encryption/structures.md#do_not_sign)
+    TEXT[!MUST,implication]:     in the Authenticate Schema,
+    TEXT[!MUST,implication]:     string indexed at the top level by that attribute name.
+    TEXT[!MUST,implication]:   - The number of Authenticate Actions in the Authenticate Schema
+    TEXT[!MUST,implication]:     MUST EQUAL the number of Attributes on the [input DynamoDB Item](#input-dynamodb-item).
+    TEXT[!MUST,implication]: - Encryption Context MUST be the input Item's [DynamoDB Item Base Context](./encrypt-item.md#dynamodb-item-base-context).
+    TEXT[!MUST,implementation]: - CMM MUST be the CMM constructed above.
+    TEXT[!MUST,implication]: The output MUST also include a [Parsed Header](#parsed-header) that contains
+    TEXT[!MUST,implication]: data that was serialized into the header included in the output DynamoDb Item.
+
+  SECTION: [DynamoDB Item Base Context](#dynamodb-item-base-context)
+    TEXT[!MUST,implication]: The item to be encrypted MUST have an attribute named `aws_dbe_head`.
+    TEXT[!MUST,implication]: The attribute named `aws_dbe_head` MUST be of type `B` Binary.
+    TEXT[!MUST,implication]: If the Version Number is 2, then the base context MUST be the [version 2](./encrypt-item.md#dynamodb-item-base-context-version-2) context.
+    TEXT[!MUST,implication]: If the Version Number is 1, the base context MUST be the [version 1](./encrypt-item.md#dynamodb-item-base-context-version-1) context.
+    TEXT[!MUST,implication]: If the Version Number is not 1 or 2, the operation MUST return an error.
+
+  SECTION: [Signature Scope](#signature-scope)
+    TEXT[!MUST,implication]: An Attribute on a DynamoDB Item MUST NOT be considered as within the signature scope
+    TEXT[!MUST,implication]: if it's Attribute Name is included in [Unauthenticated Attributes](./ddb-table-encryption-config.md#unauthenticated-attributes)
+    TEXT[!MUST,implication]: or if it's Attribute Name begins with the prefix specified in
+    TEXT[!MUST,implication]: [Unauthenticated Attribute Prefix](./ddb-table-encryption-config.md#unauthenticated-attribute-prefix).
+    TEXT[!MUST,implication]: Otherwise, Attributes MUST be considered as within the signature scope.
+    TEXT[!MUST,implementation,implication]: If an Authenticate Action other than DO_NOTHING is configured for an attribute name included in [Unauthenticated Attributes](./ddb-table-encryption-config.md#unauthenticated-attributes)
+    TEXT[!MUST,implementation,implication]: or beginning with the prefix specified in [Unauthenticated Attribute Prefix](./ddb-table-encryption-config.md#unauthenticated-attribute-prefix),
+    TEXT[!MUST,implementation,implication]: this operation MUST yield an error.
+
+  SECTION: [Determining Legacy Items](#determining-legacy-items)
+    TEXT[!MUST,implementation]: An item MUST be determined to be encrypted under the legacy format if it contains
+    TEXT[!MUST,implementation]: attributes for the material description and the signature.
+
+  SECTION: [Determining Plaintext Items](#determining-plaintext-items)
+    TEXT[!MUST,implication]: An item MUST be determined to be plaintext if it does not contain
+    TEXT[!MUST,implication]: attributes with the names "aws_dbe_head" and "aws_dbe_foot".
+
+SPECIFICATION: [Encrypt Item](specification/dynamodb-encryption-client/encrypt-item.md)
+  SECTION: [Input](#input)
+    TEXT[!MUST,implication]: The following inputs to this behavior are REQUIRED:
+    TEXT[implication]: - DynamoDB Item
+
+  SECTION: [DynamoDB Item](#dynamodb-item)
+    TEXT[!MUST,implication]: This item MUST include an Attribute with a name that matches the
+    TEXT[!MUST,implication]: [DynamoDB Partition Key Name](./ddb-table-encryption-config.md#dynamodb-partition-key-name)
+    TEXT[!MUST,implication]: configured on the [DynamoDB Item Encryptor](./ddb-item-encryptor.md).
+    TEXT[!MUST,implication]: Otherwise this operation MUST yield an error.
+    TEXT[!MUST,implication]: If the [DynamoDB Item Encryptor](./ddb-item-encryptor.md)
+    TEXT[!MUST,implication]: has a [DynamoDB Sort Key Name](./ddb-table-encryption-config.md#dynamodb-sort-key-name) configured,
+    TEXT[!MUST,implication]: this item MUST include an Attribute with that name.
+    TEXT[!MUST,implication]: If the [DynamoDB Item Encryptor](./ddb-item-encryptor.md)
+    TEXT[!MUST,implication]: has any attribute configured as
+    TEXT[!MUST,implication]: [SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT](../structured-encryption/structures.md#contextandsign)
+    TEXT[!MUST,implication]: then this item MUST include an Attribute with that name.
+
+  SECTION: [Output](#output)
+    TEXT[!MUST]: This operation MUST output the following:
+    TEXT[!MUST]: This operation MUST also output a [Parsed Header](#parsed-header) if the following is true:
+
+  SECTION: [Parsed Header](#parsed-header)
+    TEXT[!MUST]: This structure MUST contain the following values,
+    TEXT[!MUST]: representing the deserialized form of the header of the input encrypted structure:
+
+  SECTION: [Behavior](#behavior)
+    TEXT[!MUST,implementation]: If a [Legacy Policy](./ddb-table-encryption-config.md#legacy-policy) of
+    TEXT[!MUST,implementation]: `FORCE_LEGACY_ENCRYPT_ALLOW_LEGACY_DECRYPT` is specified,
+    TEXT[!MUST,implementation]: this operation MUST delegate encryption of this item to the
+    TEXT[!MUST,implementation]: [Legacy Encryptor](./ddb-table-encryption-config.md#legacy-encryptor),
+    TEXT[!MUST,implementation]: using the configured [Attribute Flags](./ddb-table-encryption-config.md) as input.
+    TEXT[!MUST,implementation]: The item returned by this operation MUST be the item outputted by the
+    TEXT[!MUST,implementation]: [Legacy Encryptor](./ddb-table-encryption-config.md#legacy-encryptor).
+    TEXT[!MUST,implication]: If a [Plaintext Policy](./ddb-table-encryption-config.md#plaintext-policy) of
+    TEXT[!MUST,implication]: `FORCE_PLAINTEXT_WRITE_ALLOW_PLAINTEXT_READ` is specified,
+    TEXT[!MUST,implication]: this operation MUST NOT encrypt the input item,
+    TEXT[!MUST,implication]: and MUST passthrough that item as the output.
+    TEXT[!MUST,implication]: The [Attributes Actions](./ddb-table-encryption-config.md#attribute-actions)
+    TEXT[!MUST,implication]: configured on this Item Encryptor MUST specify a Crypto Action
+    TEXT[!MUST,implication]: for every attribute in the [input DynamoDB Item](#dynamodb-item)
+    TEXT[!MUST,implication]: (Attribute Actions MAY specify a Crypto Action for an attribute not
+    TEXT[!MUST,implication]: in the input DynamoDB Item).
+    TEXT[!MUST,implementation]: This operation MUST create a
+    TEXT[!MUST,implementation]: [Required Encryption Context CMM](https://github.com/awslabs/private-aws-encryption-sdk-specification-staging/blob/dafny-verified/framework/required-encryption-context-cmm.md)
+    TEXT[!MUST,implementation]: with the following inputs:
+    TEXT[implementation]: - This item encryptor's [CMM](./ddb-table-encryption-config.md#cmm) as the underlying CMM.
+    TEXT[implementation]: - The keys from the [DynamoDB Item Base Context](#dynamodb-item-base-context)
+    TEXT[!MUST,implication]: Given the converted [Structured Data](../structured-encryption/structures.md#structured-data),
+    TEXT[!MUST,implication]: this operation MUST delegate encryption of this data to
+    TEXT[!MUST,implication]: Structured Encryption Client's [Encrypt Structure](../structured-encryption/encrypt-structure.md),
+    TEXT[!MUST,implication]: with the following inputs:
+    TEXT[!MUST,implication]: - Structured Data MUST be the Structured Data converted above.
+    TEXT[!MUST,implication]: - Crypto Schema MUST be a [Crypto Schema](../structured-encryption/structures.md#crypto-schema)
+    TEXT[!MUST,implication]:   analogous to the [configured Attribute Actions](./ddb-table-encryption-config.md#attribute-actions).
+    TEXT[!MUST,implication]:   - For every attribute on the input Item,
+    TEXT[!MUST,implication]:     there MUST exist a Crypto Action in the Crypto Schema
+    TEXT[!MUST,implication]:     such that the Crypto Action indexed by that attribute name in the Crypto Schema
+    TEXT[!MUST,implication]:     equals the Crypto Action indexed by that attribute name in the configured Attribute Actions.
+    TEXT[!MUST,implication]:   - The Crypto Schema MUST NOT contain more Crypto Actions than those specified by the previous point.
+    TEXT[!MUST,implementation]: - If configured, the Algorithm Suite MUST be the
+    TEXT[!MUST,implementation]:   [Algorithm Suite configured on this Item Encryptor](./ddb-table-encryption-config.md#algorithm-suite).
+    TEXT[!MUST,implementation]:   If not configured on the Item Encryptor, Algorithm Suite MUST NOT be specified.
+    TEXT[!MUST,implication]: - Encryption Context MUST be this input Item's [DynamoDB Item Base Context](#dynamodb-item-base-context).
+    TEXT[!MUST,implementation]: - The CMM MUST be the CMM created above.
+
+  SECTION: [DynamoDB Item Base Context](#dynamodb-item-base-context)
+    TEXT[!MUST,implication]: If the [Configuration Version](./ddb-table-encryption-config.md#configuration-version) is 2,
+    TEXT[!MUST,implication]: then the base context MUST be the [version 2](#dynamodb-item-base-context-version-2) context;
+    TEXT[!MUST,implication]: otherwise, the base context MUST be the [version 1](#dynamodb-item-base-context-version-1) context.
+
+  SECTION: [DynamoDB Item Base Context Version 1](#dynamodb-item-base-context-version-1)
+    TEXT[!MUST,implication]: The DynamoDB Item Base Context MUST contain:
+    TEXT[implication]: - the key "aws-crypto-table-name" with a value equal to the configured
+    TEXT[implication]:   [logical table name](./ddb-table-encryption-config.md#logical-table-name).
+    TEXT[implication]: - the key "aws-crypto-partition-name" with a value equal to the name of the Partition Key on this item.
+    TEXT[implication]: - the [value](#base-context-value-version-1) of the Partition Key.
+    TEXT[!MUST,implication]: If this item has a Sort Key attribute, the DynamoDB Item Base Context MUST contain:
+    TEXT[implication]: - the key "aws-crypto-sort-name" with a value equal to the [DynamoDB Sort Key Name](./ddb-table-encryption-config.md#dynamodb-sort-key-name).
+    TEXT[implication]: - the [value](#base-context-value-version-1) of the Sort Key.
+    TEXT[!MUST,implication]: If this item does not have a sort key attribute,
+    TEXT[!MUST,implication]: the DynamoDB Item Context MUST NOT contain the key `aws-crypto-sort-name`.
+
+  SECTION: [DynamoDB Item Base Context Version 2](#dynamodb-item-base-context-version-2)
+    TEXT[!MUST,implication]: The DynamoDB Item Base Context MUST contain:
+    TEXT[implication]: - the key "aws-crypto-table-name" with a value equal to the DynamoDB Table Name of the DynamoDB Table
+    TEXT[implication]:   this item is stored in (or will be stored in).
+    TEXT[implication]: - the key "aws-crypto-partition-name" with a value equal to the name of the Partition Key on this item.
+    TEXT[!MUST,implication]: If this item has a Sort Key attribute, the DynamoDB Item Base Context MUST contain:
+    TEXT[implication]: - the key "aws-crypto-sort-name" with a value equal to the [DynamoDB Sort Key Name](./ddb-table-encryption-config.md#dynamodb-sort-key-name).
+    TEXT[!MUST,implication]: If this item does not have a sort key attribute,
+    TEXT[!MUST,implication]: the DynamoDB Item Context MUST NOT contain the key `aws-crypto-sort-name`.
+
+  SECTION: [Base Context Value Version 1](#base-context-value-version-1)
+    TEXT[!MUST]: The key MUST be as per [Encryption Context Naming]
+    TEXT[!MUST]: (../structured-encryption/encrypt-path-structure.md#encryption-context-naming).
+    TEXT[!MUST,implication]: The value MUST be the UTF8 Encoding of the
+    TEXT[!MUST,implication]: [Base 64 encoded](https://www.rfc-editor.org/rfc/rfc4648),
+    TEXT[!MUST,implication]: of the concatenation of the bytes `typeID + serializedValue`
+    TEXT[!MUST,implication]: where `typeId` is the attribute's [type ID](./ddb-attribute-serialization.md#type-id)
+    TEXT[!MUST,implication]: and `serializedValue` is the attribute's value serialized according to
+    TEXT[!MUST,implication]: [Attribute Value Serialization](./ddb-attribute-serialization.md#attribute-value-serialization).
+
+  SECTION: [Base Context Value Version 2](#base-context-value-version-2)
+    TEXT[!MUST]: The key MUST be as per [Encryption Context Naming]
+    TEXT[!MUST]: (../structured-encryption/encrypt-path-structure.md#encryption-context-naming).
+    TEXT[!MUST,implementation,test]: The value MUST be :
+    TEXT[implementation,test]: - If the type is Number or String, the unaltered (already utf8) bytes of the value
+    TEXT[implementation,test]: - If the type if Null, the string "null"
+    TEXT[implementation,test]: - If the type is Boolean, then the string "true" for true and the string "false" for false.
+    TEXT[implementation,test]: - Else, the value as defined in [Base Context Value Version 1](#base-context-value-version-1)
+
+SPECIFICATION: [String Ordering](specification/dynamodb-encryption-client/string-ordering.md)
+  SECTION: [UTF-16 Binary Order](#utf-16-binary-order)
+    TEXT[!MUST]: When ordering strings,
+    TEXT[!MUST]: these strings MUST be compared according to their UTF-16 encoding,
+    TEXT[!MUST]: lexicographically per [UTF-16 code unit](#utf-16-code-unit).
+    TEXT[!MUST]: UTF-16 code units for [high or low surrogates](#surrogates) MUST be compared individually,
+    TEXT[!MUST]: and the [Unicode scalar value](#unicode-scalar-value) represented by a surrogate pair
+    TEXT[!MUST]: MUST NOT be compared.
+    TEXT[!MUST]: Specifically, the range of characters with Unicode code point U+E000 to U+0xFFFF
+    TEXT[!MUST]: (code points representable by 16 bits, but after the surrogate range)
+    TEXT[!MUST]: MUST be considered "greater than" any character with a Unicode code point of U+10000 to U+10FFFF.
+
+SPECIFICATION: [Beacons](specification/searchable-encryption/beacons.md)
+  SECTION: [Beacon Length](#beacon-length)
+    TEXT[!MUST,implication]: A beacon length MUST be an integer between 1 and 63 inclusive,
+    TEXT[!MUST,implication]: indicating the number of bits in the resulting beacon.
+
+  SECTION: [Compound Beacon](#compound-beacon)
+    TEXT[!MUST,implication]: The name MUST be the name of a configured standard beacon.
+
+  SECTION: [LessThanComparable](#lessthancomparable)
+    TEXT[!MUST,implication]: A Query MUST fail if it uses `<`, `<=`, `>`, or `>=` on a value that is not LessThanComparable.
+
+  SECTION: [BetweenComparable](#betweencomparable)
+    TEXT[!MUST,implication]: A Query MUST fail if it uses BETWEEN on values that are not BetweenComparable.
+
+  SECTION: [Signed Beacons](#signed-beacons)
+    TEXT[!MUST,implication]: The beacon value MUST be stored as `NAME`, rather than the usual `aws_dbe_b_NAME`.
+    TEXT[!MUST,implementation]: Initialization MUST fail if `NAME` is explicitly configured with an
+    TEXT[!MUST,implementation]: [attribute actions](../dynamodb-encryption-client/ddb-item-encryptor.md#attribute-actions) or
+    TEXT[!MUST,implementation]: [unauthenticated attributes](../dynamodb-encryption-client/ddb-item-encryptor.md#unauthenticated-attributes),
+    TEXT[!MUST,implementation]: or begins with the [unauthenticated attribute prefix](../dynamodb-encryption-client/ddb-item-encryptor.md#unauthenticated-attribute-prefix).
+    TEXT[!MUST,implementation]: `NAME` MUST be automatically configured with an attribute action of SIGN_ONLY.
+
+  SECTION: [Standard Beacon Initialization](#standard-beacon-initialization)
+    TEXT[!MUST,implication]: On initialization of a Standard Beacon, the caller MUST provide:
+    TEXT[implication]: - A name -- a string
+    TEXT[implication]: - A `length` -- a [beacon length](#beacon-length)
+    TEXT[!MAY,implication]: On initialization of a Standard Beacon, the caller MAY provide:
+    TEXT[implication]: - a [terminal location](virtual.md#terminal-location) -- a string
+    TEXT[!MUST,implication]: If no [terminal location](virtual.md#terminal-location) is provided,
+    TEXT[!MUST,implication]: the `name` MUST be used as the [terminal location](virtual.md#terminal-location).
+    TEXT[!MUST,implication]: Initialization MUST fail if two standard beacons are configured with the same location.
+
+  SECTION: [Beacon Style Initialization](#beacon-style-initialization)
+    TEXT[!MUST,implication]: On initialization of a Beacon Style, the caller MUST provide exactly one of
+    TEXT[implication]: - a [PartOnly](#partonly-initialization)
+    TEXT[implication]: - a [Shared](#shared-initialization)
+    TEXT[implication]: - an [AsSet](#asset-initialization)
+    TEXT[implication]: - a [SharedSet](#sharedset-initialization)
+
+  SECTION: [PartOnly Initialization](#partonly-initialization)
+    TEXT[!MUST,implication]: On initialization of a PartOnly, the caller MUST NOT provide any
+    TEXT[!MUST,implication]: additional parameters to the PartOnly.
+    TEXT[!MUST,implication]: Initialization MUST fail if the configuration does not use a PartOnly in a [compound beacon](#compound-beacon).
+    TEXT[!MUST,implementation,test]: The Standard Beacon MUST NOT be stored in the item for a PartOnly beacon.
+    TEXT[!MUST,implication,test]: A query MUST fail if it tries to search on a PartOnly beacon directly.
+
+  SECTION: [AsSet Initialization](#asset-initialization)
+    TEXT[!MUST,implication]: On initialization of as AsSet, the caller MUST NOT provide any
+    TEXT[!MUST,implication]: additional parameters to the AsSet.
+    TEXT[!MUST,implication]: - initialization MUST fail if any compound beacon has an AsSet beacon as a part.
+    TEXT[!MUST,implication,test]: - Writing an item MUST fail if the item contains this beacon's attribute,
+    TEXT[!MUST,implication,test]:   and that attribute is not of type Set.
+    TEXT[!MUST,implementation,test]: - The Standard Beacon MUST be stored in the item as a Set,
+    TEXT[!MUST,implementation,test]:   comprised of the [beacon values](#beacon-value) of all the elements in the original Set.
+
+  SECTION: [Shared Initialization](#shared-initialization)
+    TEXT[!MUST,implication]: On initialization of a Shared, the caller MUST provide:
+    TEXT[implication]: - other : a beacon name
+    TEXT[!MUST,implication]: This name MUST be the name of a previously defined Standard Beacon.
+    TEXT[!MUST,implication]: This beacon's [length](#beacon-length) MUST be equal to the `other` beacon's [length](#beacon-length).
+    TEXT[!MUST,implementation,test]: This beacon MUST calculate its [value](#beacon-value) as if it were the `other` beacon.
+
+  SECTION: [SharedSet Initialization](#sharedset-initialization)
+    TEXT[!MUST,implication]: On initialization of a SharedSet, the caller MUST provide:
+    TEXT[implication]: - other : a beacon name
+    TEXT[!MUST,implementation,test]: A SharedSet Beacon MUST behave both as [Shared](#shared-initialization) and [AsSet](#asset-initialization).
+
+  SECTION: [Compound Beacon Initialization](#compound-beacon-initialization)
+    TEXT[!MUST,implication]: On initialization of a Compound Beacon, the caller MUST provide:
+    TEXT[implication]: - A name -- a string
+    TEXT[implication]: - A split character -- a character
+    TEXT[!MAY,implication]: On initialization of a Compound Beacon, the caller MAY provide:
+    TEXT[implication]: - A list of [encrypted parts](#encrypted-part-initialization)
+    TEXT[implication]: - A list of [signed parts](#signed-part-initialization)
+    TEXT[implication]: - A list of constructors
+
+  SECTION: [Signed Part Initialization](#signed-part-initialization)
+    TEXT[!MUST,implication]: On initialization of a [signed part](#signed-part-initialization), the caller MUST provide:
+    TEXT[implication]: - A name -- a string
+    TEXT[implication]: - A prefix -- a string
+    TEXT[!MAY,implication]: On initialization of a [signed parts](#signed-part-initialization), the caller MAY provide:
+    TEXT[implication]: - A [terminal location](virtual.md#terminal-location) -- a string
+    TEXT[!MUST,implication]: If no [terminal location](virtual.md#terminal-location) is provided,
+    TEXT[!MUST,implication]: the `name` MUST be used as the [terminal location](virtual.md#terminal-location).
+
+  SECTION: [Encrypted Part Initialization](#encrypted-part-initialization)
+    TEXT[!MUST,implication]: On initialization of a [encrypted part](#encrypted-part-initialization), the caller MUST provide:
+    TEXT[implication]: - A name -- a string, the name of a standard beacon
+    TEXT[implication]: - A prefix -- a string
+
+  SECTION: [Constructor Initialization](#constructor-initialization)
+    TEXT[!MUST,implication]: On initialization of a constructor, the caller MUST provide:
+    TEXT[implication]: - A non-empty list of [Constructor parts](#constructor-part-initialization)
+
+  SECTION: [Constructor Part Initialization](#constructor-part-initialization)
+    TEXT[!MUST,implication]: On initialization of a constructor part, the caller MUST provide:
+    TEXT[implication]: - A name -- a string
+    TEXT[implication]: - A required flag -- a boolean
+    TEXT[!MUST,implication]: This name MUST match the name of one of the [encrypted](#encrypted-part-initialization) or [signed](#signed-part-initialization) parts.
+
+  SECTION: [Default Construction](#default-construction)
+    TEXT[!MUST,implication]: - If no constructors are configured, a default constructor MUST be generated.
+    TEXT[!MUST,implication]: - This default constructor MUST be all of the signed parts,
+    TEXT[!MUST,implication]:   followed by all the encrypted parts, all parts being required.
+    TEXT[!MUST,implication]: - Initialization MUST fail if no constructors are configured, and no local parts are configured.
+
+  SECTION: [Initialization Failure](#initialization-failure)
+    TEXT[!MUST,implication]: Initialization MUST fail if any `prefix` in any [part](#part) is a prefix of
+    TEXT[!MUST,implication]: the `prefix` of any other [part](#part).
+    TEXT[!MUST,implication]: Initialization MUST fail if any [signed-part](#signed-part-initialization) contains
+    TEXT[!MUST,implication]: anything but SIGN_ONLY fields.
+    TEXT[!MUST,implication]: Initialization MUST fail if any [constructor](#constructor-initialization) is configured with a field name
+    TEXT[!MUST,implication]: that is not a defined [part](#part).
+    TEXT[!MUST,implication]: Initialization MUST fail if any [constructor](#constructor-initialization) is configured without at least one
+    TEXT[!MUST,implication]: required part.
+    TEXT[!MUST,implication]: Initialization MUST fail if two [constructors](#constructor-initialization) are configured
+    TEXT[!MUST,implication]: with the same set of required parts.
+
+  SECTION: [basicHash](#basichash)
+    TEXT[!MUST,implication]: - basicHash MUST take an [hmac key](./search-config.md#hmac-key-generation), a [beacon length](#beacon-length) and a sequence of bytes as input.
+    TEXT[!MUST,implication]: - basicHash MUST produce a non-empty string as output.
+    TEXT[!MUST,implication]: - basicHash MUST calculate the [HmacSha384](https://www.ietf.org/rfc/rfc2104.txt)
+    TEXT[!MUST,implication]:   of the input bytes and the [hmac key](./search-config.md#hmac-key-generation), and keep the first 8 bytes.
+    TEXT[!MUST,implication]: - basicHash MUST return the rightmost [beacon length](#beacon-length) bits of these 8 bytes as a hexadecimal string.
+    TEXT[!MUST,implication]: - the length of the returned string MUST be (`beacon length`/4) rounded up.
+
+  SECTION: [string hash](#string-hash)
+    TEXT[!MUST,implication]: - string hash MUST take a string and some [key materials](./search-config.md#get-beacon-key-materials)
+    TEXT[!MUST,implication]:   as input, and produce a string as output.
+    TEXT[!MUST,implication]: - string hash MUST return the [basic hash](#basichash) of the UTF8 representation
+    TEXT[!MUST,implication]:   of the input string, the HMAC key from the [key materials](./search-config.md#get-beacon-key-materials)
+    TEXT[!MUST,implication]:   associated with this beacon, and the beacon length associated with this beacon.
+
+  SECTION: [value for a standard beacon](#value-for-a-standard-beacon)
+    TEXT[!MUST,implication]: - This operation MUST take an [hmac key](./search-config.md#hmac-key-generation), a record as input, and produce an optional [AttributeValue](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_AttributeValue.html).
+    TEXT[!MUST,implication]: - This operation MUST return no value if the associated field does not exist in the record
+    TEXT[!MUST,implication]: - If this beacon is marked AsSet then this operation MUST return the
+    TEXT[!MUST,implication]:   [set value](#value-for-a-set-standard-beacon),
+    TEXT[!MUST,implication]:   otherwise it MUST return the [non-set value](#value-for-a-non-set-standard-beacon)
+
+  SECTION: [value for a non-set standard beacon](#value-for-a-non-set-standard-beacon)
+    TEXT[!MUST,implication]: - This operation MUST convert the attribute value of the associated field to
+    TEXT[!MUST,implication]:   a sequence of bytes, as per [attribute serialization](../dynamodb-encryption-client/ddb-attribute-serialization.md).
+    TEXT[!MUST,implication]: - This operation MUST return the [basicHash](#basichash) of the resulting bytes and the configured [beacon length](#beacon-length).
+    TEXT[!MUST,implication]: - The returned
+    TEXT[!MUST,implication]:   [AttributeValue](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_AttributeValue.html)
+    TEXT[!MUST,implication]:   MUST be type "S" String.
+
+  SECTION: [value for a set standard beacon](#value-for-a-set-standard-beacon)
+    TEXT[!MUST]: - This operation MUST convert the value of each item in the set to
+    TEXT[!MUST]:   a sequence of bytes, as per [attribute serialization](../dynamodb-encryption-client/ddb-attribute-serialization.md).
+    TEXT[!MUST]: - This operation MUST return a set containing the [basicHash](#basichash) of the resulting bytes and the configured [beacon length](#beacon-length).
+    TEXT[!MUST,implication]: - The resulting set MUST NOT contain duplicates.
+    TEXT[!MUST,implication]: - The returned
+    TEXT[!MUST,implication]:   [AttributeValue](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_AttributeValue.html)
+    TEXT[!MUST,implication]:   MUST be type "SS" StringSet.
+
+  SECTION: [value for a compound beacon](#value-for-a-compound-beacon)
+    TEXT[!MUST,implication]: - This operation MUST take a record as input, and produce an optional string.
+    TEXT[!MUST,implication]: - If a string is returned, it MUST NOT be empty.
+    TEXT[!MUST,implication]: - This operation MUST iterate through all constructors, in order, using the first that succeeds.
+    TEXT[!MUST,implementation,test]: - For that constructor, hash MUST join the [part value](#part-value) for each part
+    TEXT[!MUST,implementation,test]:   on the `split character`,
+    TEXT[!MUST,implementation,test]:   excluding parts that are not required and with a source field that is not available.
+    TEXT[!MUST,implication]: - This operation MUST fail if any plaintext value used in the construction contains the split character.
+    TEXT[!MUST,implementation]: - If no constructor succeeds, this operation MUST return no value.
+
+  SECTION: [getPart for a standard beacon](#getpart-for-a-standard-beacon)
+    TEXT[!MUST,implication]: - getPart MUST take an [hmac key](./search-config.md#hmac-key-generation), a sequence of bytes as input, and produce a string.
+    TEXT[!MUST,implication]: - getPart MUST return the [basicHash](#basichash) of the input and the configured [beacon length](#beacon-length).
+
+  SECTION: [getPart for a compound beacon](#getpart-for-a-compound-beacon)
+    TEXT[!MUST,implication]: - getPart MUST take a string as input and produce a string.
+    TEXT[!MUST,implication]: - The returned string MUST NOT be empty.
+    TEXT[!MUST,implication]: - The string MUST be split on the `split character` into pieces.
+    TEXT[!MUST,implication]: - For each piece, a [part](#part) MUST be identified
+    TEXT[!MUST,implication]:   by matching the prefix of a [part](#part)
+    TEXT[!MUST,implication]:   to the beginning of the piece.
+    TEXT[!MUST,implication]: - If no such part exists, this operation MUST fail.
+    TEXT[!MUST,implication]: - The [Part Value](#part-value-calculation) MUST be calculated for each piece,
+    TEXT[!MUST,implication]:   using the prefix and length from the discovered part.
+    TEXT[!MUST,implementation,test]: - The value returned MUST be these part values, joined with the `split character`.
+
+  SECTION: [Part Value Calculation](#part-value-calculation)
+    TEXT[!MUST,implication]: Part Value Calculation MUST take some [key materials](./search-config.md#get-beacon-key-materials),
+    TEXT[!MUST,implication]: a string (the value for which the beacon is being calculated)
+    TEXT[!MUST,implication]: and a [Part](#part) as input, and return a string as output.
+    TEXT[!MUST,implication]: If the part is a [encrypted part](#encrypted-part-initialization),
+    TEXT[!MUST,implication]: the part value MUST be the concatenation of the part's prefix
+    TEXT[!MUST,implication]: and the [string hash](#string-hash) of the input string.
+    TEXT[!MUST,implication]: If the part is a [signed part](#signed-part-initialization),
+    TEXT[!MUST,implication]: the part value MUST be the concatenation of the part's prefix and the input string.
+
+SPECIFICATION: [Search Config](specification/searchable-encryption/search-config.md)
+  SECTION: [Overview](#overview)
+    TEXT[!MUST,implication]: The search config MUST be an optional part of the [item encryptor config](../dynamodb-encryption-client/ddb-item-encryptor.md).
+
+  SECTION: [Initialization](#initialization)
+    TEXT[!MUST,implication]: On initialization of the Search Config, the caller MUST provide:
+    TEXT[implication]: - A list of [beacon versions](#beacon-version-initialization)
+    TEXT[implication]: - The [version number](#version-number) of the [beacon versions](#beacon-version-initialization) to be used for writing.
+    TEXT[!MUST,implication]: Initialization MUST fail if the length of the list of [beacon versions](#beacon-version-initialization) is not 1.
+    TEXT[!MUST,implication]: Initialization MUST fail if the [version number](#version-number) is not `1`.
+
+  SECTION: [Beacon Version Initialization](#beacon-version-initialization)
+    TEXT[!MUST,implication]: On initialization of a Beacon Version, the caller MUST provide:
+    TEXT[implication]: - A [version number](#version number)
+    TEXT[implication]: - A [Beacon Key Source](#beacon-key-source)
+    TEXT[implication]: - A [Keystore](#keystore)
+    TEXT[implication]: - A list of [standard beacons](beacons.md#standard-beacon-initialization)
+    TEXT[!MAY,implication]: On initialization of the Beacon Version, the caller MAY provide:
+    TEXT[implication]: - A list of [compound beacons](beacons.md#compound-beacon-initialization)
+    TEXT[implication]: - A list of [virtual fields](virtual.md#virtual-field-initialization)
+    TEXT[!MUST,implication]: Initialization MUST fail if the [version number](#version number) is not `1`.
+    TEXT[!MUST,implication]: Initialization MUST fail if at least one [standard beacon](beacons.md#standard-beacon)
+    TEXT[!MUST,implication]: is not provided.
+    TEXT[!MUST,implication]: Initialization MUST fail if the name of any [virtual fields](virtual.md#virtual-field) matches that
+    TEXT[!MUST,implication]: of any [configured field](#configured-field).
+    TEXT[!MUST,implementation]: Initialization MUST fail if the [beacon key source](#beacon-key-source) is a [multi key store](#multi-key-store-initialization)
+    TEXT[!MUST,implementation]: and the name of any of the following match the [beacon key field name](#beacon-key-field-name)
+    TEXT[implementation]: - [virtual fields](virtual.md#virtual-field)
+    TEXT[implementation]: - [standard beacons](beacons.md#standard-beacon)
+    TEXT[implementation]: - [compound beacons](beacons.md#compound-beacon)
+    TEXT[!MUST,implication]: Initialization MUST fail if the [beacon key source](#beacon-key-source) is a [multi key store](#multi-key-store-initialization)
+    TEXT[!MUST,implication]: and the [beacon key field name](#beacon-key-field-name)
+    TEXT[!MUST,implication]: is a [configured field](#configured-field)
+    TEXT[!MUST,implication]: with [ENCRYPT_AND_SIGN](../structured-encryption/structures.md#encrypt_and_sign).
+    TEXT[!MUST,implication]: Initialization MUST fail if the name of any [standard beacon](beacons.md#standard-beacon)
+    TEXT[!MUST,implication]: matches that of any unencrypted [configured field](#configured-field).
+    TEXT[!MUST,implication]: Initialization MUST fail if the name of any [compound beacon](beacons.md#compound-beacon)
+    TEXT[!MUST,implication]: matches that of any unencrypted [configured field](#configured-field).
+    TEXT[!MUST,implication]: Initialization MUST fail if there is any duplicates among the names of the
+    TEXT[!MUST,implication]: [standard beacons](beacons.md#standard-beacon)
+    TEXT[!MUST,implication]: Initialization MUST fail if there is any duplicates among the names of the
+    TEXT[!MUST,implication]: [compound beacons](beacons.md#compound-beacon)
+    TEXT[!MUST,implication]: Initialization MUST fail if the name of a
+    TEXT[!MUST,implication]: [compound beacons](beacons.md#compound-beacon)
+    TEXT[!MUST,implication]: matches the name of a
+    TEXT[!MUST,implication]: [standard beacons](beacons.md#standard-beacon)
+    TEXT[!MUST,implication]: Initialization MUST fail if any [virtual field](virtual.md#virtual-field) is not signed.
+    TEXT[!MUST,implementation]: Initialization MUST fail if the [terminal location](virtual.md#terminal-location)
+    TEXT[!MUST,implementation]: reference by a [standard beacon](beacons.md#standard-beacon) is not `encrypted`.
+    TEXT[!MUST,implication]: Initialization MUST fail if the [terminal location](virtual.md#terminal-location)
+    TEXT[!MUST,implication]: reference by a [signed part](beacons.md#signed-part) is `encrypted`,
+    TEXT[!MUST,implication]: or is not `signed`.
+
+  SECTION: [Version Number](#version-number)
+    TEXT[!MUST,implication]: A version number MUST be `1`.
+
+  SECTION: [Versioning](#versioning)
+    TEXT[!MUST,implication]: In addition to the configured beacons, a [version tag](#version-tag) MUST also be written.
+
+  SECTION: [Beacon Key Source](#beacon-key-source)
+    TEXT[!MUST,implication]: On initialization of a Beacon Key Source, the caller MUST provide exactly one of
+    TEXT[implication]: - a [Single Key Store](#single-key-store-initialization)
+    TEXT[implication]: - a [Multi Key Store](#multi-key-store-initialization)
+
+  SECTION: [Single Key Store Initialization](#single-key-store-initialization)
+    TEXT[!MUST,implication]: On initialization of a Single Key Store, the caller MUST provide:
+    TEXT[implication]: - [Beacon Key Id](#beacon-key-id)
+    TEXT[implication]: - [cacheTTL](#cachettl)
+
+  SECTION: [Multi Key Store Initialization](#multi-key-store-initialization)
+    TEXT[!MUST,implication]: On initialization of a Multi Key Store, the caller MUST provide:
+    TEXT[implication]: - [Beacon Key Field Name](#beacon-key-field-name)
+    TEXT[implication]: - [cacheTTL](#cachettl)
+    TEXT[implication]: - [max cache size](#max-cache-size)
+
+  SECTION: [Keystore](#keystore)
+    TEXT[!SHOULD]: If being used with a Hierarchical Keyring to encrypt/decrypt items,
+    TEXT[!SHOULD]: this SHOULD be the same Keystore as configured to that Keyring.
+
+  SECTION: [Key Store Cache](#key-store-cache)
+    TEXT[!MUST,implementation]: For a Beacon Key Source a [CMC](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/cryptographic-materials-cache.md)
+    TEXT[!MUST,implementation]: MUST be created.
+    TEXT[!MUST,implementation]: For a [Single Key Store](#single-key-store-initialization) the [Entry Capacity](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/cryptographic-materials-cache.md#entry-capacity)
+    TEXT[!MUST,implementation]: MUST be 1
+    TEXT[!MUST,implementation]: For a [Multi Key Store](#multi-key-store-initialization) the [Entry Capacity](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/cryptographic-materials-cache.md#entry-capacity)
+    TEXT[!MUST,implementation]: MUST be key store's max cache size.
+    TEXT[!MUST]: The Key Store Cache MUST be bound to the Beacon Key Source.
+
+  SECTION: [Beacon Keys](#beacon-keys)
+    TEXT[!MUST,implementation]: Beacon keys MUST be obtained from the configured [Beacon Key Source](#beacon-key-source).
+
+  SECTION: [Get beacon key after encrypt](#get-beacon-key-after-encrypt)
+    TEXT[!MUST,implementation]: If the [Beacon Key Source](#beacon-key-source) is a [Single Key Store](#single-key-store-initialization)
+    TEXT[!MUST,implementation]: then `beacon key id` MUST be the configured [beacon key id](#beacon-key-id)
+    TEXT[!MUST,implementation]: If the [Beacon Key Source](#beacon-key-source) is a [Multi Key Store](#multi-key-store-initialization)
+    TEXT[!MUST,implementation]: then `beacon key id` MUST be obtained from [Get beacon key id from parsed header](#get-beacon-key-id-from-parsed-header).
+    TEXT[!MUST,implementation]: The `beacon key id`, [Key Store Cache](#key-store-cache), and a `KeyStore`
+    TEXT[!MUST,implementation]: MUST be passed to [Get Beacon Key Materials](#get-beacon-key-materials)
+    TEXT[!MUST,implementation]: and the result returned for Get beacon key after encrypt.
+
+  SECTION: [Get beacon key id from Parsed Header](#get-beacon-key-id-from-parsed-header)
+    TEXT[!MUST,implication]: If the [Parsed Header](../dynamodb-encryption-client/encrypt-item.md#parsed-header)'s encrypted data keys
+    TEXT[!MUST,implication]: do not contain only one encrypted data key
+    TEXT[!MUST,implication]: this function MUST fail.
+    TEXT[!MUST,implication]: If this single encrypted data key's
+    TEXT[!MUST,implication]: [Key Provider ID](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/../structured-encryption/structures.md#key-provider-id)
+    TEXT[!MUST,implication]: does not equal the provider ID
+    TEXT[!MUST,implication]: for the [AWS KMS Hierarchical Keyring](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/aws-kms/aws-kms-hierarchical-keyring.md#ondecrypt)
+    TEXT[!MUST,implication]: this function MUST fail.
+    TEXT[!MUST,implication]: This function MUST return the [Key Provider Information](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/../structured-encryption/structures.md#key-provider-id).
+
+  SECTION: [Get beacon key for query](#get-beacon-key-for-query)
+    TEXT[!MUST,implication]: If the [Beacon Key Source](#beacon-key-source) is a [Single Key Store](#single-key-store-initialization)
+    TEXT[!MUST,implication]: then `beacon key id` MUST be the configured [beacon key id](#beacon-key-id)
+    TEXT[!MUST,implication]: If this list of beacon key ids is empty get beacon key for query MUST
+    TEXT[!MUST,implication]: return a flag indicating this.
+    TEXT[!MUST,implication]: A query MUST fail if this flag is present, and any part of the query
+    TEXT[!MUST,implication]: requires a key; that is, needs to compute a standard beacon.
+    TEXT[!MUST,implication]: If this list of beacon key ids has more than one unique beacon key id
+    TEXT[!MUST,implication]: then get beacon key for query MUST fail.
+    TEXT[!MUST,implication]: `beacon key id` MUST be this unique value.
+    TEXT[!MUST]: The `beacon key id`, [Key Store Cache](#key-store-cache), and a `KeyStore`
+    TEXT[!MUST]: MUST be passed to [Get Beacon Key Materials](#get-beacon-key-materials)
+    TEXT[!MUST]: and the result returned for Get beacon key for query.
+
+  SECTION: [Get Beacon Key Materials](#get-beacon-key-materials)
+    TEXT[!MUST,implication]: Get beacon key MUST Call the associated [Key Store Cache](#key-store-cache)
+    TEXT[!MUST,implication]: [Get Cache Entry](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/local-cryptographic-materials-cache.md#get-cache-entry)
+    TEXT[!MUST,implication]: with the `beacon key id`.
+    TEXT[!MUST,implication]: If a [cache entry](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/cryptographic-materials-cache.md#cache-entry)
+    TEXT[!MUST,implication]: exists, get beacon key MUST return the [entry materials](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/cryptographic-materials-cache.md#materials).
+    TEXT[!MUST,implication]: The `beacon key id` MUST be passed to the configured `KeyStore`'s `GetBeaconKey` operation.
+    TEXT[!MUST,implication]: If `GetBeaconKey` fails get beacon key MUST fail.
+    TEXT[!MUST,implementation]: For every [standard beacons](beacons.md#standard-beacon-initialization) an HMAC key
+    TEXT[!MUST,implementation]: MUST be generated in accordance with [HMAC Key Generation](#hmac-key-generation).
+    TEXT[!MUST,implementation]: [Beacon Key Materials](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/structures.md#beacon-key-materials) MUST be generated
+    TEXT[!MUST,implementation]: with the [beacon key id](#beacon-key-id) equal to the `beacon key id`
+    TEXT[!MUST,implementation]: and the [HMAC Keys](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/structures.md#hmac-keys) equal to a map
+    TEXT[!MUST,implementation]: of every [standard beacons](beacons.md#standard-beacon-initialization) name to its generated HMAC key.
+    TEXT[!MUST,implementation]: These materials MUST be put into the associated [Key Store Cache](#key-store-cache)
+    TEXT[!MUST,implementation]: with an [Expiry Time](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/cryptographic-materials-cache.md#expiry-time)
+    TEXT[!MUST,implementation]: equal to now + configured [cacheTTL](#cachettl).
+    TEXT[!MUST,implication]: These cached materials MUST be returned.
+
+  SECTION: [HMAC Key Generation](#hmac-key-generation)
+    TEXT[!MUST,implication]: For each beacon HKDF-SHA512 MUST be used
+    TEXT[!MUST,implication]: to calculate the key for individual beacon,
+    TEXT[!MUST,implication]: using the beacon key retrieved above as the initial key material with no salt.
+    TEXT[!MUST,implication]: The `info` MUST be the concatenation of "AWS_DBE_SCAN_BEACON" encoded as UTF8
+    TEXT[!MUST,implication]: and the beacon name.
+    TEXT[!MUST,implication]: The `expectedLength` MUST be 64 bytes.
+
+SPECIFICATION: [Virtual Fields](specification/searchable-encryption/virtual.md)
+  SECTION: [Virtual Field Initialization](#virtual-field-initialization)
+    TEXT[!MUST,implication]: On initialization of a Virtual Field, the caller MUST provide:
+    TEXT[implication]: - A name -- a string
+    TEXT[implication]: - A list of [Virtual Parts](#virtual-part-initialization)
+    TEXT[!MUST,implementation]: The evaluation of a Virtual Field MUST be the concatenation of all of its parts,
+    TEXT[!MUST,implementation]: in the order they are configured.
+    TEXT[!MUST,implication]: Initialization MUST fail if two virtual fields are defined with the same set of locations.
+    TEXT[!MUST,implication]: Initialization MUST fail if a virtual field is defined with only one location,
+    TEXT[!MUST,implication]: and also a [standard beacon](beacons.md#standard-beacon) is defined with that same location.
+
+  SECTION: [Virtual Part Initialization](#virtual-part-initialization)
+    TEXT[!MUST,implication]: On initialization of a Virtual Part, the caller MUST provide:
+    TEXT[implication]: - A location -- a [Terminal Location](#terminal-location)
+    TEXT[!MAY,implication]: On initialization of a Virtual Part, the caller MAY provide:
+    TEXT[implication]: - A list of [Virtual Transforms](#virtual-transform-initialization)
+    TEXT[!MUST,implementation]: The evaluation of a Virtual Part MUST be the value of its location,
+    TEXT[!MUST,implementation]: which is then transformed by each Virtual Transform,
+    TEXT[!MUST,implementation]: in the order they are configured.
+    TEXT[!MUST,implication]: Evaluation MUST return no value if the location does not exist,
+    TEXT[!MUST,implication]: or is not a plain string value.
+
+  SECTION: [Virtual Transform Initialization](#virtual-transform-initialization)
+    TEXT[!MUST,implication]: On initialization of a Virtual Transform, the caller MUST provide exactly one of
+    TEXT[implication]: - an [Upper](#upper-transform-initialization) transform
+    TEXT[implication]: - a [Lower](#lower-transform-initialization) transform
+    TEXT[implication]: - an [Insert](#insert-transform-initialization) transform
+    TEXT[implication]: - a [GetPrefix](#getprefix-transform-initialization) transform
+    TEXT[implication]: - a [GetSuffix](#getsuffix-transform-initialization) transform
+    TEXT[implication]: - a [GetSubstring](#getsubstring-transform-initialization) transform
+    TEXT[implication]: - a [GetSegment](#getsegment-transform-initialization) transform
+    TEXT[implication]: - a [GetSegments](#getsegments-transform-initialization) transform
+
+  SECTION: [Upper Transform Initialization](#upper-transform-initialization)
+    TEXT[!MUST,implication]: On initialization of an Upper Transform, the caller MUST NOT provide any
+    TEXT[!MUST,implication]: additional parameters to the Upper Transform.
+    TEXT[!MUST,implication]: The Upper transform MUST convert all ascii lowercase characters into their uppercase equivalents.
+
+  SECTION: [Lower Transform Initialization](#lower-transform-initialization)
+    TEXT[!MUST,implication]: On initialization of a Lower Transform, the caller MUST NOT provide any
+    TEXT[!MUST,implication]: additional parameters to the Lower Transform.
+    TEXT[!MUST,implication]: The Lower transform MUST convert all ascii uppercase characters into their lowercase equivalents.
+
+  SECTION: [Insert Transform Initialization](#insert-transform-initialization)
+    TEXT[!MUST,implication]: On initialization of an Insert Transform, the caller MUST provide:
+    TEXT[implication]: - a literal string
+    TEXT[!MUST,implication]: The Insert transform MUST append this string to its input
+
+  SECTION: [GetPrefix Transform Initialization](#getprefix-transform-initialization)
+    TEXT[!MUST,implication]: On initialization of a GetPrefix Transform, the caller MUST provide:
+    TEXT[implication]: - length : an integer
+    TEXT[!MUST,implication]: If length is non-negative, the GetPrefix transform MUST return the first `length` characters of the input.
+    TEXT[!MUST,implication]: If length is non-negative, and length exceeds the length of the string, the input string MUST be returned.
+    TEXT[!MUST,implication]: If length is negative, then the GetPrefix transform MUST return
+    TEXT[!MUST,implication]: all but the last `-length` character of the input.
+    TEXT[!MUST,implication]: If length is negative and -length exceeds the length on the input,
+    TEXT[!MUST,implication]: the empty string MUST be returned.
+
+  SECTION: [GetSuffix Transform Initialization](#getsuffix-transform-initialization)
+    TEXT[!MUST,implication]: On initialization of a GetSuffix Transform, the caller MUST provide:
+    TEXT[implication]: - length : an integer
+    TEXT[!MUST,implication]: If length is non-negative, the GetSuffix transform MUST return the last `length` characters of the input.
+    TEXT[!MUST,implication]: If length is non-negative, and length exceeds the length of the string, the input string MUST be returned.
+    TEXT[!MUST,implication]: If length is negative, then the GetSuffix transform MUST return
+    TEXT[!MUST,implication]: all but the first `-length` character of the input.
+    TEXT[!MUST,implication]: If length is negative and -length exceeds the length on the input,
+    TEXT[!MUST,implication]: the empty string MUST be returned.
+
+  SECTION: [Position Definition](#position-definition)
+    TEXT[!MUST,implication]: If the position provided is positive, it MUST be the zero-based index from the start of the list.
+    TEXT[!MUST,implication]: If the position provided is negative, it's absolute value MUST be the
+    TEXT[!MUST,implication]: one-based index from the end of the list, that is, -1 refers to the last item in the list.
+
+  SECTION: [GetSubstring Transform Initialization](#getsubstring-transform-initialization)
+    TEXT[!MUST,implication]: On initialization of a GetSubstring Transform, the caller MUST provide:
+    TEXT[implication]: - low : an integer [position](#position-definition)
+    TEXT[implication]: - high : an integer [position](#position-definition)
+    TEXT[!MUST,implication]: The GetSubstring transform MUST return the range of characters
+    TEXT[!MUST,implication]: from low (inclusive) to high (exclusive)
+
+  SECTION: [GetSegment Transform Initialization](#getsegment-transform-initialization)
+    TEXT[!MUST,implication]: On initialization of a GetSegment Transform, the caller MUST provide:
+    TEXT[implication]: - split : an character
+    TEXT[implication]: - index : an integer [position](#position-definition)
+    TEXT[!MUST,implication]: The GetSegment transform MUST split the input string on the given character,
+    TEXT[!MUST,implication]: and return the item in the resulting list the corresponds to the given position.
+    TEXT[!MUST,implication]: If index is greater than the number of items in the list, an empty string MUST be returned.
+
+  SECTION: [GetSegments Transform Initialization](#getsegments-transform-initialization)
+    TEXT[!MUST,implication]: On initialization of a GetSegments Transform, the caller MUST provide:
+    TEXT[implication]: - split : an character
+    TEXT[implication]: - low : an integer [position](#position-definition)
+    TEXT[implication]: - high : an integer [position](#position-definition)
+    TEXT[!MUST,implication]: The GetSegments transform MUST split the input string on the `split` character.
+    TEXT[!MUST,implication]: GetSegments MUST return the range of parts from low (inclusive) to high (exclusive),
+    TEXT[!MUST,implication]: joined on the `split` character.
+    TEXT[!MUST,implication]: If high is less than or equal to low, an empty string MUST be returned.
+
+  SECTION: [Terminal Location](#terminal-location)
+    TEXT[!MUST,implication]: A Terminal Location specification MUST be a list of one more [Segments](#segments),
+    TEXT[!MUST,implication]: the first one of which must be a string index.
+
+  SECTION: [Segments](#segments)
+    TEXT[!MUST,implication]: A Segment MUST be one of
+    TEXT[implication]: - A literal "." followed by a field name, indicating a lookup into a Structured Data Map.
+    TEXT[implication]: - A literal "[" followed by a decimal integer followed by a literal "]",
+    TEXT[implication]:   indicating an index into a Structured Data List.
+
+SPECIFICATION: [Decrypt Path Structure](specification/structured-encryption/decrypt-path-structure.md)
+  SECTION: [Input](#input)
+    TEXT[!MUST,implication]: The following inputs to this behavior are REQUIRED:
+    TEXT[implication]: - [Table Name](#table-name)
+    TEXT[implication]: - [Cryptographic Materials Manager (CMM)](#cmm)
+    TEXT[implication]: - [Auth List](#auth-list)
+    TEXT[!MUST,implication]: The following inputs to this behavior MUST be OPTIONAL:
+    TEXT[implication]: - [Encryption Context](#encryption-context)
+
+  SECTION: [Auth List](#auth-list)
+    TEXT[!MUST,implication]: This Auth List MUST contain data located at the [header index](./header.md#header-index)
+    TEXT[!MUST,implication]: and the [footer index](./footer.md#footer-index).
+    TEXT[!MUST,implication]: The Auth List MUST include at least one [SIGN Authenticate Action](./structures.md#sign);
+    TEXT[!MUST,implication]: otherwise, this operation MUST yield an error.
+    TEXT[!MUST,implication]: The Auth List MUST NOT contain duplicate Paths.
+
+  SECTION: [Encryption Context](#encryption-context)
+    TEXT[!MUST]: - This MUST include any key-values pairs that were used during the original [encryption](./encrypt-path-structure.md)
+    TEXT[!MUST]:   of the [input data](#auth-list),
+    TEXT[!MUST]:   but not stored in the [input Structured Data's header](./header.md#encryption-context).
+    TEXT[!MAY]: - This MAY include any key-values pairs that are stored
+    TEXT[!MAY]:   in the [input Structured Data's header](./header.md#encryption-context).
+    TEXT[!MUST]: - This MUST NOT include any key-values pairs that were not
+    TEXT[!MUST]:   used during the original [encryption](./encrypt-structure.md) of the [input data](#auth-list).
+
+  SECTION: [Output](#output)
+    TEXT[!MUST,implication]: This operation MUST output the following:
+    TEXT[implication]: - [Crypto List](./structures.md#crypto-list): Decrypted Terminals and the Crypto Schema for each Terminal,
+    TEXT[implication]:   calculated using the Crypto Legend in the header, the signature scope used for decryption, and the data in the input structure.
+    TEXT[implication]: - [Parsed Header](#parsed-header)
+
+  SECTION: [Parsed Header](#parsed-header)
+    TEXT[!MUST,implication]: This structure MUST contain the following values,
+    TEXT[!MUST,implication]: representing the deserialized form of the header of the input encrypted structure:
+    TEXT[implication]: - [Algorithm Suite ID](./header.md#format-flavor): The Algorithm Suite ID associated with the Format Flavor on the header.
+    TEXT[implication]: - [Stored Encryption Context](./header.md#encryption-context): The Encryption Context stored in the header.
+    TEXT[implication]: - [Encrypted Data Keys](./header.md#encrypted-data-keys): The Encrypted Data Keys stored in the header.
+    TEXT[implication]: - [Encryption Context](#encryption-context): The full Encryption Context used.
+
+  SECTION: [Behavior](#behavior)
+    TEXT[!MUST]: All inputs MUST adhere to their requirements;
+    TEXT[!MUST]: otherwise this operation MUST immediately yield an error.
+    TEXT[!MUST]: This operation MUST perform all the above steps,
+    TEXT[!MUST]: and it MUST perform them in the above order.
+    TEXT[!MUST]: If any of these steps fails, this operation MUST halt and indicate a failure to the caller.
+
+  SECTION: [Parse the Header](#parse-the-header)
+    TEXT[!MUST,implication]: Given the [input data](#auth-list),
+    TEXT[!MUST,implication]: this operation MUST access the [Terminal Data](./structures.md#terminal-data)
+    TEXT[!MUST,implication]: at "aws_dbe_head".
+    TEXT[!MUST,implication]: The [Terminal Type Id](./structures.md#terminal-type-id) on this Terminal Data MUST be `0xFFFF`.
+    TEXT[!MUST,implementation,implication]: This operation MUST deserialize the header bytes
+    TEXT[!MUST,implementation,implication]: according to the [header format](./header.md).
+    TEXT[!MUST,implementation]: The header field value MUST be [verified](header.md#commitment-verification)
+
+  SECTION: [Retrieve Decryption Materials](#retrieve-decryption-materials)
+    TEXT[!MUST,implementation]: This operation MUST [calculate the appropriate CMM and encryption context](#create-new-encryption-context-and-cmm).
+    TEXT[!MUST,implementation]: This operation MUST obtain a set of decryption materials by calling
+    TEXT[!MUST,implementation]: [Decrypt Materials](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/cmm-interface.md#decrypt-materials)
+    TEXT[!MUST,implementation]: on the [CMM](#cmm) calculated above.
+    TEXT[!MUST,implementation]: The call to the CMM's Decrypt Materials operation MUST be constructed as follows:
+    TEXT[!MUST,implementation]: The algorithm suite used in all further aspects of this operation MUST be
+    TEXT[!MUST,implementation]: the algorithm suite in the
+    TEXT[!MUST,implementation]: [decryption materials](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/structures.md#decryption-materials)
+    TEXT[!MUST,implementation]: returned from the Decrypt Materials call.
+    TEXT[!MAY,implementation]: Note that the algorithm suite in the retrieved decryption materials MAY be different from the input algorithm suite.
+    TEXT[!MUST,implementation]: If this algorithm suite is not a
+    TEXT[!MUST,implementation]: [supported suite for DBE](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#supported-algorithm-suites-enum)
+    TEXT[!MUST,implementation]: this operation MUST yield an error.
+
+  SECTION: [Create New Encryption Context and CMM](#create-new-encryption-context-and-cmm)
+    TEXT[!MUST,implementation]: If the version stored in the header is 1,
+    TEXT[!MUST,implementation]: then the input cmm and encryption context MUST be used unchanged.
+    TEXT[!MUST,implementation]: Otherwise, this operation MUST add an [entry](../dynamodb-encryption-client/encrypt-item.md#base-context-value-version-2) to the encryption context for every
+    TEXT[!MUST,implementation]: [SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT Crypto Action](./structures.md#sign_and_include_in_encryption_context)
+    TEXT[!MUST,implementation]: [Terminal Data](./structures.md#terminal-data)
+    TEXT[!MUST,implementation]: in the input record, plus the Legend.
+    TEXT[!MUST,implementation]: An error MUST be returned if any of the entries added to the encryption context in this step
+    TEXT[!MUST,implementation]: have the same key as any entry already in the encryption context.
+    TEXT[!MUST,implementation]: Then, this operation MUST create a [Required Encryption Context CMM](https://github.com/awslabs/private-aws-encryption-sdk-specification-staging/blob/dafny-verified/framework/required-encryption-context-cmm.md)
+    TEXT[!MUST,implementation]: with the following inputs:
+    TEXT[implementation]: - This input [CMM](./ddb-table-encryption-config.md#cmm) as the underlying CMM.
+    TEXT[implementation]: - The name of every entry added above.
+
+  SECTION: [Verify Signatures](#verify-signatures)
+    TEXT[!MUST,implication]: A footer field MUST exist with the name `aws_dbe_foot`
+    TEXT[!MUST,implication]: The footer field TypeID MUST be 0xFFFF
+    TEXT[!MUST,implementation]: The footer field value MUST be [verified](footer.md#footer-verification).
+    TEXT[!MUST,implementation]: Decryption MUST fail immediately if verification fails.
+    TEXT[!MUST,implementation]: This operation MUST deserialize the bytes in [Terminal Value](./structures.md#terminal-value)
+    TEXT[!MUST,implementation]: according to the [footer format](./footer.md).
+    TEXT[!MUST,implication]: The number of [HMACs in the footer](./footer.md#hmacs)
+    TEXT[!MUST,implication]: MUST be the number of [Encrypted Data Keys in the header](./header.md#encrypted-data-keys).
+
+  SECTION: [Construct Decrypted Structured Data](#construct-decrypted-structured-data)
+    TEXT[!MUST,implication]: - An entry MUST NOT exist with the key "aws_dbe_head" or "aws_dbe_foot".
+    TEXT[!MUST,implication]: - For every entry in the [input Auth List](#auth-list), other than the header and footer,
+    TEXT[!MUST,implication]:   an entry MUST exist with the same key in the output Crypto List.
+    TEXT[!MUST,implication]: - For every entry in the output Crypto List
+    TEXT[!MUST,implication]:   an entry MUST exist with the same key in the [input Auth List](#auth-list).
+    TEXT[!MUST,implication]: If the action is [ENCRYPT_AND_SIGN](./structures.md#encryptandsign)
+    TEXT[!MUST,implication]: this Terminal Data MUST have [Terminal Type ID](./structures.md#terminal-type-id)
+    TEXT[!MUST,implication]: equal to the first two bytes of the input Terminal Data's value,
+    TEXT[!MUST,implication]: and a value equal to the [decryption](#terminal-data-decryption) of the input Terminal Data's value.
+    TEXT[!MUST,implication]: Otherwise, this Terminal Data MUST have [Terminal Type ID](./structures.md#terminal-type-id) and
+    TEXT[!MUST,implication]: [Terminal Value](./structures.md#terminal-value) equal to the input Terminal Data.
+    TEXT[!MUST,implication,test]: The output MUST also include a [Parsed Header](#parsed-header) that contains
+    TEXT[!MUST,implication,test]: data that was serialized into the header included in the output Structured Data.
+
+  SECTION: [Terminal Data Decryption](#terminal-data-decryption)
+    TEXT[!MUST,implementation]: The input [Terminal Value](./structures.md#terminal-value) MUST be deserialized as follows:
+    TEXT[!MUST,implication]: The output Terminal Data MUST have a [Terminal Type Id](./structures.md#terminal-type-id)
+    TEXT[!MUST,implication]: equal to the deserialized Terminal Type Id.
+    TEXT[!MUST,implementation]: The output Terminal Data MUST have a [Terminal Value](./structures.md#terminal-type-id)
+    TEXT[!MUST,implementation]: equal to the following decryption:
+
+SPECIFICATION: [Decrypt Structure](specification/structured-encryption/decrypt-structure.md)
+  SECTION: [Input](#input)
+    TEXT[!MUST,implication]: The following inputs to this behavior are REQUIRED:
+    TEXT[!MUST,implication]: The following inputs to this behavior MUST be OPTIONAL:
+
+  SECTION: [Output](#output)
+    TEXT[!MUST,implication]: This operation MUST output the following:
+    TEXT[implication]: - [Structured Data](decrypt-path-structure.md#structured-data)
+    TEXT[implication]: - [Crypto Schema](./structures.md#crypto-schema): The Crypto Schema for each signed Terminal,
+    TEXT[implication]:   calculated using the Crypto Legend in the header, the signature scope used for decryption, and the data in the input structure.
+    TEXT[implication]: - [Parsed Header](decrypt-path-structure.md#parsed-header)
+
+  SECTION: [Behavior](#behavior)
+    TEXT[!MUST,implication]: The input [Structured Data](decrypt-path-structure.md#structured-data) and [Authenticate Schema](decrypt-path-structure.md#authenticate-schema)
+    TEXT[!MUST,implication]: MUST refer to the same set of locations.
+    TEXT[!MUST,implication]: The input [Structured Data](decrypt-path-structure.md#structured-data) and [Authenticate Schema](decrypt-path-structure.md#authenticate-schema)
+    TEXT[!MUST,implication]: MUST be combined into a single [Auth List](decrypt-path-structure.md#auth-list).
+    TEXT[!MUST,implication]: Decrypt Structure MUST then behave as [Decrypt Path Structure](decrypt-path-structure.md)
+    TEXT[!MUST,implication]: The output [Crypto List](decrypt-path-structure.md#crypto-list) produced by [Decrypt Path Structure](decrypt-path-structure.md)
+    TEXT[!MUST,implication]: MUST be split into [Structured Data](decrypt-path-structure.md#structured-data) and [Crypto Schema](decrypt-path-structure.md#crypto-schema)
+    TEXT[!MUST,implication]: maps.
+
+SPECIFICATION: [Encrypt Path Structure](specification/structured-encryption/encrypt-path-structure.md)
+  SECTION: [Input](#input)
+    TEXT[!MUST,implication]: The following inputs to this behavior are REQUIRED:
+    TEXT[implication]: - [Table Name](#table-name)
+    TEXT[implication]: - [Crypto List](#crypto-list)
+    TEXT[implication]: - [Cryptographic Materials Manager (CMM)](#cmm)
+    TEXT[!MUST,implication]: The following inputs to this behavior MUST be OPTIONAL:
+    TEXT[implication]: - [Algorithm Suite](#algorithm-suite)
+    TEXT[implication]: - [Encryption Context](#encryption-context)
+
+  SECTION: [Crypto List](#crypto-list)
+    TEXT[!MUST,implication]: The [paths](./structures.md#path) in the input [Crypto List](./structures.md#crypto-list) MUST be unique.
+    TEXT[!MUST,implication]: This Crypto List MUST NOT already contain data located at the [header index](./header.md#header-index)
+    TEXT[!MUST,implication]: or the [footer index](./footer.md#footer-index).
+    TEXT[!MUST,implication]: The Crypto List MUST include at least one [Crypto Action](./structures.md#crypto-action)
+    TEXT[!MUST,implication]: that is not [DO_NOTHING](./structures.md#do_nothing).
+
+  SECTION: [Algorithm Suite](#algorithm-suite)
+    TEXT[!SHOULD]: The [algorithm suite](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md) that SHOULD be used for encryption.
+    TEXT[!MUST,implication]: This algorithm suite MUST be a
+    TEXT[!MUST,implication]: [supported suite for Database Encryption (DBE)](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#supported-algorithm-suites-enum);
+    TEXT[!MUST,implication]: otherwise, this operation MUST yield an error.
+
+  SECTION: [Encryption Context](#encryption-context)
+    TEXT[!MUST,implication]: The operation MUST fail if an encryption context is provided which contains a key with the prefix `aws-crypto-`.
+
+  SECTION: [Output](#output)
+    TEXT[!MUST,implication]: This operation MUST output the following:
+    TEXT[implication]: - [Encrypted Crypto List](#encrypted-crypto-list)
+    TEXT[implication]: - [Parsed Header](./decrypt-structure.md#parsed-header)
+
+  SECTION: [Behavior](#behavior)
+    TEXT[!MUST]: All inputs MUST adhere to their requirements;
+    TEXT[!MUST]: otherwise this operation MUST immediately yield an error.
+    TEXT[!MUST]: This operation MUST perform all the above steps,
+    TEXT[!MUST]: and it MUST perform them in the above order.
+    TEXT[!MUST]: If any of these steps fails, this operation MUST halt and indicate a failure to the caller.
+
+  SECTION: [Retrieve Encryption Materials](#retrieve-encryption-materials)
+    TEXT[!MUST,implementation]: This operation MUST [calculate the appropriate CMM and encryption context](#create-new-encryption-context-and-cmm).
+    TEXT[!MUST,implication]: This operation MUST obtain a set of encryption materials by calling
+    TEXT[!MUST,implication]: [Get Encryption Materials](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/cmm-interface.md#get-encryption-materials)
+    TEXT[!MUST,implication]: on the [CMM](#cmm) calculated above.
+    TEXT[!MUST,implication]: This operation MUST call Get Encryption Materials on the CMM as follows.
+    TEXT[!MUST,implication]: - Encryption Context: This MUST be the encryption context calculated above.
+    TEXT[!MUST,implication]: - Commitment Policy: This MUST be
+    TEXT[!MUST,implication]:   [REQUIRE_ENCRYPT_REQUIRE_DECRYPT](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/commitment-policy.md#esdkrequire_encrypt_require_decrypt).
+    TEXT[!MUST,implication]: - Algorithm Suite: If provided, this is the [input algorithm suite](#algorithm-suite);
+    TEXT[!MUST,implication]:   otherwise, this field MUST be the algorithm suite corresponding to the enum
+    TEXT[!MUST,implication]:   [DBE.ALG_AES_256_GCM_HKDF_SHA512_COMMIT_KEY_ECDSA_P384_SYMSIG_HMAC_SHA384](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#supported-algorithm-suites-enum).
+    TEXT[!MUST,implication]: - Max Plaintext Length: This field MUST be the result of the calculation `encryptedTerminalDataNum * 2 + totalEncryptedTerminalValuesSize`
+    TEXT[!MUST]: The algorithm suite used in all aspects of this operation MUST be
+    TEXT[!MUST]: the algorithm suite in the
+    TEXT[!MUST]: [encryption materials](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/structures.md#encryption-materials)
+    TEXT[!MUST]: returned from the Get Encryption Materials call.
+    TEXT[!MAY]: Note that the algorithm suite in the retrieved encryption materials MAY be different from the input algorithm suite.
+    TEXT[!MUST,implementation]: If this algorithm suite is not a
+    TEXT[!MUST,implementation]: [supported suite for Database Encryption (DBE)](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#supported-algorithm-suites-enum),
+    TEXT[!MUST,implementation]: this operation MUST yield an error.
+
+  SECTION: [Create New Encryption Context and CMM](#create-new-encryption-context-and-cmm)
+    TEXT[!MUST,implementation,test]: If no [Crypto Action](./structures.md#crypto-action) is configured to be
+    TEXT[!MUST,implementation,test]: [SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT Crypto Action](./structures.md#sign_and_include_in_encryption_context)
+    TEXT[!MUST,implementation,test]: then the input cmm and encryption context MUST be used unchanged.
+    TEXT[!MUST,implementation,test]: Otherwise, this operation MUST add an [entry](../dynamodb-encryption-client/encrypt-item.md#base-context-value-version-2) to the encryption context for every
+    TEXT[!MUST,implementation,test]: [SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT Crypto Action](./structures.md#sign_and_include_in_encryption_context)
+    TEXT[!MUST,implementation,test]: [Terminal Data](./structures.md#terminal-data)
+    TEXT[!MUST,implementation,test]: in the input record, plus the Legend.
+    TEXT[!MUST,implementation]: An error MUST be returned if any of the entries added to the encryption context in this step
+    TEXT[!MUST,implementation]: have the same key as any entry already in the encryption context.
+    TEXT[!MUST,implementation,test]: The Legend MUST be named "aws-crypto-legend" and be a string with one character per attribute added above,
+    TEXT[!MUST,implementation,test]: with a one-to-one correspondence with the attributes sorted by their UTF8 encoding,
+    TEXT[!MUST,implementation,test]: each character designating the original type of the attribute,
+    TEXT[!MUST,implementation,test]: to allow reversing of the [encoding](../dynamodb-encryption-client/encrypt-item.md#base-context-value-version-2).
+    TEXT[implementation,test]: - 'S' if the attribute was of type String
+    TEXT[implementation,test]: - 'N' if the attribute was of type Number
+    TEXT[implementation,test]: - 'L' if the attribute was of type Null or Boolean
+    TEXT[implementation,test]: - 'B' otherwise
+    TEXT[!MUST,implementation,test]: Then, this operation MUST create a [Required Encryption Context CMM](https://github.com/awslabs/private-aws-encryption-sdk-specification-staging/blob/dafny-verified/framework/required-encryption-context-cmm.md)
+    TEXT[!MUST,implementation,test]: with the following inputs:
+    TEXT[implementation]: - This input [CMM](./ddb-table-encryption-config.md#cmm) as the underlying CMM.
+    TEXT[implementation]: - The name of every entry added above.
+
+  SECTION: [Encryption Context Naming](#encryption-context-naming)
+    TEXT[!MUST,implementation]: When a key-value pair is added to the encryption context,
+    TEXT[!MUST,implementation]: the key MUST be the concatenation of the literal
+    TEXT[!MUST,implementation]: "aws-crypto-attr." and the member strings of the
+    TEXT[!MUST,implementation]: path joined by the '.' character.
+    TEXT[!MUST,implementation]: An error MUST be returned if an attempt is made to add two
+    TEXT[!MUST,implementation]: different attributes that produce the same encryption context key.
+
+  SECTION: [Calculate Intermediate Encrypted Structured Data](#calculate-intermediate-encrypted-structured-data)
+    TEXT[!MUST,implementation]: The process used to generate this identifier MUST use a good source of randomness
+    TEXT[!MUST,implementation]: to make the chance of duplicate identifiers negligible.
+    TEXT[!MUST,implication]: For every entry
+    TEXT[!MUST,implication]: in the input [Crypto List](#crypto-list)
+    TEXT[!MUST,implication]: there MUST be an entry with the same [canonical path](./header.md#canonical-path)
+    TEXT[!MUST,implication]: in Intermediate Encrypted Structured Data.
+    TEXT[!MUST,implication]: There MUST be no other entries in the Intermediate Encrypted Structured Data.
+
+  SECTION: [Calculate Info](#calculate-info)
+    TEXT[!MUST,implication]: The `info` used for the HKDF function MUST be
+    TEXT[!MUST,implication]: | Field | Length |
+    TEXT[!MUST,implication]: | -------------------- | -------- |
+    TEXT[!MUST,implication]: | "AWS_DBE_DERIVE_KEY" | 18 |
+    TEXT[!MUST,implication]: | Message ID | 32 |
+
+  SECTION: [Calculate Cipherkey and Nonce](#calculate-cipherkey-and-nonce)
+    TEXT[!MUST,implication]: The HKDF algorithm used to calculate the Field Root Key MUST be the
+    TEXT[!MUST,implication]: [Encryption Key KDF](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#algorithm-suites-encryption-key-derivation-settings)
+    TEXT[!MUST,implication]: indicated by the algorithm suite, using a provided plaintext data key, no salt,
+    TEXT[!MUST,implication]: and an info as calculated [above](#calculate-info)
+    TEXT[!MUST,implementation,implication]: The `FieldRootKey` MUST be generated with the plaintext data key in the encryption materials
+    TEXT[!MUST,implementation,implication]: and the Message ID generated for this Encrypted Structured Data.
+    TEXT[!MUST,implication]: The calculated Field Root MUST have length equal to the
+    TEXT[!MUST,implication]: [algorithm suite's encryption key length](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#algorithm-suites-encryption-settings).
+    TEXT[!MUST,implication]: The `FieldKeyNonce` for a given offset MUST be 16 bytes comprised of
+    TEXT[!MUST,implication]: | Field | Length | Interpretation |
+    TEXT[!MUST,implication]: | ------------- | -------- | -------------- |
+    TEXT[!MUST,implication]: | "AwsDbeField" | 11 | Literal Ascii String |
+    TEXT[!MUST,implication]: | 0x2c | 1 | 44, the length of the eventual FieldKey |
+    TEXT[!MUST,implication]: | offset | 4 | 32 bit integer representation of offset |
+    TEXT[!MUST,implication]: The `FieldKey` for a given key and offset MUST be the first 44 bytes
+    TEXT[!MUST,implication]: of the aes256ctr_stream
+    TEXT[!MUST,implication]: of the `FieldRootKey` and the `FieldKeyNonce` of three times the given offset.
+    TEXT[!MUST,implementation,implication]: The `Cipherkey` MUST be the first 32 bytes of the `FieldKey`
+    TEXT[!MUST,implementation,implication]: The `Nonce` MUST be the remaining 12 bytes of the `FieldKey`
+
+  SECTION: [Terminal Data Encryption](#terminal-data-encryption)
+    TEXT[!MUST,implication]: The output encrypted Terminal Data MUST have a [Terminal Type Id](./structures.md#terminal-type-id)
+    TEXT[!MUST,implication]: equal `0xFFFF`.
+    TEXT[!MUST,implication]: The output encrypted Terminal Data MUST have a [Terminal Value](./structures.md#terminal-value)
+    TEXT[!MUST,implication]: with the following serialization:
+
+  SECTION: [Terminal Type Id](#terminal-type-id)
+    TEXT[!MUST,implication]: Terminal Type Id MUST equal the input Terminal Data's Terminal Type Id.
+
+  SECTION: [Encrypted Terminal Value](#encrypted-terminal-value)
+    TEXT[!MUST,implementation]: The Encrypted Terminal Value MUST be derived according to the following encryption:
+
+  SECTION: [Header Field](#header-field)
+    TEXT[!MUST,implication]: The Header Field name MUST be `aws_dbe_head`
+    TEXT[!MUST,implementation]: The Header Field TypeID MUST be 0xFFFF
+    TEXT[!MUST,implementation]: The Header Field Value MUST be the full serialized [header](header.md) with commitment.
+    TEXT[!MUST,implementation]: The encryption context field serialized in the header MUST contain all key-value
+    TEXT[!MUST,implementation]: pairs of the encryption context in the [encryption materials](#retrieve-encryption-materials)
+    TEXT[!MUST,implementation]: that are not included in the
+    TEXT[!MUST,implementation]: [required encryption context keys](../framework/structures.md#required-encryption-context-keys) list.
+
+  SECTION: [Footer Field](#footer-field)
+    TEXT[!MUST,implication]: The Footer Field name MUST be `aws_dbe_foot`
+    TEXT[!MUST,implication]: The Footer Field TypeID MUST be 0xFFFF
+    TEXT[!MUST,implication]: The Footer Field Value MUST be the serialized [footer](footer.md).
+
+  SECTION: [Encrypted Structured Data](#encrypted-structured-data)
+    TEXT[!MUST,implication]: - For every entry in the input [Crypto List](#crypto-list)
+    TEXT[!MUST,implication]:   an entry MUST exist with the same [path](./structures.md#path) in the final Encrypted Structured Data.
+    TEXT[!MUST,implication]: - The [Header Field](#header-field) MUST exist in the final Encrypted Structured Data
+    TEXT[!MUST,implication]: - The [Footer Field](#footer-field) MUST exist in the final Encrypted Structured Data
+    TEXT[!MUST,implication]: - For every entry in the final Encrypted Structured Data, other than the header and footer,
+    TEXT[!MUST,implication]:   an entry MUST exist with the same [path](./structures.md#path) in the input [Crypto List](#crypto-list).
+    TEXT[!MUST,implication]: If the [Crypto Schema](#crypto-list)
+    TEXT[!MUST,implication]: indicates a [Crypto Action](./structures.md#crypto-action)
+    TEXT[!MUST,implication]: of [ENCRYPT_AND_SIGN](./structures.md#encryptandsign),
+    TEXT[!MUST,implication]: the Terminal Data MUST have [Terminal Type ID](./structures.md#terminal-type-id)
+    TEXT[!MUST,implication]: equal to 0xffff and the value MUST be
+    TEXT[!MUST,implication]: the [encryption](#terminal-data-encryption)
+    TEXT[!MUST,implication]: of the input's Terminal Data.
+    TEXT[!MUST,implication]: Otherwise, this Terminal Data MUST have [Terminal Type ID](./structures.md#terminal-type-id)
+    TEXT[!MUST,implication]: and [Terminal Value](./structures.md#terminal-value) equal to the input Terminal Data's.
+
+SPECIFICATION: [Encrypt Structure](specification/structured-encryption/encrypt-structure.md)
+  SECTION: [Input](#input)
+    TEXT[!MUST,implication]: The following inputs to this behavior are REQUIRED:
+    TEXT[!MUST,implication]: The following inputs to this behavior MUST be OPTIONAL:
+
+  SECTION: [Output](#output)
+    TEXT[!MUST,implication]: This operation MUST output the following:
+    TEXT[implication]: - [Encrypted Structured Data](encrypt-path-structure.md#encrypted-structured-data)
+    TEXT[implication]: - [Crypto Schema](./structures.md#crypto-schema): The Crypto Schema for each signed Terminal
+    TEXT[implication]: - [Parsed Header](./decrypt-structure.md#parsed-header)
+
+  SECTION: [Behavior](#behavior)
+    TEXT[!MUST,implication]: The input [Structured Data](encrypt-path-structure.md#structured-data) and [Crypto Schema](encrypt-path-structure.md#crypto-schema)
+    TEXT[!MUST,implication]: MUST refer to the same set of locations.
+    TEXT[!MUST,implication]: The input [Structured Data](encrypt-path-structure.md#structured-data) and [Crypto Schema](encrypt-path-structure.md#crypto-schema)
+    TEXT[!MUST,implication]: MUST be combined into a single [Crypto List](encrypt-path-structure.md#crypto-list).
+    TEXT[!MUST,implication]: Encrypt Structure MUST then behave as [Encrypt Path Structure](encrypt-path-structure.md)
+    TEXT[!MUST,implication]: The output [Crypto List](encrypt-path-structure.md#crypto-list) produced by [Encrypt Path Structure](encrypt-path-structure.md)
+    TEXT[!MUST,implication]: MUST be split into [Structured Data](encrypt-path-structure.md#structured-data) and [Crypto Schema](encrypt-path-structure.md#crypto-schema)
+    TEXT[!MUST,implication]: maps.
+
+SPECIFICATION: [Structured Encryption Footer](specification/structured-encryption/footer.md)
+  SECTION: [Footer Format](#footer-format)
+    TEXT[!MUST,implication]: The [Terminal Value](./structures.md#terminal-value) of the footer MUST be
+
+  SECTION: [Canonical Encrypted Field](#canonical-encrypted-field)
+    TEXT[!MUST,implication]: The canonical form of an encrypted field MUST be
+    TEXT[!MUST,implication]: | Field | Length (bytes) | Interpreted as |
+    TEXT[!MUST,implication]: | ----- | -------------- | -------------- |
+    TEXT[!MUST,implication]: | The [canonical path](./header.md#canonical-path) of the field name | Variable | Bytes |
+    TEXT[!MUST,implication]: | encrypted data length - 2 | 8 | 64-bit integer |
+    TEXT[!MUST,implication]: | "ENCRYPTED" | 9 | Literal Ascii text |
+    TEXT[!MUST,implication]: | TypeID | 2 | the type ID of the unencrypted Terminal |
+    TEXT[!MUST,implication]: | value | Variable | the encrypted Terminal value |
+
+  SECTION: [Canonical Plaintext Field](#canonical-plaintext-field)
+    TEXT[!MUST,implication]: The canonical form of a plaintext field MUST be
+    TEXT[!MUST,implication]: | Field | Length (bytes) | Interpreted as |
+    TEXT[!MUST,implication]: | ----- | -------------- | -------------- |
+    TEXT[!MUST,implication]: | The [canonical path](./header.md#canonical-path) of the field name | Variable | Bytes |
+    TEXT[!MUST,implication]: | data length | 8 | 64-bit integer |
+    TEXT[!MUST,implication]: | "PLAINTEXT" | 9 | Literal Ascii text |
+    TEXT[!MUST,implication]: | TypeID | 2 | the type ID of the Terminal |
+    TEXT[!MUST,implication]: | value | Variable | the Terminal value |
+
+  SECTION: [Canonical Record](#canonical-record)
+    TEXT[!MUST,implication]: The canonical form of a record MUST be
+    TEXT[!MUST,implication]: | Field | Length (bytes) | Interpreted as |
+    TEXT[!MUST,implication]: | ----- | -------------- | -------------- |
+    TEXT[!MUST,implication]: | header | Variable | The full serialized header with commitment |
+    TEXT[!MUST,implication]: | AAD Length | 8 | 64-bit integer, the length of the following AAD data |
+    TEXT[!MUST,implication]: | AAD | Variable | The serialization of the Encryption Context from the Encryption Materials |
+    TEXT[!MUST,implication]: | Field Data | Variable | For each [signed field](#signed-fields), ordered lexicographically by [canonical path](./header.md#canonical-path), the [canonical field](#canonical-field).
+
+  SECTION: [Hash Calculation](#hash-calculation)
+    TEXT[!MUST,implication]: The canonical hash of a record MUST be the SHA384 of the canonical form of the record.
+
+  SECTION: [Recipient Tags](#recipient-tags)
+    TEXT[!MUST,implication]: There MUST be one Recipient Tag for each Encrypted Data Key in the [header](./header.md#encrypted-data-keys)
+    TEXT[!MUST,implementation]: the Recipient Tag MUST be MUST be calculated over the [Canonical Hash](#canonical-hash)
+    TEXT[!MUST,implementation]: using the [symmetric signature algorithm](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#algorithm-suites-signature-settings)
+    TEXT[!MUST,implementation]: indicated in the algorithm suite,
+    TEXT[!MUST,implementation]: and the
+    TEXT[!MUST,implementation]: [symmetric signing keys](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/structures.md#symmetric-signing-keys)
+    TEXT[!MUST,implementation]: in the encryption materials.
+    TEXT[!MUST,implementation]: the HMAC values MUST have the same order as the
+    TEXT[!MUST,implementation]: [symmetric signing keys](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/structures.md#symmetric-signing-keys)
+    TEXT[!MUST,implementation]: used to calculate them.
+
+  SECTION: [Signature](#signature)
+    TEXT[!MUST]: The signature MUST be included in the footer if the flavor
+    TEXT[!MUST]: in the [header](./header.md#format-flavor) is 0x01
+    TEXT[!MUST]: and MUST NOT be included in the footer if the flavor
+    TEXT[!MUST]: in the [header](./header.md#format-flavor) is 0x00.
+    TEXT[!MUST,implementation]: The `signature`, if it exists, MUST be calculated over the [Canonical Hash](#canonical-hash),
+    TEXT[!MUST,implementation]: using the asymmetric signing key in the encryption materials.
+    TEXT[!MUST,implication]: The `signature`, if it exists, MUST be calculated using the
+    TEXT[!MUST,implication]: [asymmetric signature algorithm](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#algorithm-suites-signature-settings)
+    TEXT[!MUST,implication]: indicated by the algorithm suite.
+
+  SECTION: [Recipient Tag Verification](#recipient-tag-verification)
+    TEXT[!MUST,implementation]: Verification MUST fail unless at least one of the [Recipient Tags](#recipient-tags)
+    TEXT[!MUST,implementation]: matches a calculated recipient tag using the provided symmetricSigningKey.
+    TEXT[!MUST,implementation]: Recipient Tag comparisons MUST be constant time operations.
+
+  SECTION: [Signature Verification](#signature-verification)
+    TEXT[!MUST,implementation]: If the footer contains a signature, this signature MUST be verified using the
+    TEXT[!MUST,implementation]: [asymmetric signature algorithm](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#algorithm-suites-signature-settings)
+    TEXT[!MUST,implementation]: indicated by the algorithm suite.
+
+SPECIFICATION: [Structured Encryption Header](specification/structured-encryption/header.md)
+  SECTION: [Partial Header](#partial-header)
+    TEXT[!MUST,implication]: The Partial Header MUST be
+
+  SECTION: [Full Header Value](#full-header-value)
+    TEXT[!MUST,implication]: The value of the header MUST be
+
+  SECTION: [Format Version](#format-version)
+    TEXT[!MUST,implication]: The Version MUST be `0x01` or `0x02`.
+    TEXT[!MUST,implication]: If any [Crypto Action](./structures.md#crypto-action) is configured as
+    TEXT[!MUST,implication]: [SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT Crypto Action](./structures.md#sign_and_include_in_encryption_context)
+    TEXT[!MUST,implication]: the Version MUST be 0x02; otherwise, Version MUST be 0x01.
+
+  SECTION: [Format Flavor](#format-flavor)
+    TEXT[!MUST,implication]: The algorithm suite indicated by the flavor MUST be a
+    TEXT[!MUST,implication]: [DBE supported algorithm suite](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#supported-algorithm-suites-enum).
+
+  SECTION: [Message ID](#message-id)
+    TEXT[!MUST,implementation]: Implementations MUST generate a fresh 256-bit random MessageID, from a cryptographically secure source, for each record encrypted.
+
+  SECTION: [Encrypt Legend](#encrypt-legend)
+    TEXT[!MUST,implication]: The Encrypt Legend MUST be serialized as
+
+  SECTION: [Encrypt Legend Bytes](#encrypt-legend-bytes)
+    TEXT[!MUST,implication]: Each Crypto Action MUST be encoded as follows
+    TEXT[!MUST]:   This indicates that this field MUST be attempted to be decrypted during decryption.
+    TEXT[!MUST]:   This indicates that this field MUST NOT be attempted to be decrypted during decryption.
+    TEXT[!MUST,test]: The Encrypt Legend Bytes MUST be serialized as follows:
+    TEXT[!MUST,implication]: The length of this serialized value (in bytes) MUST equal the number of authenticated fields indicated
+    TEXT[!MUST,implication]: by the caller's [Authenticate Schema](./structures.md#authenticate-schema).
+
+  SECTION: [Canonical Path](#canonical-path)
+    TEXT[!MUST,implication]: The canonical path MUST start with the UTF8 encoded table name.
+    TEXT[!MUST,implication]: This MUST be followed by the depth of the Terminal within Structured Data.
+    TEXT[!MUST,implication]: This MUST be followed by the encoding for each Structured Data in the path, including the Terminal itself.
+    TEXT[!MUST]: For Structured Data in Structured Data Lists, this MUST be a 0x23 byte (# in UTF-8),
+    TEXT[!MUST]: followed by the numerical index.
+    TEXT[!MUST,implication]: For Structured Data in Structured Data Maps, this MUST be a 0x24 byte ($ in UTF-8),
+    TEXT[!MUST,implication]: followed by the length of the key, followed by the key as a UTF8 string.
+
+  SECTION: [Encryption Context](#encryption-context)
+    TEXT[!MUST,implication]: The Encryption Context MUST be serialized as follows
+
+  SECTION: [Key Value Pair Entries](#key-value-pair-entries)
+    TEXT[!MUST,implementation,test]: This sequence MUST NOT contain duplicate entries.
+    TEXT[!MUST,implementation,test]: These entries MUST have entries sorted, by key,
+    TEXT[!MUST,implementation,test]: in ascending order according to the UTF-8 encoded binary value.
+    TEXT[!MUST,implication]: Each Key Value Pair MUST be serialized as follows
+
+  SECTION: [Encrypted Data Keys](#encrypted-data-keys)
+    TEXT[!MUST,implication]: The Encrypted Data Keys MUST be serialized as follows
+
+  SECTION: [Encrypted Data Key Count](#encrypted-data-key-count)
+    TEXT[!MUST,implication]: This value MUST be greater than 0.
+
+  SECTION: [Encrypted Data Key Entries](#encrypted-data-key-entries)
+    TEXT[!MUST,implication]: Each Encrypted Data Key MUST be serialized as follows
+
+  SECTION: [Commit Key](#commit-key)
+    TEXT[!MUST,implication]: The HKDF used to calculate the Commitment Key MUST be the
+    TEXT[!MUST,implication]: [Commit Key KDF](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#algorithm-suites-commit-key-derivation-settings)
+    TEXT[!MUST,implication]: indicated by the algorithm suite.
+    TEXT[!MUST,implication]: The calculated Commitment Key MUST have length equal to the
+    TEXT[!MUST,implication]: [algorithm suite's encryption key length](../../submodules/MaterialProviders/aws-encryption-sdk-specification/framework/algorithm-suites.md#algorithm-suites-encryption-settings).
+    TEXT[!MUST,implication]: The `info` used for the HKDF function MUST be
+    TEXT[!MUST,implication]: | Field | Length |
+    TEXT[!MUST,implication]: | -------------------- | -------- |
+    TEXT[!MUST,implication]: | "AWS_DBE_COMMIT_KEY" | 18 |
+    TEXT[!MUST,implication]: | Message ID | 32 |
+    TEXT[!MUST,implication]: The HKDF calculation MUST use a supplied key, no salt, and an `info` as described above.
+    TEXT[!MUST,implementation]: The commit key calculation described above MUST be performed with the record's plaintext data key
+    TEXT[!MUST,implementation]: and the header's message id.
+
+  SECTION: [Commitment Calculation](#commitment-calculation)
+    TEXT[!MUST,implication]: The Header Commitment MUST be calculated as a the first 32 bytes of an HmacSha384,
+    TEXT[!MUST,implication]: with the serialized partial header as the message, and the Commit Key as the key.
+
+  SECTION: [Commitment Verification](#commitment-verification)
+    TEXT[!MUST,implication]: Header commitment comparisons MUST be constant time operations.
+
+SPECIFICATION: [Resolve Auth Actions](specification/structured-encryption/resolve-auth-actions.md)
+  SECTION: [Input](#input)
+    TEXT[!MUST,implication]: The following inputs to this behavior are REQUIRED:
+    TEXT[implication]: - [Table Name](#table-name)
+    TEXT[implication]: - [Auth List](#auth-list)
+    TEXT[implication]: - [Header Bytes](#header-bytes)
+
+  SECTION: [Output](#output)
+    TEXT[!MUST,implication]: This operation MUST output the following:
+    TEXT[implication]: [Crypto List](./structures.md#crypto-list): Input terminal data and the Crypto Schema for each Terminal,
+    TEXT[implication]: calculated using the Crypto Legend in the header, the signature scope used for decryption, and the data in the input structure.
+
+SPECIFICATION: [Structures](specification/structured-encryption/structures.md)
+  SECTION: [Overview](#overview)
+    TEXT[!MUST]: These structures define a group of related fields that MUST hold certain properties.
+    TEXT[!MUST]: Wherever these structures are referenced in this specification,
+    TEXT[!MUST]: implementations MUST ensure that all properties of a structure's fields are upheld.
+    TEXT[!MAY]: While these structures will usually be represented as objects, lower level languages MAY represent
+    TEXT[!MAY]: these fields in a less strictly defined way as long as all field properties are still upheld.
+
+  SECTION: [SIGN](#sign)
+    TEXT[!MUST]: During [Encrypt Structure](./encrypt-structure.md),
+    TEXT[!MUST]: SIGN signifies that the [Terminal Data](#terminal-data) MUST be included in the signature calculations
+    TEXT[!MUST]: on the footer.
+    TEXT[!MUST]: During [Decrypt Structure](./decrypt-structure.md),
+    TEXT[!MUST]: SIGN signifies that the [Terminal Data](#terminal-data) MUST be authenticated,
+    TEXT[!MUST]: and thus be included in the verification of the signatures on the footer.
+
+  SECTION: [DO_NOT_SIGN](#do-not-sign)
+    TEXT[!MUST]: During [Encrypt Structure](./encrypt-structure.md),
+    TEXT[!MUST]: DO_NOT_SIGN signifies that the [Terminal Data](#terminal-data) MUST NOT be included in the signature calculations
+    TEXT[!MUST]: on the footer.
+    TEXT[!MUST]: During [Decrypt Structure](./decrypt-structure.md),
+    TEXT[!MUST]: DO_NOT_SIGN signifies that the [Terminal Data](#terminal-data) MUST NOT be authenticated,
+    TEXT[!MUST]: and thus not be included in the verification of the signatures on the footer.
+
+  SECTION: [SIGN_AND_INCLUDE_IN_ENCRYPTION_CONTEXT](#sign-and-include-in-encryption-context)
+    TEXT[!MUST]: and further that the [Terminal Data](#terminal-data) MUST be included in the encryption context.
+
+  SECTION: [ENCRYPT](#encrypt)
+    TEXT[!MUST]: During [Encrypt Structure](encrypt-structure.md#encrypt-structure),
+    TEXT[!MUST]: ENCRYPT signifies that the [Terminal Value](#terminal-value) in the [Terminal Data](#terminal-data)
+    TEXT[!MUST]: MUST be encrypted in the resulting encrypted [Structured Data](#structured-data).
+    TEXT[!MUST]: During [Decrypt Structure](decrypt-structure.md#decrypt-structure),
+    TEXT[!MUST]: ENCRYPT signifies that the [Terminal Value](#terminal-value) in the [Terminal Data](#terminal-data)
+    TEXT[!MUST]: MUST be attempted to be decrypted.
+
+  SECTION: [DO_NOT_ENCRYPT](#do-not-encrypt)
+    TEXT[!MUST]: During [Encrypt Structure](encrypt-structure.md#encrypt-structure)
+    TEXT[!MUST]: and [Decrypt Structure](decrypt-structure.md#decrypt-structure),
+    TEXT[!MUST]: DO_NOT_ENCRYPT signifies that the [Terminal Data](#terminal-data)
+    TEXT[!MUST]: MUST have an equal [Terminal Value](#terminal-value) and
+    TEXT[!MUST]: [Terminal Type Id](#terminal-type-id) as the the Terminal Data
+    TEXT[!MUST]: in the same location in the resulting encrypted [Structured Data](#structured-data).
+
+  SECTION: [Structured Data Map](#structured-data-map)
+    TEXT[!MUST,implication]: A Structured Data Map MUST consist of:
+    TEXT[!MUST,implication]:   - This map MUST NOT allow duplicate key values
+
+  SECTION: [Terminal Type ID](#terminal-type-id)
+    TEXT[!MUST,implication]: A Terminal Type ID MUST be a 2 byte value that is used to identify how callers interpret [Terminal Value](#terminal-value).
+    TEXT[!MUST]: If [Terminal Value](#terminal-value) is to be interpreted as raw bytes,
+    TEXT[!MUST]: the Terminal Type ID MUST be 0xFFFF.
+    TEXT[!MUST]: Any other value prefixed by 0xFF is reserved and MUST NOT be used.
+
+  SECTION: [Terminal Value](#terminal-value)
+    TEXT[!MUST,implication]: Terminal Value MUST be a sequence of bytes, and MAY be empty (zero-length).
+    TEXT[!MUST]: If these bytes are to be deserialized, these bytes MUST be interpreted as the type indicated in this Terminal Data's [Terminal Type ID](#terminal-type-id).D
+
+  SECTION: [Path Segment](#path-segment)
+    TEXT[!MUST,implication]: A path segment MUST be a string, designating the name of a member of a structure.
+
+  SECTION: [Crypto Item](#crypto-item)
+    TEXT[!MUST,implication]: A crypto item MUST consist of
+    TEXT[implication]: - a [Path](#path)
+    TEXT[implication]: - a [Crypto Action](#crypto-action)
+    TEXT[implication]: - a [Terminal Data](#terminal-data)
+
+  SECTION: [Crypto List](#crypto-list)
+    TEXT[!MUST,implication]: A crypto list MUST be a sequence of [crypto item](#crypto-item)
+
+  SECTION: [Auth Item](#auth-item)
+    TEXT[!MUST,implication]: An auth item MUST consist of
+    TEXT[implication]: - a [Path](#path)
+    TEXT[implication]: - an [Authenticate Action](#authenticate-action)
+    TEXT[implication]: - a [Terminal Data](#terminal-data)
+
+  SECTION: [Auth List](#auth-list)
+    TEXT[!MUST,implication]: An auth list MUST be a sequence of [auth item](#auth-item)
