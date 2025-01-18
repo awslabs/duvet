@@ -24,4 +24,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-public/script.js
+public/*.js
+public/*.json
+public/*.snap
