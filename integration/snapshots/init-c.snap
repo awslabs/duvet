@@ -1,0 +1,7 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [C](my-spec.md)
+  SECTION: [C](#c)
+    TEXT[implementation]: C SHOULD be auto-detected.

@@ -1,0 +1,2 @@
+[files]
+extend-exclude = ["*.snap", "integration/snapshots/**", "specs/**"]

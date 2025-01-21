@@ -1,10 +1,5 @@
 [workspace]
-members = [
-    "duvet",
-    "duvet-core",
-    "duvet-macros",
-    "xtask",
-]
+members = ["duvet", "duvet-core", "duvet-macros", "xtask"]
 resolver = "2"
 
 [profile.bench]

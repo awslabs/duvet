@@ -1,0 +1,13 @@
+source = { local = true }
+cmd = [
+    "duvet init --lang-rust --specification https://www.rfc-editor.org/rfc/rfc2324",
+    "duvet report",
+]
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= https://www.rfc-editor.org/rfc/rfc2324#section-2.1.1
+//# A coffee pot server MUST accept both the BREW and POST method
+//# equivalently.
+"""

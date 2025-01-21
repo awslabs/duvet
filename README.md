@@ -1,32 +1,56 @@
-## Duvet
+# Duvet
 
-A code quality tool to help bound correctness.
-By starting from a specification Duvet extracts every RFC 2119 requirement.
-Duvet can then use this information to report on a code base.
-Duvet can then report on every requirement,
-where it is honored in source,
-as well as how that source is tested.
+Duvet is a tool that establishes a bidirectional link between implementation and specification. This practice is called [requirements traceability](https://en.wikipedia.org/wiki/Requirements_traceability), which is defined as:
 
-## Support
-This tool is still in beta.
-Interfaces should be considered unstable and may change before the 1.0.0 release.
+> the ability to describe and follow the life of a requirement in both a forwards and backwards direction (i.e., from its origins, through its development and specification, to its subsequent deployment and use, and through periods of ongoing refinement and iteration in any of these phases)
 
-## Test
-First run `make` in the main `duvet` directory to generate the necessary files.
+## Quick Start
+
+Before getting started, Duvet requires a [rust toolchain](https://www.rust-lang.org/tools/install).
+
+1. Install command
+
+    ```console
+    $ cargo install duvet --locked
+    ```
+
+2. Initialize repository
+
+    In this example, we are using Rust. However, Duvet can be used with any language.
+
+    ```console
+    $ duvet init --lang-rust --specification https://www.rfc-editor.org/rfc/rfc2324
+    ```
+
+3. Add a implementation comment in the project
+
+    ```rust
+    // src/lib.rs
+
+    //= https://www.rfc-editor.org/rfc/rfc2324#section-2.1.1
+    //# A coffee pot server MUST accept both the BREW and POST method
+    //# equivalently.
+    ```
+
+4. Generate a report
+
+    ```console
+    $ duvet report
+    ```
+
+## Development
+
+### Building
+
+```console
+$ cargo xtask build
 ```
-cargo test
+
+### Testing
+
+```console
+$ cargo xtask test
 ```
-
-## Build
-
-If there are any changes to the JS
-it will also need to be built.
-In the `www` directory run `make build`
-
-## Install
-```
-cargo +stable install --force --path .
-````
 
 ## Security
 
@@ -35,4 +59,3 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 ## License
 
 This project is licensed under the Apache-2.0 License.
-

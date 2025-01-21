@@ -1,3 +1,6 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 import { default as React, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { HashRouter, useLocation } from "react-router-dom";

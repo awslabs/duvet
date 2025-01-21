@@ -1,0 +1,28 @@
+source = { local = true }
+cmd = ["duvet init", "duvet report"]
+
+[[file]]
+path = "build.gradle"
+contents = """
+plugins {
+    id 'java'
+}
+
+group 'com.example'
+version '1.0-SNAPSHOT'
+"""
+
+[[file]]
+path = "src/main/HelloDuvet.java"
+contents = """
+//= my-spec.md#java
+//# Java SHOULD be auto-detected.
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# Java
+
+Java SHOULD be auto-detected.
+"""

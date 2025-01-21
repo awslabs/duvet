@@ -1,0 +1,25 @@
+source = { local = true }
+cmd = ["duvet init", "duvet report"]
+
+[[file]]
+path = "Cargo.toml"
+contents = """
+[package]
+name = "testing"
+version = "0.1.0"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= my-spec.md#rust
+//# Rust SHOULD be auto-detected.
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# Rust
+
+Rust SHOULD be auto-detected.
+"""

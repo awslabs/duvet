@@ -1,0 +1,7 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [Java](my-spec.md)
+  SECTION: [Java](#java)
+    TEXT[implementation]: Java SHOULD be auto-detected.

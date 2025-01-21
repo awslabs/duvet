@@ -1,0 +1,7 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [Python](my-spec.md)
+  SECTION: [Python](#python)
+    TEXT[implementation]: Python SHOULD be auto-detected.

@@ -208,7 +208,7 @@ async fn test_rfc(rfc: usize) -> bool {
         (4606, "1"),
     ];
 
-    // RFCs that use roman numberals
+    // RFCs that use roman numerals
     let roman_appendix_ids = [(5357, "I")];
 
     // RFCs that have indented sections

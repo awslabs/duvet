@@ -10,6 +10,7 @@ edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/awslabs/duvet"
 include = ["/src/**/*.rs", "/www/public"]
+default-run = "duvet"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

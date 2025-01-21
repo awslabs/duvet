@@ -1,0 +1,25 @@
+source = { local = true }
+cmd = ["duvet init", "duvet report"]
+
+[[file]]
+path = "pyproject.toml"
+contents = """
+[project]
+name = "testing"
+version = "0.1.0"
+"""
+
+[[file]]
+path = "src/testing.py"
+contents = """
+##= my-spec.md#python
+##% Python SHOULD be auto-detected.
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# Python
+
+Python SHOULD be auto-detected.
+"""

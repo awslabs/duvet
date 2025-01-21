@@ -1,0 +1,26 @@
+source = { local = true }
+cmd = ["duvet init", "duvet report"]
+
+[[file]]
+path = "CMakeLists.txt"
+contents = """
+cmake_minimum_required (VERSION 3.9)
+project (testing C)
+"""
+
+[[file]]
+path = "src/testing.c"
+contents = """
+/**
+ *= my-spec.md#c
+ *# C SHOULD be auto-detected.
+ */
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# C
+
+C SHOULD be auto-detected.
+"""
