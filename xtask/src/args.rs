@@ -4,6 +4,7 @@ use xshell::Shell;
 
 #[derive(Debug, Parser)]
 pub enum Args {
+    Guide(crate::guide::Guide),
     Build(crate::build::Build),
     Changelog(crate::changelog::Changelog),
     Checks(crate::checks::Checks),
@@ -14,6 +15,7 @@ pub enum Args {
 impl Args {
     pub fn run(&self, sh: &Shell) -> Result {
         match self {
+            Args::Guide(args) => args.run(sh),
             Args::Build(args) => args.run(sh).map(|_| ()),
             Args::Changelog(args) => args.run(sh),
             Args::Checks(args) => args.run(sh),

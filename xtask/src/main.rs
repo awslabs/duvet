@@ -8,6 +8,7 @@ mod args;
 mod build;
 mod changelog;
 mod checks;
+mod guide;
 mod publish;
 mod tests;
 
