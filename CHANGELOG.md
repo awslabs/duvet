@@ -9,7 +9,7 @@
 
 ### Bug Fixes
 
-* More robust specification both IETF and markdown parsing.
+* More robust parsing for both IETF and markdown specification types.
 
 ## 0.3.0 (2023-10-06)
 
