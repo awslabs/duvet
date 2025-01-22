@@ -1,7 +1,9 @@
-use std::{fs::File, io::Write, path::Path};
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::{build::Build, Result};
 use clap::Parser;
+use std::{fs::File, io::Write, path::Path};
 use xshell::{cmd, Shell};
 
 #[derive(Debug, Default, Parser)]

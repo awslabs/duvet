@@ -1,6 +1,6 @@
 [package]
 name = "duvet-core"
-version = "0.1.0"
+version = "0.4.0"
 description = "Internal crate used by duvet"
 authors = ["Cameron Bytheway <bythewc@amazon.com>"]
 edition = "2021"
@@ -17,7 +17,7 @@ testing = ["tracing-subscriber"]
 blake3 = "1"
 bytes = "1"
 console = "0.15"
-duvet-macros = { version = "0.1", path = "../duvet-macros" }
+duvet-macros = { version = "0.4", path = "../duvet-macros" }
 futures = { version = "0.3", default-features = false }
 fxhash = "0.2"
 globset = "0.4"
