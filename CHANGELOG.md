@@ -1,3 +1,16 @@
+## 0.4.0 (2025-01-22)
+
+### Features
+
+* Added support for configuration files in place of command line arguments ([#152](https://github.com/awslabs/duvet/pull/152))
+* New `snapshot` report output, which prevents accidental changes in requirement coverage ([#153](https://github.com/awslabs/duvet/pull/153))
+* New `duvet init` command, which creates a configuration file based on the current directory ([#154](https://github.com/awslabs/duvet/pull/154))
+* Detailed errors with specific line numbers about what went wrong.
+
+### Bug Fixes
+
+* More robust specification both IETF and markdown parsing.
+
 ## 0.3.0 (2023-10-06)
 
 

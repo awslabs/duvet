@@ -1,6 +1,6 @@
 [package]
 name = "duvet"
-version = "0.3.0"
+version = "0.4.0"
 description = "A requirements traceability tool"
 authors = [
     "Cameron Bytheway <bythewc@amazon.com>",
@@ -14,7 +14,7 @@ default-run = "duvet"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-duvet-core = { version = "0.1", path = "../duvet-core" }
+duvet-core = { version = "0.4", path = "../duvet-core" }
 futures = { version = "0.3" }
 glob = "0.3"
 lazy_static = "1"
@@ -34,7 +34,7 @@ v_jsonescape = "0.7"
 
 [dev-dependencies]
 bolero = "0.12"
-duvet-core = { version = "0.1", path = "../duvet-core", features = ["testing"] }
+duvet-core = { version = "0.4", path = "../duvet-core", features = ["testing"] }
 insta = { version = "1", features = ["filters", "json"] }
 schemars = "0.8"
 serde_json = "1"
