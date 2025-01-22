@@ -1,6 +1,6 @@
 [package]
 name = "duvet"
-version = "0.4.0"
+version = "0.4.1"
 description = "A requirements traceability tool"
 authors = [
     "Cameron Bytheway <bythewc@amazon.com>",
