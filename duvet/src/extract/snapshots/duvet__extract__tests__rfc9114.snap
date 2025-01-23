@@ -1,5 +1,5 @@
 ---
-source: src/extract/tests.rs
+source: duvet/src/extract/tests.rs
 expression: results
 ---
 [
@@ -612,18 +612,6 @@ expression: results
         Feature {
             level: Must,
             quote: [
-                "An endpoint MUST NOT generate",
-                "an HTTP/3 field section containing connection-specific fields; any",
-                "message containing connection-specific fields MUST be treated as",
-                "malformed.",
-            ],
-        },
-    ),
-    (
-        "section-4.2",
-        Feature {
-            level: Must,
-            quote: [
                 "The only exception to this is the TE header field, which MAY be",
                 "present in an HTTP/3 request header; when it is, it MUST NOT contain",
                 "any value other than \"trailers\".",
@@ -697,17 +685,6 @@ expression: results
                 "Endpoints MUST NOT",
                 "generate pseudo-header fields other than those defined in this",
                 "document.",
-            ],
-        },
-    ),
-    (
-        "section-4.3",
-        Feature {
-            level: Must,
-            quote: [
-                "Pseudo-header fields defined for requests MUST NOT appear",
-                "in responses; pseudo-header fields defined for responses MUST NOT",
-                "appear in requests.",
             ],
         },
     ),
@@ -806,17 +783,6 @@ expression: results
                 "intermediary that converts an HTTP/3 request to HTTP/1.1 MUST",
                 "create a Host field if one is not present in a request by copying",
                 "the value of the :authority pseudo-header field.",
-            ],
-        },
-    ),
-    (
-        "section-4.3.1",
-        Feature {
-            level: Must,
-            quote: [
-                "This pseudo-header field MUST NOT be empty for \"http\" or \"https\"",
-                "URIs; \"http\" or \"https\" URIs that do not contain a path component",
-                "MUST include a value of / (ASCII 0x2f).",
             ],
         },
     ),
@@ -1012,19 +978,6 @@ expression: results
                 "error of type H3_ID_ERROR when no MAX_PUSH_ID frame has been sent or",
                 "when the stream references a push ID that is greater than the maximum",
                 "push ID.",
-            ],
-        },
-    ),
-    (
-        "section-4.6",
-        Feature {
-            level: Must,
-            quote: [
-                "When the",
-                "same push ID is promised on multiple request streams, the",
-                "decompressed request field sections MUST contain the same fields in",
-                "the same order, and both the name and the value in each field MUST be",
-                "identical.",
             ],
         },
     ),
@@ -1538,17 +1491,6 @@ expression: results
         Feature {
             level: Must,
             quote: [
-                "The",
-                "sender MUST NOT close the control stream, and the receiver MUST NOT",
-                "request that the sender close the control stream.",
-            ],
-        },
-    ),
-    (
-        "section-6.2.1",
-        Feature {
-            level: Must,
-            quote: [
                 "If either control",
                 "stream is closed at any point, this MUST be treated as a connection",
                 "error of type H3_CLOSED_CRITICAL_STREAM.",
@@ -1759,17 +1701,6 @@ expression: results
     (
         "section-7.2.3",
         Feature {
-            level: May,
-            quote: [
-                "If the push",
-                "stream has already ended, the server MAY still abruptly terminate the",
-                "stream or MAY take no action.",
-            ],
-        },
-    ),
-    (
-        "section-7.2.3",
-        Feature {
             level: Should,
             quote: [
                 "Regardless of",
@@ -1831,17 +1762,6 @@ expression: results
                 "If a server receives a CANCEL_PUSH frame for a push",
                 "ID that has not yet been mentioned by a PUSH_PROMISE frame, this MUST",
                 "be treated as a connection error of type H3_ID_ERROR.",
-            ],
-        },
-    ),
-    (
-        "section-7.2.4",
-        Feature {
-            level: Must,
-            quote: [
-                "A SETTINGS frame MUST be sent as the first frame of",
-                "each control stream (see Section 6.2.1) by each peer, and it MUST NOT",
-                "be sent subsequently.",
             ],
         },
     ),
@@ -1950,17 +1870,6 @@ expression: results
         },
     ),
     (
-        "section-7.2.4.1",
-        Feature {
-            level: Must,
-            quote: [
-                "These reserved settings MUST NOT be sent, and",
-                "their receipt MUST be treated as a connection error of type",
-                "H3_SETTINGS_ERROR.",
-            ],
-        },
-    ),
-    (
         "section-7.2.4.2",
         Feature {
             level: Must,
@@ -1990,29 +1899,6 @@ expression: results
                 "Endpoints MUST NOT require any data to be received from",
                 "the peer prior to sending the SETTINGS frame; settings MUST be sent",
                 "as soon as the transport is ready to send data.",
-            ],
-        },
-    ),
-    (
-        "section-7.2.4.2",
-        Feature {
-            level: Must,
-            quote: [
-                "Endpoints MUST NOT require any data to be received from",
-                "the peer prior to sending the SETTINGS frame; settings MUST be sent",
-                "as soon as the transport is ready to send data.",
-            ],
-        },
-    ),
-    (
-        "section-7.2.4.2",
-        Feature {
-            level: Should,
-            quote: [
-                "Clients SHOULD",
-                "NOT wait indefinitely for SETTINGS to arrive before sending requests,",
-                "but they SHOULD process received datagrams in order to increase the",
-                "likelihood of processing SETTINGS before sending the first request.",
             ],
         },
     ),
@@ -2156,17 +2042,6 @@ expression: results
             level: May,
             quote: [
                 "A server MAY use the same push ID in multiple PUSH_PROMISE frames.",
-            ],
-        },
-    ),
-    (
-        "section-7.2.5",
-        Feature {
-            level: Must,
-            quote: [
-                "If so, the decompressed request header sets MUST contain the same",
-                "fields in the same order, and both the name and the value in each",
-                "field MUST be exact matches.",
             ],
         },
     ),
@@ -2334,17 +2209,6 @@ expression: results
             quote: [
                 "Endpoints MUST",
                 "NOT consider these frames to have any meaning upon receipt.",
-            ],
-        },
-    ),
-    (
-        "section-7.2.8",
-        Feature {
-            level: Must,
-            quote: [
-                "These frame",
-                "types MUST NOT be sent, and their receipt MUST be treated as a",
-                "connection error of type H3_FRAME_UNEXPECTED.",
             ],
         },
     ),
@@ -2619,18 +2483,6 @@ expression: results
         },
     ),
     (
-        "section-11.2.1",
-        Feature {
-            level: Must,
-            quote: [
-                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
-                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
-                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
-                "assigned values.",
-            ],
-        },
-    ),
-    (
         "section-11.2.2",
         Feature {
             level: Should,
@@ -2685,18 +2537,6 @@ expression: results
         },
     ),
     (
-        "section-11.2.2",
-        Feature {
-            level: Must,
-            quote: [
-                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
-                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
-                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
-                "assigned values.",
-            ],
-        },
-    ),
-    (
         "section-11.2.3",
         Feature {
             level: May,
@@ -2713,18 +2553,6 @@ expression: results
             quote: [
                 "Permanent registrations in",
                 "this registry MUST include the following field:",
-            ],
-        },
-    ),
-    (
-        "section-11.2.3",
-        Feature {
-            level: Must,
-            quote: [
-                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
-                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
-                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
-                "assigned values.",
             ],
         },
     ),
@@ -2758,18 +2586,6 @@ expression: results
                 "Specifications for permanent registrations MUST include a description",
                 "of the stream type, including the layout and semantics of the stream",
                 "contents.",
-            ],
-        },
-    ),
-    (
-        "section-11.2.4",
-        Feature {
-            level: Must,
-            quote: [
-                "Each code of the format 0x1f * N + 0x21 for non-negative integer",
-                "values of N (that is, 0x21, 0x40, ..., through 0x3ffffffffffffffe)",
-                "MUST NOT be assigned by IANA and MUST NOT appear in the listing of",
-                "assigned values.",
             ],
         },
     ),

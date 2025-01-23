@@ -8,13 +8,20 @@ use crate::{
     project::Project,
     specification::{Format, Line, Section, Specification},
     target::{self, Target, TargetPath},
+    text::whitespace,
     Result,
 };
 use clap::Parser;
+use core::fmt;
 use duvet_core::{diagnostic::IntoDiagnostic, error, path::Path, progress};
 use lazy_static::lazy_static;
 use regex::{Regex, RegexSet};
-use std::{fs::OpenOptions, io::BufWriter, sync::Arc};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    fs::OpenOptions,
+    io::BufWriter,
+    sync::Arc,
+};
 
 #[cfg(test)]
 mod tests;
@@ -181,7 +188,8 @@ fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature>)> {
 }
 
 fn extract_section(section: &Section) -> (&Section, Vec<Feature>) {
-    let mut features = vec![];
+    // use a hashmap to deduplicate quotes
+    let mut quotes = HashMap::<_, Feature>::new();
     let lines = &section.lines[..];
 
     for (lineno, line) in lines.iter().enumerate() {
@@ -191,90 +199,104 @@ fn extract_section(section: &Section) -> (&Section, Vec<Feature>) {
             continue;
         };
 
-        if KEY_WORDS_SET.is_match(line) {
-            for (key_word, level) in KEY_WORDS.iter() {
-                for occurrence in key_word.find_iter(line) {
-                    // filter out any matches in quotes - these are definitions in the
-                    // document
-                    if occurrence.as_str().ends_with('"') {
-                        continue;
+        if !KEY_WORDS_SET.is_match(line) {
+            continue;
+        }
+
+        for (key_word, level) in KEY_WORDS.iter() {
+            for occurrence in key_word.find_iter(line) {
+                // filter out any matches in quotes - these are definitions in the
+                // document
+                if occurrence.as_str().ends_with('"') {
+                    continue;
+                }
+
+                let start = find_open(lines, lineno, occurrence.start());
+                let end = find_close(lines, lineno, occurrence.end());
+                let quote = quote_from_range(lines, start, end);
+
+                let feature = Feature {
+                    line_col: start,
+                    level: *level,
+                    quote,
+                };
+
+                // TODO split compound features by level
+
+                let normalized = whitespace::normalize(&feature.quote.join("\n"));
+                match quotes.entry(normalized) {
+                    Entry::Occupied(mut entry) => {
+                        let level = entry.get().level.max(*level);
+                        entry.get_mut().level = level;
                     }
-
-                    let mut quote = vec![];
-
-                    let start = find_open(lines, lineno, occurrence.start());
-                    let end = find_close(lines, lineno, occurrence.end());
-
-                    #[allow(clippy::needless_range_loop)]
-                    for i in start.0..=end.0 {
-                        // The requirement didn't end with a period so stop processing
-                        if i == lines.len() {
-                            break;
-                        }
-
-                        match &lines[i] {
-                            Line::Break => {
-                                continue;
-                            }
-                            Line::Str(line) => {
-                                let mut line = &line[..];
-
-                                if i == end.0 {
-                                    line = &line[..end.1];
-                                }
-
-                                if i == start.0 {
-                                    line = &line[start.1..];
-                                }
-
-                                line = line.trim();
-
-                                if !line.is_empty() {
-                                    quote.push(line);
-                                }
-                            }
-                        }
-                    }
-
-                    let feature = Feature {
-                        level: *level,
-                        quote,
-                    };
-
-                    // TODO split compound features by level
-                    // for now we just add the highest priority level
-                    if feature.should_add() {
-                        features.push(feature);
+                    Entry::Vacant(entry) => {
+                        entry.insert(feature);
                     }
                 }
             }
         }
     }
 
+    // dedup and sort features
+    let mut features: Vec<_> = quotes.into_values().collect();
+
+    features.sort();
+
     (section, features)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Feature<'a> {
+    line_col: (usize, usize),
     level: AnnotationLevel,
     quote: Vec<&'a str>,
 }
 
-impl Feature<'_> {
-    pub fn should_add(&self) -> bool {
-        match self.compound_level() {
-            Some(level) => level == self.level,
-            None => true,
+impl fmt::Debug for Feature<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // don't show line_col, since it's just for sorting
+        f.debug_struct("Feature")
+            .field("level", &self.level)
+            .field("quote", &self.quote)
+            .finish()
+    }
+}
+
+fn quote_from_range(lines: &[Line], start: (usize, usize), end: (usize, usize)) -> Vec<&str> {
+    let mut quote = vec![];
+
+    #[allow(clippy::needless_range_loop)]
+    for i in start.0..=end.0 {
+        // The requirement didn't end with a period so stop processing
+        if i == lines.len() {
+            break;
+        }
+
+        match &lines[i] {
+            Line::Break => {
+                continue;
+            }
+            Line::Str(line) => {
+                let mut line = &line[..];
+
+                if i == end.0 {
+                    line = &line[..end.1];
+                }
+
+                if i == start.0 {
+                    line = &line[start.1..];
+                }
+
+                line = line.trim();
+
+                if !line.is_empty() {
+                    quote.push(line);
+                }
+            }
         }
     }
 
-    pub fn compound_level(&self) -> Option<AnnotationLevel> {
-        KEY_WORDS_SET
-            .matches(&self.quote.join("\n"))
-            .iter()
-            .map(|i| KEY_WORDS[i].1)
-            .max()
-    }
+    quote
 }
 
 fn find_open(lines: &[Line], lineno: usize, start: usize) -> (usize, usize) {

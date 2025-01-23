@@ -1,5 +1,5 @@
 ---
-source: src/extract/tests.rs
+source: duvet/src/extract/tests.rs
 expression: results
 ---
 [
@@ -64,18 +64,6 @@ expression: results
         },
     ),
     (
-        "input",
-        Feature {
-            level: Must,
-            quote: [
-                "If a caller is able to specify both an input [plaintext ](#plaintext) with known length and",
-                "a [Plaintext Length Bound](#plaintext-length-bound),",
-                "the [Plaintext Length Bound](#plaintext-length-bound) MUST NOT be used during the Encrypt operation",
-                "and MUST be ignored.",
-            ],
-        },
-    ),
-    (
         "plaintext",
         Feature {
             level: Must,
@@ -119,15 +107,6 @@ expression: results
             level: Should,
             quote: [
                 "The [algorithm suite](../framework/algorithm-suites.md) that SHOULD be used for encryption.",
-            ],
-        },
-    ),
-    (
-        "frame-length",
-        Feature {
-            level: Must,
-            quote: [
-                "This value MUST be greater than 0 and MUST NOT exceed the value 2^32 - 1.",
             ],
         },
     ),
@@ -241,16 +220,6 @@ expression: results
             level: Must,
             quote: [
                 "Otherwise the encrypt operation MUST NOT perform this step.",
-            ],
-        },
-    ),
-    (
-        "behavior",
-        Feature {
-            level: Must,
-            quote: [
-                "This operation MUST perform all the above steps unless otherwise specified,",
-                "and it MUST perform them in the above order.",
             ],
         },
     ),
@@ -549,66 +518,8 @@ expression: results
         Feature {
             level: Must,
             quote: [
-                "- [Algorithm Suite ID](../data-format/message-header.md#algorithm-suite-id): MUST correspond to",
-                "the [algorithm suite](../framework/algorithm-suites.md) used in this behavior",
-            ],
-        },
-    ),
-    (
-        "construct-the-header",
-        Feature {
-            level: Must,
-            quote: [
-                "- [Message ID](../data-format/message-header.md#message-id): The process used to generate",
-                "this identifier MUST use a good source of randomness to make the chance of duplicate identifiers negligible.",
-            ],
-        },
-    ),
-    (
-        "construct-the-header",
-        Feature {
-            level: Must,
-            quote: [
-                "- [AAD](../data-format/message-header.md#aad): MUST be the serialization of the [encryption context](../framework/structures.md#encryption-context)",
-                "in the [encryption materials](../framework/structures.md#encryption-materials)",
-            ],
-        },
-    ),
-    (
-        "construct-the-header",
-        Feature {
-            level: Must,
-            quote: [
-                "- [Encrypted Data Keys](../data-format/message-header.md#encrypted-data-key-entries): MUST be the serialization of the",
-                "[encrypted data keys](../framework/structures.md#encrypted-data-keys) in the [encryption materials](../framework/structures.md#encryption-materials)",
-            ],
-        },
-    ),
-    (
-        "construct-the-header",
-        Feature {
-            level: Must,
-            quote: [
-                "- [Content Type](../data-format/message-header.md#content-type): MUST be [02](../data-format/message-header.md#supported-content-types)",
-            ],
-        },
-    ),
-    (
-        "construct-the-header",
-        Feature {
-            level: Must,
-            quote: [
                 "- [IV Length](../data-format/message-header.md#iv-length): MUST match the [IV length](../framework/algorithm-suites.md#iv-length)",
                 "specified by the [algorithm suite](../framework/algorithm-suites.md)",
-            ],
-        },
-    ),
-    (
-        "construct-the-header",
-        Feature {
-            level: Must,
-            quote: [
-                "- [Frame Length](../data-format/message-header.md#frame-length): MUST be the value of the frame size determined above.",
             ],
         },
     ),
@@ -671,16 +582,6 @@ expression: results
             quote: [
                 "- [IV](../data-format/message-header.md#iv): MUST have the value of the IV used in the calculation above,",
                 "padded to the [IV length](../data-format/message-header.md#iv-length) with 0.",
-            ],
-        },
-    ),
-    (
-        "construct-the-header",
-        Feature {
-            level: Must,
-            quote: [
-                "- [Authentication Tag](../data-format/message-header.md#authentication-tag): MUST have the value",
-                "of the authentication tag calculated above.",
             ],
         },
     ),
@@ -873,28 +774,7 @@ expression: results
         Feature {
             level: Must,
             quote: [
-                "- For a final frame this MUST be the length of the remaining plaintext bytes",
-                "which have not yet been encrypted,",
-                "whose length MUST be equal to or less than the frame length.",
-            ],
-        },
-    ),
-    (
-        "construct-a-frame",
-        Feature {
-            level: Must,
-            quote: [
                 "- For a regular frame the length of this plaintext subsequence MUST equal the frame length.",
-            ],
-        },
-    ),
-    (
-        "construct-a-frame",
-        Feature {
-            level: Must,
-            quote: [
-                "- For a final frame this MUST be the remaining plaintext bytes which have not yet been encrypted,",
-                "whose length MUST be equal to or less than the frame length.",
             ],
         },
     ),
@@ -1003,17 +883,6 @@ expression: results
         Feature {
             level: Must,
             quote: [
-                "If the [algorithm suite](../framework/algorithm-suites.md) contains a [signature algorithm](../framework/algorithm-suites.md#signature-algorithm),",
-                "this operation MUST calculate a signature over the message,",
-                "and the output [encrypted message](#encrypted-message) MUST contain a [message footer](../data-format/message-footer.md).",
-            ],
-        },
-    ),
-    (
-        "construct-the-signature",
-        Feature {
-            level: Must,
-            quote: [
                 "To calculate a signature, this operation MUST use the [signature algorithm](../framework/algorithm-suites.md#signature-algorithm)",
                 "specified by the [algorithm suite](../framework/algorithm-suites.md), with the following input:",
             ],
@@ -1062,17 +931,6 @@ expression: results
             level: Must,
             quote: [
                 "The above serialized bytes MUST NOT be released until the entire message footer has been serialized.",
-            ],
-        },
-    ),
-    (
-        "construct-the-signature",
-        Feature {
-            level: Must,
-            quote: [
-                "Once the entire message footer has been serialized,",
-                "this operation MUST release any previously unreleased serialized bytes from previous steps",
-                "and MUST release the message footer.",
             ],
         },
     ),
