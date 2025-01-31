@@ -116,7 +116,9 @@ impl TargetPath {
 
         // URL style path
         if path.contains("://") {
-            let url = Url::parse(path).into_diagnostic()?;
+            let path = Self::canonical_url(path);
+            let url = Url::parse(&path).into_diagnostic()?;
+
             return Ok(Self::Url(url));
         }
 
@@ -127,7 +129,6 @@ impl TargetPath {
     pub async fn load(&self, spec_download_path: &Path) -> Result<SourceFile> {
         match self {
             Self::Url(url) => {
-                let canonical_url = Self::canonical_url(url.as_str()).to_string();
                 let path = self.local(spec_download_path);
 
                 let progress = if !path.exists() {
@@ -136,7 +137,7 @@ impl TargetPath {
                     None
                 };
 
-                let out = duvet_core::http::get_cached_string(canonical_url, path).await?;
+                let out = duvet_core::http::get_cached_string(url.clone(), path).await?;
 
                 if let Some(progress) = progress {
                     progress!(progress, "Downloaded {url}");
@@ -153,19 +154,8 @@ impl TargetPath {
             Self::Url(url) => {
                 let mut path = spec_download_path.to_path_buf();
 
-                let mut push_url = |url: &Url| {
-                    path.push(url.host_str().expect("url should have host"));
-                    path.extend(url.path_segments().expect("url should have path"));
-                };
-
-                let canonical_url = Self::canonical_url(url.as_str());
-
-                if matches!(canonical_url, Cow::Borrowed(_)) {
-                    push_url(url)
-                } else {
-                    let url = Url::parse(&canonical_url).unwrap();
-                    push_url(&url)
-                }
+                path.push(url.host_str().expect("url should have host"));
+                path.extend(url.path_segments().expect("url should have path"));
 
                 path.set_extension("txt");
                 path.into()

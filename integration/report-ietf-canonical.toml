@@ -1,0 +1,29 @@
+source = { local = true }
+cmd = ["duvet report"]
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/my-code.rs"
+
+[[specification]]
+source = "https://www.rfc-editor.org/rfc/rfc2324"
+
+[[specification]]
+source = "https://datatracker.ietf.org/doc/html/rfc2324"
+"""
+
+[[file]]
+path = "src/my-code.rs"
+contents = """
+//= https://www.rfc-editor.org/rfc/rfc2324#section-2.1.1
+//# A coffee pot server MUST accept both the BREW and POST method
+//# equivalently.
+
+//= https://datatracker.ietf.org/doc/html/rfc2324#section-2.1.1
+//# A coffee pot server MUST accept both the BREW and POST method
+//# equivalently.
+"""
