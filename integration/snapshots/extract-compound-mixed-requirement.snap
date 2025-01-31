@@ -1,0 +1,7 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [Testing](my-spec.md)
+  SECTION: [Testing](#testing)
+    TEXT[!MUST]: This SHOULD support compound requirements and it MUST deduplicate them for now.
