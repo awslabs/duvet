@@ -19,7 +19,7 @@ env:
   RUST_BACKTRACE: 1
   # Pin the nightly toolchain to prevent breakage.
   # This should be occasionally updated.
-  RUST_NIGHTLY_TOOLCHAIN: nightly-2024-10-07
+  RUST_NIGHTLY_TOOLCHAIN: nightly-2025-04-23
 
 jobs:
   env:
