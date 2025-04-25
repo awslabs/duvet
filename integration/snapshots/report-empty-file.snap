@@ -1,0 +1,5 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+

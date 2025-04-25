@@ -4,7 +4,7 @@
 use core::ops::{Deref, Range};
 use duvet_core::file::{Slice, SourceFile};
 
-pub fn view<'a, C>(contents: C) -> View
+pub fn view<'a, C>(contents: C) -> Option<View>
 where
     C: IntoIterator<Item = &'a Slice>,
 {
@@ -19,7 +19,7 @@ pub struct View {
 }
 
 impl View {
-    pub fn new<'a, C>(contents: C) -> Self
+    pub fn new<'a, C>(contents: C) -> Option<Self>
     where
         C: Iterator<Item = &'a Slice>,
     {
@@ -50,13 +50,13 @@ impl View {
         }
 
         debug_assert_eq!(value.len(), byte_map.len());
-        let file = file.expect("at least one chunk");
+        let file = file?;
 
-        Self {
+        Some(Self {
             value,
             byte_map,
             file,
-        }
+        })
     }
 
     pub fn ranges(&self, src: Range<usize>) -> StrRangeIter {

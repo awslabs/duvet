@@ -98,7 +98,10 @@ pub async fn build_references(
         return (references.into(), errors.into());
     };
 
-    let contents = section.view();
+    // the file is empty
+    let Some(contents) = section.view() else {
+        return (references.into(), errors.into());
+    };
 
     for annotation in annotations.iter() {
         if annotation.quote.is_empty() {
