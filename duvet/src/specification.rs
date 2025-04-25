@@ -153,7 +153,7 @@ pub struct Section {
 }
 
 impl Section {
-    pub fn view(&self) -> crate::text::view::View {
+    pub fn view(&self) -> Option<crate::text::view::View> {
         crate::text::view(self.lines.iter().filter_map(|l| match l {
             Line::Str(slice) => Some(slice),
             Line::Break => None,
