@@ -1,5 +1,5 @@
 ---
-source: src/extract/tests.rs
+source: duvet/src/extract/tests.rs
 expression: results
 ---
 [
@@ -180,16 +180,6 @@ expression: results
             level: Must,
             quote: [
                 "Otherwise this operation MUST NOT perform this step.",
-            ],
-        },
-    ),
-    (
-        "behavior",
-        Feature {
-            level: Must,
-            quote: [
-                "This operation MUST perform all the above steps unless otherwise specified,",
-                "and it MUST perform them in the above order.",
             ],
         },
     ),
@@ -505,18 +495,6 @@ expression: results
         Feature {
             level: Must,
             quote: [
-                "If deserializing [framed data](../data-format/message-body.md#framed-data),",
-                "this operation MUST use the first 4 bytes of a frame to determine if the frame",
-                "MUST be deserialized as a [final frame](../data-format/message-body.md#final-frame)",
-                "or [regular frame](../fata-format/message-body/md#regular-frame).",
-            ],
-        },
-    ),
-    (
-        "decrypt-the-message-body",
-        Feature {
-            level: Must,
-            quote: [
                 "If the first 4 bytes have a value of 0xFFFF,",
                 "then this MUST be deserialized as the [sequence number end](../data-format/message-header.md#sequence-number-end)",
                 "and the following bytes according to the [final frame spec](../data-format/message-body.md#final-frame).",
@@ -737,16 +715,6 @@ expression: results
             quote: [
                 "This means that callers that process such released plaintext MUST NOT consider any processing successful",
                 "until this operation completes successfully.",
-            ],
-        },
-    ),
-    (
-        "security-considerations",
-        Feature {
-            level: Must,
-            quote: [
-                "Additionally, if this operation fails, callers MUST discard the released plaintext and encryption context",
-                "and MUST rollback any processing done due to the released plaintext or encryption context.",
             ],
         },
     ),

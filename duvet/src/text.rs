@@ -3,6 +3,7 @@
 
 pub mod find;
 pub mod view;
+pub mod whitespace;
 
 pub use find::find;
 pub use view::view;
