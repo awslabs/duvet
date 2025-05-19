@@ -7,26 +7,26 @@ SPECIFICATION: [Duvet MCP Server Requirements](docs/rfcs/0001-mcp-server.md)
     TEXT[!MUST]: It MUST enable AI models to query, validate, and analyze traceability data, ensuring requirements are properly linked to code implementations.
 
   SECTION: [3.1 Protocol Requirements](#3-1-protocol-requirements)
-    TEXT[!MUST]: - MUST implement the Model Context Protocol (MCP)
-    TEXT[!MUST]: - MUST support JSON-RPC method calls
-    TEXT[!MUST]: - MUST provide a stdio interface
-    TEXT[!MUST]: - MUST support the `duvet mcp` command for startup
-    TEXT[!SHOULD]: - SHOULD support graceful shutdown
+    TEXT[!MUST,test]: - MUST implement the Model Context Protocol (MCP)
+    TEXT[!MUST,test]: - MUST support JSON-RPC method calls
+    TEXT[!MUST,test]: - MUST provide a stdio interface
+    TEXT[!MUST,test]: - MUST support the `duvet mcp` command for startup
+    TEXT[!SHOULD,test]: - SHOULD support graceful shutdown
 
   SECTION: [3.2 Architecture Requirements](#3-2-architecture-requirements)
-    TEXT[!MUST]: - MUST follow a client-server model
-    TEXT[!MUST]: - MUST implement a hierarchical resource structure
-    TEXT[!MUST]: - MUST support concurrent resource access
-    TEXT[!MUST]: - MUST maintain data consistency
+    TEXT[!MUST,test]: - MUST follow a client-server model
+    TEXT[!MUST,test]: - MUST implement a hierarchical resource structure
+    TEXT[!MUST,test]: - MUST support concurrent resource access
+    TEXT[!MUST,test]: - MUST maintain data consistency
     TEXT[!SHOULD]: - SHOULD implement caching for frequently accessed resources
 
   SECTION: [3.3 Integration Requirements](#3-3-integration-requirements)
-    TEXT[!MUST]: - MUST integrate with existing Duvet components:
-    TEXT[!MUST]:   - MUST use specification.rs for specification parsing and management
-    TEXT[!MUST]:   - MUST use reference.rs for citation handling
-    TEXT[!MUST]:   - MUST use annotation.rs for code annotation processing
-    TEXT[!MUST]: - MUST maintain backward compatibility with existing Duvet file formats
-    TEXT[!MUST]: - MUST preserve existing Duvet functionality
+    TEXT[!MUST,test]: - MUST integrate with existing Duvet components:
+    TEXT[!MUST,test]:   - MUST use specification.rs for specification parsing and management
+    TEXT[!MUST,test]:   - MUST use reference.rs for citation handling
+    TEXT[!MUST,test]:   - MUST use annotation.rs for code annotation processing
+    TEXT[!MUST,test]: - MUST maintain backward compatibility with existing Duvet file formats
+    TEXT[!MUST,test]: - MUST preserve existing Duvet functionality
     TEXT[!SHOULD]: - SHOULD reuse existing code where possible
     TEXT[!SHOULD]: - SHOULD extend existing types rather than duplicate them
 
@@ -81,7 +81,7 @@ SPECIFICATION: [Duvet MCP Server Requirements](docs/rfcs/0001-mcp-server.md)
 
   SECTION: [4.4 Requirement Resources](#4-4-requirement-resources)
     TEXT[!MUST]: - MUST list all requirements within a section
-    TEXT[!MUST]: - MUST generate unique requirement identifiers using SHA-256 hashing
+    TEXT[!MUST]: - MUST generate unique requirement identifiers using BLAKE3 hashing
     TEXT[!MUST]: - MUST include requirement metadata:
     TEXT[!MUST]: - MUST track requirement implementation status
     TEXT[!SHOULD]: - SHOULD support requirement categorization

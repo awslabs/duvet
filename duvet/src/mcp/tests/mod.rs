@@ -6,10 +6,9 @@
 use crate::{Result, mcp::server::Server, project::Project};
 use duvet_core::{env, error, path::Path};
 use rmcp::{
-    Error as RmcpError, RoleClient, ServiceExt,
+    RoleClient, ServiceExt,
     service::{QuitReason, RunningService},
 };
-use serde_json::Value;
 use std::{io, ops, sync::Arc};
 use tempfile::TempDir;
 use tokio::io::duplex;
@@ -70,18 +69,13 @@ impl Test {
         let server = Server::new(project).await.unwrap();
         env::set_current_dir(ctx.root.clone());
 
-        // Spawn the server on a new task
+        // Start the server
         tokio::spawn(async move {
-            match server.serve(stream).await {
-                Ok(_server) => {
-                    eprintln!("server shutting down")
-                }
-                Err(err) => {
-                    panic!("server encountered error: {err:?}");
-                }
-            }
+            let server = server.serve(stream).await.unwrap();
+            server.waiting().await.unwrap();
         });
 
+        // Initialize the client
         let client = ().serve(client).await?;
 
         Ok(Self { client })
@@ -107,27 +101,6 @@ impl ops::Deref for Test {
 impl ops::DerefMut for Test {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.client
-    }
-}
-
-/// JSON-RPC response from the server
-#[derive(Debug, serde::Deserialize)]
-pub struct JsonRpcResponse {
-    pub id: u64,
-    #[serde(default)]
-    pub result: Value,
-    pub error: Option<JsonRpcError>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct JsonRpcError {
-    pub code: i32,
-    pub message: String,
-}
-
-impl JsonRpcResponse {
-    pub fn is_success(&self) -> bool {
-        self.error.is_none()
     }
 }
 

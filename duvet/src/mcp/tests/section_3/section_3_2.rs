@@ -3,4 +3,90 @@
 
 //! Tests for Section 3.2: Architecture Requirements
 
-// TODO: Implement architecture requirement tests
+use crate::mcp::tests::{Test, TestContext};
+use std::sync::Arc;
+
+#[tokio::test]
+async fn test_client_server_model() {
+    //= docs/rfcs/0001-mcp-server.md#3-2-architecture-requirements
+    //= type=test
+    //# - MUST follow a client-server model
+    let ctx = Arc::new(TestContext::new().unwrap());
+    let client = Test::start(ctx).await.unwrap();
+
+    // Test that client can communicate with server
+    let resources = client.list_all_resources().await.unwrap();
+    assert!(!resources.is_empty());
+}
+
+#[tokio::test]
+async fn test_hierarchical_resource_structure() {
+    //= docs/rfcs/0001-mcp-server.md#3-2-architecture-requirements
+    //= type=test
+    //# - MUST implement a hierarchical resource structure
+    let ctx = Arc::new(TestContext::new().unwrap());
+    let client = Test::start(ctx).await.unwrap();
+
+    // Test that resources are organized hierarchically
+    // First get specifications
+    let specs = client.list_resources("/specifications").await.unwrap();
+    assert!(!specs.is_empty());
+
+    // Then get sections within first specification
+    let spec_uri = &specs[0].raw.uri;
+    let sections = client
+        .list_resources(&format!("{}/sections", spec_uri))
+        .await
+        .unwrap();
+    assert!(!sections.is_empty());
+
+    // Then get requirements within first section
+    let section_uri = &sections[0].raw.uri;
+    let requirements = client
+        .list_resources(&format!("{}/requirements", section_uri))
+        .await
+        .unwrap();
+    assert!(!requirements.is_empty());
+}
+
+#[tokio::test]
+async fn test_concurrent_resource_access() {
+    //= docs/rfcs/0001-mcp-server.md#3-2-architecture-requirements
+    //= type=test
+    //# - MUST support concurrent resource access
+    let ctx = Arc::new(TestContext::new().unwrap());
+    let client = Test::start(ctx).await.unwrap();
+
+    // Test concurrent access by making multiple requests simultaneously
+    let futures = vec![
+        client.list_resources("/specifications"),
+        client.list_resources("/specifications"),
+        client.list_resources("/specifications"),
+    ];
+
+    // All requests should complete successfully
+    let results = futures::future::join_all(futures).await;
+    for result in results {
+        assert!(result.is_ok());
+    }
+}
+
+#[tokio::test]
+async fn test_data_consistency() {
+    //= docs/rfcs/0001-mcp-server.md#3-2-architecture-requirements
+    //= type=test
+    //# - MUST maintain data consistency
+    let ctx = Arc::new(TestContext::new().unwrap());
+    let client = Test::start(ctx).await.unwrap();
+
+    // Make multiple requests and verify the data is consistent
+    let resources1 = client.list_resources("/specifications").await.unwrap();
+    let resources2 = client.list_resources("/specifications").await.unwrap();
+
+    // Both requests should return the same data
+    assert_eq!(resources1.len(), resources2.len());
+    for (r1, r2) in resources1.iter().zip(resources2.iter()) {
+        assert_eq!(r1.raw.uri, r2.raw.uri);
+        assert_eq!(r1.raw.name, r2.raw.name);
+    }
+}

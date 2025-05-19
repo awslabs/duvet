@@ -10,9 +10,8 @@ use std::sync::Arc;
 async fn test_mcp_protocol_implementation() {
     crate::tracing::init();
 
-    //= docs/rfcs/0001-mcp-server.md#31-protocol-requirements
+    //= docs/rfcs/0001-mcp-server.md#3-1-protocol-requirements
     //= type=test
-    //# The server:
     //# - MUST implement the Model Context Protocol (MCP)
     let ctx = Arc::new(TestContext::new().unwrap());
     let client = Test::start(ctx).await.unwrap();
@@ -24,9 +23,8 @@ async fn test_mcp_protocol_implementation() {
 
 #[tokio::test]
 async fn test_json_rpc_support() {
-    //= docs/rfcs/0001-mcp-server.md#31-protocol-requirements
+    //= docs/rfcs/0001-mcp-server.md#3-1-protocol-requirements
     //= type=test
-    //# The server:
     //# - MUST support JSON-RPC method calls
     let ctx = Arc::new(TestContext::new().unwrap());
     let client = Test::start(ctx).await.unwrap();
@@ -47,9 +45,8 @@ async fn test_json_rpc_support() {
 
 #[tokio::test]
 async fn test_stdio_interface() {
-    //= docs/rfcs/0001-mcp-server.md#31-protocol-requirements
+    //= docs/rfcs/0001-mcp-server.md#3-1-protocol-requirements
     //= type=test
-    //# The server:
     //# - MUST provide a stdio interface
     let ctx = Arc::new(TestContext::new().unwrap());
     let client = Test::start(ctx).await.unwrap();
@@ -61,9 +58,8 @@ async fn test_stdio_interface() {
 
 #[tokio::test]
 async fn test_startup_command() {
-    //= docs/rfcs/0001-mcp-server.md#31-protocol-requirements
+    //= docs/rfcs/0001-mcp-server.md#3-1-protocol-requirements
     //= type=test
-    //# The server:
     //# - MUST support the `duvet mcp` command for startup
     let ctx = Arc::new(TestContext::new().unwrap());
     let client = Test::start(ctx).await.unwrap();
@@ -75,9 +71,8 @@ async fn test_startup_command() {
 
 #[tokio::test]
 async fn test_graceful_shutdown() {
-    //= docs/rfcs/0001-mcp-server.md#31-protocol-requirements
+    //= docs/rfcs/0001-mcp-server.md#3-1-protocol-requirements
     //= type=test
-    //# The server:
     //# - SHOULD support graceful shutdown
     let ctx = Arc::new(TestContext::new().unwrap());
     let client = Test::start(ctx).await.unwrap();
