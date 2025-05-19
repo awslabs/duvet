@@ -8,8 +8,9 @@ use crate::{
     mcp::tests::{Test, TestContext},
     project::Project,
     reference::{self, Reference},
-    specification::SpecificationMap,
+    target::SpecificationMap,
 };
+use rmcp::model::PaginatedRequestParam;
 use std::sync::Arc;
 
 #[tokio::test]
@@ -22,8 +23,9 @@ async fn test_specification_integration() {
     let client = Test::start(ctx).await.unwrap();
 
     // Test that specifications are parsed using specification.rs
-    let specs = client.list_resources("/specifications").await.unwrap();
-    assert!(!specs.is_empty());
+    let param = Some(PaginatedRequestParam { cursor: None });
+    let specs = client.list_resources(param).await.unwrap();
+    assert!(!specs.resources.is_empty());
 
     // Verify the specification metadata matches what specification.rs provides
     let project = Project::default();
@@ -34,7 +36,7 @@ async fn test_specification_integration() {
         .unwrap();
 
     // The server should use the same specifications as specification.rs
-    assert_eq!(specs.len(), specifications.len());
+    assert_eq!(specs.resources.len(), specifications.len());
 }
 
 #[tokio::test]
@@ -46,28 +48,20 @@ async fn test_reference_integration() {
     let client = Test::start(ctx).await.unwrap();
 
     // Get a specification and its citations
-    let specs = client.list_resources("/specifications").await.unwrap();
-    assert!(!specs.is_empty());
+    let param = Some(PaginatedRequestParam { cursor: None });
+    let specs = client.list_resources(param.clone()).await.unwrap();
+    assert!(!specs.resources.is_empty());
 
-    let spec_uri = &specs[0].raw.uri;
-    let sections = client
-        .list_resources(&format!("{}/sections", spec_uri))
-        .await
-        .unwrap();
-    assert!(!sections.is_empty());
+    let spec_uri = &specs.resources[0].raw.uri;
+    let sections = client.list_resources(param.clone()).await.unwrap();
+    assert!(!sections.resources.is_empty());
 
-    let section_uri = &sections[0].raw.uri;
-    let requirements = client
-        .list_resources(&format!("{}/requirements", section_uri))
-        .await
-        .unwrap();
-    assert!(!requirements.is_empty());
+    let section_uri = &sections.resources[0].raw.uri;
+    let requirements = client.list_resources(param.clone()).await.unwrap();
+    assert!(!requirements.resources.is_empty());
 
-    let req_uri = &requirements[0].raw.uri;
-    let citations = client
-        .list_resources(&format!("{}/citations", req_uri))
-        .await
-        .unwrap();
+    let req_uri = &requirements.resources[0].raw.uri;
+    let citations = client.list_resources(param.clone()).await.unwrap();
 
     // Verify citations match what reference.rs provides
     let project = Project::default();
@@ -82,7 +76,7 @@ async fn test_reference_integration() {
         .unwrap();
 
     // The server should use the same citations as reference.rs
-    assert_eq!(citations.len(), references.len());
+    assert_eq!(citations.resources.len(), references.len());
 }
 
 #[tokio::test]
@@ -94,8 +88,9 @@ async fn test_annotation_integration() {
     let client = Test::start(ctx).await.unwrap();
 
     // Get all citations across the project
-    let citations = client.list_resources("/citations").await.unwrap();
-    assert!(!citations.is_empty());
+    let param = Some(PaginatedRequestParam { cursor: None });
+    let citations = client.list_resources(param).await.unwrap();
+    assert!(!citations.resources.is_empty());
 
     // Verify annotations match what annotation.rs provides
     let project = Project::default();
@@ -103,7 +98,7 @@ async fn test_annotation_integration() {
     let annotations = annotation::query(Arc::new(project_sources)).await.unwrap();
 
     // The server should use the same annotations as annotation.rs
-    assert_eq!(citations.len(), annotations.len());
+    assert_eq!(citations.resources.len(), annotations.len());
 }
 
 #[tokio::test]
@@ -120,8 +115,9 @@ async fn test_backward_compatibility() {
     let annotations = annotation::query(Arc::new(project_sources)).await.unwrap();
 
     // The server should be able to process all existing annotations
-    let citations = client.list_resources("/citations").await.unwrap();
-    assert_eq!(citations.len(), annotations.len());
+    let param = Some(PaginatedRequestParam { cursor: None });
+    let citations = client.list_resources(param).await.unwrap();
+    assert_eq!(citations.resources.len(), annotations.len());
 }
 
 #[tokio::test]
@@ -156,6 +152,7 @@ async fn test_preserve_functionality() {
     assert!(!annotations.is_empty());
 
     // The server should maintain all this functionality
-    let citations = client.list_resources("/citations").await.unwrap();
-    assert!(!citations.is_empty());
+    let param = Some(PaginatedRequestParam { cursor: None });
+    let citations = client.list_resources(param).await.unwrap();
+    assert!(!citations.resources.is_empty());
 }

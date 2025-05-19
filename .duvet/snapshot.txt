@@ -31,26 +31,31 @@ SPECIFICATION: [Duvet MCP Server Requirements](docs/rfcs/0001-mcp-server.md)
     TEXT[!SHOULD]: - SHOULD extend existing types rather than duplicate them
 
   SECTION: [3.4 Data Management Requirements](#3-4-data-management-requirements)
-    TEXT[!MUST]: - MUST implement a caching strategy that:
-    TEXT[!MUST]: - MUST handle data persistence:
-    TEXT[!MUST]:   - MUST support in-memory storage for active sessions
+    TEXT[!MUST,test]: - MUST implement a caching strategy that:
+    TEXT[test]:   - Caches frequently accessed specifications
+    TEXT[test]:   - Caches validation results
+    TEXT[!MUST,test]: - MUST handle data persistence:
+    TEXT[!MUST,test]:   - MUST support in-memory storage for active sessions
     TEXT[!MUST]:   - MUST persist citation data to disk
-    TEXT[!MUST]:   - MUST maintain data integrity during crashes
+    TEXT[!MUST,test]:   - MUST maintain data integrity during crashes
     TEXT[!SHOULD]:   - SHOULD support configurable storage backends
     TEXT[!MUST]: - MUST implement cache invalidation:
 
   SECTION: [3.5 Concurrency Requirements](#3-5-concurrency-requirements)
-    TEXT[!MUST]: - MUST implement thread-safe resource access:
-    TEXT[!MUST]:   - MUST use appropriate synchronization primitives
-    TEXT[!MUST]:   - MUST prevent data races
+    TEXT[!MUST,test]: - MUST implement thread-safe resource access:
+    TEXT[!MUST,test]:   - MUST use appropriate synchronization primitives
+    TEXT[!MUST,test]:   - MUST prevent data races
     TEXT[!MUST]:   - MUST handle deadlock prevention
     TEXT[!SHOULD]:   - SHOULD support read/write locks for improved performance
-    TEXT[!MUST]: - MUST handle concurrent requests:
-    TEXT[!MUST]:   - MUST support multiple simultaneous clients
-    TEXT[!MUST]:   - MUST maintain request isolation
+    TEXT[!MUST,test]: - MUST handle concurrent requests:
+    TEXT[!MUST,test]:   - MUST support multiple simultaneous clients
+    TEXT[!MUST,test]:   - MUST maintain request isolation
     TEXT[!MUST]:   - MUST implement request queuing
     TEXT[!SHOULD]:   - SHOULD support request prioritization
-    TEXT[!MUST]: - MUST implement resource locking:
+    TEXT[!MUST,test]: - MUST implement resource locking:
+    TEXT[test]:   - For citation updates
+    TEXT[test]:   - For specification modifications
+    TEXT[test]:   - With timeout mechanisms
 
   SECTION: [3.6 Performance Requirements](#3-6-performance-requirements)
     TEXT[!MUST]: - MUST respond to resource requests within 500ms

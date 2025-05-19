@@ -4,6 +4,7 @@
 //! Tests for Section 3.2: Architecture Requirements
 
 use crate::mcp::tests::{Test, TestContext};
+use rmcp::model::{Annotated, PaginatedRequestParam, RawResource};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -29,24 +30,21 @@ async fn test_hierarchical_resource_structure() {
 
     // Test that resources are organized hierarchically
     // First get specifications
-    let specs = client.list_resources("/specifications").await.unwrap();
-    assert!(!specs.is_empty());
+    let param = Some(PaginatedRequestParam { cursor: None });
+    let specs = client.list_resources(param.clone()).await.unwrap();
+    assert!(!specs.resources.is_empty());
 
     // Then get sections within first specification
-    let spec_uri = &specs[0].raw.uri;
-    let sections = client
-        .list_resources(&format!("{}/sections", spec_uri))
-        .await
-        .unwrap();
-    assert!(!sections.is_empty());
+    let spec_uri = &specs.resources[0].raw.uri;
+    let param = Some(PaginatedRequestParam { cursor: None });
+    let sections = client.list_resources(param.clone()).await.unwrap();
+    assert!(!sections.resources.is_empty());
 
     // Then get requirements within first section
-    let section_uri = &sections[0].raw.uri;
-    let requirements = client
-        .list_resources(&format!("{}/requirements", section_uri))
-        .await
-        .unwrap();
-    assert!(!requirements.is_empty());
+    let section_uri = &sections.resources[0].raw.uri;
+    let param = Some(PaginatedRequestParam { cursor: None });
+    let requirements = client.list_resources(param.clone()).await.unwrap();
+    assert!(!requirements.resources.is_empty());
 }
 
 #[tokio::test]
@@ -58,16 +56,18 @@ async fn test_concurrent_resource_access() {
     let client = Test::start(ctx).await.unwrap();
 
     // Test concurrent access by making multiple requests simultaneously
+    let param = Some(PaginatedRequestParam { cursor: None });
     let futures = vec![
-        client.list_resources("/specifications"),
-        client.list_resources("/specifications"),
-        client.list_resources("/specifications"),
+        client.list_resources(param.clone()),
+        client.list_resources(param.clone()),
+        client.list_resources(param.clone()),
     ];
 
     // All requests should complete successfully
     let results = futures::future::join_all(futures).await;
     for result in results {
-        assert!(result.is_ok());
+        let resources = result.unwrap();
+        assert!(!resources.resources.is_empty());
     }
 }
 
@@ -80,12 +80,13 @@ async fn test_data_consistency() {
     let client = Test::start(ctx).await.unwrap();
 
     // Make multiple requests and verify the data is consistent
-    let resources1 = client.list_resources("/specifications").await.unwrap();
-    let resources2 = client.list_resources("/specifications").await.unwrap();
+    let param = Some(PaginatedRequestParam { cursor: None });
+    let resources1 = client.list_resources(param.clone()).await.unwrap();
+    let resources2 = client.list_resources(param.clone()).await.unwrap();
 
     // Both requests should return the same data
-    assert_eq!(resources1.len(), resources2.len());
-    for (r1, r2) in resources1.iter().zip(resources2.iter()) {
+    assert_eq!(resources1.resources.len(), resources2.resources.len());
+    for (r1, r2) in resources1.resources.iter().zip(resources2.resources.iter()) {
         assert_eq!(r1.raw.uri, r2.raw.uri);
         assert_eq!(r1.raw.name, r2.raw.name);
     }
