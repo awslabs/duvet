@@ -23,7 +23,7 @@ fn parse_content(content: &Annotated<RawContent>) -> Value {
 
 #[tokio::test]
 async fn test_search_requirements() {
-    //= docs/rfcs/0001-mcp-server.md#5.2
+    //= docs/rfcs/0001-mcp-server.md#5-2-requirement-search-tool
     //= type=test
     //# - MUST support keyword search
     //# - MUST search across all specifications
@@ -52,7 +52,7 @@ async fn test_search_requirements() {
 
 #[tokio::test]
 async fn test_search_no_results() {
-    //= docs/rfcs/0001-mcp-server.md#5.2
+    //= docs/rfcs/0001-mcp-server.md#5-2-requirement-search-tool
     //= type=test
     //# - MUST support keyword search
     let ctx = Arc::new(TestContext::new().unwrap());
@@ -73,7 +73,7 @@ async fn test_search_no_results() {
 
 #[tokio::test]
 async fn test_search_response_format() {
-    //= docs/rfcs/0001-mcp-server.md#5.2
+    //= docs/rfcs/0001-mcp-server.md#5-2-requirement-search-tool
     //= type=test
     //# - MUST return matching requirements with context
     let ctx = Arc::new(TestContext::new().unwrap());

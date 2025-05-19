@@ -26,7 +26,7 @@ fn parse_content(content: &Annotated<RawContent>) -> Value {
 
 #[tokio::test]
 async fn test_get_requirement_status() {
-    //= docs/rfcs/0001-mcp-server.md#5.3
+    //= docs/rfcs/0001-mcp-server.md#5-3-requirement-status-tool
     //= type=test
     //# - MUST track implementation status
     let ctx = Arc::new(TestContext::new().unwrap());
@@ -64,7 +64,7 @@ async fn test_get_requirement_status() {
 
 #[tokio::test]
 async fn test_invalid_requirement() {
-    //= docs/rfcs/0001-mcp-server.md#5.3
+    //= docs/rfcs/0001-mcp-server.md#5-3-requirement-status-tool
     //= type=test
     //# - MUST track implementation status
     let ctx = Arc::new(TestContext::new().unwrap());
@@ -86,7 +86,7 @@ async fn test_invalid_requirement() {
 
 #[tokio::test]
 async fn test_status_values() {
-    //= docs/rfcs/0001-mcp-server.md#5.3
+    //= docs/rfcs/0001-mcp-server.md#5-3-requirement-status-tool
     //= type=test
     //# - MUST support multiple status values
     //# - MUST update status in real-time

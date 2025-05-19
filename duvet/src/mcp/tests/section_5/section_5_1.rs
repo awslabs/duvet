@@ -23,7 +23,7 @@ fn parse_content(content: &Annotated<RawContent>) -> Value {
 
 #[tokio::test]
 async fn test_validate_citation() {
-    //= docs/rfcs/0001-mcp-server.md#5.1
+    //= docs/rfcs/0001-mcp-server.md#5-1-citation-validation-tool
     //= type=test
     //# - MUST verify citation URL format
     //# - MUST validate specification references
@@ -102,7 +102,7 @@ async fn test_validate_citation() {
 
 #[tokio::test]
 async fn test_citation_format() {
-    //= docs/rfcs/0001-mcp-server.md#5.1
+    //= docs/rfcs/0001-mcp-server.md#5-1-citation-validation-tool
     //= type=test
     //# - MUST verify citation URL format
     let ctx = Arc::new(TestContext::new().unwrap());
@@ -142,7 +142,7 @@ async fn test_citation_format() {
 
 #[tokio::test]
 async fn test_citation_response() {
-    //= docs/rfcs/0001-mcp-server.md#5.1
+    //= docs/rfcs/0001-mcp-server.md#5-1-citation-validation-tool
     //= type=test
     //# - MUST provide detailed error messages
     let ctx = Arc::new(TestContext::new().unwrap());

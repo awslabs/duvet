@@ -17,7 +17,7 @@ fn parse_content(content: &Annotated<RawContent>) -> Value {
 
 #[tokio::test]
 async fn test_list_invalid_citations() {
-    //= docs/rfcs/0001-mcp-server.md#5.5
+    //= docs/rfcs/0001-mcp-server.md#5-5-invalid-citations-tool
     //= type=test
     //# - MUST detect broken references
     //# - MUST identify malformed citations
@@ -47,7 +47,7 @@ async fn test_list_invalid_citations() {
 
 #[tokio::test]
 async fn test_invalid_citations_format() {
-    //= docs/rfcs/0001-mcp-server.md#5.5
+    //= docs/rfcs/0001-mcp-server.md#5-5-invalid-citations-tool
     //= type=test
     //# - MUST provide error context
     //# - MUST suggest corrections
@@ -76,7 +76,7 @@ async fn test_invalid_citations_format() {
 
 #[tokio::test]
 async fn test_verify_invalid() {
-    //= docs/rfcs/0001-mcp-server.md#5.5
+    //= docs/rfcs/0001-mcp-server.md#5-5-invalid-citations-tool
     //= type=test
     //# - MUST detect broken references
     //# - MUST identify malformed citations

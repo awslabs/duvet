@@ -17,7 +17,7 @@ fn parse_content(content: &Annotated<RawContent>) -> Value {
 
 #[tokio::test]
 async fn test_get_prioritized_requirements() {
-    //= docs/rfcs/0001-mcp-server.md#5.8
+    //= docs/rfcs/0001-mcp-server.md#5-8-requirement-prioritization-tool
     //= type=test
     //# - MUST implement priority sorting based on:
     //#   - Requirement level (MUST > SHOULD > MAY)
@@ -47,7 +47,7 @@ async fn test_get_prioritized_requirements() {
 
 #[tokio::test]
 async fn test_requirement_levels() {
-    //= docs/rfcs/0001-mcp-server.md#5.8
+    //= docs/rfcs/0001-mcp-server.md#5-8-requirement-prioritization-tool
     //= type=test
     //# - MUST implement priority sorting based on:
     //#   - Requirement level (MUST > SHOULD > MAY)
@@ -90,7 +90,7 @@ async fn test_requirement_levels() {
 
 #[tokio::test]
 async fn test_citation_status_order() {
-    //= docs/rfcs/0001-mcp-server.md#5.8
+    //= docs/rfcs/0001-mcp-server.md#5-8-requirement-prioritization-tool
     //= type=test
     //# - MUST maintain consistent ordering
     //# - MUST update priorities in real-time
@@ -143,7 +143,7 @@ async fn test_citation_status_order() {
 
 #[tokio::test]
 async fn test_todo_count_order() {
-    //= docs/rfcs/0001-mcp-server.md#5.8
+    //= docs/rfcs/0001-mcp-server.md#5-8-requirement-prioritization-tool
     //= type=test
     //# - MUST maintain consistent ordering
     //# - MUST update priorities in real-time

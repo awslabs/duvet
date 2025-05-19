@@ -17,7 +17,7 @@ fn parse_content(content: &Annotated<RawContent>) -> Value {
 
 #[tokio::test]
 async fn test_list_uncited_requirements() {
-    //= docs/rfcs/0001-mcp-server.md#5.4
+    //= docs/rfcs/0001-mcp-server.md#5-4-uncited-requirements-tool
     //= type=test
     //# - MUST identify requirements without citations
     let ctx = Arc::new(TestContext::new().unwrap());
@@ -45,7 +45,7 @@ async fn test_list_uncited_requirements() {
 
 #[tokio::test]
 async fn test_uncited_requirements_format() {
-    //= docs/rfcs/0001-mcp-server.md#5.4
+    //= docs/rfcs/0001-mcp-server.md#5-4-uncited-requirements-tool
     //= type=test
     //# - MUST provide requirement context
     //# - MUST include requirement metadata
@@ -73,7 +73,7 @@ async fn test_uncited_requirements_format() {
 
 #[tokio::test]
 async fn test_verify_uncited() {
-    //= docs/rfcs/0001-mcp-server.md#5.4
+    //= docs/rfcs/0001-mcp-server.md#5-4-uncited-requirements-tool
     //= type=test
     //# - MUST identify requirements without citations
     let ctx = Arc::new(TestContext::new().unwrap());

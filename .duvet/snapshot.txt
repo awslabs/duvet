@@ -101,60 +101,60 @@ SPECIFICATION: [Duvet MCP Server Requirements](docs/rfcs/0001-mcp-server.md)
     TEXT[!MUST]: The server MUST provide virtual resources that:
 
   SECTION: [5.1 Citation Validation Tool](#5-1-citation-validation-tool)
-    TEXT[!MUST]: - MUST verify citation URL format
-    TEXT[!MUST]: - MUST validate specification references
-    TEXT[!MUST]: - MUST validate section references
+    TEXT[!MUST,test]: - MUST verify citation URL format
+    TEXT[!MUST,test]: - MUST validate specification references
+    TEXT[!MUST,test]: - MUST validate section references
     TEXT[!MUST]: - MUST validate requirement references
-    TEXT[!MUST]: - MUST provide detailed error messages
+    TEXT[!MUST,test]: - MUST provide detailed error messages
     TEXT[!SHOULD]: - SHOULD cache validation results
 
   SECTION: [5.2 Requirement Search Tool](#5-2-requirement-search-tool)
-    TEXT[!MUST]: - MUST support keyword search
-    TEXT[!MUST]: - MUST search across all specifications
-    TEXT[!MUST]: - MUST return matching requirements with context
+    TEXT[!MUST,test]: - MUST support keyword search
+    TEXT[!MUST,test]: - MUST search across all specifications
+    TEXT[!MUST,test]: - MUST return matching requirements with context
     TEXT[!SHOULD]: - SHOULD support fuzzy matching
     TEXT[!SHOULD]: - SHOULD implement search result ranking
 
   SECTION: [5.3 Requirement Status Tool](#5-3-requirement-status-tool)
-    TEXT[!MUST]: - MUST track implementation status
-    TEXT[!MUST]: - MUST support multiple status values
-    TEXT[!MUST]: - MUST update status in real-time
+    TEXT[!MUST,test]: - MUST track implementation status
+    TEXT[!MUST,test]: - MUST support multiple status values
+    TEXT[!MUST,test]: - MUST update status in real-time
     TEXT[!SHOULD]: - SHOULD provide status history
     TEXT[!SHOULD]: - SHOULD support status notifications
 
   SECTION: [5.4 Uncited Requirements Tool](#5-4-uncited-requirements-tool)
-    TEXT[!MUST]: - MUST identify requirements without citations
-    TEXT[!MUST]: - MUST provide requirement context
-    TEXT[!MUST]: - MUST include requirement metadata
+    TEXT[!MUST,test]: - MUST identify requirements without citations
+    TEXT[!MUST,test]: - MUST provide requirement context
+    TEXT[!MUST,test]: - MUST include requirement metadata
     TEXT[!SHOULD]: - SHOULD prioritize results
     TEXT[!SHOULD]: - SHOULD suggest potential citations
 
   SECTION: [5.5 Invalid Citations Tool](#5-5-invalid-citations-tool)
-    TEXT[!MUST]: - MUST detect broken references
-    TEXT[!MUST]: - MUST identify malformed citations
-    TEXT[!MUST]: - MUST provide error context
-    TEXT[!MUST]: - MUST suggest corrections
+    TEXT[!MUST,test]: - MUST detect broken references
+    TEXT[!MUST,test]: - MUST identify malformed citations
+    TEXT[!MUST,test]: - MUST provide error context
+    TEXT[!MUST,test]: - MUST suggest corrections
     TEXT[!SHOULD]: - SHOULD monitor for new invalid citations
 
   SECTION: [5.6 Citation Context Tool](#5-6-citation-context-tool)
-    TEXT[!MUST]: - MUST retrieve surrounding code
-    TEXT[!MUST]: - MUST support configurable context size
-    TEXT[!MUST]: - MUST preserve code formatting
+    TEXT[!MUST,test]: - MUST retrieve surrounding code
+    TEXT[!MUST,test]: - MUST support configurable context size
+    TEXT[!MUST,test]: - MUST preserve code formatting
     TEXT[!SHOULD]: - SHOULD highlight relevant lines
     TEXT[!SHOULD]: - SHOULD provide syntax highlighting
 
   SECTION: [5.7 Specification Resolution Tool](#5-7-specification-resolution-tool)
-    TEXT[!MUST]: - MUST resolve URLs to specification IDs
-    TEXT[!MUST]: - MUST handle multiple URL formats
-    TEXT[!MUST]: - MUST validate specification existence
+    TEXT[!MUST,test]: - MUST resolve URLs to specification IDs
+    TEXT[!MUST,test]: - MUST handle multiple URL formats
+    TEXT[!MUST,test]: - MUST validate specification existence
     TEXT[!SHOULD]: - SHOULD cache resolution results
     TEXT[!SHOULD]: - SHOULD support URL normalization
 
   SECTION: [5.8 Requirement Prioritization Tool](#5-8-requirement-prioritization-tool)
-    TEXT[!MUST]: - MUST implement priority sorting based on:
-    TEXT[!MUST]:   - Requirement level (MUST > SHOULD > MAY)
-    TEXT[!MUST]: - MUST maintain consistent ordering
-    TEXT[!MUST]: - MUST update priorities in real-time
+    TEXT[!MUST,test]: - MUST implement priority sorting based on:
+    TEXT[!MUST,test]:   - Requirement level (MUST > SHOULD > MAY)
+    TEXT[!MUST,test]: - MUST maintain consistent ordering
+    TEXT[!MUST,test]: - MUST update priorities in real-time
     TEXT[!SHOULD]: - SHOULD support custom prioritization rules
     TEXT[!SHOULD]: - SHOULD provide priority explanations
 

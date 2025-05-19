@@ -23,10 +23,10 @@ fn parse_content(content: &Annotated<RawContent>) -> Value {
 
 #[tokio::test]
 async fn test_resolve_spec_id() {
-    //= docs/rfcs/0001-mcp-server.md#5.7
+    //= docs/rfcs/0001-mcp-server.md#5-7-specification-resolution-tool
     //= type=test
     //# - MUST resolve URLs to specification IDs
-    //# - MUST validate specification existence
+    //# - MUST handle multiple URL formats
     let ctx = Arc::new(TestContext::new().unwrap());
     let client = Test::start(ctx).await.unwrap();
 
@@ -46,7 +46,7 @@ async fn test_resolve_spec_id() {
 
 #[tokio::test]
 async fn test_invalid_url() {
-    //= docs/rfcs/0001-mcp-server.md#5.7
+    //= docs/rfcs/0001-mcp-server.md#5-7-specification-resolution-tool
     //= type=test
     //# - MUST validate specification existence
     let ctx = Arc::new(TestContext::new().unwrap());
@@ -68,7 +68,7 @@ async fn test_invalid_url() {
 
 #[tokio::test]
 async fn test_url_resolution() {
-    //= docs/rfcs/0001-mcp-server.md#5.7
+    //= docs/rfcs/0001-mcp-server.md#5-7-specification-resolution-tool
     //= type=test
     //# - MUST handle multiple URL formats
     let ctx = Arc::new(TestContext::new().unwrap());
@@ -107,7 +107,7 @@ async fn test_url_resolution() {
 
 #[tokio::test]
 async fn test_url_variants() {
-    //= docs/rfcs/0001-mcp-server.md#5.7
+    //= docs/rfcs/0001-mcp-server.md#5-7-specification-resolution-tool
     //= type=test
     //# - MUST handle multiple URL formats
     let ctx = Arc::new(TestContext::new().unwrap());

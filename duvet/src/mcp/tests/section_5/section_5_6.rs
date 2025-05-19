@@ -30,7 +30,7 @@ fn parse_content(content: &Annotated<RawContent>) -> Value {
 
 #[tokio::test]
 async fn test_get_citation_context() {
-    //= docs/rfcs/0001-mcp-server.md#5.6
+    //= docs/rfcs/0001-mcp-server.md#5-6-citation-context-tool
     //= type=test
     //# - MUST retrieve surrounding code
     let ctx = Arc::new(TestContext::new().unwrap());
@@ -73,7 +73,7 @@ async fn test_get_citation_context() {
 
 #[tokio::test]
 async fn test_invalid_citation_id() {
-    //= docs/rfcs/0001-mcp-server.md#5.6
+    //= docs/rfcs/0001-mcp-server.md#5-6-citation-context-tool
     //= type=test
     //# - MUST preserve code formatting
     let ctx = Arc::new(TestContext::new().unwrap());
@@ -95,7 +95,7 @@ async fn test_invalid_citation_id() {
 
 #[tokio::test]
 async fn test_context_lines_parameter() {
-    //= docs/rfcs/0001-mcp-server.md#5.6
+    //= docs/rfcs/0001-mcp-server.md#5-6-citation-context-tool
     //= type=test
     //# - MUST support configurable context size
     let ctx = Arc::new(TestContext::new().unwrap());
