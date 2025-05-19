@@ -7,7 +7,7 @@ use duvet_core::{diagnostic::IntoDiagnostic, path::Path};
 use glob::glob;
 use std::{collections::HashSet, sync::Arc};
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser, Default)]
 pub struct Project {
     #[clap(flatten)]
     deprecated: Deprecated,
@@ -155,4 +155,24 @@ struct Deprecated {
 
     #[clap(long = "spec-path", hide = true)]
     spec_path: Option<Path>,
+}
+
+impl Default for Deprecated {
+    fn default() -> Self {
+        Self {
+            package: None,
+            features: Vec::new(),
+            workspace: false,
+            excludes: Vec::new(),
+            all_features: false,
+            no_default_features: false,
+            no_cargo: false,
+            target: None,
+            target_dir: "target/compliance".to_string(),
+            manifest_path: None,
+            source_patterns: Vec::new(),
+            spec_patterns: Vec::new(),
+            spec_path: None,
+        }
+    }
 }

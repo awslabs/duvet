@@ -6,7 +6,7 @@ authors = [
     "Cameron Bytheway <bythewc@amazon.com>",
     "Ryan Emery <ryanemer@amazon.com>",
 ]
-edition = "2021"
+edition = "2024"
 license = "Apache-2.0"
 repository = "https://github.com/awslabs/duvet"
 include = ["/src/**/*.rs", "/www/public"]
@@ -44,3 +44,7 @@ bolero = "0.12"
 duvet-core = { version = "0.4", path = "../duvet-core", features = ["testing"] }
 insta = { version = "1", features = ["filters", "json"] }
 serde_json = "1"
+tempfile = "3"
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk", features = [
+    "client",
+] }

@@ -17,8 +17,9 @@ mod source;
 mod specification;
 mod target;
 mod text;
+pub mod tracing;
 
-pub use duvet_core::{diagnostic::Error, Result};
+pub use duvet_core::{Result, diagnostic::Error};
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Parser)]

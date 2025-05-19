@@ -12,7 +12,10 @@ use clap::Parser;
 use duvet_core::error;
 use rmcp::{transport::stdio, ServiceExt};
 
-mod server;
+pub mod server;
+
+#[cfg(test)]
+mod tests;
 
 /// Start the MCP server for AI model interaction
 #[derive(Debug, Parser)]

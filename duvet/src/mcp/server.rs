@@ -1,10 +1,10 @@
 use crate::{
+    Result,
     annotation::{self, Annotation, AnnotationSet},
     project::Project,
     reference::{self, Reference},
     source::SourceFile,
     target::SpecificationMap,
-    Result,
 };
 use rmcp::ServerHandler;
 use std::{
@@ -47,8 +47,7 @@ impl ServerHandler for Server {
     fn ping(
         &self,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<Output = std::result::Result<(), rmcp::Error>> + Send + '_
-    {
+    ) -> impl Future<Output = std::result::Result<(), rmcp::Error>> + Send + '_ {
         std::future::ready(Ok(()))
     }
 
@@ -56,10 +55,8 @@ impl ServerHandler for Server {
         &self,
         request: rmcp::model::InitializeRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<
-        Output = std::result::Result<rmcp::model::InitializeResult, rmcp::Error>,
-    > + Send
-           + '_ {
+    ) -> impl Future<Output = std::result::Result<rmcp::model::InitializeResult, rmcp::Error>> + Send + '_
+    {
         std::future::ready(Ok(self.get_info()))
     }
 
@@ -67,10 +64,8 @@ impl ServerHandler for Server {
         &self,
         request: rmcp::model::CompleteRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<
-        Output = std::result::Result<rmcp::model::CompleteResult, rmcp::Error>,
-    > + Send
-           + '_ {
+    ) -> impl Future<Output = std::result::Result<rmcp::model::CompleteResult, rmcp::Error>> + Send + '_
+    {
         std::future::ready(Err(rmcp::Error::method_not_found::<
             rmcp::model::CompleteRequestMethod,
         >()))
@@ -80,8 +75,7 @@ impl ServerHandler for Server {
         &self,
         request: rmcp::model::SetLevelRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<Output = std::result::Result<(), rmcp::Error>> + Send + '_
-    {
+    ) -> impl Future<Output = std::result::Result<(), rmcp::Error>> + Send + '_ {
         std::future::ready(Err(rmcp::Error::method_not_found::<
             rmcp::model::SetLevelRequestMethod,
         >()))
@@ -91,10 +85,8 @@ impl ServerHandler for Server {
         &self,
         request: rmcp::model::GetPromptRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<
-        Output = std::result::Result<rmcp::model::GetPromptResult, rmcp::Error>,
-    > + Send
-           + '_ {
+    ) -> impl Future<Output = std::result::Result<rmcp::model::GetPromptResult, rmcp::Error>> + Send + '_
+    {
         std::future::ready(Err(rmcp::Error::method_not_found::<
             rmcp::model::GetPromptRequestMethod,
         >()))
@@ -104,32 +96,40 @@ impl ServerHandler for Server {
         &self,
         request: Option<rmcp::model::PaginatedRequestParam>,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<
-        Output = std::result::Result<rmcp::model::ListPromptsResult, rmcp::Error>,
-    > + Send
-           + '_ {
+    ) -> impl Future<Output = std::result::Result<rmcp::model::ListPromptsResult, rmcp::Error>> + Send + '_
+    {
         std::future::ready(Ok(rmcp::model::ListPromptsResult::default()))
     }
 
-    fn list_resources(
+    async fn list_resources(
         &self,
         request: Option<rmcp::model::PaginatedRequestParam>,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<
-        Output = std::result::Result<rmcp::model::ListResourcesResult, rmcp::Error>,
-    > + Send
-           + '_ {
-        std::future::ready(Ok(rmcp::model::ListResourcesResult::default()))
+    ) -> std::result::Result<rmcp::model::ListResourcesResult, rmcp::Error> {
+        tracing::info!("list_resources called with request: {:?}", request);
+        Ok(rmcp::model::ListResourcesResult {
+            resources: vec![rmcp::model::Annotated::new(
+                rmcp::model::RawResource {
+                    name: "specifications".into(),
+                    uri: "/specifications".into(),
+                    description: Some("Specifications directory".into()),
+                    mime_type: Some("inode/directory".into()),
+                    size: None,
+                },
+                None,
+            )],
+            next_cursor: None,
+        })
     }
 
     fn list_resource_templates(
         &self,
         request: Option<rmcp::model::PaginatedRequestParam>,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<
+    ) -> impl Future<
         Output = std::result::Result<rmcp::model::ListResourceTemplatesResult, rmcp::Error>,
     > + Send
-           + '_ {
+    + '_ {
         std::future::ready(Ok(rmcp::model::ListResourceTemplatesResult::default()))
     }
 
@@ -137,10 +137,9 @@ impl ServerHandler for Server {
         &self,
         request: rmcp::model::ReadResourceRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<
-        Output = std::result::Result<rmcp::model::ReadResourceResult, rmcp::Error>,
-    > + Send
-           + '_ {
+    ) -> impl Future<Output = std::result::Result<rmcp::model::ReadResourceResult, rmcp::Error>>
+    + Send
+    + '_ {
         std::future::ready(Err(rmcp::Error::method_not_found::<
             rmcp::model::ReadResourceRequestMethod,
         >()))
@@ -150,8 +149,7 @@ impl ServerHandler for Server {
         &self,
         request: rmcp::model::SubscribeRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<Output = std::result::Result<(), rmcp::Error>> + Send + '_
-    {
+    ) -> impl Future<Output = std::result::Result<(), rmcp::Error>> + Send + '_ {
         std::future::ready(Err(rmcp::Error::method_not_found::<
             rmcp::model::SubscribeRequestMethod,
         >()))
@@ -161,8 +159,7 @@ impl ServerHandler for Server {
         &self,
         request: rmcp::model::UnsubscribeRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<Output = std::result::Result<(), rmcp::Error>> + Send + '_
-    {
+    ) -> impl Future<Output = std::result::Result<(), rmcp::Error>> + Send + '_ {
         std::future::ready(Err(rmcp::Error::method_not_found::<
             rmcp::model::UnsubscribeRequestMethod,
         >()))
@@ -172,10 +169,8 @@ impl ServerHandler for Server {
         &self,
         request: rmcp::model::CallToolRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<
-        Output = std::result::Result<rmcp::model::CallToolResult, rmcp::Error>,
-    > + Send
-           + '_ {
+    ) -> impl Future<Output = std::result::Result<rmcp::model::CallToolResult, rmcp::Error>> + Send + '_
+    {
         std::future::ready(Err(rmcp::Error::method_not_found::<
             rmcp::model::CallToolRequestMethod,
         >()))
@@ -185,35 +180,31 @@ impl ServerHandler for Server {
         &self,
         request: Option<rmcp::model::PaginatedRequestParam>,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
-    ) -> impl std::prelude::rust_2024::Future<
-        Output = std::result::Result<rmcp::model::ListToolsResult, rmcp::Error>,
-    > + Send
-           + '_ {
+    ) -> impl Future<Output = std::result::Result<rmcp::model::ListToolsResult, rmcp::Error>> + Send + '_
+    {
         std::future::ready(Ok(rmcp::model::ListToolsResult::default()))
     }
 
     fn on_cancelled(
         &self,
         notification: rmcp::model::CancelledNotificationParam,
-    ) -> impl std::prelude::rust_2024::Future<Output = ()> + Send + '_ {
+    ) -> impl Future<Output = ()> + Send + '_ {
         std::future::ready(())
     }
 
     fn on_progress(
         &self,
         notification: rmcp::model::ProgressNotificationParam,
-    ) -> impl std::prelude::rust_2024::Future<Output = ()> + Send + '_ {
+    ) -> impl Future<Output = ()> + Send + '_ {
         std::future::ready(())
     }
 
-    fn on_initialized(&self) -> impl std::prelude::rust_2024::Future<Output = ()> + Send + '_ {
+    fn on_initialized(&self) -> impl Future<Output = ()> + Send + '_ {
         tracing::info!("client initialized");
         std::future::ready(())
     }
 
-    fn on_roots_list_changed(
-        &self,
-    ) -> impl std::prelude::rust_2024::Future<Output = ()> + Send + '_ {
+    fn on_roots_list_changed(&self) -> impl Future<Output = ()> + Send + '_ {
         std::future::ready(())
     }
 
