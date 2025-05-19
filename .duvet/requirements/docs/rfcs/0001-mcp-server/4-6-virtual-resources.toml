@@ -1,0 +1,17 @@
+target = "docs/rfcs/0001-mcp-server.md#4-6-virtual-resources"
+
+# 4.6 Virtual Resources
+#
+# The server MUST provide virtual resources that:
+# - Support global requirement queries via `/requirements`
+# - Enable citation analysis via `/citations`
+# - Include full resource paths
+# - Support efficient filtering
+# - Maintain referential integrity
+
+[[spec]]
+level = "MUST"
+quote = '''
+The server MUST provide virtual resources that:
+'''
+

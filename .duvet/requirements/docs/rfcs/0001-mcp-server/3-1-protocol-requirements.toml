@@ -1,0 +1,41 @@
+target = "docs/rfcs/0001-mcp-server.md#3-1-protocol-requirements"
+
+# 3.1 Protocol Requirements
+#
+# The server:
+# - MUST implement the Model Context Protocol (MCP)
+# - MUST support JSON-RPC method calls
+# - MUST provide a stdio interface
+# - MUST support the `duvet mcp` command for startup
+# - SHOULD support graceful shutdown
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST implement the Model Context Protocol (MCP)
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST support JSON-RPC method calls
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST provide a stdio interface
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST support the `duvet mcp` command for startup
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support graceful shutdown
+'''
+

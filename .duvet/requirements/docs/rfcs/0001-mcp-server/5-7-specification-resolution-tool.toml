@@ -1,0 +1,41 @@
+target = "docs/rfcs/0001-mcp-server.md#5-7-specification-resolution-tool"
+
+# 5.7 Specification Resolution Tool
+#
+# The `resolve_spec_id` tool:
+# - MUST resolve URLs to specification IDs
+# - MUST handle multiple URL formats
+# - MUST validate specification existence
+# - SHOULD cache resolution results
+# - SHOULD support URL normalization
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST resolve URLs to specification IDs
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST handle multiple URL formats
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST validate specification existence
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD cache resolution results
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support URL normalization
+'''
+

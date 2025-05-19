@@ -1,0 +1,38 @@
+target = "docs/rfcs/0001-mcp-server.md#4-2-specification-resources"
+
+# 4.2 Specification Resources
+#
+# The `/specifications` endpoint:
+# - MUST list all available specifications
+# - MUST provide specification metadata including:
+#   - Unique identifier
+#   - Human-readable name
+#   - URL
+#   - Description
+# - MUST support retrieval by ID
+# - SHOULD support filtering and pagination
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST list all available specifications
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST provide specification metadata including:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST support retrieval by ID
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support filtering and pagination
+'''
+

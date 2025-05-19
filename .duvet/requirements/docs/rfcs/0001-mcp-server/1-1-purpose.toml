@@ -1,0 +1,18 @@
+target = "docs/rfcs/0001-mcp-server.md#1-1-purpose"
+
+# 1.1 Purpose
+#
+# The Duvet MCP server MUST facilitate requirements traceability by exposing project specifications, requirements, and citations through a standardized API. It MUST enable AI models to query, validate, and analyze traceability data, ensuring requirements are properly linked to code implementations.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The Duvet MCP server MUST facilitate requirements traceability by exposing project specifications, requirements, and citations through a standardized API.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+It MUST enable AI models to query, validate, and analyze traceability data, ensuring requirements are properly linked to code implementations.
+'''
+

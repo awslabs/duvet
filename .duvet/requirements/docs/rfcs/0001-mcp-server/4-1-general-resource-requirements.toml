@@ -1,0 +1,41 @@
+target = "docs/rfcs/0001-mcp-server.md#4-1-general-resource-requirements"
+
+# 4.1 General Resource Requirements
+#
+# All resources:
+# - MUST be accessible via `resources/list` and `resources/get` methods
+# - MUST return consistent JSON structures
+# - MUST include unique identifiers
+# - MUST validate input parameters
+# - MUST handle errors gracefully
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST be accessible via `resources/list` and `resources/get` methods
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST return consistent JSON structures
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include unique identifiers
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST validate input parameters
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST handle errors gracefully
+'''
+

@@ -1,0 +1,48 @@
+target = "docs/rfcs/0001-mcp-server.md#6-system-prompt-requirements"
+
+# 6. System Prompt Requirements
+#
+# The system prompt:
+# - MUST provide clear usage instructions
+# - MUST document all available resources
+# - MUST explain all available tools
+# - MUST include example usage
+# - MUST be version controlled
+# - SHOULD include troubleshooting guidance
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST provide clear usage instructions
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST document all available resources
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST explain all available tools
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include example usage
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST be version controlled
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD include troubleshooting guidance
+'''
+

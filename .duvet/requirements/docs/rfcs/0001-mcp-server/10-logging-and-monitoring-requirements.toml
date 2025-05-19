@@ -1,0 +1,69 @@
+target = "docs/rfcs/0001-mcp-server.md#10-logging-and-monitoring-requirements"
+
+# 10. Logging and Monitoring Requirements
+#
+# The server:
+# - MUST log all operations with appropriate levels
+# - MUST log performance metrics
+# - MUST log error conditions with stack traces
+# - MUST support configurable log levels
+# - MUST include correlation IDs in logs
+# - MUST log security-relevant events
+# - SHOULD support structured logging
+# - SHOULD provide monitoring endpoints
+# - SHOULD track usage metrics
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST log all operations with appropriate levels
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST log performance metrics
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST log error conditions with stack traces
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST support configurable log levels
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include correlation IDs in logs
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST log security-relevant events
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support structured logging
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD provide monitoring endpoints
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD track usage metrics
+'''
+

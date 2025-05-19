@@ -125,6 +125,10 @@ pub struct Annotation {
 }
 
 impl Annotation {
+    pub fn stable_id(&self) -> [u8; 32] {
+        *blake3::hash(self.quote.as_bytes()).as_bytes()
+    }
+
     pub fn target(&self) -> Result<Arc<Target>> {
         Target::from_annotation(self).map(Arc::new)
     }

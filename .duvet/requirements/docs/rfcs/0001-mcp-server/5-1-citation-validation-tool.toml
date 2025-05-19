@@ -1,0 +1,48 @@
+target = "docs/rfcs/0001-mcp-server.md#5-1-citation-validation-tool"
+
+# 5.1 Citation Validation Tool
+#
+# The `validate_citation` tool:
+# - MUST verify citation URL format
+# - MUST validate specification references
+# - MUST validate section references
+# - MUST validate requirement references
+# - MUST provide detailed error messages
+# - SHOULD cache validation results
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST verify citation URL format
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST validate specification references
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST validate section references
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST validate requirement references
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST provide detailed error messages
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD cache validation results
+'''
+

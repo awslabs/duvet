@@ -1,0 +1,41 @@
+target = "docs/rfcs/0001-mcp-server.md#5-4-uncited-requirements-tool"
+
+# 5.4 Uncited Requirements Tool
+#
+# The `list_uncited_requirements` tool:
+# - MUST identify requirements without citations
+# - MUST provide requirement context
+# - MUST include requirement metadata
+# - SHOULD prioritize results
+# - SHOULD suggest potential citations
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST identify requirements without citations
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST provide requirement context
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include requirement metadata
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD prioritize results
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD suggest potential citations
+'''
+

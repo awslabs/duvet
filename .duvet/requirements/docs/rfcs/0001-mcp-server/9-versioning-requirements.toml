@@ -1,0 +1,55 @@
+target = "docs/rfcs/0001-mcp-server.md#9-versioning-requirements"
+
+# 9. Versioning Requirements
+#
+# The server:
+# - MUST follow semantic versioning
+# - MUST maintain API version compatibility
+# - MUST document breaking changes
+# - MUST support graceful degradation for older clients
+# - MUST include version information in responses
+# - SHOULD support multiple API versions simultaneously
+# - SHOULD provide migration guides for version updates
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST follow semantic versioning
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST maintain API version compatibility
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST document breaking changes
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST support graceful degradation for older clients
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include version information in responses
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support multiple API versions simultaneously
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD provide migration guides for version updates
+'''
+

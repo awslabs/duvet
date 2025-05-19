@@ -1,0 +1,12 @@
+target = "docs/rfcs/0001-mcp-server.md#abstract"
+
+# Abstract
+#
+# This document specifies the requirements for the Duvet Model Context Protocol (MCP) server implementation. The server MUST provide AI models with standardized access to project specifications, requirements, and code citations through the MCP interface, enabling automated traceability validation and management.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The server MUST provide AI models with standardized access to project specifications, requirements, and code citations through the MCP interface, enabling automated traceability validation and management.
+'''
+

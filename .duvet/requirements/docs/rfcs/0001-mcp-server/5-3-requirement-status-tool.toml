@@ -1,0 +1,41 @@
+target = "docs/rfcs/0001-mcp-server.md#5-3-requirement-status-tool"
+
+# 5.3 Requirement Status Tool
+#
+# The `get_requirement_status` tool:
+# - MUST track implementation status
+# - MUST support multiple status values
+# - MUST update status in real-time
+# - SHOULD provide status history
+# - SHOULD support status notifications
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST track implementation status
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST support multiple status values
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST update status in real-time
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD provide status history
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support status notifications
+'''
+

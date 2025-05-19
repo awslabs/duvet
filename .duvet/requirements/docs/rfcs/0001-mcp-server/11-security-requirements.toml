@@ -1,0 +1,62 @@
+target = "docs/rfcs/0001-mcp-server.md#11-security-requirements"
+
+# 11. Security Requirements
+#
+# The server:
+# - MUST validate all input data
+# - MUST sanitize file paths
+# - MUST implement resource access controls
+# - MUST handle sensitive data appropriately
+# - MUST log security events
+# - SHOULD support authentication
+# - SHOULD implement rate limiting
+# - SHOULD monitor for abuse
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST validate all input data
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST sanitize file paths
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST implement resource access controls
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST handle sensitive data appropriately
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST log security events
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support authentication
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD implement rate limiting
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD monitor for abuse
+'''
+

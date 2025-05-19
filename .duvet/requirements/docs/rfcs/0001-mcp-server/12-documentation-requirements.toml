@@ -1,0 +1,61 @@
+target = "docs/rfcs/0001-mcp-server.md#12-documentation-requirements"
+
+# 12. Documentation Requirements
+#
+# The implementation:
+# - MUST include API documentation:
+#   - Full OpenAPI/Swagger specification
+#   - Detailed method descriptions
+#   - Request/response examples
+#   - Error handling documentation
+# - MUST include developer documentation:
+#   - Architecture overview
+#   - Setup instructions
+#   - Configuration guide
+#   - Troubleshooting guide
+# - MUST include example code:
+#   - For all major features
+#   - In multiple programming languages
+#   - With best practices
+#   - With error handling examples
+# - MUST maintain documentation:
+#   - Version-specific documentation
+#   - Changelog
+#   - Migration guides
+#   - Known issues
+# - SHOULD provide:
+#   - Interactive API explorer
+#   - Tutorial documentation
+#   - Performance optimization guide
+#   - Security best practices guide
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include API documentation:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include developer documentation:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include example code:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST maintain documentation:
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD provide:
+'''
+

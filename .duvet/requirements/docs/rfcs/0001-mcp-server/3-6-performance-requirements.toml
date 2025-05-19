@@ -1,0 +1,41 @@
+target = "docs/rfcs/0001-mcp-server.md#3-6-performance-requirements"
+
+# 3.6 Performance Requirements
+#
+# The server:
+# - MUST respond to resource requests within 500ms
+# - MUST support concurrent tool operations
+# - MUST handle large specifications efficiently
+# - SHOULD implement request rate limiting
+# - SHOULD optimize memory usage through caching
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST respond to resource requests within 500ms
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST support concurrent tool operations
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST handle large specifications efficiently
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD implement request rate limiting
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD optimize memory usage through caching
+'''
+

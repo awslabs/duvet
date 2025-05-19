@@ -1,0 +1,44 @@
+target = "docs/rfcs/0001-mcp-server.md#4-3-section-resources"
+
+# 4.3 Section Resources
+#
+# The `/specifications/{spec_id}/sections` endpoint:
+# - MUST list all sections within a specification
+# - MUST maintain hierarchical organization
+# - MUST include section metadata:
+#   - Section identifier
+#   - Title
+#   - Content (when retrieved individually)
+# - MUST preserve section ordering
+# - SHOULD support nested sections
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST list all sections within a specification
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST maintain hierarchical organization
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include section metadata:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST preserve section ordering
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support nested sections
+'''
+

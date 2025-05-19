@@ -9,6 +9,7 @@ mod comment;
 mod config;
 mod extract;
 mod init;
+mod mcp;
 mod project;
 mod reference;
 mod report;
@@ -28,6 +29,8 @@ pub enum Arguments {
     Extract(extract::Extract),
     /// Generates reports for the project
     Report(report::Report),
+    /// Starts the MCP server for AI model interaction
+    Mcp(mcp::Mcp),
 }
 
 #[duvet_core::query(cache)]
@@ -41,6 +44,7 @@ impl Arguments {
             Self::Init(args) => args.exec().await,
             Self::Extract(args) => args.exec().await,
             Self::Report(args) => args.exec().await,
+            Self::Mcp(args) => args.execute().await,
         }
     }
 }

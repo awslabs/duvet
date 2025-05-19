@@ -1,0 +1,50 @@
+target = "docs/rfcs/0001-mcp-server.md#5-8-requirement-prioritization-tool"
+
+# 5.8 Requirement Prioritization Tool
+#
+# The `get_prioritized_requirements` tool:
+# - MUST implement priority sorting based on:
+#   - Requirement level (MUST > SHOULD > MAY)
+#   - Citation status
+#   - TODO count
+# - MUST maintain consistent ordering
+# - MUST update priorities in real-time
+# - SHOULD support custom prioritization rules
+# - SHOULD provide priority explanations
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST implement priority sorting based on:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- Requirement level (MUST > SHOULD > MAY)
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST maintain consistent ordering
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST update priorities in real-time
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support custom prioritization rules
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD provide priority explanations
+'''
+

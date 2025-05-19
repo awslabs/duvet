@@ -1,0 +1,41 @@
+target = "docs/rfcs/0001-mcp-server.md#5-6-citation-context-tool"
+
+# 5.6 Citation Context Tool
+#
+# The `get_citation_context` tool:
+# - MUST retrieve surrounding code
+# - MUST support configurable context size
+# - MUST preserve code formatting
+# - SHOULD highlight relevant lines
+# - SHOULD provide syntax highlighting
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST retrieve surrounding code
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST support configurable context size
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST preserve code formatting
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD highlight relevant lines
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD provide syntax highlighting
+'''
+

@@ -1,0 +1,41 @@
+target = "docs/rfcs/0001-mcp-server.md#5-2-requirement-search-tool"
+
+# 5.2 Requirement Search Tool
+#
+# The `search_requirements` tool:
+# - MUST support keyword search
+# - MUST search across all specifications
+# - MUST return matching requirements with context
+# - SHOULD support fuzzy matching
+# - SHOULD implement search result ranking
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST support keyword search
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST search across all specifications
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST return matching requirements with context
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support fuzzy matching
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD implement search result ranking
+'''
+

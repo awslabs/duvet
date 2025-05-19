@@ -1,0 +1,38 @@
+target = "docs/rfcs/0001-mcp-server.md#4-5-citation-resources"
+
+# 4.5 Citation Resources
+#
+# The `/specifications/{spec_id}/sections/{section_id}/requirements/{req_identifier}/citations` endpoint:
+# - MUST list all citations for a requirement
+# - MUST include citation metadata:
+#   - File path
+#   - Line number
+#   - Comment text
+#   - Context (optional)
+# - MUST validate citation format
+# - SHOULD provide code context
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST list all citations for a requirement
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include citation metadata:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST validate citation format
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD provide code context
+'''
+

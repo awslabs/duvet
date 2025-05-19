@@ -1,0 +1,41 @@
+target = "docs/rfcs/0001-mcp-server.md#5-5-invalid-citations-tool"
+
+# 5.5 Invalid Citations Tool
+#
+# The `list_invalid_citations` tool:
+# - MUST detect broken references
+# - MUST identify malformed citations
+# - MUST provide error context
+# - MUST suggest corrections
+# - SHOULD monitor for new invalid citations
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST detect broken references
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST identify malformed citations
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST provide error context
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST suggest corrections
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD monitor for new invalid citations
+'''
+

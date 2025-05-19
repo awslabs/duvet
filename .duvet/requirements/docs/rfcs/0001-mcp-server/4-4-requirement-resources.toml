@@ -1,0 +1,44 @@
+target = "docs/rfcs/0001-mcp-server.md#4-4-requirement-resources"
+
+# 4.4 Requirement Resources
+#
+# The `/specifications/{spec_id}/sections/{section_id}/requirements` endpoint:
+# - MUST list all requirements within a section
+# - MUST generate unique requirement identifiers using SHA-256 hashing
+# - MUST include requirement metadata:
+#   - Identifier
+#   - Full text
+#   - Status
+# - MUST track requirement implementation status
+# - SHOULD support requirement categorization
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST list all requirements within a section
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST generate unique requirement identifiers using SHA-256 hashing
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST include requirement metadata:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST track requirement implementation status
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD support requirement categorization
+'''
+

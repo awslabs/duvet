@@ -1,0 +1,62 @@
+target = "docs/rfcs/0001-mcp-server.md#3-3-integration-requirements"
+
+# 3.3 Integration Requirements
+#
+# The server:
+# - MUST integrate with existing Duvet components:
+#   - MUST use specification.rs for specification parsing and management
+#   - MUST use reference.rs for citation handling
+#   - MUST use annotation.rs for code annotation processing
+# - MUST maintain backward compatibility with existing Duvet file formats
+# - MUST preserve existing Duvet functionality
+# - SHOULD reuse existing code where possible
+# - SHOULD extend existing types rather than duplicate them
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST integrate with existing Duvet components:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST use specification.rs for specification parsing and management
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST use reference.rs for citation handling
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST use annotation.rs for code annotation processing
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST maintain backward compatibility with existing Duvet file formats
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- MUST preserve existing Duvet functionality
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD reuse existing code where possible
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- SHOULD extend existing types rather than duplicate them
+'''
+
