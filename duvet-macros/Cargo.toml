@@ -6,6 +6,7 @@ authors = ["Cameron Bytheway <bythewc@amazon.com>"]
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/awslabs/duvet"
+rust-version = "1.82"
 
 [lib]
 proc-macro = true
