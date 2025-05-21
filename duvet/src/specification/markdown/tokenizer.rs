@@ -30,7 +30,8 @@ pub fn tokens(contents: &SourceFile) -> impl Iterator<Item = Token> + '_ {
         // lines start with 1
         (idx + 1, line)
     });
-    let cmark = pulldown_cmark::Parser::new(contents).into_offset_iter();
+    let options = pulldown_cmark::Options::ENABLE_HEADING_ATTRIBUTES;
+    let cmark = pulldown_cmark::Parser::new_ext(contents, options).into_offset_iter();
     Tokenizer::new(contents, lines, cmark)
 }
 
@@ -122,9 +123,8 @@ where
                         };
 
                         // convert the text buffer range to a Slice
-                        let title = if let Some(mut buf) = text_buffer {
-                            buf.end = line.range().end.max(buf.end);
-                            self.contents.substr_range(buf).expect("invalid range")
+                        let title = if let Some(title_range) = text_buffer {
+                            self.contents.substr_range(title_range).expect("invalid range")
                         } else {
                             line
                         };
@@ -167,6 +167,13 @@ where
                         }
                     }
                     _ => {
+                        // If we are buffering a heading and we get a non-text
+                        // event, we have to move the end of our heading buffer
+                        // to the end of the event range to capture the content
+                        // of the event within our heading.
+                        if let Some(buf) = &mut text_buffer {
+                            buf.end = event_range.end;
+                        }
                         continue;
                     }
                 }
