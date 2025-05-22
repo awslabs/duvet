@@ -1,0 +1,30 @@
+---
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: tokens(& contents).collect :: < Vec < _ >> ()"
+---
+[
+    Content {
+        value: "",
+        line: 1,
+    },
+    Section {
+        id: Some(
+            "blah",
+        ),
+        title: "Foo **bar\nbaz**",
+        level: 1,
+        line: 2,
+    },
+    Content {
+        value: "",
+        line: 5,
+    },
+    Content {
+        value: "Content goes here. Another",
+        line: 6,
+    },
+    Content {
+        value: "sentence here.",
+        line: 7,
+    },
+]

@@ -1,0 +1,44 @@
+---
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: parse(& contents)"
+---
+Ok(
+    Specification {
+        title: Some(
+            "Heading with ID",
+        ),
+        sections: [
+            Section {
+                id: "custom-id",
+                title: "Heading with ID",
+                full_title: "Heading with ID",
+                lines: [
+                    Str(
+                        "Content under heading with custom ID.",
+                    ),
+                ],
+            },
+            Section {
+                id: "another-id",
+                title: "Another heading",
+                full_title: "Another heading",
+                lines: [
+                    Str(
+                        "More content here.",
+                    ),
+                ],
+            },
+            Section {
+                id: "regular-heading",
+                title: "Regular heading",
+                full_title: "Regular heading",
+                lines: [
+                    Str(
+                        "This heading doesn't have a custom ID.",
+                    ),
+                ],
+            },
+        ],
+        format: Markdown,
+    },
+)
