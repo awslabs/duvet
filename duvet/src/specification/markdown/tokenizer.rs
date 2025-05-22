@@ -124,7 +124,9 @@ where
 
                         // convert the text buffer range to a Slice
                         let title = if let Some(title_range) = text_buffer {
-                            self.contents.substr_range(title_range).expect("invalid range")
+                            self.contents
+                                .substr_range(title_range)
+                                .expect("invalid range")
                         } else {
                             line
                         };
