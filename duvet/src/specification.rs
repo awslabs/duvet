@@ -52,7 +52,7 @@ impl Specification {
                 .trim_start_matches("appendix-");
 
             for prefix in ["section-", "appendix-"] {
-                if let Some(section) = self.sections.get(&format!("{}{}", prefix, id)) {
+                if let Some(section) = self.sections.get(&format!("{prefix}{id}")) {
                     return Some(section);
                 }
             }
@@ -82,7 +82,7 @@ impl fmt::Display for Format {
             Self::Ietf => "ietf",
             Self::Markdown => "markdown",
         };
-        write!(f, "{}", v)
+        write!(f, "{v}")
     }
 }
 

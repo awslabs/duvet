@@ -45,28 +45,28 @@ impl Meta {
         let source_value = value.clone();
 
         let prev = match key.as_deref() {
-            Some("source") => core::mem::replace(&mut self.target, Some(value)),
+            Some("source") => self.target.replace(value),
             Some("level") => {
                 let level = value.parse()?;
-                core::mem::replace(&mut self.level, Some((level, value))).map(|v| v.1)
+                self.level.replace((level, value)).map(|v| v.1)
             }
             Some("format") => {
                 let format = value.parse()?;
-                core::mem::replace(&mut self.format, Some((format, value))).map(|v| v.1)
+                self.format.replace((format, value)).map(|v| v.1)
             }
             Some("type") => {
                 let ty = value.parse()?;
-                core::mem::replace(&mut self.anno, Some((ty, value))).map(|v| v.1)
+                self.anno.replace((ty, value)).map(|v| v.1)
             }
-            Some("reason") => core::mem::replace(&mut self.reason, Some(value)),
-            Some("feature") => core::mem::replace(&mut self.feature, Some(value)),
-            Some("tracking-issue") => core::mem::replace(&mut self.tracking_issue, Some(value)),
+            Some("reason") => self.reason.replace(value),
+            Some("feature") => self.feature.replace(value),
+            Some("tracking-issue") => self.tracking_issue.replace(value),
             Some(_) => {
                 return Err(key
                     .unwrap()
                     .error(error!("invalid metadata field"), "defined here"));
             }
-            None => core::mem::replace(&mut self.target, Some(value)),
+            None => self.target.replace(value),
         };
 
         if let Some(prev) = prev {
