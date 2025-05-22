@@ -42,7 +42,7 @@ lazy_static! {
             .iter()
             .cloned()
             .map(|(pat, l)| {
-                let r = Regex::new(&format!("\\b{}\\b\"?", pat)).into_diagnostic()?;
+                let r = Regex::new(&format!("\\b{pat}\\b\"?")).into_diagnostic()?;
                 Ok((r, l))
             })
             .collect::<Result<_>>()
@@ -423,7 +423,7 @@ fn write_rust<W: std::io::Write>(
     writeln!(w, "//!")?;
     for line in &section.lines {
         if let Line::Str(line) = line {
-            writeln!(w, "//! {}", line)?;
+            writeln!(w, "//! {line}")?;
         }
     }
     writeln!(w)?;
@@ -433,7 +433,7 @@ fn write_rust<W: std::io::Write>(
         writeln!(w, "//= type=spec")?;
         writeln!(w, "//= level={}", feature.level)?;
         for line in feature.quote.iter() {
-            writeln!(w, "//# {}", line)?;
+            writeln!(w, "//# {line}")?;
         }
         writeln!(w)?;
     }
@@ -453,7 +453,7 @@ fn write_toml<W: std::io::Write>(
     writeln!(w, "#")?;
     for line in &section.lines {
         if let Line::Str(line) = line {
-            writeln!(w, "# {}", line)?;
+            writeln!(w, "# {line}")?;
         }
     }
     writeln!(w)?;
@@ -463,7 +463,7 @@ fn write_toml<W: std::io::Write>(
         writeln!(w, "level = \"{}\"", feature.level)?;
         writeln!(w, "quote = '''")?;
         for line in feature.quote.iter() {
-            writeln!(w, "{}", line)?;
+            writeln!(w, "{line}")?;
         }
         writeln!(w, "'''")?;
         writeln!(w)?;

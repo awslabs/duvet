@@ -349,7 +349,7 @@ async fn test_rfc(rfc: usize) -> bool {
     let mut check_section = |id: &str, title: &str, is_section: bool| {
         assert!(!id.is_empty());
 
-        let prev = core::mem::replace(&mut prev_section, Some(id.to_string()));
+        let prev = prev_section.replace(id.to_string());
 
         if janky_sections.contains(&(rfc, id)) {
             return;

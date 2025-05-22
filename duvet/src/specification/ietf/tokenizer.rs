@@ -84,26 +84,26 @@ impl fmt::Debug for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Section { id, title, line } => {
-                write!(f, " SECTION#{}(id={}, title={})", line, id, title)
+                write!(f, " SECTION#{line}(id={id}, title={title})")
             }
             Self::Appendix { id, title, line } => {
-                write!(f, "APPENDIX#{}(id={}, title={})", line, id, title)
+                write!(f, "APPENDIX#{line}(id={id}, title={title})")
             }
             Self::NamedSection { title, line } => {
-                write!(f, " SECTION#{}(title={})", line, title)
+                write!(f, " SECTION#{line}(title={title})")
             }
             Self::Break {
                 line,
                 ty: Break::Page,
                 value: _,
-            } => write!(f, "   BREAK#{}", line),
+            } => write!(f, "   BREAK#{line}"),
             Self::Break {
                 line,
                 ty: Break::Line,
                 value: _,
-            } => write!(f, " NEWLINE#{}", line),
-            Self::Content { value, line } => write!(f, " CONTENT#{}({})", line, value),
-            Self::Header { value, line } => write!(f, "  HEADER#{}({})", line, value),
+            } => write!(f, " NEWLINE#{line}"),
+            Self::Content { value, line } => write!(f, " CONTENT#{line}({value})"),
+            Self::Header { value, line } => write!(f, "  HEADER#{line}({value})"),
         }
     }
 }

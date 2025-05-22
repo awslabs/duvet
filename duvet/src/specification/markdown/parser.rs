@@ -127,5 +127,5 @@ impl<T: Iterator<Item = Token>> Iterator for Parser<T> {
 }
 
 fn is_empty(v: &Option<Slice>) -> bool {
-    v.as_ref().map_or(true, |v| v.trim().is_empty())
+    v.as_ref().is_none_or(|v| v.trim().is_empty())
 }
