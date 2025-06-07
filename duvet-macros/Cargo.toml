@@ -12,7 +12,7 @@ rust-version = "1.82"
 proc-macro = true
 
 [dependencies]
-darling = "0.14"
+darling = "0.20"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = ["full"] }
