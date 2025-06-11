@@ -1,0 +1,41 @@
+source = { local = true }
+cmd = ["duvet report --require-tests"]
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/my-code.rs"
+
+[[specification]]
+source = "my-spec.md"
+"""
+
+[[file]]
+path = "src/my-code.rs"
+contents = """
+//= my-spec.md#input-validation
+//# The system MUST validate all input parameters before processing.
+fn validate_input() {
+    // This function has citation and test - should PASS with --require-tests
+}
+
+//= my-spec.md#input-validation
+//= type=test
+//# The system MUST validate all input parameters before processing.
+#[test]
+fn test_validate_input() {
+    // Test implementation
+    validate_input();
+}
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# Input Validation
+
+The system MUST validate all input parameters before processing.
+"""

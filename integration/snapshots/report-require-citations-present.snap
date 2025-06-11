@@ -1,0 +1,7 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [Input Validation](my-spec.md)
+  SECTION: [Input Validation](#input-validation)
+    TEXT[!MUST,implementation]: The system MUST validate all input parameters before processing.

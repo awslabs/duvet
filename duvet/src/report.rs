@@ -20,6 +20,8 @@ mod lcov;
 mod snapshot;
 mod stats;
 mod status;
+#[cfg(test)]
+mod tests;
 
 use stats::Statistics;
 
@@ -37,14 +39,14 @@ pub struct Report {
     #[clap(long)]
     html: Option<Path>,
 
-    #[clap(long)]
-    require_citations: Option<Option<bool>>,
+    #[clap(long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true")]
+    require_citations: Option<bool>,
 
-    #[clap(long)]
-    require_tests: Option<Option<bool>>,
+    #[clap(long, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true")]
+    require_tests: Option<bool>,
 
-    #[clap(long)]
-    ci: Option<Option<bool>>,
+    #[clap(long, action = clap::ArgAction::SetTrue)]
+    ci: bool,
 
     #[clap(long)]
     blob_link: Option<String>,
@@ -147,14 +149,12 @@ impl Report {
             .map(Path::from);
         let snapshot_path = config.and_then(|config| config.report.snapshot.path());
 
-        let ci = match self.ci {
-            // use the new CI environment variable if the snapshot reports are configured
-            None if snapshot_path.is_some() => {
-                std::env::var("CI").is_ok_and(|value| !["false", "0"].contains(&value.as_str()))
-            }
-            None => false,
-            Some(None) => true,
-            Some(Some(value)) => value,
+        let ci = if !self.ci && snapshot_path.is_some() {
+            // If --ci is not explicitly set but snapshots are configured, check CI env var
+            std::env::var("CI").is_ok_and(|value| !["false", "0"].contains(&value.as_str()))
+        } else {
+            // Otherwise use the flag value
+            self.ci
         };
 
         let reports: &[(Option<&_>, ReportFn)] = &[
@@ -200,8 +200,8 @@ impl Report {
             }
         }
 
-        // only use the old CI check if the config hasn't set up snapshots
-        if ci && snapshot_path.is_none() {
+        // Run citation validation checks if required, regardless of snapshot configuration
+        if self.require_citations() || self.require_tests() || (ci && snapshot_path.is_none()) {
             ci::report(&report)?;
         }
 
@@ -209,19 +209,13 @@ impl Report {
     }
 
     fn require_citations(&self) -> bool {
-        match self.require_citations {
-            None => true,
-            Some(None) => true,
-            Some(Some(value)) => value,
-        }
+        // None = not provided (default false), Some(value) = provided with value
+        self.require_citations.unwrap_or(false)
     }
 
     fn require_tests(&self) -> bool {
-        match self.require_tests {
-            None => true,
-            Some(None) => true,
-            Some(Some(value)) => value,
-        }
+        // None = not provided (default false), Some(value) = provided with value
+        self.require_tests.unwrap_or(false)
     }
 }
 
