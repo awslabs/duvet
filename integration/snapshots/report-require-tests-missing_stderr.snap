@@ -1,0 +1,29 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet report --require-tests
+EXIT: Some(1)
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 2 sources 
+     Parsing annotations
+      Parsed 2 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 2 references 
+     Sorting references
+      Sorted 2 references 
+     Writing .duvet/reports/report.html
+       Wrote .duvet/reports/report.html 
+     Writing duvet_report.json
+       Wrote duvet_report.json 
+     Writing duvet_report.html
+       Wrote duvet_report.html 
+     Writing duvet_snapshot.txt
+       Wrote duvet_snapshot.txt 
+  × Citation missing test.
