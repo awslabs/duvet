@@ -42,6 +42,7 @@ runs:
 
     - uses: camshaft/rust-cache@v1
 
+    - name: Install Duvet
     - uses: camshaft/install@v1
       with:
         crate: duvet
