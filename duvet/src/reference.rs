@@ -119,12 +119,39 @@ pub async fn build_references(
                 //warnings.push(warn!(""));
             }
 
-            for text in contents.ranges(range) {
+            let text_ranges: Vec<_> = contents.ranges(range).collect();
+            if text_ranges.len() == 1 {
+                // Single text range - use as-is
                 references.push(Reference {
                     target: target.clone(),
-                    text,
+                    text: text_ranges[0].clone(),
                     annotation: annotation.clone(),
                 });
+            } else if !text_ranges.is_empty() {
+                // Multiple text ranges - consolidate into a single reference with complete text
+                // Find the overall range that encompasses all the text ranges
+                let start = text_ranges.iter().map(|t| t.range().start).min().unwrap();
+                let end = text_ranges.iter().map(|t| t.range().end).max().unwrap();
+                
+                // Create a consolidated slice that spans the complete range
+                // Get the source file from the section's full_title
+                let source_file = section.full_title.file();
+                if let Some(consolidated_text) = source_file.substr_range(start..end) {
+                    references.push(Reference {
+                        target: target.clone(),
+                        text: consolidated_text,
+                        annotation: annotation.clone(),
+                    });
+                } else {
+                    // Fallback to original behavior if consolidation fails
+                    for text in text_ranges {
+                        references.push(Reference {
+                            target: target.clone(),
+                            text,
+                            annotation: annotation.clone(),
+                        });
+                    }
+                }
             }
         } else {
             let mut error = error!(
@@ -148,3 +175,6 @@ pub async fn build_references(
 
     (references.into(), errors.into())
 }
+
+#[cfg(test)]
+mod tests;

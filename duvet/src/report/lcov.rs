@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{ReportResult, TargetReport};
+use super::{ReportResult, TargetReport, RequirementMode};
 use crate::{annotation::AnnotationType, target::Target, Result};
 use duvet_core::path::Path;
 use std::{
@@ -139,7 +139,10 @@ fn report_source<Output: Write>(
         put!("DA:{},{}", line, 0);
     }
 
-    match (report.require_citations, report.require_tests) {
+    let require_citations = requirement_mode_enabled(&report.require_citations);
+    let require_tests = requirement_mode_enabled(&report.require_tests);
+
+    match (require_citations, require_tests) {
         (true, true) => {
             for line in cited_lines.intersection(&tested_lines) {
                 put!("DA:{},{}", line, 1);
@@ -177,4 +180,12 @@ fn report_source<Output: Write>(
     put!("end_of_record");
 
     Ok(())
+}
+
+fn requirement_mode_enabled(mode: &RequirementMode) -> bool {
+    match mode {
+        RequirementMode::None => false,
+        RequirementMode::Global(value) => *value,
+        RequirementMode::Targeted(_) => true, // If targeted requirements exist, treat as enabled
+    }
 }

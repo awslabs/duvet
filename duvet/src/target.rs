@@ -67,6 +67,7 @@ pub type TargetSet = HashSet<Arc<Target>>;
 pub struct Target {
     pub path: TargetPath,
     pub format: Format,
+    pub original_source: Option<String>, // Track the original source path from config
 }
 
 impl Target {
@@ -75,6 +76,7 @@ impl Target {
         Ok(Self {
             path,
             format: anno.format,
+            original_source: None, // Annotations don't have original config source
         })
     }
 }
@@ -86,6 +88,7 @@ impl FromStr for Target {
         Ok(Self {
             path: s.parse()?,
             format: Format::default(),
+            original_source: None, // String parsing doesn't have original config source
         })
     }
 }
