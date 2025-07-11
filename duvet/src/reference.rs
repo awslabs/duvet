@@ -132,7 +132,7 @@ pub async fn build_references(
                 // Find the overall range that encompasses all the text ranges
                 let start = text_ranges.iter().map(|t| t.range().start).min().unwrap();
                 let end = text_ranges.iter().map(|t| t.range().end).max().unwrap();
-                
+
                 // Create a consolidated slice that spans the complete range
                 // Get the source file from the section's full_title
                 let source_file = section.full_title.file();

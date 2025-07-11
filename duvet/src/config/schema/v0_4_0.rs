@@ -87,11 +87,12 @@ impl Schema {
                 .map(From::from)
                 .unwrap_or_else(|| crate::specification::Format::Auto);
 
-            let target = Target { 
-                path, 
+            let target = Target {
+                path,
                 format,
                 original_source: Some(spec.source.clone()),
-            }.into();
+            }
+            .into();
             specifications.push(config::Specification { target });
         }
 

@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{ReportResult, TargetReport, RequirementMode, TargetedRequirement};
+use super::{ReportResult, RequirementMode, TargetReport, TargetedRequirement};
 use crate::{annotation::AnnotationType, reference::Reference, Result};
 use duvet_core::error;
 use std::collections::{HashMap, HashSet};
@@ -16,8 +16,16 @@ pub fn report(report: &ReportResult) -> Result {
 
 pub fn enforce_source(report: &TargetReport) -> Result {
     // Filter references based on citation and test requirements separately
-    let citation_refs = filter_references_for_requirements(&report.references, &report.require_citations, &report.specification);
-    let test_refs = filter_references_for_requirements(&report.references, &report.require_tests, &report.specification);
+    let citation_refs = filter_references_for_requirements(
+        &report.references,
+        &report.require_citations,
+        &report.specification,
+    );
+    let test_refs = filter_references_for_requirements(
+        &report.references,
+        &report.require_tests,
+        &report.specification,
+    );
 
     let mut error_messages = Vec::new();
 
@@ -51,16 +59,17 @@ fn filter_references_for_requirements<'a>(
         RequirementMode::None => vec![],
         RequirementMode::Global(false) => vec![],
         RequirementMode::Global(true) => references.iter().collect(),
-        RequirementMode::Targeted(requirements) => {
-            references
-                .iter()
-                .filter(|reference| reference_matches_requirements(reference, requirements))
-                .collect()
-        }
+        RequirementMode::Targeted(requirements) => references
+            .iter()
+            .filter(|reference| reference_matches_requirements(reference, requirements))
+            .collect(),
     }
 }
 
-fn reference_matches_requirements(reference: &Reference, requirements: &[TargetedRequirement]) -> bool {
+fn reference_matches_requirements(
+    reference: &Reference,
+    requirements: &[TargetedRequirement],
+) -> bool {
     for requirement in requirements {
         let target_path_str = reference.target.path.to_string();
         if target_path_matches_str(&target_path_str, &requirement.path) {
@@ -68,7 +77,7 @@ fn reference_matches_requirements(reference: &Reference, requirements: &[Targete
             if requirement.section.is_none() {
                 return true;
             }
-            
+
             // If section is specified, check if this reference matches the section
             if let Some(required_section) = &requirement.section {
                 if let Some(ref_section) = reference.annotation.target_section() {
@@ -221,7 +230,8 @@ fn check_test_requirements(references: &[&Reference]) -> Option<String> {
         .filter(|line| !tested_lines.contains(line) && !todo_lines.contains(line))
         .collect();
     if !unimplemented_missing_tests.is_empty() {
-        let mut msg = String::from("The following unimplemented requirements are missing tests:\n\n");
+        let mut msg =
+            String::from("The following unimplemented requirements are missing tests:\n\n");
         for &line in &unimplemented_missing_tests {
             if let Some(references) = line_to_references.get(&line) {
                 for reference in references {
@@ -240,14 +250,12 @@ fn check_test_requirements(references: &[&Reference]) -> Option<String> {
     }
 }
 
-
-
 fn target_path_matches_str(spec_path_str: &str, requirement_path: &str) -> bool {
     // Handle exact matches
     if spec_path_str == requirement_path {
         return true;
     }
-    
+
     // Handle relative path matches - check if the spec path ends with the requirement path
     if spec_path_str.ends_with(requirement_path) {
         // Ensure it's a proper path boundary (not a partial filename match)
@@ -256,7 +264,7 @@ fn target_path_matches_str(spec_path_str: &str, requirement_path: &str) -> bool 
             return true;
         }
     }
-    
+
     false
 }
 
@@ -267,7 +275,7 @@ pub fn format_duvet_annotation(reference: &Reference, annotation_type: &str) -> 
 
     // Get the requirement text and preserve original line breaks
     let content = reference.text.as_ref();
-    
+
     // Format each line as a comment, preserving the original line structure
     // This keeps multi-line requirements together while respecting the spec's formatting
     for line in content.lines() {

@@ -115,7 +115,7 @@ pub fn report_target<Output: Write>(
                             resolved_path_string = target.path.to_string();
                             &resolved_path_string
                         };
-                        
+
                         if let Some(title) = report.specification.title.as_ref() {
                             writeln!(output, "SPECIFICATION: [{title}]({})", display_path)?;
                         } else {

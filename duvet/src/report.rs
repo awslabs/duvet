@@ -10,7 +10,7 @@ use crate::{
     Result,
 };
 use clap::Parser;
-use duvet_core::{path::Path, progress, error};
+use duvet_core::{error, path::Path, progress};
 use std::{collections::BTreeMap, sync::Arc};
 
 mod ci;
@@ -27,9 +27,9 @@ use stats::Statistics;
 
 #[derive(Debug, Clone)]
 enum RequirementMode {
-    None,                                    // No requirements specified
-    Global(bool),                           // All values are boolean (true/false)
-    Targeted(Vec<TargetedRequirement>),     // All values are spec paths
+    None,                               // No requirements specified
+    Global(bool),                       // All values are boolean (true/false)
+    Targeted(Vec<TargetedRequirement>), // All values are spec paths
 }
 
 #[derive(Debug, Clone)]
@@ -73,7 +73,7 @@ impl Report {
         // Validate requirement formats early to catch mixing errors
         let citations_mode = self.parse_requirements(&self.require_citations)?;
         let tests_mode = self.parse_requirements(&self.require_tests)?;
-        
+
         let config = self.project.config().await?;
         let config = config.as_ref();
 
@@ -132,7 +132,7 @@ impl Report {
         progress!(progress, "Matched {} references", references.len());
 
         let progress = progress!("Sorting references");
-        
+
         for reference in references.iter() {
             report
                 .targets
@@ -270,7 +270,12 @@ impl Report {
             for value in values {
                 match value.parse::<bool>() {
                     Ok(b) => results.push(b),
-                    Err(_) => return Err(error!("Invalid boolean value '{}', expected 'true' or 'false'", value)),
+                    Err(_) => {
+                        return Err(error!(
+                            "Invalid boolean value '{}', expected 'true' or 'false'",
+                            value
+                        ))
+                    }
                 }
             }
             let effective = results.into_iter().any(|b| b); // true if any value is true

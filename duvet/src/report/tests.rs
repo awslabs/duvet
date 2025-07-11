@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod test {
-    use super::super::{Report, TargetReport, RequirementMode, TargetedRequirement};
+    use super::super::{Report, RequirementMode, TargetReport, TargetedRequirement};
     use crate::report::ci;
     use crate::specification::Specification;
     use crate::Arguments;
@@ -39,7 +39,14 @@ mod test {
     #[test]
     fn test_cli_flags_with_true_values() {
         // Test the main feature: flags work with true values
-        let args = vec!["duvet", "report", "--require-citations", "true", "--require-tests", "true"];
+        let args = vec![
+            "duvet",
+            "report",
+            "--require-citations",
+            "true",
+            "--require-tests",
+            "true",
+        ];
         let parsed = Arguments::try_parse_from(args).unwrap();
         let report = extract_report(parsed);
 
@@ -135,7 +142,10 @@ mod test {
         // This should fail during execution
         let result = report.parse_requirements(&report.require_citations);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cannot mix boolean values"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Cannot mix boolean values"));
     }
 
     #[test]
@@ -238,7 +248,7 @@ mod test {
         assert!(formatted.contains("//= type=implementation"));
         assert!(formatted.contains("//# For each evaluated epoch slot, the implementation"));
         assert!(formatted.contains("//# MUST call the CreateAndStoreEpochForSlot operation."));
-        
+
         // Ensure each line is properly formatted as a separate comment
         let lines: Vec<&str> = formatted.lines().collect();
         assert_eq!(lines.len(), 4); // target + type + 2 content lines
@@ -290,7 +300,7 @@ mod test {
         assert!(formatted.contains("//= test.md#section1"));
         assert!(formatted.contains("//= type=implementation"));
         assert!(formatted.contains("//# The implementation MUST validate input parameters."));
-        
+
         let lines: Vec<&str> = formatted.lines().collect();
         assert_eq!(lines.len(), 3); // target + type + 1 content line
     }
@@ -343,11 +353,11 @@ mod test {
         assert!(formatted.contains("//# For each evaluated epoch slot, the implementation"));
         assert!(formatted.contains("//# MUST call the CreateAndStoreEpochForSlot operation."));
         assert!(formatted.contains("//# Additional requirements apply."));
-        
+
         // Should have target + type + 3 content lines (empty lines filtered out)
         let lines: Vec<&str> = formatted.lines().collect();
         assert_eq!(lines.len(), 5);
-        
+
         // Ensure no empty comment lines
         for line in &lines {
             if line.starts_with("    //# ") {
@@ -401,12 +411,20 @@ mod test {
         // Check that whitespace is trimmed properly
         assert!(formatted.contains("//# For each evaluated epoch slot, the implementation"));
         assert!(formatted.contains("//# MUST call the CreateAndStoreEpochForSlot operation."));
-        
+
         // Ensure no trailing spaces in comment lines
         for line in formatted.lines() {
             if line.starts_with("    //# ") {
-                assert!(!line.ends_with(' '), "Comment line should not have trailing spaces: '{}'", line);
-                assert!(!line.starts_with("    //#  "), "Comment line should not have extra leading spaces: '{}'", line);
+                assert!(
+                    !line.ends_with(' '),
+                    "Comment line should not have trailing spaces: '{}'",
+                    line
+                );
+                assert!(
+                    !line.starts_with("    //#  "),
+                    "Comment line should not have extra leading spaces: '{}'",
+                    line
+                );
             }
         }
     }
@@ -417,7 +435,7 @@ mod test {
         // Use separate spec content to avoid slicing issues
         let spec_content1 = "The implementation MUST validate parameters.";
         let spec_content2 = "The implementation MUST handle errors.";
-        
+
         let source_file1 = SourceFile::new("test1.md", spec_content1).unwrap();
         let source_file2 = SourceFile::new("test2.md", spec_content2).unwrap();
         let target_file = SourceFile::new("test.rs", "//target").unwrap();
@@ -470,13 +488,19 @@ mod test {
 
         let reference1 = Reference {
             target: target.clone(),
-            annotation: AnnotationWithId { id: 0, annotation: annotation1 },
+            annotation: AnnotationWithId {
+                id: 0,
+                annotation: annotation1,
+            },
             text: text_slice1,
         };
 
         let reference2 = Reference {
             target: target.clone(),
-            annotation: AnnotationWithId { id: 1, annotation: annotation2 },
+            annotation: AnnotationWithId {
+                id: 1,
+                annotation: annotation2,
+            },
             text: text_slice2,
         };
 
@@ -489,17 +513,32 @@ mod test {
         };
 
         let result = ci::enforce_source(&target_report);
-        assert!(result.is_err(), "Should fail when tests are required but missing");
+        assert!(
+            result.is_err(),
+            "Should fail when tests are required but missing"
+        );
 
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("unimplemented requirements are missing tests"), 
-                "Should mention unimplemented requirements: {}", error_msg);
-        assert!(error_msg.contains("type=test"), 
-                "Should use test annotation type: {}", error_msg);
-        assert!(error_msg.contains("The implementation MUST validate parameters"), 
-                "Should include first requirement: {}", error_msg);
-        assert!(error_msg.contains("The implementation MUST handle errors"), 
-                "Should include second requirement: {}", error_msg);
+        assert!(
+            error_msg.contains("unimplemented requirements are missing tests"),
+            "Should mention unimplemented requirements: {}",
+            error_msg
+        );
+        assert!(
+            error_msg.contains("type=test"),
+            "Should use test annotation type: {}",
+            error_msg
+        );
+        assert!(
+            error_msg.contains("The implementation MUST validate parameters"),
+            "Should include first requirement: {}",
+            error_msg
+        );
+        assert!(
+            error_msg.contains("The implementation MUST handle errors"),
+            "Should include second requirement: {}",
+            error_msg
+        );
     }
 
     #[test]
@@ -551,15 +590,27 @@ mod test {
         };
 
         let result = ci::enforce_source(&target_report);
-        assert!(result.is_err(), "Should fail when tests are required but missing");
+        assert!(
+            result.is_err(),
+            "Should fail when tests are required but missing"
+        );
 
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("implemented requirements are missing tests"), 
-                "Should mention implemented requirements missing tests: {}", error_msg);
-        assert!(error_msg.contains("type=test"), 
-                "Should use test annotation type: {}", error_msg);
-        assert!(error_msg.contains("The implementation MUST validate parameters"), 
-                "Should include the requirement: {}", error_msg);
+        assert!(
+            error_msg.contains("implemented requirements are missing tests"),
+            "Should mention implemented requirements missing tests: {}",
+            error_msg
+        );
+        assert!(
+            error_msg.contains("type=test"),
+            "Should use test annotation type: {}",
+            error_msg
+        );
+        assert!(
+            error_msg.contains("The implementation MUST validate parameters"),
+            "Should include the requirement: {}",
+            error_msg
+        );
     }
 
     #[test]
@@ -619,7 +670,7 @@ mod test {
         // Test that --require-tests 'spec.md#section' only validates that specific section
         let spec_content1 = "Requirement from section1.";
         let spec_content2 = "Requirement from section2.";
-        
+
         let source_file1 = SourceFile::new("test1.md", spec_content1).unwrap();
         let source_file2 = SourceFile::new("test2.md", spec_content2).unwrap();
         let target_file = SourceFile::new("test.rs", "//target").unwrap();
@@ -641,7 +692,7 @@ mod test {
             original_target: target_slice.clone(),
             original_text: text_slice1.clone(),
             original_quote: text_slice1.clone(),
-            anno: AnnotationType::Spec, // Missing test
+            anno: AnnotationType::Spec,             // Missing test
             target: "spec.md#section1".to_string(), // This should be targeted
             quote: spec_content1.to_string(),
             comment: "".to_string(),
@@ -673,13 +724,19 @@ mod test {
 
         let reference1 = Reference {
             target: target.clone(),
-            annotation: AnnotationWithId { id: 0, annotation: annotation1 },
+            annotation: AnnotationWithId {
+                id: 0,
+                annotation: annotation1,
+            },
             text: text_slice1,
         };
 
         let reference2 = Reference {
             target: target.clone(),
-            annotation: AnnotationWithId { id: 1, annotation: annotation2 },
+            annotation: AnnotationWithId {
+                id: 1,
+                annotation: annotation2,
+            },
             text: text_slice2,
         };
 
@@ -698,14 +755,23 @@ mod test {
         };
 
         let result = ci::enforce_source(&target_report);
-        assert!(result.is_err(), "Should fail when targeted section is missing tests");
+        assert!(
+            result.is_err(),
+            "Should fail when targeted section is missing tests"
+        );
 
         let error_msg = result.unwrap_err().to_string();
         // Should only mention section1, not section2
-        assert!(error_msg.contains("Requirement from section1"), 
-                "Should include targeted section1: {}", error_msg);
-        assert!(!error_msg.contains("Requirement from section2"), 
-                "Should NOT include non-targeted section2: {}", error_msg);
+        assert!(
+            error_msg.contains("Requirement from section1"),
+            "Should include targeted section1: {}",
+            error_msg
+        );
+        assert!(
+            !error_msg.contains("Requirement from section2"),
+            "Should NOT include non-targeted section2: {}",
+            error_msg
+        );
     }
 
     #[test]
@@ -713,7 +779,7 @@ mod test {
         // Test that --require-tests 'spec.md' (no section) validates the entire spec
         let spec_content1 = "Requirement from section1.";
         let spec_content2 = "Requirement from section2.";
-        
+
         let source_file1 = SourceFile::new("test1.md", spec_content1).unwrap();
         let source_file2 = SourceFile::new("test2.md", spec_content2).unwrap();
         let target_file = SourceFile::new("test.rs", "//target").unwrap();
@@ -766,13 +832,19 @@ mod test {
 
         let reference1 = Reference {
             target: target.clone(),
-            annotation: AnnotationWithId { id: 0, annotation: annotation1 },
+            annotation: AnnotationWithId {
+                id: 0,
+                annotation: annotation1,
+            },
             text: text_slice1,
         };
 
         let reference2 = Reference {
             target: target.clone(),
-            annotation: AnnotationWithId { id: 1, annotation: annotation2 },
+            annotation: AnnotationWithId {
+                id: 1,
+                annotation: annotation2,
+            },
             text: text_slice2,
         };
 
@@ -791,14 +863,23 @@ mod test {
         };
 
         let result = ci::enforce_source(&target_report);
-        assert!(result.is_err(), "Should fail when entire spec is missing tests");
+        assert!(
+            result.is_err(),
+            "Should fail when entire spec is missing tests"
+        );
 
         let error_msg = result.unwrap_err().to_string();
         // Should mention both sections since entire spec is targeted
-        assert!(error_msg.contains("Requirement from section1"), 
-                "Should include section1 from entire spec: {}", error_msg);
-        assert!(error_msg.contains("Requirement from section2"), 
-                "Should include section2 from entire spec: {}", error_msg);
+        assert!(
+            error_msg.contains("Requirement from section1"),
+            "Should include section1 from entire spec: {}",
+            error_msg
+        );
+        assert!(
+            error_msg.contains("Requirement from section2"),
+            "Should include section2 from entire spec: {}",
+            error_msg
+        );
     }
 
     #[test]
@@ -855,15 +936,27 @@ mod test {
         };
 
         let result = ci::enforce_source(&target_report);
-        assert!(result.is_err(), "Should fail when targeted section is missing citations");
+        assert!(
+            result.is_err(),
+            "Should fail when targeted section is missing citations"
+        );
 
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("missing citations"), 
-                "Should mention missing citations: {}", error_msg);
-        assert!(error_msg.contains("type=implementation"), 
-                "Should use implementation annotation type: {}", error_msg);
-        assert!(error_msg.contains("The implementation MUST validate parameters"), 
-                "Should include the requirement: {}", error_msg);
+        assert!(
+            error_msg.contains("missing citations"),
+            "Should mention missing citations: {}",
+            error_msg
+        );
+        assert!(
+            error_msg.contains("type=implementation"),
+            "Should use implementation annotation type: {}",
+            error_msg
+        );
+        assert!(
+            error_msg.contains("The implementation MUST validate parameters"),
+            "Should include the requirement: {}",
+            error_msg
+        );
     }
 
     // Note: Mixed scenarios test removed due to complexity in requirement grouping logic

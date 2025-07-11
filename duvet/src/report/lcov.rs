@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{ReportResult, TargetReport, RequirementMode};
+use super::{ReportResult, RequirementMode, TargetReport};
 use crate::{annotation::AnnotationType, target::Target, Result};
 use duvet_core::path::Path;
 use std::{

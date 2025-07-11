@@ -21,8 +21,10 @@ mod tests {
         quote: &str,
         target: &str,
     ) -> Arc<Annotation> {
-        let target_slice = source_file.substr_range(0..8.min(source_file.len())).unwrap(); // Mock target slice
-        // For the text slice, use the minimum of quote length and source file length
+        let target_slice = source_file
+            .substr_range(0..8.min(source_file.len()))
+            .unwrap(); // Mock target slice
+                       // For the text slice, use the minimum of quote length and source file length
         let text_len = quote.len().min(source_file.len());
         let text_slice = source_file.substr_range(0..text_len).unwrap();
 
@@ -47,7 +49,9 @@ mod tests {
 
     fn create_test_specification(content: &str, section_id: &str) -> Arc<Specification> {
         let source_file = create_test_source_file(content);
-        let title_slice = source_file.substr_range(0..10.min(source_file.len())).unwrap(); // Mock title
+        let title_slice = source_file
+            .substr_range(0..10.min(source_file.len()))
+            .unwrap(); // Mock title
 
         let section = Section {
             id: section_id.to_string(),
@@ -238,11 +242,8 @@ mod tests {
         // Test that quotes not found in sections produce appropriate errors
         let content = "Actual section content";
         let source_file = create_test_source_file(content);
-        let annotation = create_test_annotation(
-            &source_file,
-            "Non-existent quote text",
-            "test.md#section1",
-        );
+        let annotation =
+            create_test_annotation(&source_file, "Non-existent quote text", "test.md#section1");
         let target = Arc::new(Target {
             path: "test.md".parse().unwrap(),
             format: Format::Markdown,
@@ -292,8 +293,7 @@ mod tests {
             annotation: annotation.clone(),
         }]);
 
-        let (references, errors) =
-            build_references(target.clone(), spec, None, annotations).await;
+        let (references, errors) = build_references(target.clone(), spec, None, annotations).await;
 
         assert_eq!(references.len(), 0, "Should have no references");
         assert_eq!(errors.len(), 0, "Should have no errors");
@@ -305,8 +305,10 @@ mod tests {
         // Test that multiple annotations for the same section work correctly
         let content = "First requirement.\nSecond requirement.";
         let source_file = create_test_source_file(content);
-        let annotation1 = create_test_annotation(&source_file, "First requirement.", "test.md#section1");
-        let annotation2 = create_test_annotation(&source_file, "Second requirement.", "test.md#section1");
+        let annotation1 =
+            create_test_annotation(&source_file, "First requirement.", "test.md#section1");
+        let annotation2 =
+            create_test_annotation(&source_file, "Second requirement.", "test.md#section1");
         let target = Arc::new(Target {
             path: "test.md".parse().unwrap(),
             format: Format::Markdown,
