@@ -1,0 +1,1535 @@
+---
+source: xtask/src/tests.rs
+expression: json
+---
+{
+  "annotations": [
+    {
+      "comment": "The system MUST validate all input parameters before processing.\n",
+      "level": "MUST",
+      "line": 7,
+      "source": ".duvet/requirements/my-spec/input-validation.toml",
+      "target_path": "my-spec.md",
+      "target_section": "input-validation",
+      "type": "SPEC"
+    },
+    {
+      "line": 1,
+      "source": "src/my-code.rs",
+      "target_path": "my-spec.md",
+      "target_section": "input-validation"
+    }
+  ],
+  "refs": [
+    {},
+    {
+      "todo": true
+    },
+    {
+      "exception": true
+    },
+    {
+      "exception": true,
+      "todo": true
+    },
+    {
+      "test": true
+    },
+    {
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "implication": true
+    },
+    {
+      "implication": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "test": true
+    },
+    {
+      "implication": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true
+    },
+    {
+      "citation": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "spec": true
+    },
+    {
+      "spec": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "spec": true
+    },
+    {
+      "exception": true,
+      "spec": true,
+      "todo": true
+    },
+    {
+      "spec": true,
+      "test": true
+    },
+    {
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "spec": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "spec": true
+    },
+    {
+      "implication": true,
+      "spec": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "spec": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "spec": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "spec": true,
+      "test": true
+    },
+    {
+      "implication": true,
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "spec": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "spec": true
+    },
+    {
+      "citation": true,
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "spec": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "spec": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "spec": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "level": "MAY"
+    },
+    {
+      "level": "MAY",
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "MAY"
+    },
+    {
+      "exception": true,
+      "level": "MAY",
+      "todo": true
+    },
+    {
+      "level": "MAY",
+      "test": true
+    },
+    {
+      "level": "MAY",
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "MAY",
+      "test": true
+    },
+    {
+      "exception": true,
+      "level": "MAY",
+      "test": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "MAY"
+    },
+    {
+      "implication": true,
+      "level": "MAY",
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MAY"
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "MAY",
+      "test": true
+    },
+    {
+      "implication": true,
+      "level": "MAY",
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "test": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "MAY"
+    },
+    {
+      "citation": true,
+      "level": "MAY",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MAY"
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MAY",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "MAY",
+      "test": true
+    },
+    {
+      "citation": true,
+      "level": "MAY",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MAY",
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MAY",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MAY"
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MAY",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MAY"
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MAY",
+      "test": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MAY",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "test": true,
+      "todo": true
+    },
+    {
+      "level": "MAY",
+      "spec": true
+    },
+    {
+      "level": "MAY",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "MAY",
+      "spec": true
+    },
+    {
+      "exception": true,
+      "level": "MAY",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "level": "MAY",
+      "spec": true,
+      "test": true
+    },
+    {
+      "level": "MAY",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "MAY",
+      "spec": true
+    },
+    {
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true
+    },
+    {
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "MAY",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "level": "MAY",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MAY",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MAY",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MAY",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "level": "SHOULD"
+    },
+    {
+      "level": "SHOULD",
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "SHOULD"
+    },
+    {
+      "exception": true,
+      "level": "SHOULD",
+      "todo": true
+    },
+    {
+      "level": "SHOULD",
+      "test": true
+    },
+    {
+      "level": "SHOULD",
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "SHOULD",
+      "test": true
+    },
+    {
+      "exception": true,
+      "level": "SHOULD",
+      "test": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "SHOULD"
+    },
+    {
+      "implication": true,
+      "level": "SHOULD",
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD"
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "SHOULD",
+      "test": true
+    },
+    {
+      "implication": true,
+      "level": "SHOULD",
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "test": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "SHOULD"
+    },
+    {
+      "citation": true,
+      "level": "SHOULD",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "SHOULD"
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "SHOULD",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "SHOULD",
+      "test": true
+    },
+    {
+      "citation": true,
+      "level": "SHOULD",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "SHOULD",
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "SHOULD",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "SHOULD"
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "SHOULD",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD"
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "SHOULD",
+      "test": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "SHOULD",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "test": true,
+      "todo": true
+    },
+    {
+      "level": "SHOULD",
+      "spec": true
+    },
+    {
+      "level": "SHOULD",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "SHOULD",
+      "spec": true
+    },
+    {
+      "exception": true,
+      "level": "SHOULD",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "level": "SHOULD",
+      "spec": true,
+      "test": true
+    },
+    {
+      "level": "SHOULD",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true
+    },
+    {
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true
+    },
+    {
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "SHOULD",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "level": "SHOULD",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "SHOULD",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "SHOULD",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "SHOULD",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "level": "MUST"
+    },
+    {
+      "level": "MUST",
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "MUST"
+    },
+    {
+      "exception": true,
+      "level": "MUST",
+      "todo": true
+    },
+    {
+      "level": "MUST",
+      "test": true
+    },
+    {
+      "level": "MUST",
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "MUST",
+      "test": true
+    },
+    {
+      "exception": true,
+      "level": "MUST",
+      "test": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "MUST"
+    },
+    {
+      "implication": true,
+      "level": "MUST",
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MUST"
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "MUST",
+      "test": true
+    },
+    {
+      "implication": true,
+      "level": "MUST",
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "test": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "MUST"
+    },
+    {
+      "citation": true,
+      "level": "MUST",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MUST"
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MUST",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "MUST",
+      "test": true
+    },
+    {
+      "citation": true,
+      "level": "MUST",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MUST",
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MUST",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MUST"
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MUST",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MUST"
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MUST",
+      "test": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MUST",
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "test": true,
+      "todo": true
+    },
+    {
+      "level": "MUST",
+      "spec": true
+    },
+    {
+      "level": "MUST",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "MUST",
+      "spec": true
+    },
+    {
+      "exception": true,
+      "level": "MUST",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "level": "MUST",
+      "spec": true,
+      "test": true
+    },
+    {
+      "level": "MUST",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "MUST",
+      "spec": true
+    },
+    {
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true
+    },
+    {
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true
+    },
+    {
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "MUST",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "level": "MUST",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MUST",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MUST",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true,
+      "todo": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true
+    },
+    {
+      "citation": true,
+      "exception": true,
+      "implication": true,
+      "level": "MUST",
+      "spec": true,
+      "test": true,
+      "todo": true
+    }
+  ],
+  "specifications": {
+    "my-spec.md": {
+      "format": "markdown",
+      "requirements": [
+        0
+      ],
+      "sections": [
+        {
+          "id": "input-validation",
+          "lines": [
+            [
+              [
+                [
+                  0,
+                  1
+                ],
+                240,
+                "The system MUST validate all input parameters before processing."
+              ]
+            ]
+          ],
+          "requirements": [
+            0
+          ],
+          "title": "Input Validation"
+        }
+      ],
+      "title": "Input Validation"
+    }
+  },
+  "statuses": {
+    "0": {
+      "citation": 64,
+      "related": [
+        1
+      ],
+      "spec": 64
+    }
+  }
+}
