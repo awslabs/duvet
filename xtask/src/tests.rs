@@ -140,6 +140,10 @@ struct IntegrationTest {
     files: Vec<IntegrationFile>,
     #[serde(default)]
     env: BTreeMap<String, String>,
+    #[serde(default)]
+    cwd: Option<String>,
+    #[serde(default)]
+    report_output: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -223,9 +227,14 @@ impl IntegrationTest {
     }
 
     fn run(&self, target: &Path, sh: &Shell) -> Result {
-        let Self { name, cmd, .. } = self;
+        let Self { name, cmd, cwd, report_output, .. } = self;
 
-        let (stderr, json_report, snapshot_report) = {
+        let (stdout, stderr, json_report, snapshot_report) = {
+            let target_dir = if let Some(cwd) = cwd {
+                target.join(cwd)
+            } else {
+                target.to_path_buf()
+            };
             let _dir = sh.push_dir(target);
             let html_report = sh.current_dir().join("duvet_report.html");
             let json_report = sh.current_dir().join("duvet_report.json");
@@ -246,6 +255,7 @@ impl IntegrationTest {
                 env.push(sh.push_env(key, value));
             }
 
+            let mut stdout = String::new();
             let mut stderr = String::new();
 
             for cmd in cmd {
@@ -259,19 +269,25 @@ impl IntegrationTest {
                         stderr.push_str(&format!("EXIT: {:?}\n", output.status.code()));
                         stderr.push_str(&String::from_utf8_lossy(&output.stderr));
                         continue;
+                    } else {
+                        stdout.push_str(&format!("$ {cmd}\n"));
+                        // Send both to "stdout".
+                        // because progress! sends status messages and the like to stderr
+                        stdout.push_str(&String::from_utf8_lossy(&output.stdout));
+                        stdout.push_str(&String::from_utf8_lossy(&output.stderr));
                     }
                 } else {
                     runner.run()?;
                 }
             }
 
-            if stderr.is_empty() {
+            if stderr.is_empty() && !matches!(report_output, Some(false)) {
                 assert!(html_report.exists());
                 assert!(json_report.exists());
                 assert!(snapshot_report.exists());
             }
 
-            (stderr, json_report, snapshot_report)
+            (stdout, stderr, json_report, snapshot_report)
         };
 
         let mut settings = insta::Settings::clone_current();
@@ -286,15 +302,21 @@ impl IntegrationTest {
             return Ok(());
         }
 
-        let json_file = sh.read_file(&json_report)?;
-        let json: serde_json::Value = serde_json::from_str(&json_file)?;
+        if matches!(self.report_output, None | Some(true)) {
+            let json_file = sh.read_file(&json_report)?;
+            let json: serde_json::Value = serde_json::from_str(&json_file)?;
 
-        let snapshot = sh.read_file(&snapshot_report)?;
+            let snapshot = sh.read_file(&snapshot_report)?;
 
-        settings.bind(|| {
-            insta::assert_snapshot!(format!("{name}"), snapshot);
-            insta::assert_json_snapshot!(format!("{name}_json"), json);
-        });
+            settings.bind(|| {
+                insta::assert_snapshot!(format!("{name}"), snapshot);
+                insta::assert_json_snapshot!(format!("{name}_json"), json);
+            });
+        } else {
+            settings.bind(|| {
+                insta::assert_snapshot!(format!("{name}_stdout"), stdout);
+            });
+        }
 
         Ok(())
     }

@@ -1,0 +1,96 @@
+---
+source: xtask/src/tests.rs
+assertion_line: 317
+expression: stdout
+---
+$ duvet query --check implementation --verbose
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 5 sources 
+     Parsing annotations
+      Parsed 11 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 5 sections 
+    Matching references
+     Matched 14 references 
+     Running implementation annotation coverage check...
+
+Implementation: ✓ PASS
+
+  Total requirements: 4
+  Fully implemented: 4
+  Incomplete implementation: 0
+  Mixed implementation: 0
+  TODO: 0
+  Not implemented: 0
+
+  ☞ Fully Implemented
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=implementation
+ 3 │ ├─▶ //# This MUST be an implementation
+   · ╰──── Implemented
+ 4 │     
+   ╰────
+
+  ☞ Fully Implemented
+   ╭─[src/lib.rs:5:5]
+ 4 │     
+ 5 │ ╭─▶ //= spec.md#section-2
+ 6 │ │   //= type=implication
+ 7 │ ├─▶ //# This MUST be an implication
+   · ╰──── Implemented
+ 8 │     
+   ╰────
+
+  ☞ Fully Implemented
+    ╭─[src/lib.rs:9:5]
+  8 │     
+  9 │ ╭─▶ //= spec.md#section-3
+ 10 │ │   //= type=exception
+ 11 │ ├─▶ //# This MUST be an exception
+    · ╰──── Implemented
+ 12 │     
+    ╰────
+
+  ☞ Fully Implemented
+    ╭─[src/lib.rs:17:5]
+ 16 │     
+ 17 │ ╭─▶ //= spec.md#section-5
+ 18 │ │   //= type=implementation
+ 19 │ │   //# This MUST be a complicated multiline requirement
+ 20 │ ├─▶ //# that is implemented in parts because of the codes structure
+    · ╰──── Implemented
+ 21 │     
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Fully Implemented
+    ╭─[src/lib.rs:22:5]
+ 21 │     
+ 22 │ ╭─▶ //= spec.md#section-5
+ 23 │ │   //= type=implementation
+ 24 │ ├─▶ //# (start ≤ middle 
+    · ╰──── Implemented
+ 25 │     
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Fully Implemented
+    ╭─[src/lib.rs:26:5]
+ 25 │     
+ 26 │ ╭─▶ //= spec.md#section-5
+ 27 │ │   //= type=implementation
+ 28 │ ├─▶ //# middle ≤ end).
+    · ╰──── Implemented
+ 29 │     
+    ╰────
+
+
+Overall: ✓ PASS

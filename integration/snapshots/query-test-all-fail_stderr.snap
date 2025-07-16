@@ -1,0 +1,93 @@
+---
+source: xtask/src/tests.rs
+assertion_line: 300
+expression: stderr
+---
+$ duvet query --check test
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 3 sources 
+     Parsing annotations
+      Parsed 8 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 4 sections 
+    Matching references
+     Matched 8 references 
+     
+Tests: ✗ FAIL
+
+  Total requirements: 4
+  Fully tested: 0
+  Incomplete tests: 2
+  Not tested: 2
+
+  × Missing annotation
+  help: 
+        //= spec.md#section-1
+        //= type=test
+        //# This MUST be missing a test
+        
+
+  × Missing annotation
+  help: 
+        //= spec.md#section-3
+        //= type=test
+        //# This is not a requirement, but is missing a test
+        
+
+
+  × Incomplete test:
+  │  This MUST be an incomplete test
+   ╭─[src/lib.rs:5:5]
+ 4 │     
+ 5 │ ╭─▶ //= spec.md#section-2
+ 6 │ │   //= type=implementation
+ 7 │ ├─▶ //# This MUST be an incomplete test
+   · ╰──── Implementation
+ 8 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Incomplete test:
+  │  This MUST be an incomplete test
+    ╭─[src/lib.rs:9:5]
+  8 │     
+  9 │ ╭─▶ //= spec.md#section-2
+ 10 │ │   //= type=test
+ 11 │ ├─▶ //# This MUST be an incomplete
+    · ╰──── Incomplete test
+ 12 │     
+    ╰────
+
+  × Incomplete test:
+  │  This is not a requirement, and has an incomplete test
+    ╭─[src/lib.rs:17:5]
+ 16 │     
+ 17 │ ╭─▶ //= spec.md#section-4
+ 18 │ │   //= type=implementation
+ 19 │ ├─▶ //# This is not a requirement, and has an incomplete test
+    · ╰──── Implementation
+ 20 │     
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Incomplete test:
+  │  This is not a requirement, and has an incomplete test
+    ╭─[src/lib.rs:21:5]
+ 20 │     
+ 21 │ ╭─▶ //= spec.md#section-4
+ 22 │ │   //= type=test
+ 23 │ ├─▶ //# This is not a requirement, and has an incomplete
+    · ╰──── Incomplete test
+ 24 │     
+    ╰────
+
+
+
+Overall: ✗ FAIL

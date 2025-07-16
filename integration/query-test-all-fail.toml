@@ -1,0 +1,67 @@
+source = { local = true }
+cmd = ["duvet query --check test"]
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST be missing a test
+
+//= spec.md#section-2
+//= type=implementation
+//# This MUST be an incomplete test
+
+//= spec.md#section-2
+//= type=test
+//# This MUST be an incomplete
+
+//= spec.md#section-3
+//= type=implementation
+//# This is not a requirement, but is missing a test
+
+//= spec.md#section-4
+//= type=implementation
+//# This is not a requirement, and has an incomplete test
+
+//= spec.md#section-4
+//= type=test
+//# This is not a requirement, and has an incomplete
+
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST be missing a test
+
+## Section 2  
+
+This MUST be an incomplete test
+
+## Section 3
+
+This is not a requirement, but is missing a test
+
+## Section 4
+
+This is not a requirement, and has an incomplete test
+
+
+"""
