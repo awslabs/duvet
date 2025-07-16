@@ -1,0 +1,102 @@
+source = { local = true }
+cmd = ["duvet query --check test --verbose"]
+report_output = false
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=implication
+//# This MUST be an implication without a test
+
+//= spec.md#section-2
+//= type=exception
+//= reason=there is a reason
+//# This MUST be an exception without a test
+
+//= spec.md#section-3
+//= type=implementation
+//# This MUST be an implementation with a test
+
+//= spec.md#section-3
+//= type=test
+//# This MUST be an implementation with a test
+
+//= spec.md#section-4
+//= type=implementation
+//# This is not a requirement, and has a test
+
+//= spec.md#section-4
+//= type=test
+//# This is not a requirement, and has a test
+
+//= spec.md#section-5
+//= type=test
+//# This MUST have a test, but not implementation
+
+//= spec.md#section-6
+//= type=test
+//# This MUST have an implication and a test
+
+//= spec.md#section-6
+//= type=implication
+//# This MUST have an implication and a test
+
+//= spec.md#section-7
+//= type=test
+//# This MUST have an exception and a test
+
+//= spec.md#section-7
+//= type=exception
+//= reason=it really does not work
+//# This MUST have an exception and a test
+
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST be an implication without a test
+
+## Section 2  
+
+This MUST be an exception without a test
+
+## Section 3
+
+This MUST be an implementation with a test
+
+## Section 4
+
+This is not a requirement, and has a test
+
+## Section 5
+
+This MUST have a test, but not implementation
+
+## Section 6
+
+This MUST have an implication and a test
+
+## Section 7
+
+This MUST have an exception and a test
+
+
+"""

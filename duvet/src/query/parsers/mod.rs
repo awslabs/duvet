@@ -1,4 +1,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// CI validation functionality removed - use `duvet query` instead
+pub mod jacoco;
+
+pub use jacoco::JacocoParser;

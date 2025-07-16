@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::file::{Slice, SourceFile};
-pub use miette::{miette as miette_error, Context, Report};
+pub use miette::{miette as miette_error, Context, Report, Severity};
 use miette::{Diagnostic, LabeledSpan};
 use std::{error::Error as StdError, fmt, sync::Arc};
 
@@ -11,6 +11,17 @@ macro_rules! error {
     ($($tt:tt)*) => {{
         let error: $crate::diagnostic::Error = $crate::diagnostic::miette_error!($($tt)*).into();
         error
+    }};
+}
+
+#[macro_export]
+macro_rules! info {
+    ($($tt:tt)*) => {{
+        let info: $crate::diagnostic::Error = $crate::diagnostic::miette_error! {
+            severity = $crate::diagnostic::Severity::Advice,
+            $($tt)*
+        }.into();
+        info
     }};
 }
 
@@ -53,6 +64,40 @@ impl Error {
             label: label.as_ref().to_string(),
         })
         .into()
+    }
+
+    pub fn with_related_source_slice(
+        &self,
+        source_code: Slice<SourceFile>,
+        label: impl AsRef<str>,
+    ) -> Self {
+        let main_error_message = self.to_string();
+        
+        // Check if we already have a WithRelatedSources
+        if let Some(existing) = self.0.downcast_ref::<WithRelatedSources>() {
+            // Add to existing related diagnostics
+            let mut new_diagnostics = existing.related_diagnostics.clone();
+            new_diagnostics.push(RelatedSliceDiagnostic {
+                slice: source_code,
+                label: label.as_ref().to_string(),
+                main_error_message,
+            });
+            
+            Report::new(WithRelatedSources {
+                main: existing.main.clone(),
+                related_diagnostics: new_diagnostics,
+            }).into()
+        } else {
+            // First related slice - create new WithRelatedSources
+            Report::new(WithRelatedSources {
+                main: self.clone(),
+                related_diagnostics: vec![RelatedSliceDiagnostic {
+                    slice: source_code,
+                    label: label.as_ref().to_string(),
+                    main_error_message,
+                }],
+            }).into()
+        }
     }
 
     pub fn with_help<H: fmt::Display>(&self, help: H) -> Self {
@@ -306,6 +351,116 @@ impl Diagnostic for WithSourceCode {
 
     fn diagnostic_source(&self) -> Option<&dyn Diagnostic> {
         self.error.diagnostic_source()
+    }
+}
+
+struct WithRelatedSources {
+    main: Error,
+    related_diagnostics: Vec<RelatedSliceDiagnostic>,
+}
+
+#[derive(Clone)]
+struct RelatedSliceDiagnostic {
+    slice: Slice<SourceFile>,
+    label: String,
+    main_error_message: String,
+}
+
+impl fmt::Display for WithRelatedSources {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.main.fmt(f)
+    }
+}
+
+impl fmt::Debug for WithRelatedSources {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.main.fmt(f)
+    }
+}
+
+impl StdError for WithRelatedSources {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.main.source()
+    }
+}
+
+impl Diagnostic for WithRelatedSources {
+    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        self.main.code()
+    }
+
+    fn severity(&self) -> Option<miette::Severity> {
+        self.main.severity()
+    }
+
+    fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        self.main.help()
+    }
+
+    fn url<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        self.main.url()
+    }
+
+    fn labels<'a>(&'a self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + 'a>> {
+        self.main.labels()
+    }
+
+    fn source_code(&self) -> Option<&dyn miette::SourceCode> {
+        self.main.source_code()
+    }
+
+    fn related<'a>(&'a self) -> Option<Box<dyn Iterator<Item = &'a dyn Diagnostic> + 'a>> {
+        if self.related_diagnostics.is_empty() {
+            return self.main.related();
+        }
+
+        // Create related diagnostics for each slice
+        let related_diagnostics = self.related_diagnostics.iter().map(|d| d as &dyn Diagnostic);
+
+        // Chain with any existing related diagnostics from main
+        let main_related = self.main.related();
+        match main_related {
+            Some(existing) => Some(Box::new(existing.chain(related_diagnostics))),
+            None => Some(Box::new(related_diagnostics)),
+        }
+    }
+
+    fn diagnostic_source(&self) -> Option<&dyn Diagnostic> {
+        self.main.diagnostic_source()
+    }
+}
+
+impl fmt::Display for RelatedSliceDiagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Related context for:\n {}", self.main_error_message)
+    }
+}
+
+impl fmt::Debug for RelatedSliceDiagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Related context for:\n {}", self.main_error_message)
+    }
+}
+
+impl StdError for RelatedSliceDiagnostic {}
+
+impl Diagnostic for RelatedSliceDiagnostic {
+    fn severity(&self) -> Option<miette::Severity> {
+        Some(Severity::Advice)
+    }
+
+    fn labels<'a>(&'a self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + 'a>> {
+        if self.label.is_empty() {
+            return None;
+        }
+
+        let label = Some(self.label.clone());
+        let iter = core::iter::once(LabeledSpan::new_with_span(label, self.slice.range()));
+        Some(Box::new(iter))
+    }
+
+    fn source_code(&self) -> Option<&dyn miette::SourceCode> {
+        Some(self.slice.file())
     }
 }
 
