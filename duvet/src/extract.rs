@@ -22,6 +22,7 @@ use std::{
     io::BufWriter,
     sync::Arc,
 };
+use std::path::{Component, PathBuf};
 
 #[cfg(test)]
 mod tests;
@@ -122,7 +123,16 @@ impl Extraction<'_> {
                     .base_path
                     .and_then(|base| local_path.strip_prefix(base).ok())
                     .unwrap_or(&local_path);
-                self.out.join(local_path)
+                // If the target is a relative directory with a different parent
+                // e.g. `../`is a prefix.
+                // Without this sanitation the base output directory will be "escaped"
+                // and the TOML files will be written to a parent of the base output directory.
+                // By sanitizing these elements
+                // the files are written into the base output directory in the same relative structure.
+                // There likely still exists complicated structures that may behave unexpectedly
+                // like `../a/b/../c` turning into `/some/base/out/a/b/c`
+                let sanitized_path = sanitize_path(local_path);
+                self.out.join(sanitized_path)
             }
         };
 
@@ -177,6 +187,18 @@ impl Extraction<'_> {
 
         Ok(())
     }
+}
+
+fn sanitize_path(path: &std::path::Path) -> PathBuf {
+    path.components()
+        .filter_map(|component| match component {
+            Component::Normal(name) => Some(name),
+            Component::ParentDir => None, // Skip parent directory components
+            Component::CurDir => None,    // Skip current directory components  
+            Component::RootDir => None,   // Skip root directory
+            Component::Prefix(_) => None, // Skip Windows prefixes
+        })
+        .collect()
 }
 
 fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature>)> {

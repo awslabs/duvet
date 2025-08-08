@@ -1,0 +1,8 @@
+---
+source: xtask/src/tests.rs
+assertion_line: 302
+expression: snapshot
+---
+SPECIFICATION: [Test Specification](../specifications/spec.md)
+  SECTION: [Section 1](#section-1)
+    TEXT[!MUST,implementation]: This is a test implementation requirement that MUST be annotated.
