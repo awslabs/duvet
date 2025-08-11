@@ -20,9 +20,9 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     fs::OpenOptions,
     io::BufWriter,
+    path::{Component, PathBuf},
     sync::Arc,
 };
-use std::path::{Component, PathBuf};
 
 #[cfg(test)]
 mod tests;
@@ -194,7 +194,7 @@ fn sanitize_path(path: &std::path::Path) -> PathBuf {
         .filter_map(|component| match component {
             Component::Normal(name) => Some(name),
             Component::ParentDir => None, // Skip parent directory components
-            Component::CurDir => None,    // Skip current directory components  
+            Component::CurDir => None,    // Skip current directory components
             Component::RootDir => None,   // Skip root directory
             Component::Prefix(_) => None, // Skip Windows prefixes
         })
