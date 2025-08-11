@@ -235,7 +235,7 @@ impl IntegrationTest {
             } else {
                 target.to_path_buf()
             };
-            let _dir = sh.push_dir(target);
+            let _dir = sh.push_dir(&target_dir);
             let html_report = sh.current_dir().join("duvet_report.html");
             let json_report = sh.current_dir().join("duvet_report.json");
             let snapshot_report = sh.current_dir().join("duvet_snapshot.txt");
