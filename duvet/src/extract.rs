@@ -201,7 +201,7 @@ fn sanitize_path(path: &std::path::Path) -> PathBuf {
         .collect()
 }
 
-fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature>)> {
+fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature<'_>>)> {
     spec.sorted_sections()
         .iter()
         .map(|section| extract_section(section))
@@ -209,7 +209,7 @@ fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature>)> {
         .collect()
 }
 
-fn extract_section(section: &Section) -> (&Section, Vec<Feature>) {
+fn extract_section(section: &Section) -> (&Section, Vec<Feature<'_>>) {
     // use a hashmap to deduplicate quotes
     let mut quotes = HashMap::<_, Feature>::new();
     let lines = &section.lines[..];

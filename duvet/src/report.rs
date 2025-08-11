@@ -185,7 +185,7 @@ impl Report {
 
         for (path, report_fn) in reports {
             if let Some(path) = path {
-                let is_snapshot_ci = snapshot::report_ci as ReportFn == *report_fn;
+                let is_snapshot_ci = std::ptr::fn_addr_eq(snapshot::report_ci as ReportFn, *report_fn);
                 let progress = if is_snapshot_ci {
                     progress!("Checking {path}")
                 } else {
