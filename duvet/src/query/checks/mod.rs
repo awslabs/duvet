@@ -42,9 +42,9 @@ pub fn is_annotation_covered(
 
     // Get the target and find the specification
     let target = target_annotation.target()?;
-    let specification = specifications.get(&target).expect("Specification not found for test annotation");
-    let target_section = target_annotation.target_section().expect("Section not found for test annotation");
-    let section = specification.section(&target_section).expect("Test section not found in specification");
+    let specification = specifications.get(&target).expect("Specification not found for target annotation");
+    let target_section = target_annotation.target_section().expect("Section not found for specification");
+    let section = specification.section(&target_section).expect("Target section not found in specification");
     let section_contents = section.view();
 
     // Normalize the sections for our matching
@@ -58,11 +58,22 @@ pub fn is_annotation_covered(
     // On the good side, duplicate requirements in a section are confusing,
     // and as long as the specification reads nicely
     // degenerate duplicates like `the` won't work well and are not encouraged.
-    let target_start = normalize_section_contents.find(&normalized_target_quote).expect("The target quote MUST be in the section");
+    let target_start = match normalize_section_contents.find(&normalized_target_quote) {
+        Some(start) => start,
+        None => {
+            return Err(
+                duvet_core::error!("Exactly matchable quote not found in section")
+                .with_source_slice(target_annotation.original_text.clone(), "Quote")
+                .with_help("This is likely a multiline comment and the second line is missing `-` or other list operator.")
+            );
+        }
+    };
     let target_end = target_start + normalized_target_quote.len();
 
     let mut covered = vec![false; normalized_target_quote.len()];
-    let covering_annotations = annotations
+    let mut covering_annotations: Vec<Arc<Annotation>> = Vec::new();
+    
+    for annotation in annotations
         .iter()
         // An annotation can only be covered by annotations in the same target (section)
         .filter(|annotation| {
@@ -72,30 +83,36 @@ pub fn is_annotation_covered(
         .filter(|annotation| {
             !annotation.quote.is_empty()
         })
-        .filter(|annotation| {
-            let normalized_quote = whitespace::normalize(&annotation.quote);
-            let annotation_start = normalize_section_contents.find(&normalized_quote).expect("The annotation quote MUST be in the section");
-            let annotation_end = annotation_start + normalized_quote.len();
+    {
+        let normalized_quote = whitespace::normalize(&annotation.quote);
 
-             // Find overlap between the target range and this annotation range
-            let overlap_start = std::cmp::max(target_start, annotation_start);
-            let overlap_end = std::cmp::min(target_end, annotation_end);
-            
-            // If there's an overlap, mark those positions as covered
-            if overlap_start < overlap_end {
-                for pos in overlap_start..overlap_end {
-                    let index = pos - target_start;
-                    if index < covered.len() {
-                        covered[index] = true;
-                    }
-                }
-                true
-            } else {
-                false
+        let annotation_start = match normalize_section_contents.find(&normalized_quote) {
+            Some(start) => start,
+            None => {
+                return Err(
+                    duvet_core::error!("Exactly matchable quote not found in section")
+                    .with_source_slice(annotation.original_text.clone(), "Quote")
+                    .with_help("This is likely a multiline comment and the second line is missing `-` or other list operator.")
+                );
             }
-        })
-        .cloned()
-        .collect();
+        };
+        let annotation_end = annotation_start + normalized_quote.len();
+
+            // Find overlap between the target range and this annotation range
+        let overlap_start = std::cmp::max(target_start, annotation_start);
+        let overlap_end = std::cmp::min(target_end, annotation_end);
+        
+        // If there's an overlap, mark those positions as covered
+        if overlap_start < overlap_end {
+            for pos in overlap_start..overlap_end {
+                let index = pos - target_start;
+                if index < covered.len() {
+                    covered[index] = true;
+                }
+            }
+            covering_annotations.push(annotation.clone());
+        }
+    }
 
     Ok(AnnotationCoverage {
         fully_covered: covered.iter().all(|&covered| covered),
