@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use crate::{
-    annotation::{Annotation, AnnotationType},
+    annotation::{Annotation, AnnotationSet, AnnotationType},
     comment::{Pattern},
 };
 use std::{
@@ -54,8 +54,8 @@ pub struct TestResult {
 #[derive(Debug)]
 pub struct CoverageResult {
     pub status: QueryStatus,
-    pub executed_tests: Vec<Arc<Annotation>>,
-    pub executed_implementations: Vec<Arc<Annotation>>,
+    pub executed_tests: AnnotationSet,
+    pub executed_implementations: AnnotationSet,
     pub successful: Vec<CoveredTestAnnotation>,
     pub failed: Vec<CoveredTestAnnotation>,
     pub verbose: bool,
@@ -301,7 +301,8 @@ impl fmt::Display for TestResult {
                     pattern.meta, "type=test",
                     pattern.content, annotation.quote,
                 );
-                let missing = error!("Missing annotation")
+                let mut missing = error!("Missing test");
+                missing = with_annotation(missing, annotation, "Implementation")
                     .with_help(missing_annotation_comment);
                 writeln!(f, "{:?}", missing)?;
 
@@ -311,10 +312,6 @@ impl fmt::Display for TestResult {
         
         if incomplete_tests > 0 {
             for coverage in &self.incomplete_tests {
-                // let (first, rest) = coverage.covering_annotations
-                //     .split_first()
-                //     .expect("covering_annotations should not be empty");
-
                 let mut incomplete = error!("Incomplete test:\n {}", coverage.target.quote);
                 incomplete = with_annotation(incomplete, &coverage.target, "Implementation");
                 incomplete = with_related_annotations(
@@ -434,12 +431,12 @@ impl fmt::Display for CoverageResult {
             let mut executed_annotation = info!("Executed annotations");
             executed_annotation = with_related_annotations(
                 executed_annotation,
-                &self.executed_tests,
+                &self.executed_tests.iter().cloned().collect::<Vec<_>>(),
                 "Executed test"
             );
             executed_annotation = with_related_annotations(
                 executed_annotation,
-                &self.executed_implementations,
+                &self.executed_implementations.iter().cloned().collect::<Vec<_>>(),
                 "Executed implementation"
             );
             writeln!(f, "{:?}", executed_annotation)?;

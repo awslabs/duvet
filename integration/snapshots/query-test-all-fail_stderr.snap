@@ -25,14 +25,29 @@ Tests: ✗ FAIL
   Incomplete tests: 2
   Not tested: 2
 
-  × Missing annotation
+  × Missing test
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=implementation
+ 3 │ ├─▶ //# This MUST be missing a test
+   · ╰──── Implementation
+ 4 │     
+   ╰────
   help: 
         //= spec.md#section-1
         //= type=test
         //# This MUST be missing a test
         
 
-  × Missing annotation
+  × Missing test
+    ╭─[src/lib.rs:13:5]
+ 12 │     
+ 13 │ ╭─▶ //= spec.md#section-3
+ 14 │ │   //= type=implementation
+ 15 │ ├─▶ //# This is not a requirement, but is missing a test
+    · ╰──── Implementation
+ 16 │     
+    ╰────
   help: 
         //= spec.md#section-3
         //= type=test
