@@ -8,6 +8,7 @@ use crate::{
     text::whitespace,
     Result,
     query::{
+        engine::ProjectData,
         result::{
             AnnotationCoverage,
         }
@@ -121,3 +122,59 @@ pub fn is_annotation_covered(
         covered,
     })
 }
+
+
+#[derive(Debug)]
+pub struct ClassifiedCoverage {
+    pub complete_coverage: Vec<AnnotationCoverage>,
+    pub incomplete_coverage: Vec<AnnotationCoverage>,
+    pub no_coverage: Vec<Arc<Annotation>>,
+    pub mixed_coverage: Vec<AnnotationCoverage>,
+    pub secondary_coverage: Vec<AnnotationCoverage>,
+}
+
+pub fn classify_annotation_coverage(
+    project_data: &ProjectData,
+    annotations: &Vec<Arc<Annotation>>,
+    maybe_primary_covering_annotations: &Vec<Arc<Annotation>>,
+    maybe_secondary_covering_annotations: &Vec<Arc<Annotation>>,
+) -> Result<ClassifiedCoverage> {
+    let mut complete_coverage: Vec<AnnotationCoverage> = Vec::new();
+    let mut incomplete_coverage: Vec<AnnotationCoverage> = Vec::new();
+    let mut no_coverage: Vec<Arc<Annotation>> = Vec::new();
+    let mut mixed_coverage: Vec<AnnotationCoverage> = Vec::new();
+    let mut secondary_coverage: Vec<AnnotationCoverage> = Vec::new();
+
+    for annotation in annotations {
+        let primary_coverage = is_annotation_covered(annotation, &project_data.specifications, &maybe_primary_covering_annotations)?;
+        let secondary = is_annotation_covered(annotation, &project_data.specifications, &maybe_secondary_covering_annotations)?;
+
+        let primary_len = primary_coverage.covering_annotations.len();
+        let secondary_len = secondary.covering_annotations.len();
+
+        match (primary_coverage.fully_covered, primary_len, secondary_len) {
+            // Complete primary coverage
+            (true, _, s) if 0 == s => complete_coverage.push(primary_coverage),
+            // Complete primary but there is secondary coverage. duplicates?
+            (true, _, s) if 0 < s => mixed_coverage.push(primary_coverage.merge(secondary)),
+            // Primary is missing something
+            (false, p, s) if 0 < p && 0 == s => incomplete_coverage.push(primary_coverage),
+            // Mixed primary and secondary. duplicates?
+            (false, p, s) if 0 < p && 0 < s => mixed_coverage.push(primary_coverage.merge(secondary)),
+            // Only secondary
+            (false, p, s) if 0 == p && 0 < s => secondary_coverage.push(secondary),
+            // Zero coverage
+            _ => no_coverage.push(annotation.clone()),
+        }
+    }
+
+    Ok(ClassifiedCoverage {
+        complete_coverage,
+        incomplete_coverage,
+        no_coverage,
+        mixed_coverage,
+        secondary_coverage,
+    })
+
+}
+

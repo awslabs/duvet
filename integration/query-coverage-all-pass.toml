@@ -1,0 +1,255 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r *.xml -f jacoco-xml --verbose"]
+report_output = false
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST be stacked on another annotation
+
+## Section 2  
+
+This MUST have an annotation stacked on top of it
+
+## Section 3
+
+This does not have a level.
+
+"""
+
+[[file]]
+path = "src/main/java/com/example/StackingTest.java"
+contents = """
+package com.example;
+
+/**
+ * Test class to reproduce a stacked annotation.
+ */
+public class StackingTest {
+
+    public static byte[] generateKey() {
+        byte[] keyMaterial;
+        try {
+            //= spec.md#section-1
+            //= type=implementation
+            //# This MUST be stacked on another annotation
+            //= spec.md#section-2
+            //= type=implementation
+            //# This MUST have an annotation stacked on top of it
+            keyMaterial = new byte[32]; // This line should be executed (line 17)
+
+        //= spec.md#section-3
+        //= type=implementation
+        //# This does not have a level.
+        return keyMaterial;
+    }
+}
+
+"""
+
+[[file]]
+path = "src/test/java/com/example/StackingTestTest.java"
+contents = """
+package com.example;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+/**
+ * Test class with test annotations that reference the same specifications
+ * as the implementation annotations in StackingTest.java
+ */
+public class StackingTestTest {
+
+    @Test
+    public void testGenerateKey() {
+        //= spec.md#section-1
+        //= type=test
+        //# This MUST be stacked on another annotation
+        
+        byte[] key = StackingTest.generateKey();
+        
+        assertNotNull("Key should not be null", key);
+        assertEquals("Key should be 32 bytes", 32, key.length);
+    }
+
+    @Test
+    public void testGenerateKeyExactSize() {
+        //= spec.md#section-2
+        //= type=test
+        //# This MUST have an annotation stacked on top of it
+        
+        byte[] key = StackingTest.generateKey();
+        
+        assertEquals("Key must be exactly 32 bytes", 32, key.length);
+    }
+}
+"""
+
+[[file]]
+path = "jacoco-coverage-testGenerateKey.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="Stacked Annotations Test">
+    <sessioninfo id="test-session-1" start="1642000000000" dump="1642000001000"/>
+    
+    <package name="com/example">
+        <!-- Implementation class -->
+        <class name="com/example/StackingTest" sourcefilename="StackingTest.java">
+            <!-- Method line numbers are NOT accurate, they are the first executable line of the method-->
+            <method name="generateKey" desc="()[B" line="17">
+                <counter type="INSTRUCTION" missed="0" covered="10"/>
+                <counter type="LINE" missed="0" covered="2"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+                        
+            <counter type="INSTRUCTION" missed="0" covered="10"/>
+            <counter type="LINE" missed="0" covered="1"/>
+            <counter type="COMPLEXITY" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        
+        <!-- Test class -->
+        <class name="com/example/StackingTestTest" sourcefilename="StackingTestTest.java">
+            <method name="testGenerateKey" desc="()V" line="18">
+                <counter type="INSTRUCTION" missed="0" covered="15"/>
+                <counter type="LINE" missed="0" covered="4"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            
+            <method name="testGenerateKeyExactSize" desc="()V" line="30">
+                <counter type="INSTRUCTION" missed="0" covered="10"/>
+                <counter type="LINE" missed="0" covered="3"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+                        
+            <counter type="INSTRUCTION" missed="0" covered="25"/>
+            <counter type="LINE" missed="0" covered="7"/>
+            <counter type="COMPLEXITY" missed="0" covered="2"/>
+            <counter type="METHOD" missed="0" covered="2"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        
+        <sourcefile name="StackingTest.java">
+            <line nr="17" mi="0" ci="5" mb="0" cb="0"/>  <!-- Line epochKeyMaterial = new byte[32]; - EXECUTED -->
+            <line nr="22" mi="0" ci="1" mb="0" cb="0"/>  <!-- Line return keyMaterial; - EXECUTED -->
+        </sourcefile>
+
+        <sourcefile name="StackingTestTest.java">
+            <!-- Test testGenerateKey method lines are executed -->
+            <line nr="18" mi="0" ci="3" mb="0" cb="0"/>  <!-- byte[] key = StackingTest.generateKey(); first test -->
+            <line nr="20" mi="0" ci="3" mb="0" cb="0"/>  <!-- assertNotNull("Key should not be null", key); first test -->
+            <line nr="21" mi="0" ci="3" mb="0" cb="0"/>  <!-- assertEquals("Key should be 32 bytes", 32, key.length); first test -->
+        </sourcefile>
+
+        <counter type="INSTRUCTION" missed="0" covered="35"/>
+        <counter type="LINE" missed="0" covered="8"/>
+        <counter type="COMPLEXITY" missed="0" covered="3"/>
+        <counter type="METHOD" missed="0" covered="3"/>
+        <counter type="CLASS" missed="0" covered="2"/>
+    </package>
+    
+    <counter type="INSTRUCTION" missed="0" covered="35"/>
+    <counter type="LINE" missed="0" covered="8"/>
+    <counter type="COMPLEXITY" missed="0" covered="3"/>
+    <counter type="METHOD" missed="0" covered="3"/>
+    <counter type="CLASS" missed="0" covered="2"/>
+</report>
+"""
+
+[[file]]
+path = "jacoco-coverage-testGenerateKeyExactSize.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="Stacked Annotations Test">
+    <sessioninfo id="test-session-1" start="1642000000000" dump="1642000001000"/>
+    
+    <package name="com/example">
+        <!-- Implementation class -->
+        <class name="com/example/StackingTest" sourcefilename="StackingTest.java">
+            <!-- Method line numbers are NOT accurate, they are the first executable line of the method-->
+            <method name="generateKey" desc="()[B" line="17">
+                <counter type="INSTRUCTION" missed="0" covered="10"/>
+                <counter type="LINE" missed="0" covered="2"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+                        
+            <counter type="INSTRUCTION" missed="0" covered="10"/>
+            <counter type="LINE" missed="0" covered="1"/>
+            <counter type="COMPLEXITY" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        
+        <!-- Test class -->
+        <class name="com/example/StackingTestTest" sourcefilename="StackingTestTest.java">
+            <method name="testGenerateKey" desc="()V" line="18">
+                <counter type="INSTRUCTION" missed="0" covered="15"/>
+                <counter type="LINE" missed="0" covered="4"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            
+            <method name="testGenerateKeyExactSize" desc="()V" line="30">
+                <counter type="INSTRUCTION" missed="0" covered="10"/>
+                <counter type="LINE" missed="0" covered="3"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+                        
+            <counter type="INSTRUCTION" missed="0" covered="25"/>
+            <counter type="LINE" missed="0" covered="7"/>
+            <counter type="COMPLEXITY" missed="0" covered="2"/>
+            <counter type="METHOD" missed="0" covered="2"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        
+        <sourcefile name="StackingTest.java">
+            <line nr="17" mi="0" ci="5" mb="0" cb="0"/>  <!-- Line epochKeyMaterial = new byte[32]; - EXECUTED -->
+            <line nr="22" mi="0" ci="1" mb="0" cb="0"/>  <!-- Line return keyMaterial; - EXECUTED -->
+        </sourcefile>
+
+        <sourcefile name="StackingTestTest.java">
+            <!-- Test testGenerateKey method lines are executed -->
+            <line nr="30" mi="0" ci="3" mb="0" cb="0"/>  <!-- byte[] key = StackingTest.generateKey(); second test -->
+            <line nr="32" mi="0" ci="3" mb="0" cb="0"/>  <!-- assertEquals("Key must be exactly 32 bytes", 32, key.length); second test -->
+        </sourcefile>
+
+        <counter type="INSTRUCTION" missed="0" covered="35"/>
+        <counter type="LINE" missed="0" covered="8"/>
+        <counter type="COMPLEXITY" missed="0" covered="3"/>
+        <counter type="METHOD" missed="0" covered="3"/>
+        <counter type="CLASS" missed="0" covered="2"/>
+    </package>
+    
+    <counter type="INSTRUCTION" missed="0" covered="35"/>
+    <counter type="LINE" missed="0" covered="8"/>
+    <counter type="COMPLEXITY" missed="0" covered="3"/>
+    <counter type="METHOD" missed="0" covered="3"/>
+    <counter type="CLASS" missed="0" covered="2"/>
+</report>
+"""
+

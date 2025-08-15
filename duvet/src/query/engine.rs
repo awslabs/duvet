@@ -10,7 +10,9 @@ use super::{
             build_source_line_map,
             is_annotation_executed,
         },
-        is_annotation_covered,
+        // is_annotation_covered,
+        classify_annotation_coverage,
+        ClassifiedCoverage,
     },
     result::{
         QueryResult,
@@ -32,7 +34,7 @@ use crate::{
 };
 use duvet_core::{progress, diagnostic::IntoDiagnostic};
 use glob::glob;
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::{HashSet, BTreeSet}, sync::Arc};
 
 pub async fn execute_checks(
     checks: &[(CheckType, &RequirementMode)],
@@ -77,19 +79,21 @@ pub async fn execute_checks(
                     false
                 };
 
-                for report in report_paths {
-                    // Parse coverage data
-                    let coverage_data = parse_coverage_data(&report, format)?;
-                    let result = execute_coverage_check(
-                        &project_data,
-                        mode,
-                        &coverage_data,
-                        coverage_check_executed_tests_only,
-                        verbose
-                    ).await?;
+                // Parse coverage data
+                let coverage_data = report_paths
+                    .iter()
+                    .map(|path| parse_coverage_data(&path, format))
+                    .collect::<Result<Vec<_>>>()?;
 
-                    results.push(result);
-                }
+                let result = execute_coverage_check(
+                    &project_data,
+                    mode,
+                    &coverage_data,
+                    coverage_check_executed_tests_only,
+                    verbose
+                ).await?;
+
+                results.push(result);
             }
         };
     }
@@ -209,42 +213,18 @@ async fn execute_implementation_check(
         );
 
     // 4. Classify each spec annotation
-    let (
-        fully_implemented,
-        mixed_implementation,
-        incomplete_implementation,
-        todo,
-        not_implemented,
-    ) = spec_annotations
-        .iter()
-        .try_fold(
-            (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new()),
-            |(mut full, mut mixed, mut incomplete, mut todo, mut not), annotation| -> Result<_> {
-                let implemented_coverage = is_annotation_covered(annotation, &project_data.specifications, &implemented_annotations)?;
-                let todo_coverage = is_annotation_covered(annotation, &project_data.specifications, &todo_annotations)?;
-
-                let fully_covered = implemented_coverage.fully_covered;
-                let implemented_len = implemented_coverage.covering_annotations.len();
-                let todo_len = todo_coverage.covering_annotations.len();
-
-                match (fully_covered, implemented_len, todo_len) {
-                    // Fully implemented
-                    (true, _, t) if 0 == t => full.push(implemented_coverage),
-                    // Mixed implementations and todo. duplicates?
-                    (true, _, t) if 0 < t => mixed.push(implemented_coverage.merge(todo_coverage)),
-                    // Implementation missing something
-                    (false, i, t) if 0 < i && 0 == t => incomplete.push(implemented_coverage),
-                    // Mixed implementations and todo. duplicates?
-                    (false, i, t) if 0 < i && 0 < t => mixed.push(implemented_coverage.merge(todo_coverage)),
-                    // Only Todo
-                    (false, i, t) if 0 == i && 0 < t => todo.push(todo_coverage),
-                    // Zero coverage
-                    _ => not.push(annotation.clone()),
-                }
-
-                Ok((full, mixed, incomplete, todo, not))
-            }
-        )?;
+    let ClassifiedCoverage {
+        complete_coverage: fully_implemented,
+        mixed_coverage: mixed_implementation,
+        incomplete_coverage: incomplete_implementation,
+        secondary_coverage: todo,
+        no_coverage: not_implemented,
+    } = classify_annotation_coverage(
+        project_data,
+        &spec_annotations,
+        &implemented_annotations,
+        &todo_annotations,
+    )?;
     
     let status = if mixed_implementation.len() == 0
         && incomplete_implementation.len() == 0
@@ -319,34 +299,19 @@ async fn execute_test_check(
                 (impls, tests)
             }
         );
-
+    
     // 4. Classify each annotation
-    let (
-        fully_tested,
-        incomplete_tests,
-        not_tested,
-    ) = implementation_annotations
-        .iter()
-        .try_fold(
-            (Vec::new(), Vec::new(), Vec::new()),
-            |(mut full, mut incomplete, mut not), annotation| -> Result<_> {
-                let test_coverage = is_annotation_covered(annotation, &project_data.specifications, &test_annotations)?;
-
-                let fully_covered = test_coverage.fully_covered;
-                let tested_len = test_coverage.covering_annotations.len();
-
-                match (fully_covered, tested_len) {
-                    // Fully tested
-                    (true, _) => full.push(test_coverage),
-                    // Tests are missing some coverage
-                    (false, t) if 0 < t => incomplete.push(test_coverage),
-                    // Zero coverage
-                    _ => not.push(annotation.clone()),
-                }
-
-                Ok((full, incomplete, not))
-            }
-        )?;
+    let ClassifiedCoverage {
+        complete_coverage: fully_tested,
+        incomplete_coverage: incomplete_tests,
+        no_coverage: not_tested,
+        ..
+    } = classify_annotation_coverage(
+        project_data,
+        &implementation_annotations,
+        &test_annotations,
+        &Vec::new(),
+    )?;
 
     let status = if incomplete_tests.len() == 0
         && not_tested.len() == 0 {
@@ -358,17 +323,17 @@ async fn execute_test_check(
     Ok(CheckResult::Tests(TestResult {
         status: status,
         in_scope_requirements: implementation_annotations,
-        fully_tested: fully_tested,
-        incomplete_tests: incomplete_tests,
-        not_tested: not_tested,
-        verbose: verbose,
+        fully_tested,
+        incomplete_tests,
+        not_tested,
+        verbose,
     }))
 }
 
 async fn execute_coverage_check(
     project_data: &ProjectData,
     mode: &RequirementMode,
-    coverage_data: &crate::query::coverage::CoverageData,
+    coverage_data: &Vec<crate::query::coverage::CoverageData>,
     coverage_check_executed_tests_only: bool,
     verbose: bool,
 ) -> Result<CheckResult> {
@@ -377,102 +342,119 @@ async fn execute_coverage_check(
         progress!("Running test execution correlation check...");
     }
 
-    let source_line_map = build_source_line_map(&project_data.annotations, coverage_data, &project_data.project_sources)?;
+    let source_line_maps = coverage_data
+        .into_iter()
+        .map(|cover| build_source_line_map(&project_data.annotations, cover, &project_data.project_sources))
+        .collect::<Result<Vec<_>>>()?;
 
-    // 1. For every annotation, use source_line_map and is_annotation_executed to find all executed annotations
-    // 2. Split executed annotations into tests and implementations (type ==> CITATION | IMPLEMENTATION | IMPLICATION | EXCEPTION)
-    let (
-        executed_test_annotations,
-        executed_implementation_annotations,
-        not_executed_test_annotations,
-        not_executed_implementation_annotations,
-    ) = project_data
+    let mut test_annotations: Vec<_> = Vec::new();
+    let mut implementation_annotations: Vec<_> = Vec::new();
+
+    for annotation in project_data
         .annotations
         .iter()
         // Spec and Todo are not executable, remove them
         .filter(|annotation| !matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo))
         .filter(|annotation| mode.in_scope(annotation))
-        .fold(
-            (Vec::new(), Vec::new(), Vec::new(), Vec::new()),
-            |(mut executed_tests, mut executed_impls, mut not_executed_tests, mut not_executed_impls), annotation| {
-                let is_executed = is_annotation_executed(annotation, &source_line_map);
-                
-                match (is_executed, &annotation.anno) {
-                    (true, AnnotationType::Test) => {
-                        executed_tests.push(annotation.clone());
-                    }
-                    (true, AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception) => {
-                        executed_impls.push(annotation.clone());
-                    }
-                    (false, AnnotationType::Test) => {
-                        not_executed_tests.push(annotation.clone());
-                    }
-                    (false, AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception) => {
-                        not_executed_impls.push(annotation.clone());
-                    }
-                    // Shouldn't happen due to filter, but good to be explicit
-                    _ => unreachable!()
-                }
-                
-                (executed_tests, executed_impls, not_executed_tests, not_executed_impls)
-            },
-        );
+    {
+        match &annotation.anno {
+            AnnotationType::Test => test_annotations.push(annotation.clone()),
+            AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => 
+                implementation_annotations.push(annotation.clone()),
+            // Shouldn't happen due to filter, but good to be explicit
+            _ => unreachable!()
 
-    // 3. For every test annotation, check how it is covered by executed implementations annotations
-    let mut successful_annotations = Vec::new();
-    let mut failed_annotations = Vec::new();
-    executed_test_annotations
-        .iter()
-        .try_for_each(|annotation| {
-            let executed_coverage = is_annotation_covered(annotation, &project_data.specifications, &executed_implementation_annotations)?;
-            let not_executed_coverage = is_annotation_covered(annotation, &project_data.specifications, &not_executed_implementation_annotations)?;
-
-            match executed_coverage.fully_covered {
-                true => {
-                    // TODO? If !not_executed_coverage.covering_annotations.is_empty() is this ok?
-                    // In this case there are duplicate implementation annotations,
-                    // some have been executed and some have not.
-                    successful_annotations.push(CoveredTestAnnotation{
-                        test: annotation.clone(),
-                        test_executed: true,
-                        executed_implementations: executed_coverage.covering_annotations,
-                        not_executed_implementations: not_executed_coverage.covering_annotations,
-                    });
-                }
-                false => {
-                    failed_annotations.push(CoveredTestAnnotation{
-                        test: annotation.clone(),
-                        test_executed: true,
-                        executed_implementations: executed_coverage.covering_annotations,
-                        not_executed_implementations: not_executed_coverage.covering_annotations,
-                    });
-                }
-            }
-
-            <Result>::Ok(())
         }
-    )?;
-
-    if !coverage_check_executed_tests_only {
-        not_executed_test_annotations
-            .iter()
-            .try_for_each(|annotation| {
-                let executed_coverage = is_annotation_covered(annotation, &project_data.specifications, &executed_implementation_annotations)?;
-                let not_executed_coverage = is_annotation_covered(annotation, &project_data.specifications, &not_executed_implementation_annotations)?;
-
-                failed_annotations
-                    .push(CoveredTestAnnotation{
-                        test: annotation.clone(),
-                        test_executed: false,
-                        executed_implementations: executed_coverage.covering_annotations,
-                        not_executed_implementations: not_executed_coverage.covering_annotations,
-                    });
-                <Result>::Ok(())
-            })?;
-
     }
 
-    let status = if 0 == failed_annotations.len() {
+    // 4. Classify each annotation
+    let ClassifiedCoverage {
+        complete_coverage,
+        incomplete_coverage,
+        no_coverage,
+        ..
+    } = classify_annotation_coverage(
+        project_data,
+        &test_annotations,
+        &implementation_annotations,
+        &Vec::new(),
+    )?;
+
+    let mut successful: Vec<CoveredTestAnnotation> = Vec::new();
+    let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
+
+    for test in complete_coverage.iter().chain(&incomplete_coverage) {
+        let mut test_executed = false;
+        for source_line_map in &source_line_maps {
+            if is_annotation_executed(&test.target, &source_line_map) {
+                test_executed = true;
+                let (
+                    executed_implementations,
+                    not_executed_implementations,
+                ): (Vec<_>, Vec<_>) = test
+                    .covering_annotations
+                    .iter()
+                    .cloned()
+                    .partition(|annotation| is_annotation_executed(&annotation, &source_line_map));
+
+                let result = CoveredTestAnnotation {
+                    test: test.target.clone(),
+                    test_executed: true,
+                    executed_implementations,
+                    not_executed_implementations,
+                };
+                if result.not_executed_implementations.is_empty() {
+                    successful.push(result);
+                } else {
+                    failed.push(result);
+                }
+            }
+        }
+        if !test_executed && !coverage_check_executed_tests_only {
+            let result = CoveredTestAnnotation {
+                test: test.target.clone(),
+                test_executed: false,
+                executed_implementations: Vec::new(),
+                // What is the right value here?
+                // Some of these annotations might be executed in some of the coverage.
+                // Does communicate anything meaningful?
+                not_executed_implementations: Vec::new(),
+            };
+            failed.push(result);
+        }
+        // What happens if the test is executed in multiple runs?
+    }
+
+    let executed_tests: AnnotationSet = successful
+        .iter()
+        .chain(&failed)
+        .filter(|result| result.test_executed)
+        .map(|result| result.test.clone())
+        .collect::<BTreeSet<_>>()
+        .into();
+    let executed_from_tests: BTreeSet<_> = successful
+        .iter()
+        .chain(&failed)
+        .flat_map(|result| &result.executed_implementations)
+        .collect::<BTreeSet<_>>()
+        .into();
+
+    let executed_implementations = implementation_annotations
+        .iter()
+        .filter(|annotation| {
+            if executed_from_tests.contains(annotation) {
+                true
+            } else {
+                source_line_maps
+                    .iter()
+                    .any(|source_line_map| is_annotation_executed(annotation, &source_line_map))
+            }
+        })
+        .cloned()
+        .collect::<BTreeSet<_>>()
+        .into();
+
+    let status = if 0 == failed.len() {
         QueryStatus::Pass
     } else {
         QueryStatus::Fail
@@ -480,11 +462,11 @@ async fn execute_coverage_check(
 
     // Put the output here
     Ok(CheckResult::Coverage(CoverageResult {
-        status: status,
-        executed_tests: executed_test_annotations,
-        executed_implementations: executed_implementation_annotations,
-        successful: successful_annotations,
-        failed: failed_annotations,
+        status,
+        executed_tests,
+        executed_implementations,
+        successful,
+        failed,
         verbose: verbose,
     }))
 }
