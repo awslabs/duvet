@@ -10,7 +10,6 @@ use super::{
             build_source_line_map,
             is_annotation_executed,
         },
-        // is_annotation_covered,
         classify_annotation_coverage,
         ClassifiedCoverage,
     },
@@ -22,19 +21,23 @@ use super::{
         CoverageResult,
         CoveredTestAnnotation,
         QueryStatus,
+        DuplicatesResult,
+        Duplicates,
+        AnnotationCoverage,
     },
     CheckType,
 };
 use crate::{
-    annotation::{self, AnnotationSet, AnnotationType},
+    annotation::{self, AnnotationSet, AnnotationType, Annotation},
     project::Project,
     reference::{self},
     source::SourceFile,
     Result,
 };
+
 use duvet_core::{progress, diagnostic::IntoDiagnostic};
 use glob::glob;
-use std::{collections::{HashSet, BTreeSet}, sync::Arc};
+use std::{collections::{HashMap, HashSet, BTreeSet}, sync::Arc};
 
 pub async fn execute_checks(
     checks: &[(CheckType, &RequirementMode)],
@@ -56,6 +59,10 @@ pub async fn execute_checks(
             }
             CheckType::Test => {
                 let result = execute_test_check(&project_data, mode, verbose).await?;
+                results.push(result);
+            }
+            CheckType::Duplicates => {
+                let result = execute_duplicates(&project_data, mode, verbose).await?;
                 results.push(result);
             }
             CheckType::Coverage | CheckType::ExecutedCoverage => {
@@ -103,6 +110,7 @@ pub async fn execute_checks(
         CheckResult::Implementation(impl_result) => impl_result.status == QueryStatus::Pass,
         CheckResult::Tests(test_result) => test_result.status == QueryStatus::Pass,
         CheckResult::Coverage(cov_result) => cov_result.status == QueryStatus::Pass,
+        CheckResult::Duplicates(dup_result) => dup_result.status == QueryStatus::Pass,
     }) {
         QueryStatus::Pass
     } else {
@@ -186,10 +194,8 @@ async fn execute_implementation_check(
     ) = project_data
         .annotations
         .iter()
-        // 1. get the sections in scope
-        .filter(|annotation| !matches!(annotation.anno, AnnotationType::Test))
         .filter(|annotation| mode.in_scope(annotation))
-        // 2. organize the annotations into spec implemented and todo
+        .filter(|annotation| !matches!(annotation.anno, AnnotationType::Test))
         .fold(
             (Vec::new(), Vec::new(), Vec::new()),
             |(mut specs, mut impls, mut todos), annotation| {
@@ -470,6 +476,106 @@ async fn execute_coverage_check(
         verbose: verbose,
     }))
 }
+
+async fn execute_duplicates(
+    project_data: &ProjectData,
+    mode: &RequirementMode,
+    verbose: bool,
+) -> Result<CheckResult> {
+
+    let classified_annotations_by_type: HashMap<AnnotationType, ClassifiedCoverage> = project_data
+        .annotations
+        .iter()
+        .filter(|annotation| mode.in_scope(annotation))
+        .fold(HashMap::new(), |mut acc: HashMap<AnnotationType, Vec<Arc<Annotation>>>, annotation| {
+            acc.entry(annotation.anno).or_default().push(annotation.clone());
+            acc
+        })
+        .iter()
+        .map(|(annotation_type, annotations)| {
+            let classified_coverage = classify_annotation_coverage(
+                project_data,
+                &annotations,
+                &annotations,
+                &Vec::new(),
+            )?;
+            Ok((*annotation_type, classified_coverage))
+        })
+        .collect::<Result<HashMap<AnnotationType, ClassifiedCoverage>>>()?;
+    
+    let mut duplicates_by_type: HashMap<AnnotationType, Duplicates>  = classified_annotations_by_type
+        .into_iter()
+        .map(|(annotation_type, classified)| 
+            (annotation_type, convert_to_duplicates(classified))
+        )
+        .collect();
+
+    let has_duplicates = duplicates_by_type
+        .iter()
+        .any(|(_type, by_type)| !by_type.duplicates.is_empty());
+
+    let status = if has_duplicates {
+        QueryStatus::Fail
+    } else {
+        QueryStatus::Pass
+    };
+
+    Ok(CheckResult::Duplicates(DuplicatesResult{
+        status,
+        spec: duplicates_by_type.remove(&AnnotationType::Spec).unwrap_or_else(empty_duplicates),
+        implementation: duplicates_by_type.remove(&AnnotationType::Citation).unwrap_or_else(empty_duplicates),
+        test: duplicates_by_type.remove(&AnnotationType::Test).unwrap_or_else(empty_duplicates),
+        exception: duplicates_by_type.remove(&AnnotationType::Exception).unwrap_or_else(empty_duplicates),
+        todo: duplicates_by_type.remove(&AnnotationType::Todo).unwrap_or_else(empty_duplicates),
+        implication: duplicates_by_type.remove(&AnnotationType::Implication).unwrap_or_else(empty_duplicates),
+        verbose,
+    }))
+
+}
+
+fn convert_to_duplicates(classified: ClassifiedCoverage) -> Duplicates {
+    // This assumes that you used classify_annotation_coverage
+    // where annotations == maybe_primary_covering_annotations
+    // This means that mixed_coverage == [] && secondary_coverage == []
+
+    let duplicates = deduplicate_annotation_coverage(classified.complete_coverage);
+    Duplicates {
+        duplicates,
+        some_overlap: classified.incomplete_coverage,
+        unique: classified.no_coverage,
+    }
+}
+
+fn empty_duplicates() -> Duplicates {
+    Duplicates {
+        duplicates: Vec::new(),
+        some_overlap: Vec::new(),
+        unique: Vec::new(),
+    }
+}
+
+fn deduplicate_annotation_coverage(coverage_list: Vec<AnnotationCoverage>) -> Vec<AnnotationCoverage> {
+    let mut seen_annotations = HashSet::new();
+    let mut result = Vec::new();
+    
+    for coverage in coverage_list {
+        if !seen_annotations.contains(&coverage.target) {
+            // This target hasn't been seen yet, so keep this coverage
+            seen_annotations.insert(coverage.target.clone());
+            
+            // Add all covering annotations to the seen set too
+            for annotation in &coverage.covering_annotations {
+                seen_annotations.insert(annotation.clone());
+            }
+            
+            result.push(coverage);
+        }
+        // else: target already seen, skip this duplicate coverage
+    }
+    
+    result
+}
+
 
 fn expand_coverage_globs(reports: &[String]) -> Result<Vec<String>> {
     let mut expanded_paths = Vec::new();

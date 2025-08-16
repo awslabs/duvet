@@ -27,6 +27,7 @@ pub enum CheckResult {
     Implementation(ImplementationResult),
     Tests(TestResult), 
     Coverage(CoverageResult),
+    Duplicates(DuplicatesResult),
 }
 
 #[derive(Debug)]
@@ -59,6 +60,25 @@ pub struct CoverageResult {
     pub successful: Vec<CoveredTestAnnotation>,
     pub failed: Vec<CoveredTestAnnotation>,
     pub verbose: bool,
+}
+
+#[derive(Debug)]
+pub struct DuplicatesResult {
+    pub status: QueryStatus,
+    pub spec: Duplicates,
+    pub implementation: Duplicates,
+    pub test: Duplicates,
+    pub exception: Duplicates,
+    pub todo: Duplicates,
+    pub implication: Duplicates,
+    pub verbose: bool,
+}
+
+#[derive(Debug)]
+pub struct Duplicates {
+    pub duplicates: Vec<AnnotationCoverage>,
+    pub some_overlap: Vec<AnnotationCoverage>,
+    pub unique: Vec<Arc<Annotation>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -135,6 +155,7 @@ impl fmt::Display for CheckResult {
             CheckResult::Implementation(implementation_result) => write!(f, "{}", implementation_result),
             CheckResult::Tests(test_result) => write!(f, "{}", test_result),
             CheckResult::Coverage(coverage_result) => write!(f, "{}", coverage_result),
+            CheckResult::Duplicates(duplicates_result) => write!(f, "{}", duplicates_result),
         }
     }
 }
@@ -446,6 +467,98 @@ impl fmt::Display for CoverageResult {
         
         Ok(())
     }
+}
+
+impl fmt::Display for DuplicatesResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f)?;
+        writeln!(f, "Duplicates: {}", self.status)?;
+        writeln!(f)?;
+
+        // Helper function to show duplicates for a category
+        let show_duplicates = |f: &mut fmt::Formatter, category_name: &str, duplicates: &Duplicates| -> fmt::Result {
+            if !duplicates.duplicates.is_empty() {
+                for coverage in &duplicates.duplicates {
+                    let duplicate_error = coverage2error(
+                        coverage,
+                        format!("Duplicate {} annotations", category_name.to_lowercase()),
+                        "Duplicate".to_string(),
+                        "Duplicate".to_string(),
+                    );
+                    writeln!(f, "{:?}", duplicate_error)?;
+                }
+            }
+            Ok(())
+        };
+
+        // Always show duplicates for each category
+        show_duplicates(f, "Spec", &self.spec)?;
+        show_duplicates(f, "Implementation", &self.implementation)?;  
+        show_duplicates(f, "Test", &self.test)?;
+        show_duplicates(f, "Exception", &self.exception)?;
+        show_duplicates(f, "Todo", &self.todo)?;
+        show_duplicates(f, "Implication", &self.implication)?;
+
+        // If verbose, show additional details
+        if self.verbose {
+            // Helper function to show verbose info for a category
+            let show_verbose_info = |f: &mut fmt::Formatter, category_name: &str, duplicates: &Duplicates| -> fmt::Result {
+                // Show some_overlap
+                if !duplicates.some_overlap.is_empty() {
+                    for coverage in &duplicates.some_overlap {
+                        let (first, rest) = coverage.covering_annotations
+                            .split_first()
+                            .expect("covering_annotations should not be empty");
+
+                        let mut overlap_info = info!("{} annotations with some overlap", category_name);
+                        overlap_info = with_annotation(overlap_info, first, "Some overlap");
+                        overlap_info = with_related_annotations(
+                            overlap_info,
+                            &rest,
+                            "Some overlap"
+                        );
+                        writeln!(f, "{:?}", overlap_info)?;
+                    }
+                }
+
+                // Show unique
+                if !duplicates.unique.is_empty() {
+                    let mut unique_info = info!("Unique {} annotations", category_name.to_lowercase());
+                    unique_info = with_related_annotations(
+                        unique_info,
+                        &duplicates.unique,
+                        "Unique"
+                    );
+                    writeln!(f, "{:?}", unique_info)?;
+                }
+                Ok(())
+            };
+
+            show_verbose_info(f, "Spec", &self.spec)?;
+            show_verbose_info(f, "Implementation", &self.implementation)?;
+            show_verbose_info(f, "Test", &self.test)?;
+            show_verbose_info(f, "Exception", &self.exception)?;
+            show_verbose_info(f, "Todo", &self.todo)?;
+            show_verbose_info(f, "Implication", &self.implication)?;
+        }
+
+        Ok(())
+    }
+}
+
+fn coverage2error(
+    coverage: &AnnotationCoverage,
+    error_message: String,
+    annotation_message: String,
+    related_annotations_message: String,
+) -> duvet_core::diagnostic::Error {
+    let mut error = error!(error_message);
+    error = with_annotation(error, &coverage.target, annotation_message);
+    with_related_annotations(
+        error,
+        &coverage.covering_annotations,
+        related_annotations_message,
+    )
 }
 
 fn with_annotation(

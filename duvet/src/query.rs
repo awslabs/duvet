@@ -128,6 +128,7 @@ Example implementation annotation:
 This is helpful for quick on-off checking of a single test.
 ")]
     ExecutedCoverage,
+    Duplicates,
 }
 
 impl Query {
