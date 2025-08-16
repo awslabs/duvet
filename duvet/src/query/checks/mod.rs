@@ -76,6 +76,8 @@ pub fn is_annotation_covered(
     
     for annotation in annotations
         .iter()
+        // An annotation can not be covered by itself
+        .filter(|annotation| *annotation != target_annotation)
         // An annotation can only be covered by annotations in the same target (section)
         .filter(|annotation| {
             target_annotation.target == annotation.target
