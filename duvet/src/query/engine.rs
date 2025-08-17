@@ -86,11 +86,12 @@ pub async fn execute_checks(
                     false
                 };
 
-                // Parse coverage data
-                let coverage_data = report_paths
-                    .iter()
-                    .map(|path| parse_coverage_data(&path, format))
-                    .collect::<Result<Vec<_>>>()?;
+                // Parse coverage data in parallel using async
+                let parse_futures: Vec<_> = report_paths.iter().map(|path| {
+                    parse_coverage_data(path, format)
+                }).collect();
+
+                let coverage_data = futures::future::try_join_all(parse_futures).await?;
 
                 let result = execute_coverage_check(
                     &project_data,
@@ -230,7 +231,7 @@ async fn execute_implementation_check(
         &spec_annotations,
         &implemented_annotations,
         &todo_annotations,
-    )?;
+    ).await?;
     
     let status = if mixed_implementation.len() == 0
         && incomplete_implementation.len() == 0
@@ -317,7 +318,7 @@ async fn execute_test_check(
         &implementation_annotations,
         &test_annotations,
         &Vec::new(),
-    )?;
+    ).await?;
 
     let status = if incomplete_tests.len() == 0
         && not_tested.len() == 0 {
@@ -348,10 +349,12 @@ async fn execute_coverage_check(
         progress!("Running test execution correlation check...");
     }
 
-    let source_line_maps = coverage_data
-        .into_iter()
-        .map(|cover| build_source_line_map(&project_data.annotations, cover, &project_data.project_sources))
-        .collect::<Result<Vec<_>>>()?;
+    // Build source line maps in parallel for better performance
+    let map_futures: Vec<_> = coverage_data.iter().map(|cover| {
+        build_source_line_map(&project_data.annotations, cover, &project_data.project_sources)
+    }).collect();
+
+    let source_line_maps = futures::future::try_join_all(map_futures).await?;
 
     let mut test_annotations: Vec<_> = Vec::new();
     let mut implementation_annotations: Vec<_> = Vec::new();
@@ -377,14 +380,14 @@ async fn execute_coverage_check(
     let ClassifiedCoverage {
         complete_coverage,
         incomplete_coverage,
-        no_coverage,
+        no_coverage: _no_coverage,
         ..
     } = classify_annotation_coverage(
         project_data,
         &test_annotations,
         &implementation_annotations,
         &Vec::new(),
-    )?;
+    ).await?;
 
     let mut successful: Vec<CoveredTestAnnotation> = Vec::new();
     let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
@@ -483,25 +486,32 @@ async fn execute_duplicates(
     verbose: bool,
 ) -> Result<CheckResult> {
 
-    let classified_annotations_by_type: HashMap<AnnotationType, ClassifiedCoverage> = project_data
+    let annotations_by_type: HashMap<AnnotationType, Vec<Arc<Annotation>>> = project_data
         .annotations
         .iter()
         .filter(|annotation| mode.in_scope(annotation))
         .fold(HashMap::new(), |mut acc: HashMap<AnnotationType, Vec<Arc<Annotation>>>, annotation| {
             acc.entry(annotation.anno).or_default().push(annotation.clone());
             acc
-        })
-        .iter()
-        .map(|(annotation_type, annotations)| {
+        });
+
+    // Create futures for concurrent classification by annotation type
+    let classification_futures: Vec<_> = annotations_by_type.iter().map(|(annotation_type, annotations)| {
+        let annotation_type = *annotation_type;
+        let annotations = annotations.clone();
+        async move {
             let classified_coverage = classify_annotation_coverage(
                 project_data,
                 &annotations,
                 &annotations,
                 &Vec::new(),
-            )?;
-            Ok((*annotation_type, classified_coverage))
-        })
-        .collect::<Result<HashMap<AnnotationType, ClassifiedCoverage>>>()?;
+            ).await?;
+            Ok::<_, crate::Error>((annotation_type, classified_coverage))
+        }
+    }).collect();
+
+    let classification_results = futures::future::try_join_all(classification_futures).await?;
+    let classified_annotations_by_type: HashMap<AnnotationType, ClassifiedCoverage> = classification_results.into_iter().collect();
     
     let mut duplicates_by_type: HashMap<AnnotationType, Duplicates>  = classified_annotations_by_type
         .into_iter()

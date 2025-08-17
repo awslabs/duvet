@@ -23,12 +23,15 @@ pub enum CoverageFormat {
     // Future: Lcov, Clover
 }
 
-pub fn build_source_line_map(
+pub async fn build_source_line_map(
     annotations: &AnnotationSet,
     coverage_data: &CoverageData,
     project_sources: &HashSet<SourceFile>
 ) -> Result<SourceLineMap> {
     let mut source_line_map = FxHashMap::default();
+    
+    // Process files in parallel for better performance
+    let mut file_futures = Vec::new();
     
     for source_file in project_sources {
         // Only process Text files, skip Toml files
@@ -43,21 +46,38 @@ pub fn build_source_line_map(
             .map(|(_, file_coverage)| file_coverage);
             
         if let Some(file_coverage) = coverage_option {
-            let line_map = build_line_map_for_file(duvet_path, &annotations, file_coverage)?;
-            source_line_map.insert(duvet_path.to_path_buf(), line_map); // Path as key!
+            let duvet_path = duvet_path.clone();
+            let annotations = annotations.clone();
+            let file_coverage = file_coverage.clone();
+            
+            let future = async move {
+                let line_map = build_line_map_for_file(&duvet_path, &annotations, &file_coverage).await?;
+                Result::<_, crate::Error>::Ok((duvet_path.to_path_buf(), line_map))
+            };
+            
+            file_futures.push(future);
         }
+    }
+    
+    // Process all files concurrently
+    let results = futures::future::try_join_all(file_futures).await?;
+    
+    // Collect results into the map
+    for (path, line_map) in results {
+        source_line_map.insert(path, line_map);
     }
     
     Ok(source_line_map)
 }
 
-fn build_line_map_for_file(
+async fn build_line_map_for_file(
     duvet_path: &Path,
     annotations: &AnnotationSet,
     file_coverage: &FileCoverage
 ) -> Result<LineMap> {
-    // 1. Read file to get line count and content
-    let file_content = std::fs::read_to_string(duvet_path)?;
+    // 1. Read file using duvet's VFS system for consistency
+    let source_file = duvet_core::vfs::read_string(duvet_path).await?;
+    let file_content = source_file.to_string();
     let lines: Vec<&str> = file_content.lines().collect();
     let line_count = lines.len();
     
@@ -175,16 +195,17 @@ fn paths_match(duvet_path: &Path, coverage_path: &str) -> bool {
 }
 
 /// Parse coverage data from file
-pub fn parse_coverage_data(
+pub async fn parse_coverage_data(
     coverage_path: &String,
     format: &CoverageFormat,
 ) -> Result<CoverageData> {
-    // Parse coverage data
-    let parser: Box<dyn CoverageParser> = match format {
-        CoverageFormat::JacocoXml => Box::new(JacocoParser),
-    };
-
-    parser.parse(Path::new(coverage_path))
+    // Parse coverage data directly (async traits aren't dyn-compatible)
+    match format {
+        CoverageFormat::JacocoXml => {
+            let parser = JacocoParser;
+            parser.parse(Path::new(coverage_path)).await
+        }
+    }
 }
 
 /// Check if an annotation is executed according to coverage data

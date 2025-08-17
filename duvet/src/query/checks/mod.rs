@@ -27,7 +27,7 @@ pub mod coverage;
 /// If the target quote is "MUST foo, MUST bar, MUST baz"
 /// And the collection has "MUST foo,"; "MUST bar"; "MUST bar, MUST baz"; "MUST run"
 /// then the target is said to be covered
-pub fn is_annotation_covered(
+pub async fn is_annotation_covered(
     target_annotation: &Arc<Annotation>,
     specifications: &Arc<HashMap<Arc<Target>, Arc<Specification>>>,
     annotations: &[Arc<Annotation>],
@@ -135,7 +135,7 @@ pub struct ClassifiedCoverage {
     pub secondary_coverage: Vec<AnnotationCoverage>,
 }
 
-pub fn classify_annotation_coverage(
+pub async fn classify_annotation_coverage(
     project_data: &ProjectData,
     annotations: &Vec<Arc<Annotation>>,
     maybe_primary_covering_annotations: &Vec<Arc<Annotation>>,
@@ -147,10 +147,28 @@ pub fn classify_annotation_coverage(
     let mut mixed_coverage: Vec<AnnotationCoverage> = Vec::new();
     let mut secondary_coverage: Vec<AnnotationCoverage> = Vec::new();
 
-    for annotation in annotations {
-        let primary_coverage = is_annotation_covered(annotation, &project_data.specifications, &maybe_primary_covering_annotations)?;
-        let secondary = is_annotation_covered(annotation, &project_data.specifications, &maybe_secondary_covering_annotations)?;
+    // Create futures for concurrent coverage calculation
+    let coverage_futures: Vec<_> = annotations.iter().map(|annotation| {
+        let annotation = annotation.clone();
+        let specifications = project_data.specifications.clone();
+        let primary_annotations = maybe_primary_covering_annotations.clone();
+        let secondary_annotations = maybe_secondary_covering_annotations.clone();
+        
+        async move {
+            let (primary_coverage, secondary_coverage) = futures::future::try_join(
+                is_annotation_covered(&annotation, &specifications, &primary_annotations),
+                is_annotation_covered(&annotation, &specifications, &secondary_annotations)
+            ).await?;
+            
+            Ok::<_, crate::Error>((annotation, primary_coverage, secondary_coverage))
+        }
+    }).collect();
 
+    // Execute all coverage calculations concurrently
+    let coverage_results = futures::future::try_join_all(coverage_futures).await?;
+
+    // Process results sequentially for classification
+    for (annotation, primary_coverage, secondary) in coverage_results {
         let primary_len = primary_coverage.covering_annotations.len();
         let secondary_len = secondary.covering_annotations.len();
 
@@ -179,4 +197,3 @@ pub fn classify_annotation_coverage(
     })
 
 }
-
