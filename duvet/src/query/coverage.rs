@@ -67,6 +67,13 @@ pub enum ExecutionType {
     Line,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AnnotationExecutionStatus {
+    Executed,
+    NotExecuted,      // Could be executed but wasn't (has coverage data)
+    Unknown,          // Cannot determine execution (no coverage data)
+}
+
 pub type LineMap = BTreeMap<u64, LineInfo>;
 pub type SourceLineMap = FxHashMap<PathBuf, LineMap>;
 

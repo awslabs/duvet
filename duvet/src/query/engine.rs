@@ -24,7 +24,9 @@ use super::{
         DuplicatesResult,
         Duplicates,
         AnnotationCoverage,
+        NotExecutedAnnotation,
     },
+    coverage::AnnotationExecutionStatus,
     CheckType,
 };
 use crate::{
@@ -393,22 +395,29 @@ async fn execute_coverage_check(
     let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
-        let mut test_executed = false;
+        let mut test_executed = AnnotationExecutionStatus::Unknown;
         for source_line_map in &source_line_maps {
-            if is_annotation_executed(&test.target, &source_line_map) {
-                test_executed = true;
-                let (
-                    executed_implementations,
-                    not_executed_implementations,
-                ): (Vec<_>, Vec<_>) = test
-                    .covering_annotations
-                    .iter()
-                    .cloned()
-                    .partition(|annotation| is_annotation_executed(&annotation, &source_line_map));
+            let executed_status = is_annotation_executed(&test.target, &source_line_map);
+            if matches!(executed_status, AnnotationExecutionStatus::Executed) {
+                test_executed = executed_status;
 
+                let mut executed_implementations = Vec::new();
+                let mut not_executed_implementations = Vec::new();
+
+                for annotation in &test.covering_annotations {
+                    let status = is_annotation_executed(&annotation, &source_line_map);
+                    if matches!(status, AnnotationExecutionStatus::Executed) {
+                        executed_implementations.push(annotation.clone());
+                    } else {
+                        not_executed_implementations.push(NotExecutedAnnotation{
+                            annotation: annotation.clone(),
+                            status,
+                        });
+                    }
+                }
                 let result = CoveredTestAnnotation {
                     test: test.target.clone(),
-                    test_executed: true,
+                    test_execution_status: AnnotationExecutionStatus::Executed,
                     executed_implementations,
                     not_executed_implementations,
                 };
@@ -419,10 +428,10 @@ async fn execute_coverage_check(
                 }
             }
         }
-        if !test_executed && !coverage_check_executed_tests_only {
+        if !matches!(test_executed, AnnotationExecutionStatus::Executed) && !coverage_check_executed_tests_only {
             let result = CoveredTestAnnotation {
                 test: test.target.clone(),
-                test_executed: false,
+                test_execution_status: test_executed,
                 executed_implementations: Vec::new(),
                 // What is the right value here?
                 // Some of these annotations might be executed in some of the coverage.
@@ -437,7 +446,7 @@ async fn execute_coverage_check(
     let executed_tests: AnnotationSet = successful
         .iter()
         .chain(&failed)
-        .filter(|result| result.test_executed)
+        .filter(|result| matches!(result.test_execution_status, AnnotationExecutionStatus::Executed))
         .map(|result| result.test.clone())
         .collect::<BTreeSet<_>>()
         .into();
@@ -456,7 +465,7 @@ async fn execute_coverage_check(
             } else {
                 source_line_maps
                     .iter()
-                    .any(|source_line_map| is_annotation_executed(annotation, &source_line_map))
+                    .any(|source_line_map| matches!(is_annotation_executed(annotation, &source_line_map), AnnotationExecutionStatus::Executed))
             }
         })
         .cloned()
