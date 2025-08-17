@@ -5,7 +5,7 @@ use crate::{
     annotation::{Annotation, AnnotationType, AnnotationSet},
     source::SourceFile,
     query::{
-        coverage::{CoverageData, CoverageParser, LineMap, SourceLineMap, FileCoverage, LineInfo, ExecutionType},
+        coverage::{CoverageData, CoverageParser, LineMap, SourceLineMap, FileCoverage, LineInfo, ExecutionType, AnnotationExecutionStatus},
         parsers::JacocoParser,
     },
     Result,
@@ -212,16 +212,16 @@ pub async fn parse_coverage_data(
 pub fn is_annotation_executed(
     annotation: &Arc<Annotation>,
     source_line_map: &SourceLineMap
-) -> bool {
+) -> AnnotationExecutionStatus {
     // Spec and Todo are never executable
     if matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo) {
-        return true;
+        return AnnotationExecutionStatus::NotExecuted;
     }
 
     // 1. Find the right file
     let line_map = match source_line_map.get(&annotation.source.to_path_buf()) {
         Some(map) => map,
-        None => return false, // File not in coverage data
+        None => return AnnotationExecutionStatus::Unknown, // File not in coverage data
     };
     
     // 2. Find annotation end line
@@ -233,12 +233,12 @@ pub fn is_annotation_executed(
     for line_num in start_line..=end_line {
         if let Some(LineInfo::Annotation(stored_annotation)) = line_map.get(&line_num) {
             if stored_annotation != annotation {
-                // TODO, this should be an error, false is just confusing
-                return false; // Different annotation at expected location
+                // TODO, this should be an error, Unknown is just confusing
+                return AnnotationExecutionStatus::Unknown; // Different annotation at expected location
             }
         } else {
-            // TODO, this should be an error, false is just confusing
-            return false; // Expected annotation not found
+            // TODO, this should be an error, Unknown is just confusing
+            return AnnotationExecutionStatus::Unknown; // Expected annotation not found
         }
     }
     
@@ -260,17 +260,21 @@ pub fn is_annotation_executed(
                 return is_annotation_executed(next_annotation, source_line_map);
             }
             Some(LineInfo::Executed(_)) => {
-                return true; // Found executed line
+                return AnnotationExecutionStatus::Executed; // Found executed line
             }
-            Some(LineInfo::NotExecuted(_)) | Some(LineInfo::Unknown) => {
+            Some(LineInfo::NotExecuted(_)) => {
+                // Line is tracked by coverage but was not executed
+                return AnnotationExecutionStatus::NotExecuted;
+            }
+            Some(LineInfo::Unknown) => {
                 // If a line is not executed clearly the annotation is not executed.
                 // If the line is unknown we don't know what to do with this line.
                 // The line could be a comment, but we can't know this without parsing the language.
                 // Is the line a comment is a complicated question since we have to deal with many languages.
-                return false; // Not executed or unknown = false
+                return AnnotationExecutionStatus::Unknown;
             }
             None => {
-                return false; // End of file reached
+                return AnnotationExecutionStatus::NotExecuted; // End of file reached
             }
         }
     }

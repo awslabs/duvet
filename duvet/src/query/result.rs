@@ -6,6 +6,7 @@ use std::fmt;
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
     comment::{Pattern},
+    query::coverage::AnnotationExecutionStatus,
 };
 use std::{
     sync::Arc,
@@ -130,9 +131,15 @@ impl AnnotationCoverage {
 #[derive(Debug)]
 pub struct CoveredTestAnnotation {
     pub test: Arc<Annotation>,
-    pub test_executed: bool,
+    pub test_execution_status: AnnotationExecutionStatus,
     pub executed_implementations: Vec<Arc<Annotation>>,
-    pub not_executed_implementations: Vec<Arc<Annotation>>,
+    pub not_executed_implementations: Vec<NotExecutedAnnotation>,
+}
+
+#[derive(Debug)]
+pub struct NotExecutedAnnotation {
+    pub annotation: Arc<Annotation>,
+    pub status: AnnotationExecutionStatus
 }
 
 impl fmt::Display for QueryResult {
@@ -394,10 +401,10 @@ impl fmt::Display for CoverageResult {
             for correlation in &self.failed {
                 let mut error = error!("Failed correlation");
 
-                let test_annotation_message = if correlation.test_executed {
-                    "Executed test"
-                } else {
-                    "Not executed test"
+                let test_annotation_message = match correlation.test_execution_status {
+                    AnnotationExecutionStatus::Executed => "Executed test",
+                    AnnotationExecutionStatus::NotExecuted => "Not executed test",
+                    AnnotationExecutionStatus::Unknown => "Not executed because of an unknown not executable line.",
                 };
                 
                 // Add test annotation context
@@ -409,13 +416,17 @@ impl fmt::Display for CoverageResult {
                 error = with_related_annotations(
                     error,
                     &correlation.executed_implementations,
-                    "Executed annotation"
+                    "Executed implementation"
                 );
 
-                error = with_related_annotations(
+                error = with_related_not_executed_annotations(
                     error,
                     &correlation.not_executed_implementations,
-                    "Not executed implementation"
+                    |status| match status {
+                        AnnotationExecutionStatus::NotExecuted => "Not executed implementation",
+                        AnnotationExecutionStatus::Unknown => "Not executed because of an unknown not executable line.",
+                        AnnotationExecutionStatus::Executed => unreachable!("Executed implementation"), // shouldn't happen
+                    }
                 );
                 
                 writeln!(f, "{:?}", error)?;
@@ -440,11 +451,9 @@ impl fmt::Display for CoverageResult {
                     "Executed implementation"
                 );
 
-                info = with_related_annotations(
-                    info,
-                    &correlation.not_executed_implementations,
-                    "Not executed implementation"
-                );
+                // correlation in successful ==>
+                //  correlation.test_execution_status == AnnotationExecutionStatus::Executed ==>
+                //  correlation.not_executed_implementations.is_empty()
                 
                 writeln!(f, "{:?}", info)?;
             }
@@ -579,6 +588,17 @@ fn with_related_annotations(
     let message = message.as_ref();
     for annotation in annotations {
         error = error.with_related_source_slice(annotation.original_text.clone(), message);
+    }
+    error
+}
+
+fn with_related_not_executed_annotations(
+    mut error: duvet_core::diagnostic::Error,
+    annotations: &[NotExecutedAnnotation],
+    message: fn(AnnotationExecutionStatus) -> &'static str,
+) -> duvet_core::diagnostic::Error {
+    for annotation in annotations {
+        error = error.with_related_source_slice(annotation.annotation.original_text.clone(), message(annotation.status));
     }
     error
 }
