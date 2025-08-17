@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::collections::BTreeMap;
-use std::io::{BufRead, BufReader};
-use std::fs::File;
+use std::io::{BufRead, Cursor};
 use std::path::Path;
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
@@ -18,12 +17,19 @@ use crate::Result;
 pub struct JacocoParser;
 
 impl CoverageParser for JacocoParser {
-    fn parse(&self, file_path: &Path) -> Result<CoverageData> {
-        let file = File::open(file_path)
-            .map_err(|e| CoverageError::Io(e))?;
-        let reader = BufReader::new(file);
+    async fn parse(&self, file_path: &Path) -> Result<CoverageData> {
+        // Use duvet's VFS system for consistent async file reading
+        let source_file = duvet_core::vfs::read_string(file_path).await?;
+        let file_contents = source_file.to_string();
         
-        let coverage_data = parse_jacoco_xml_report(reader)?;
+        // Run CPU-intensive XML parsing in a thread pool to avoid blocking the async runtime
+        let coverage_data = tokio::task::spawn_blocking(move || {
+            let cursor = Cursor::new(file_contents);
+            parse_jacoco_xml_report(cursor)
+        })
+        .await
+        .map_err(|e| duvet_core::error!("Task join error: {}", e))??;
+        
         Ok(CoverageData::Generic(coverage_data))
     }
 }

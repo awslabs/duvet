@@ -72,7 +72,7 @@ pub type SourceLineMap = FxHashMap<PathBuf, LineMap>;
 
 /// Trait for parsing coverage reports
 pub trait CoverageParser {
-    fn parse(&self, file_path: &Path) -> Result<CoverageData>;
+    async fn parse(&self, file_path: &Path) -> Result<CoverageData>;
 }
 
 /// Coverage parsing errors
