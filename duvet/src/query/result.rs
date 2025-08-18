@@ -26,7 +26,7 @@ pub struct QueryResult {
 #[derive(Debug)]
 pub enum CheckResult {
     Implementation(ImplementationResult),
-    Tests(TestResult), 
+    Tests(TestResult),
     Coverage(CoverageResult),
     Duplicates(DuplicatesResult),
 }
@@ -108,22 +108,22 @@ pub struct AnnotationCoverage {
 impl AnnotationCoverage {
     pub fn merge(mut self, other: AnnotationCoverage) -> AnnotationCoverage {
         // MUST have same target - panic if not
-        assert!(Arc::ptr_eq(&self.target, &other.target), 
+        assert!(Arc::ptr_eq(&self.target, &other.target),
             "Cannot merge AnnotationCoverage with different targets");
 
         // Extend covering_annotations
         self.covering_annotations.extend(other.covering_annotations);
-        
+
         // OR the covered arrays element-wise
         for (i, other_covered) in other.covered.iter().enumerate() {
             if let Some(self_covered) = self.covered.get_mut(i) {
                 *self_covered = *self_covered || *other_covered;
             }
         }
-        
+
         // Do not update fully_covered based on merged covered array
         // This way the original implementation state can be seen
-        
+
         self
     }
 }
@@ -151,7 +151,7 @@ impl fmt::Display for QueryResult {
         writeln!(f)?;
         // Overall status
         writeln!(f, "Overall: {}", self.overall_status)?;
-        
+
         Ok(())
     }
 }
@@ -181,7 +181,7 @@ impl fmt::Display for ImplementationResult {
         let incomplete = self.incomplete_implementation.len();
         let mixed = self.mixed_implementation.len();
         let todo = self.todo.len();
-        
+
         writeln!(f, "  Total requirements: {}", total)?;
         writeln!(f, "  Fully implemented: {}", fully_implemented)?;
         writeln!(f, "  Incomplete implementation: {}", incomplete)?;
@@ -272,7 +272,7 @@ impl fmt::Display for ImplementationResult {
                 writeln!(f, "{:?}", todo)?;
             }
         }
-        
+
         if self.verbose {
             // Verbose mode: show detailed annotations
             if !self.fully_implemented.is_empty() {
@@ -313,7 +313,7 @@ impl fmt::Display for TestResult {
         let fully_tested = self.fully_tested.len();
         let not_tested = self.not_tested.len();
         let incomplete_tests = self.incomplete_tests.len();
-        
+
         writeln!(f, "  Total requirements: {}", total)?;
         writeln!(f, "  Fully tested: {}", fully_tested)?;
         writeln!(f, "  Incomplete tests: {}", incomplete_tests)?;
@@ -337,7 +337,7 @@ impl fmt::Display for TestResult {
             }
             writeln!(f)?;
         }
-        
+
         if incomplete_tests > 0 {
             for coverage in &self.incomplete_tests {
                 let mut incomplete = error!("Incomplete test:\n {}", coverage.target.quote);
@@ -351,7 +351,7 @@ impl fmt::Display for TestResult {
             }
             writeln!(f)?;
         }
-        
+
         if self.verbose {
             // Verbose mode: show detailed annotations
             if !self.fully_tested.is_empty() {
@@ -373,7 +373,7 @@ impl fmt::Display for TestResult {
                 writeln!(f)?;
             }
         }
-        
+
         Ok(())
     }
 }
@@ -389,13 +389,13 @@ impl fmt::Display for CoverageResult {
         let executed_implementations = self.executed_implementations.len();
         let successful = self.successful.len();
         let failed = self.failed.len();
-        
+
         writeln!(f, "  Executed tests: {}", executed_tests)?;
         writeln!(f, "  Executed implementations: {}", executed_implementations)?;
         writeln!(f, "  Successful correlations: {}", successful)?;
         writeln!(f, "  Failed correlations: {}", failed)?;
         writeln!(f)?;
-        
+
         // Show failed correlations with detailed diagnostics
         if failed > 0 {
             for correlation in &self.failed {
@@ -404,14 +404,24 @@ impl fmt::Display for CoverageResult {
                 let test_annotation_message = match correlation.test_execution_status {
                     AnnotationExecutionStatus::Executed => "Executed test",
                     AnnotationExecutionStatus::NotExecuted => "Not executed test",
-                    AnnotationExecutionStatus::Unknown => "Not executed because of an unknown not executable line.",
+                    AnnotationExecutionStatus::Unknown { .. } => "Not executed because of an unknown not executable line.",
                 };
-                
+
                 // Add test annotation context
                 error = error.with_source_slice(
                     correlation.test.original_text.clone(),
                     test_annotation_message
                 );
+
+                // If test execution status is Unknown, add the problematic line
+                if let AnnotationExecutionStatus::Unknown { line_number } = correlation.test_execution_status {
+                    if let Some(line_slice) = get_line_slice(&correlation.test, line_number) {
+                        error = error.with_related_source_slice(
+                            line_slice,
+                            "Problematic line"
+                        );
+                    }
+                }
 
                 error = with_related_annotations(
                     error,
@@ -424,21 +434,21 @@ impl fmt::Display for CoverageResult {
                     &correlation.not_executed_implementations,
                     |status| match status {
                         AnnotationExecutionStatus::NotExecuted => "Not executed implementation",
-                        AnnotationExecutionStatus::Unknown => "Not executed because of an unknown not executable line.",
+                        AnnotationExecutionStatus::Unknown { .. } => "Not executed because of an unknown not executable line.",
                         AnnotationExecutionStatus::Executed => unreachable!("Executed implementation"), // shouldn't happen
                     }
                 );
-                
+
                 writeln!(f, "{:?}", error)?;
             }
             writeln!(f)?;
         }
-        
+
         // Show successful correlations in verbose mode
         if self.verbose {
             for correlation in &self.successful {
                 let mut info = info!("Successful correlation");
-                
+
                 // Add test annotation context
                 info = info.with_source_slice(
                     correlation.test.original_text.clone(),
@@ -454,7 +464,7 @@ impl fmt::Display for CoverageResult {
                 // correlation in successful ==>
                 //  correlation.test_execution_status == AnnotationExecutionStatus::Executed ==>
                 //  correlation.not_executed_implementations.is_empty()
-                
+
                 writeln!(f, "{:?}", info)?;
             }
 
@@ -473,7 +483,7 @@ impl fmt::Display for CoverageResult {
 
             writeln!(f)?;
         }
-        
+
         Ok(())
     }
 }
@@ -502,7 +512,7 @@ impl fmt::Display for DuplicatesResult {
 
         // Always show duplicates for each category
         show_duplicates(f, "Spec", &self.spec)?;
-        show_duplicates(f, "Implementation", &self.implementation)?;  
+        show_duplicates(f, "Implementation", &self.implementation)?;
         show_duplicates(f, "Test", &self.test)?;
         show_duplicates(f, "Exception", &self.exception)?;
         show_duplicates(f, "Todo", &self.todo)?;
@@ -576,7 +586,7 @@ fn with_annotation(
     message: impl AsRef<str>,
 ) -> duvet_core::diagnostic::Error {
     let message = message.as_ref();
-    
+
     error.with_source_slice(annotation.original_text.clone(), message)
 }
 
@@ -598,7 +608,31 @@ fn with_related_not_executed_annotations(
     message: fn(AnnotationExecutionStatus) -> &'static str,
 ) -> duvet_core::diagnostic::Error {
     for annotation in annotations {
-        error = error.with_related_source_slice(annotation.annotation.original_text.clone(), message(annotation.status));
+        // Always show the annotation context first
+        error = error.with_related_source_slice(
+            annotation.annotation.original_text.clone(),
+            message(annotation.status)
+        );
+
+        // If we have line number information for Unknown status, add specific line context
+        if let AnnotationExecutionStatus::Unknown { line_number } = annotation.status {
+            if let Some(line_slice) = get_line_slice(&annotation.annotation, line_number) {
+                error = error.with_related_source_slice(
+                    line_slice,
+                    "Problematic line"
+                );
+            }
+        }
     }
     error
+}
+
+/// Helper function to get a slice for a specific line
+fn get_line_slice(annotation: &Arc<Annotation>, line_number: u64) -> Option<duvet_core::file::Slice<duvet_core::file::SourceFile>> {
+    // Get the source file from the annotation
+    annotation
+        .original_text
+        .file()
+        .lines_slices()
+        .nth(line_number.try_into().unwrap())
 }

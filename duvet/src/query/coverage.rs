@@ -71,7 +71,9 @@ pub enum ExecutionType {
 pub enum AnnotationExecutionStatus {
     Executed,
     NotExecuted,      // Could be executed but wasn't (has coverage data)
-    Unknown,          // Cannot determine execution (no coverage data)
+    Unknown { 
+        line_number: u64  // The problematic line number
+    },
 }
 
 pub type LineMap = BTreeMap<u64, LineInfo>;

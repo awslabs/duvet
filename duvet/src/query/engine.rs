@@ -395,7 +395,7 @@ async fn execute_coverage_check(
     let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
-        let mut test_executed = AnnotationExecutionStatus::Unknown;
+        let mut test_executed = AnnotationExecutionStatus::NotExecuted;
         for source_line_map in &source_line_maps {
             let executed_status = is_annotation_executed(&test.target, &source_line_map);
             if matches!(executed_status, AnnotationExecutionStatus::Executed) {
