@@ -6,7 +6,7 @@ use std::fmt;
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
     comment::{Pattern},
-    query::coverage::AnnotationExecutionStatus,
+    query::coverage::{AnnotationExecutionStatus, SourceLineMap},
 };
 use std::{
     sync::Arc,
@@ -56,6 +56,7 @@ pub struct TestResult {
 #[derive(Debug)]
 pub struct CoverageResult {
     pub status: QueryStatus,
+    pub execution_reports: Vec<SourceLineMap>,
     pub executed_tests: AnnotationSet,
     pub executed_implementations: AnnotationSet,
     pub successful: Vec<CoveredTestAnnotation>,
@@ -385,11 +386,13 @@ impl fmt::Display for CoverageResult {
         writeln!(f)?;
 
         // Summary counts
+        let reports_count = self.execution_reports.len();
         let executed_tests = self.executed_tests.len();
         let executed_implementations = self.executed_implementations.len();
         let successful = self.successful.len();
         let failed = self.failed.len();
 
+        writeln!(f, "  Coverage reports checked: {}", reports_count)?;
         writeln!(f, "  Executed tests: {}", executed_tests)?;
         writeln!(f, "  Executed implementations: {}", executed_implementations)?;
         writeln!(f, "  Successful correlations: {}", successful)?;
@@ -634,5 +637,6 @@ fn get_line_slice(annotation: &Arc<Annotation>, line_number: u64) -> Option<duve
         .original_text
         .file()
         .lines_slices()
-        .nth(line_number.try_into().unwrap())
+        // nth is 0 based, but line numbers in source are 1 based.
+        .nth(<u64 as TryInto<usize>>::try_into(line_number).unwrap() - 1)
 }

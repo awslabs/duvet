@@ -426,6 +426,13 @@ async fn execute_coverage_check(
                 } else {
                     failed.push(result);
                 }
+            } else if !matches!(test_executed, AnnotationExecutionStatus::Executed | AnnotationExecutionStatus::Unknown{..}) {
+                // NotExecuted is the default status
+                // It is possible for one source_line_map to have information
+                // that indicates that an annotation is Unknown
+                // but then for another source_line_map to not even have the file,
+                // which would result in NotExecuted and less information.
+                test_executed = executed_status;
             }
         }
         if !matches!(test_executed, AnnotationExecutionStatus::Executed) && !coverage_check_executed_tests_only {
@@ -481,6 +488,7 @@ async fn execute_coverage_check(
     // Put the output here
     Ok(CheckResult::Coverage(CoverageResult {
         status,
+        execution_reports: source_line_maps,
         executed_tests,
         executed_implementations,
         successful,
