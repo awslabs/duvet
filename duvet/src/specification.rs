@@ -62,17 +62,12 @@ impl Specification {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Format {
+    #[default]
     Auto,
     Ietf,
     Markdown,
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 impl fmt::Display for Format {

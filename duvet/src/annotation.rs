@@ -187,20 +187,15 @@ impl Annotation {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum AnnotationType {
     Spec,
     Test,
+    #[default]
     Citation,
     Exception,
     Todo,
     Implication,
-}
-
-impl Default for AnnotationType {
-    fn default() -> Self {
-        Self::Citation
-    }
 }
 
 impl fmt::Display for AnnotationType {
@@ -244,9 +239,10 @@ impl FromStr for AnnotationType {
 }
 
 // The order is in terms of priority from least to greatest
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize)]
 #[cfg_attr(test, derive(bolero::TypeGenerator))]
 pub enum AnnotationLevel {
+    #[default]
     Auto,
     May,
     Should,
@@ -255,12 +251,6 @@ pub enum AnnotationLevel {
 
 impl AnnotationLevel {
     pub const LEVELS: [Self; 4] = [Self::Auto, Self::May, Self::Should, Self::Must];
-}
-
-impl Default for AnnotationLevel {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 impl fmt::Display for AnnotationLevel {
