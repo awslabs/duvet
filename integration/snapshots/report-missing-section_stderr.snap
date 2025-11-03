@@ -1,5 +1,6 @@
 ---
 source: xtask/src/tests.rs
+assertion_line: 284
 expression: stderr
 ---
 $ duvet report
@@ -15,9 +16,7 @@ EXIT: Some(1)
      Mapping sections
       Mapped 1 sections 
     Matching references
-
-  × 
-  │   × missing section "foo" in my-spec.md
+  ×   × missing section "foo" in my-spec.md
   │    ╭─[src/my-code.rs:1:5]
   │  1 │ //= my-spec.md#foo
   │    ·     ───────┬──────

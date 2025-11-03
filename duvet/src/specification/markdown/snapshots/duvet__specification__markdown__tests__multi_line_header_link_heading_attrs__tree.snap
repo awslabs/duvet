@@ -1,0 +1,27 @@
+---
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: parse(& contents)"
+---
+Ok(
+    Specification {
+        title: Some(
+            "Foo **bar baz** [I'm link](http://something)",
+        ),
+        sections: [
+            Section {
+                id: "blah",
+                title: "Foo **bar baz** [I'm link](http://something)",
+                full_title: "Foo **bar\nbaz** [I'm link](http://something)",
+                lines: [
+                    Str(
+                        "Content goes here. Another",
+                    ),
+                    Str(
+                        "sentence here.",
+                    ),
+                ],
+            },
+        ],
+        format: Markdown,
+    },
+)

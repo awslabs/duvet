@@ -119,7 +119,7 @@ async fn line_count() -> Result<()> {
 
         match counts.get().await {
             Ok(actual) => {
-                assert_eq!(expected, *actual, "in {}", file);
+                assert_eq!(expected, *actual, "in {file}");
             }
             Err(err) => errors.push(err.clone()),
         }

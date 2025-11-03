@@ -169,7 +169,7 @@ impl Vfs for Fs {
                 let meta = meta.into_diagnostic().wrap_err_with(|| path.clone())?;
 
                 Ok(Metadata {
-                    modified_time: meta.modified().into_diagnostic().map_err(From::from),
+                    modified_time: meta.modified().into_diagnostic(),
                     file_type: meta.file_type(),
                 })
             })
