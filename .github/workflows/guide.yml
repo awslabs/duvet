@@ -37,6 +37,7 @@ jobs:
         uses: camshaft/install@v1
         with:
           crate: mdbook
+          version: "0.4"
 
       - name: Install taplo
         uses: camshaft/install@v1
