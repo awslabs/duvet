@@ -40,6 +40,11 @@ Before getting started, Duvet requires a [rust toolchain](https://www.rust-lang.
 
 ## Development
 
+You must have `git lfs` installed. You can check this by running
+```shell
+git lfs version
+```
+
 ### Building
 
 ```console
