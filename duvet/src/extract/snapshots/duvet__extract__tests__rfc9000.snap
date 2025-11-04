@@ -1,5 +1,5 @@
 ---
-source: src/extract/tests.rs
+source: duvet/src/extract/tests.rs
 expression: results
 ---
 [
@@ -699,16 +699,6 @@ expression: results
     (
         "section-5.2.1",
         Feature {
-            level: May,
-            quote: [
-                "The client MAY drop these packets, or it MAY buffer them in",
-                "anticipation of later packets that allow it to compute the key.",
-            ],
-        },
-    ),
-    (
-        "section-5.2.1",
-        Feature {
             level: Must,
             quote: [
                 "If a client receives a packet that uses a different version than it",
@@ -1183,18 +1173,6 @@ expression: results
     (
         "section-7.4.1",
         Feature {
-            level: Must,
-            quote: [
-                "When sending frames in 0-RTT packets, a client MUST only use",
-                "remembered transport parameters; importantly, it MUST NOT use updated",
-                "values that it learns from the server's updated transport parameters",
-                "or from frames received in 1-RTT packets.",
-            ],
-        },
-    ),
-    (
-        "section-7.4.1",
-        Feature {
             level: May,
             quote: [
                 "A",
@@ -1240,18 +1218,6 @@ expression: results
             quote: [
                 "If an endpoint does not expand its buffer, it MUST close",
                 "the connection with a CRYPTO_BUFFER_EXCEEDED error code.",
-            ],
-        },
-    ),
-    (
-        "section-7.5",
-        Feature {
-            level: May,
-            quote: [
-                "Once the handshake completes, if an endpoint is unable to buffer all",
-                "data in a CRYPTO frame, it MAY discard that CRYPTO frame and all",
-                "CRYPTO frames received in the future, or it MAY close the connection",
-                "with a CRYPTO_BUFFER_EXCEEDED error code.",
             ],
         },
     ),
@@ -1975,18 +1941,6 @@ expression: results
                 "An endpoint MAY defer path",
                 "validation until after a peer sends the next non-probing frame to its",
                 "new address.",
-            ],
-        },
-    ),
-    (
-        "section-9.3",
-        Feature {
-            level: Must,
-            quote: [
-                "If the recipient permits the migration, it MUST send subsequent",
-                "packets to the new peer address and MUST initiate path validation",
-                "(Section 8.2) to verify the peer's ownership of the address if",
-                "validation is not already underway.",
             ],
         },
     ),
@@ -4089,19 +4043,6 @@ expression: results
         },
     ),
     (
-        "section-15",
-        Feature {
-            level: May,
-            quote: [
-                "Reserved version numbers will never represent a real protocol; a",
-                "client MAY use one of these version numbers with the expectation that",
-                "the server will initiate version negotiation; a server MAY advertise",
-                "support for one of these versions and can expect that clients ignore",
-                "the value.",
-            ],
-        },
-    ),
-    (
         "section-17.1",
         Feature {
             level: Must,
@@ -4301,18 +4242,6 @@ expression: results
             quote: [
                 "A server MUST NOT send more than one Version Negotiation packet in",
                 "response to a single UDP datagram.",
-            ],
-        },
-    ),
-    (
-        "section-17.2.2",
-        Feature {
-            level: Must,
-            quote: [
-                "Initial packets sent by the server MUST set the Token Length field",
-                "to 0; clients that receive an Initial packet with a non-zero Token",
-                "Length field MUST either discard the packet or generate a",
-                "connection error of type PROTOCOL_VIOLATION.",
             ],
         },
     ),
@@ -5317,16 +5246,6 @@ expression: results
         },
     ),
     (
-        "section-19.21",
-        Feature {
-            level: Must,
-            quote: [
-                "Extension frames MUST be congestion controlled and MUST cause an ACK",
-                "frame to be sent.",
-            ],
-        },
-    ),
-    (
         "section-21.3",
         Feature {
             level: Should,
@@ -5606,17 +5525,6 @@ expression: results
     (
         "section-22.1.3",
         Feature {
-            level: Should,
-            quote: [
-                "This SHOULD be done only for the",
-                "codepoints with the earliest recorded date, and entries that have",
-                "been updated less than a year prior SHOULD NOT be reclaimed.",
-            ],
-        },
-    ),
-    (
-        "section-22.1.3",
-        Feature {
             level: Must,
             quote: [
                 "A request to remove a codepoint MUST be reviewed by the designated",
@@ -5698,34 +5606,12 @@ expression: results
         },
     ),
     (
-        "section-22.2",
-        Feature {
-            level: Must,
-            quote: [
-                "All codepoints that follow the pattern 0x?a?a?a?a are reserved, MUST",
-                "NOT be assigned by IANA, and MUST NOT appear in the listing of",
-                "assigned values.",
-            ],
-        },
-    ),
-    (
         "section-22.3",
         Feature {
             level: Must,
             quote: [
                 "In addition to the fields listed in Section 22.1.1, permanent",
                 "registrations in this registry MUST include the following field:",
-            ],
-        },
-    ),
-    (
-        "section-22.3",
-        Feature {
-            level: Must,
-            quote: [
-                "Each value of the form \"31 * N + 27\" for integer values of N (that",
-                "is, 27, 58, 89, ...) are reserved; these values MUST NOT be assigned",
-                "by IANA and MUST NOT appear in the listing of assigned values.",
             ],
         },
     ),

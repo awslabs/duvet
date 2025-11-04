@@ -1,5 +1,5 @@
 ---
-source: src/extract/tests.rs
+source: duvet/src/extract/tests.rs
 expression: results
 ---
 [
@@ -186,18 +186,6 @@ expression: results
         },
     ),
     (
-        "section-4.4",
-        Feature {
-            level: Must,
-            quote: [
-                "More specifically, servers MUST NOT send post-",
-                "handshake TLS CertificateRequest messages, and clients MUST treat",
-                "receipt of such messages as a connection error of type",
-                "PROTOCOL_VIOLATION.",
-            ],
-        },
-    ),
-    (
         "section-4.5",
         Feature {
             level: Should,
@@ -332,17 +320,6 @@ expression: results
             level: May,
             quote: [
                 "These packets MAY also include PADDING frames.",
-            ],
-        },
-    ),
-    (
-        "section-4.9.1",
-        Feature {
-            level: Must,
-            quote: [
-                "Thus, a client MUST discard Initial keys when it first sends a",
-                "Handshake packet and a server MUST discard Initial keys when it first",
-                "successfully processes a Handshake packet.",
             ],
         },
     ),
@@ -588,17 +565,6 @@ expression: results
             quote: [
                 "A server MUST NOT use 0-RTT keys to protect packets; it uses 1-RTT",
                 "keys to protect acknowledgments of 0-RTT packets.",
-            ],
-        },
-    ),
-    (
-        "section-5.6",
-        Feature {
-            level: Must,
-            quote: [
-                "A client MUST NOT",
-                "attempt to decrypt 0-RTT packets it receives and instead MUST discard",
-                "them.",
             ],
         },
     ),
@@ -1152,20 +1118,6 @@ expression: results
         Feature {
             level: Must,
             quote: [
-                "Endpoints",
-                "MUST send the quic_transport_parameters extension; endpoints that",
-                "receive ClientHello or EncryptedExtensions messages without the",
-                "quic_transport_parameters extension MUST close the connection with an",
-                "error of type 0x016d (equivalent to a fatal TLS missing_extension",
-                "alert, see Section 4.8).",
-            ],
-        },
-    ),
-    (
-        "section-8.2",
-        Feature {
-            level: Must,
-            quote: [
                 "Endpoints MUST NOT send this extension in a TLS connection that does",
                 "not use QUIC (such as the use of TLS with TCP defined in [TLS13]).",
             ],
@@ -1232,17 +1184,6 @@ expression: results
                 "Endpoints MUST implement and use the replay protections described in",
                 "[TLS13], however it is recognized that these protections are",
                 "imperfect.",
-            ],
-        },
-    ),
-    (
-        "section-9.2",
-        Feature {
-            level: Must,
-            quote: [
-                "These MUST NOT be",
-                "used to communicate application semantics between endpoints; clients",
-                "MUST treat them as opaque values.",
             ],
         },
     ),

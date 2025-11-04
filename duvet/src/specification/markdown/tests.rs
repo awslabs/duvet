@@ -48,6 +48,30 @@ sentence here.
 );
 
 snapshot!(
+    multi_line_header_strong_heading_attrs,
+    r#"
+Foo **bar
+baz** {#blah}
+======
+
+Content goes here. Another
+sentence here.
+"#
+);
+
+snapshot!(
+    multi_line_header_link_heading_attrs,
+    r#"
+Foo **bar
+baz** [I'm link](http://something) {#blah}
+======
+
+Content goes here. Another
+sentence here.
+"#
+);
+
+snapshot!(
     multiple,
     r#"
 # This is a test
@@ -116,5 +140,22 @@ testing 123
 ## Duplicate header
 
 other test
+"#
+);
+
+snapshot!(
+    heading_attributes,
+    r#"
+# Heading with ID {#custom-id}
+
+Content under heading with custom ID.
+
+## Another heading {#another-id}
+
+More content here.
+
+# Regular heading
+
+This heading doesn't have a custom ID.
 "#
 );

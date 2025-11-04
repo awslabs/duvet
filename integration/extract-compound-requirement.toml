@@ -1,0 +1,19 @@
+source = { local = true }
+cmd = ["duvet report"]
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[specification]]
+source = "my-spec.md"
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# Testing
+
+This SHOULD support compound requirements and it SHOULD deduplicate them for now.
+"""
