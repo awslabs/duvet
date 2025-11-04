@@ -1,0 +1,64 @@
+---
+source: duvet/src/specification/markdown/tests.rs
+expression: "super :: tokens(& contents).collect :: < Vec < _ >> ()"
+---
+[
+    Content {
+        value: "",
+        line: 1,
+    },
+    Section {
+        id: Some(
+            "custom-id",
+        ),
+        title: "Heading with ID",
+        level: 1,
+        line: 2,
+    },
+    Content {
+        value: "",
+        line: 3,
+    },
+    Content {
+        value: "Content under heading with custom ID.",
+        line: 4,
+    },
+    Content {
+        value: "",
+        line: 5,
+    },
+    Section {
+        id: Some(
+            "another-id",
+        ),
+        title: "Another heading",
+        level: 2,
+        line: 6,
+    },
+    Content {
+        value: "",
+        line: 7,
+    },
+    Content {
+        value: "More content here.",
+        line: 8,
+    },
+    Content {
+        value: "",
+        line: 9,
+    },
+    Section {
+        id: None,
+        title: "Regular heading",
+        level: 1,
+        line: 10,
+    },
+    Content {
+        value: "",
+        line: 11,
+    },
+    Content {
+        value: "This heading doesn't have a custom ID.",
+        line: 12,
+    },
+]

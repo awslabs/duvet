@@ -45,7 +45,7 @@ pub fn report(report: &ReportResult, dir: &Path) -> Result {
         .iter()
         .enumerate()
         .try_for_each(|(id, (source, report))| {
-            let path = lcov_dir.join(format!("compliance.{}.lcov", id));
+            let path = lcov_dir.join(format!("compliance.{id}.lcov"));
             let mut output = BufWriter::new(std::fs::File::create(path)?);
             report_source(source, report, download_path, &mut output)?;
             <Result>::Ok(())

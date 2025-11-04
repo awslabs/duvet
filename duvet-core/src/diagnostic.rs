@@ -328,7 +328,7 @@ impl From<Vec<Error>> for Set {
 impl fmt::Display for Set {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for error in self.errors.iter() {
-            writeln!(f, "{:?}", error)?;
+            writeln!(f, "{error:?}")?;
         }
         Ok(())
     }

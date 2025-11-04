@@ -140,6 +140,8 @@ struct IntegrationTest {
     files: Vec<IntegrationFile>,
     #[serde(default)]
     env: BTreeMap<String, String>,
+    #[serde(default)]
+    cwd: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -223,10 +225,15 @@ impl IntegrationTest {
     }
 
     fn run(&self, target: &Path, sh: &Shell) -> Result {
-        let Self { name, cmd, .. } = self;
+        let Self { name, cmd, cwd, .. } = self;
 
         let (stderr, json_report, snapshot_report) = {
-            let _dir = sh.push_dir(target);
+            let target_dir = if let Some(cwd) = cwd {
+                target.join(cwd)
+            } else {
+                target.to_path_buf()
+            };
+            let _dir = sh.push_dir(&target_dir);
             let html_report = sh.current_dir().join("duvet_report.html");
             let json_report = sh.current_dir().join("duvet_report.json");
             let snapshot_report = sh.current_dir().join("duvet_snapshot.txt");

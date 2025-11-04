@@ -11,6 +11,7 @@ license = "Apache-2.0"
 repository = "https://github.com/awslabs/duvet"
 include = ["/src/**/*.rs", "/www/public"]
 default-run = "duvet"
+rust-version = "1.85"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

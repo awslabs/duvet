@@ -45,7 +45,7 @@ pub fn find(needle: &str, haystack: &str) -> Option<(Range<usize>, Kind)> {
 
 fn fast_find(needle: &str, haystack: &str) -> Option<Range<usize>> {
     haystack.find(needle).map(|start| {
-        let end = start + needle.bytes().len();
+        let end = start + needle.len();
         debug_assert_eq!(&haystack[start..end], needle);
         start..end
     })
