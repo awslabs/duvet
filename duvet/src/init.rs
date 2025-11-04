@@ -67,7 +67,7 @@ impl Init {
             } else {
                 for spec in &self.specification {
                     writeln!(out, "[[specification]]")?;
-                    writeln!(out, "source = {:?}", spec)?;
+                    writeln!(out, "source = {spec:?}")?;
                 }
             }
 

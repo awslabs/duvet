@@ -52,7 +52,7 @@ impl Specification {
                 .trim_start_matches("appendix-");
 
             for prefix in ["section-", "appendix-"] {
-                if let Some(section) = self.sections.get(&format!("{}{}", prefix, id)) {
+                if let Some(section) = self.sections.get(&format!("{prefix}{id}")) {
                     return Some(section);
                 }
             }
@@ -62,17 +62,12 @@ impl Specification {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub enum Format {
+    #[default]
     Auto,
     Ietf,
     Markdown,
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Self::Auto
-    }
 }
 
 impl fmt::Display for Format {
@@ -82,7 +77,7 @@ impl fmt::Display for Format {
             Self::Ietf => "ietf",
             Self::Markdown => "markdown",
         };
-        write!(f, "{}", v)
+        write!(f, "{v}")
     }
 }
 

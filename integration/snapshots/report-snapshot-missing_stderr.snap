@@ -1,5 +1,6 @@
 ---
 source: xtask/src/tests.rs
+assertion_line: 284
 expression: stderr
 ---
 $ duvet report --ci
@@ -21,6 +22,5 @@ EXIT: Some(1)
      Writing .duvet/reports/report.html
        Wrote .duvet/reports/report.html 
     Checking .duvet/snapshot.txt
-
   × .duvet/snapshot.txt
   ╰─▶ Could not read report snapshot. This is required to enforce CI checks.
