@@ -20,6 +20,7 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     fs::OpenOptions,
     io::BufWriter,
+    path::{Component, PathBuf},
     sync::Arc,
 };
 
@@ -42,7 +43,7 @@ lazy_static! {
             .iter()
             .cloned()
             .map(|(pat, l)| {
-                let r = Regex::new(&format!("\\b{}\\b\"?", pat)).into_diagnostic()?;
+                let r = Regex::new(&format!("\\b{pat}\\b\"?")).into_diagnostic()?;
                 Ok((r, l))
             })
             .collect::<Result<_>>()
@@ -122,7 +123,16 @@ impl Extraction<'_> {
                     .base_path
                     .and_then(|base| local_path.strip_prefix(base).ok())
                     .unwrap_or(&local_path);
-                self.out.join(local_path)
+                // If the target is a relative directory with a different parent
+                // e.g. `../`is a prefix.
+                // Without this sanitation the base output directory will be "escaped"
+                // and the TOML files will be written to a parent of the base output directory.
+                // By sanitizing these elements
+                // the files are written into the base output directory in the same relative structure.
+                // There likely still exists complicated structures that may behave unexpectedly
+                // like `../a/b/../c` turning into `/some/base/out/a/b/c`
+                let sanitized_path = sanitize_path(local_path);
+                self.out.join(sanitized_path)
             }
         };
 
@@ -179,7 +189,19 @@ impl Extraction<'_> {
     }
 }
 
-fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature>)> {
+fn sanitize_path(path: &std::path::Path) -> PathBuf {
+    path.components()
+        .filter_map(|component| match component {
+            Component::Normal(name) => Some(name),
+            Component::ParentDir => None, // Skip parent directory components
+            Component::CurDir => None,    // Skip current directory components
+            Component::RootDir => None,   // Skip root directory
+            Component::Prefix(_) => None, // Skip Windows prefixes
+        })
+        .collect()
+}
+
+fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature<'_>>)> {
     spec.sorted_sections()
         .iter()
         .map(|section| extract_section(section))
@@ -187,7 +209,7 @@ fn extract_sections(spec: &Specification) -> Vec<(&Section, Vec<Feature>)> {
         .collect()
 }
 
-fn extract_section(section: &Section) -> (&Section, Vec<Feature>) {
+fn extract_section(section: &Section) -> (&Section, Vec<Feature<'_>>) {
     // use a hashmap to deduplicate quotes
     let mut quotes = HashMap::<_, Feature>::new();
     let lines = &section.lines[..];
@@ -423,7 +445,7 @@ fn write_rust<W: std::io::Write>(
     writeln!(w, "//!")?;
     for line in &section.lines {
         if let Line::Str(line) = line {
-            writeln!(w, "//! {}", line)?;
+            writeln!(w, "//! {line}")?;
         }
     }
     writeln!(w)?;
@@ -433,7 +455,7 @@ fn write_rust<W: std::io::Write>(
         writeln!(w, "//= type=spec")?;
         writeln!(w, "//= level={}", feature.level)?;
         for line in feature.quote.iter() {
-            writeln!(w, "//# {}", line)?;
+            writeln!(w, "//# {line}")?;
         }
         writeln!(w)?;
     }
@@ -453,7 +475,7 @@ fn write_toml<W: std::io::Write>(
     writeln!(w, "#")?;
     for line in &section.lines {
         if let Line::Str(line) = line {
-            writeln!(w, "# {}", line)?;
+            writeln!(w, "# {line}")?;
         }
     }
     writeln!(w)?;
@@ -463,7 +485,7 @@ fn write_toml<W: std::io::Write>(
         writeln!(w, "level = \"{}\"", feature.level)?;
         writeln!(w, "quote = '''")?;
         for line in feature.quote.iter() {
-            writeln!(w, "{}", line)?;
+            writeln!(w, "{line}")?;
         }
         writeln!(w, "'''")?;
         writeln!(w)?;

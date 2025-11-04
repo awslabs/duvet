@@ -1,0 +1,39 @@
+source = { local = true }
+cmd = ["duvet report"]
+cwd = "project/subdir"
+
+[[file]]
+path = "project/subdir/.duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "../specifications/spec.md"
+
+[report.html]
+enabled = true
+
+[report.snapshot]
+enabled = true
+"""
+
+[[file]]
+path = "project/subdir/src/lib.rs"
+contents = """
+//= ../specifications/spec.md#section-1
+//# This is a test implementation requirement that MUST be annotated.
+pub fn test() {}
+"""
+
+[[file]]
+path = "project/specifications/spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This is a test implementation requirement that MUST be annotated.
+"""

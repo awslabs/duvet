@@ -1,5 +1,6 @@
 ---
 source: xtask/src/tests.rs
+assertion_line: 284
 expression: stderr
 ---
 $ duvet report --ci
@@ -28,6 +29,5 @@ Differences detected in .duvet/snapshot.txt:
  SPECIFICATION: [Section](my-spec.md)
 +  SECTION: [Section](#section)
 +    TEXT[implementation]: here is a spec
-
   × .duvet/snapshot.txt
   ╰─▶ Report snapshot does not match with CI mode enabled.

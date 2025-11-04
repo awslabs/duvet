@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
@@ -37,6 +37,7 @@ jobs:
         uses: camshaft/install@v1
         with:
           crate: mdbook
+          version: "^0.4"
 
       - name: Install taplo
         uses: camshaft/install@v1
