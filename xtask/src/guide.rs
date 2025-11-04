@@ -20,15 +20,15 @@ impl Guide {
         let build_dir = dir.join("build");
 
         if cmd!(sh, "which mdbook").quiet().run().is_err() {
-            cmd!(sh, "cargo install --locked mdbook").run()?;
+            cmd!(sh, "cargo install --locked mdbook@^0.4").run()?;
         }
 
         if cmd!(sh, "which taplo").quiet().run().is_err() {
-            cmd!(sh, "cargo install --locked taplo-cli@0.9").run()?;
+            cmd!(sh, "cargo install --locked taplo-cli@^0.9").run()?;
         }
 
         if cmd!(sh, "which typos").quiet().run().is_err() {
-            cmd!(sh, "cargo install --locked typos-cli@1").run()?;
+            cmd!(sh, "cargo install --locked typos-cli@^1").run()?;
         }
 
         let bin = Build {
