@@ -20,7 +20,7 @@ bytes = "1"
 console = "0.16"
 duvet-macros = { version = "0.4", path = "../duvet-macros" }
 futures = { version = "0.3", default-features = false }
-rustc-hash = "1.1"
+rustc-hash = "2.1"
 globset = "0.4"
 http = { version = "1", optional = true }
 miette = { version = "7", features = ["fancy"] }
