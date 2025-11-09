@@ -75,8 +75,9 @@ impl Extract {
         let download_path = self.project.download_path().await?;
 
         let target = Arc::new(Target {
-            format: self.format,
             path: self.target_path.clone(),
+            format: self.format,
+            original_source: None, // Extract targets don't have original config source
         });
 
         Extraction {
@@ -168,7 +169,7 @@ impl Extraction<'_> {
                 .open(out)?;
             let mut file = BufWriter::new(file);
 
-            let target = &self.target.path;
+            let target = &self.target;
 
             match self.extension {
                 "rs" => write_rust(&mut file, target, section, features)?,
@@ -435,11 +436,13 @@ fn find_close_line(line: &str) -> Option<usize> {
 
 fn write_rust<W: std::io::Write>(
     w: &mut W,
-    target: &TargetPath,
+    target: &Target,
     section: &Section,
     features: &[Feature],
 ) -> Result {
-    writeln!(w, "//! {}#{}", target, section.id)?;
+    let path_string = target.path.to_string();
+    let display_path = target.original_source.as_deref().unwrap_or(&path_string);
+    writeln!(w, "//! {}#{}", display_path, section.id)?;
     writeln!(w, "//!")?;
     writeln!(w, "//! {}", section.full_title)?;
     writeln!(w, "//!")?;
@@ -451,7 +454,7 @@ fn write_rust<W: std::io::Write>(
     writeln!(w)?;
 
     for feature in features {
-        writeln!(w, "//= {}#{}", target, section.id)?;
+        writeln!(w, "//= {}#{}", display_path, section.id)?;
         writeln!(w, "//= type=spec")?;
         writeln!(w, "//= level={}", feature.level)?;
         for line in feature.quote.iter() {
@@ -465,11 +468,13 @@ fn write_rust<W: std::io::Write>(
 
 fn write_toml<W: std::io::Write>(
     w: &mut W,
-    target: &TargetPath,
+    target: &Target,
     section: &Section,
     features: &[Feature],
 ) -> Result {
-    writeln!(w, "target = \"{}#{}\"", target, section.id)?;
+    let path_string = target.path.to_string();
+    let display_path = target.original_source.as_deref().unwrap_or(&path_string);
+    writeln!(w, "target = \"{}#{}\"", display_path, section.id)?;
     writeln!(w)?;
     writeln!(w, "# {}", section.full_title)?;
     writeln!(w, "#")?;
