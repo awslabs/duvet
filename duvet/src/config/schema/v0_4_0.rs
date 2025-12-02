@@ -377,7 +377,6 @@ impl From<SpecificationFormat> for crate::specification::Format {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
@@ -404,7 +403,7 @@ mod tests {
         schema.insert(
             "$id".to_string(),
             serde_json::Value::String(
-                "https://awslabs.github.io/duvet/config/v0.4.0.json".to_string(),
+                "https://awslabs.github.io/duvet/config/v0.4.json".to_string(),
             ),
         );
         duvet_core::artifact::sync(
