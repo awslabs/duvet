@@ -1,5 +1,6 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://awslabs.github.io/duvet/config/v0.4.json",
   "title": "Duvet Configuration",
   "type": "object",
   "properties": {
@@ -10,39 +11,39 @@
       ]
     },
     "report": {
-      "$ref": "#/$defs/Report"
+      "$ref": "#/definitions/Report"
     },
     "requirement": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/Requirement"
+        "$ref": "#/definitions/Requirement"
       }
     },
     "source": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/Source"
+        "$ref": "#/definitions/Source"
       }
     },
     "specification": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/Specification"
+        "$ref": "#/definitions/Specification"
       }
     }
   },
   "additionalProperties": false,
-  "$defs": {
+  "definitions": {
     "CommentStyle": {
       "type": "object",
       "properties": {
         "content": {
-          "type": "string",
-          "default": "//#"
+          "default": "//#",
+          "type": "string"
         },
         "meta": {
-          "type": "string",
-          "default": "//="
+          "default": "//=",
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -64,7 +65,7 @@
         "blob-link": {
           "anyOf": [
             {
-              "$ref": "#/$defs/TemplatedString"
+              "$ref": "#/definitions/TemplatedString"
             },
             {
               "type": "null"
@@ -72,13 +73,13 @@
           ]
         },
         "enabled": {
-          "type": "boolean",
-          "default": true
+          "default": true,
+          "type": "boolean"
         },
         "issue-link": {
           "anyOf": [
             {
-              "$ref": "#/$defs/TemplatedString"
+              "$ref": "#/definitions/TemplatedString"
             },
             {
               "type": "null"
@@ -86,8 +87,8 @@
           ]
         },
         "path": {
-          "type": "string",
-          "default": ".duvet/reports/report.html"
+          "default": ".duvet/reports/report.html",
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -96,12 +97,12 @@
       "type": "object",
       "properties": {
         "enabled": {
-          "type": "boolean",
-          "default": false
+          "default": false,
+          "type": "boolean"
         },
         "path": {
-          "type": "string",
-          "default": ".duvet/reports/report.json"
+          "default": ".duvet/reports/report.json",
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -112,7 +113,7 @@
         "html": {
           "anyOf": [
             {
-              "$ref": "#/$defs/HtmlReport"
+              "$ref": "#/definitions/HtmlReport"
             },
             {
               "type": "null"
@@ -122,7 +123,7 @@
         "json": {
           "anyOf": [
             {
-              "$ref": "#/$defs/JsonReport"
+              "$ref": "#/definitions/JsonReport"
             },
             {
               "type": "null"
@@ -132,7 +133,7 @@
         "snapshot": {
           "anyOf": [
             {
-              "$ref": "#/$defs/SnapshotReport"
+              "$ref": "#/definitions/SnapshotReport"
             },
             {
               "type": "null"
@@ -144,47 +145,47 @@
     },
     "Requirement": {
       "type": "object",
+      "required": [
+        "pattern"
+      ],
       "properties": {
         "pattern": {
           "type": "string"
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "pattern"
-      ]
+      "additionalProperties": false
     },
     "SnapshotReport": {
       "type": "object",
       "properties": {
         "enabled": {
-          "type": "boolean",
-          "default": false
+          "default": false,
+          "type": "boolean"
         },
         "path": {
-          "type": "string",
-          "default": ".duvet/snapshot.txt"
+          "default": ".duvet/snapshot.txt",
+          "type": "string"
         }
       },
       "additionalProperties": false
     },
     "Source": {
       "type": "object",
+      "required": [
+        "pattern"
+      ],
       "properties": {
         "comment-style": {
-          "$ref": "#/$defs/CommentStyle"
+          "$ref": "#/definitions/CommentStyle"
         },
         "pattern": {
           "type": "string"
         },
         "type": {
-          "$ref": "#/$defs/DefaultType"
+          "$ref": "#/definitions/DefaultType"
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "pattern"
-      ]
+      "additionalProperties": false
     },
     "Specification": {
       "type": "object",
@@ -192,7 +193,7 @@
         "format": {
           "anyOf": [
             {
-              "$ref": "#/$defs/SpecificationFormat"
+              "$ref": "#/definitions/SpecificationFormat"
             },
             {
               "type": "null"
@@ -200,8 +201,8 @@
           ]
         },
         "source": {
-          "type": "string",
-          "default": ""
+          "default": "",
+          "type": "string"
         }
       },
       "additionalProperties": false
