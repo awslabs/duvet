@@ -377,22 +377,27 @@ impl From<SpecificationFormat> for crate::specification::Format {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
     fn schema_test() {
         let mut schema = schemars::schema_for!(Schema);
 
-        let metadata = schema.schema.metadata();
-        metadata.title = Some("Duvet Configuration".into());
-        metadata.id = Some("https://awslabs.github.io/duvet/config/v0.4.0.json".into());
+        if let Some(serde_json::Value::String(title)) = schema.get_mut("title") {
+            *title = "Duvet Configuration".to_string();
+        }
+        if let Some(serde_json::Value::String(id)) = schema.get_mut("id") {
+            *id = "https://awslabs.github.io/duvet/config/v0.4.0.json".to_string();
+        }
         duvet_core::artifact::sync(
             concat!(env!("CARGO_MANIFEST_DIR"), "/../config/v0.4.0.json"),
             serde_json::to_string_pretty(&schema).unwrap(),
         );
 
-        let metadata = schema.schema.metadata();
-        metadata.id = Some("https://awslabs.github.io/duvet/config/v0.4.json".into());
+        if let Some(serde_json::Value::String(id)) = schema.get_mut("id") {
+            *id = "https://awslabs.github.io/duvet/config/v0.4.0.json".to_string();
+        }
         duvet_core::artifact::sync(
             concat!(env!("CARGO_MANIFEST_DIR"), "/../config/v0.4.json"),
             serde_json::to_string_pretty(&schema).unwrap(),
