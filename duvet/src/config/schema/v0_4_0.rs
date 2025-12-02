@@ -383,16 +383,29 @@ mod tests {
     fn schema_test() {
         let mut schema = schemars::schema_for!(Schema);
 
-        let metadata = schema.schema.metadata();
-        metadata.title = Some("Duvet Configuration".into());
-        metadata.id = Some("https://awslabs.github.io/duvet/config/v0.4.0.json".into());
+        schema.insert(
+            "title".to_string(),
+            serde_json::Value::String("Duvet Configuration".to_string()),
+        );
+
+        schema.insert(
+            "$id".to_string(),
+            serde_json::Value::String(
+                "https://awslabs.github.io/duvet/config/v0.4.0.json".to_string(),
+            ),
+        );
+
         duvet_core::artifact::sync(
             concat!(env!("CARGO_MANIFEST_DIR"), "/../config/v0.4.0.json"),
             serde_json::to_string_pretty(&schema).unwrap(),
         );
 
-        let metadata = schema.schema.metadata();
-        metadata.id = Some("https://awslabs.github.io/duvet/config/v0.4.json".into());
+        schema.insert(
+            "$id".to_string(),
+            serde_json::Value::String(
+                "https://awslabs.github.io/duvet/config/v0.4.json".to_string(),
+            ),
+        );
         duvet_core::artifact::sync(
             concat!(env!("CARGO_MANIFEST_DIR"), "/../config/v0.4.json"),
             serde_json::to_string_pretty(&schema).unwrap(),
