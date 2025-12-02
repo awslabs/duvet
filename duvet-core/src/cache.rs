@@ -3,7 +3,7 @@
 
 use crate::query::Query;
 use core::marker::PhantomData;
-use fxhash::FxHashMap;
+use rustc_hash::FxHashMap;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
