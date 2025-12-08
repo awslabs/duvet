@@ -10,7 +10,7 @@ use crate::{
     Result,
 };
 use clap::Parser;
-use duvet_core::{path::Path, progress};
+use duvet_core::{error, path::Path, progress};
 use std::{collections::BTreeMap, sync::Arc};
 
 mod ci;
@@ -20,8 +20,23 @@ mod lcov;
 mod snapshot;
 mod stats;
 mod status;
+#[cfg(test)]
+mod tests;
 
 use stats::Statistics;
+
+#[derive(Debug, Clone)]
+enum RequirementMode {
+    None,                               // No requirements specified
+    Global(bool),                       // All values are boolean (true/false)
+    Targeted(Vec<TargetedRequirement>), // All values are spec paths
+}
+
+#[derive(Debug, Clone)]
+struct TargetedRequirement {
+    path: String,
+    section: Option<String>, // Some("section") for "path#section", None for "path"
+}
 
 #[derive(Debug, Parser)]
 pub struct Report {
@@ -37,14 +52,14 @@ pub struct Report {
     #[clap(long)]
     html: Option<Path>,
 
-    #[clap(long)]
-    require_citations: Option<Option<bool>>,
+    #[clap(long, action = clap::ArgAction::Append)]
+    require_citations: Vec<String>,
 
-    #[clap(long)]
-    require_tests: Option<Option<bool>>,
+    #[clap(long, action = clap::ArgAction::Append)]
+    require_tests: Vec<String>,
 
-    #[clap(long)]
-    ci: Option<Option<bool>>,
+    #[clap(long, action = clap::ArgAction::SetTrue)]
+    ci: bool,
 
     #[clap(long)]
     blob_link: Option<String>,
@@ -55,6 +70,10 @@ pub struct Report {
 
 impl Report {
     pub async fn exec(&self) -> Result {
+        // Validate requirement formats early to catch mixing errors
+        let citations_mode = self.parse_requirements(&self.require_citations)?;
+        let tests_mode = self.parse_requirements(&self.require_tests)?;
+
         let config = self.project.config().await?;
         let config = config.as_ref();
 
@@ -113,6 +132,7 @@ impl Report {
         progress!(progress, "Matched {} references", references.len());
 
         let progress = progress!("Sorting references");
+
         for reference in references.iter() {
             report
                 .targets
@@ -122,8 +142,8 @@ impl Report {
                     TargetReport {
                         references: vec![],
                         specification,
-                        require_citations: self.require_citations(),
-                        require_tests: self.require_tests(),
+                        require_citations: citations_mode.clone(),
+                        require_tests: tests_mode.clone(),
                         statuses: Default::default(),
                     }
                 })
@@ -147,14 +167,12 @@ impl Report {
             .map(Path::from);
         let snapshot_path = config.and_then(|config| config.report.snapshot.path());
 
-        let ci = match self.ci {
-            // use the new CI environment variable if the snapshot reports are configured
-            None if snapshot_path.is_some() => {
-                std::env::var("CI").is_ok_and(|value| !["false", "0"].contains(&value.as_str()))
-            }
-            None => false,
-            Some(None) => true,
-            Some(Some(value)) => value,
+        let ci = if !self.ci && snapshot_path.is_some() {
+            // If --ci is not explicitly set but snapshots are configured, check CI env var
+            std::env::var("CI").is_ok_and(|value| !["false", "0"].contains(&value.as_str()))
+        } else {
+            // Otherwise use the flag value
+            self.ci
         };
 
         let reports: &[(Option<&_>, ReportFn)] = &[
@@ -201,8 +219,8 @@ impl Report {
             }
         }
 
-        // only use the old CI check if the config hasn't set up snapshots
-        if ci && snapshot_path.is_none() {
+        // Run citation validation checks if required, regardless of snapshot configuration
+        if self.require_citations() || self.require_tests() || (ci && snapshot_path.is_none()) {
             ci::report(&report)?;
         }
 
@@ -210,18 +228,80 @@ impl Report {
     }
 
     fn require_citations(&self) -> bool {
-        match self.require_citations {
-            None => true,
-            Some(None) => true,
-            Some(Some(value)) => value,
+        match self.parse_requirements(&self.require_citations) {
+            Ok(RequirementMode::Global(value)) => value,
+            Ok(RequirementMode::Targeted(_)) => true, // If targeted requirements exist, enable validation
+            _ => false,
         }
     }
 
     fn require_tests(&self) -> bool {
-        match self.require_tests {
-            None => true,
-            Some(None) => true,
-            Some(Some(value)) => value,
+        match self.parse_requirements(&self.require_tests) {
+            Ok(RequirementMode::Global(value)) => value,
+            Ok(RequirementMode::Targeted(_)) => true, // If targeted requirements exist, enable validation
+            _ => false,
+        }
+    }
+
+    fn parse_requirements(&self, values: &[String]) -> Result<RequirementMode> {
+        if values.is_empty() {
+            return Ok(RequirementMode::None);
+        }
+
+        let mut has_boolean = false;
+        let mut has_paths = false;
+
+        for value in values {
+            match value.as_str() {
+                "true" | "false" => has_boolean = true,
+                _ => has_paths = true,
+            }
+        }
+
+        if has_boolean && has_paths {
+            return Err(error!(
+                "Cannot mix boolean values (true/false) with spec paths in requirement flags. \
+                 Use either --require-citations true/false OR --require-citations path/to/spec.md"
+            ));
+        }
+
+        if has_boolean {
+            // All should be boolean, validate and return the effective value
+            let mut results = Vec::new();
+            for value in values {
+                match value.parse::<bool>() {
+                    Ok(b) => results.push(b),
+                    Err(_) => {
+                        return Err(error!(
+                            "Invalid boolean value '{}', expected 'true' or 'false'",
+                            value
+                        ))
+                    }
+                }
+            }
+            let effective = results.into_iter().any(|b| b); // true if any value is true
+            Ok(RequirementMode::Global(effective))
+        } else {
+            // All should be spec paths
+            let mut targeted = Vec::new();
+            for value in values {
+                targeted.push(self.parse_targeted_requirement(value)?);
+            }
+            Ok(RequirementMode::Targeted(targeted))
+        }
+    }
+
+    fn parse_targeted_requirement(&self, value: &str) -> Result<TargetedRequirement> {
+        if let Some((path, section)) = value.split_once('#') {
+            Ok(TargetedRequirement {
+                path: path.to_string(),
+                section: Some(section.to_string()),
+            })
+        } else {
+            Ok(TargetedRequirement {
+                path: value.to_string(),
+                section: None,
+            })
         }
     }
 }
@@ -239,8 +319,8 @@ pub struct ReportResult<'a> {
 pub struct TargetReport {
     references: Vec<Reference>,
     specification: Arc<Specification>,
-    require_citations: bool,
-    require_tests: bool,
+    require_citations: RequirementMode,
+    require_tests: RequirementMode,
     statuses: status::StatusMap,
 }
 
