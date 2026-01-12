@@ -107,10 +107,19 @@ pub fn report_target<Output: Write>(
                     };
 
                     if !core::mem::replace(&mut has_emitted_title, true) {
-                        if let Some(title) = report.specification.title.as_ref() {
-                            writeln!(output, "SPECIFICATION: [{title}]({})", target.path)?;
+                        // Use original source path if available for portability, otherwise fall back to resolved path
+                        let resolved_path_string;
+                        let display_path = if let Some(original) = &target.original_source {
+                            original.as_str()
                         } else {
-                            writeln!(output, "SPECIFICATION: {}", target.path)?;
+                            resolved_path_string = target.path.to_string();
+                            &resolved_path_string
+                        };
+
+                        if let Some(title) = report.specification.title.as_ref() {
+                            writeln!(output, "SPECIFICATION: [{title}]({})", display_path)?;
+                        } else {
+                            writeln!(output, "SPECIFICATION: {}", display_path)?;
                         }
                     }
 

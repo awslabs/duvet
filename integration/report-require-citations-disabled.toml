@@ -1,0 +1,32 @@
+source = { local = true }
+cmd = ["duvet report --require-citations false"]
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/my-code.rs"
+
+[[specification]]
+source = "my-spec.md"
+"""
+
+[[file]]
+path = "src/my-code.rs"
+contents = """
+// Implementation without citation comment - should PASS with --require-citations false
+fn validate_input() {
+    // This function implements the requirement but has no citation
+    // Should pass because citations are not required
+}
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# Input Validation
+
+The system MUST validate all input parameters before processing.
+"""
