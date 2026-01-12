@@ -6,7 +6,7 @@
 use darling::FromMeta;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, AttributeArgs, ItemFn};
+use syn::{parse_macro_input, ItemFn};
 
 #[derive(Debug, FromMeta)]
 struct QueryArgs {
@@ -20,7 +20,10 @@ struct QueryArgs {
 
 #[proc_macro_attribute]
 pub fn query(args: TokenStream, input: TokenStream) -> TokenStream {
-    let attr_args = parse_macro_input!(args as AttributeArgs);
+    let attr_args = match darling::ast::NestedMeta::parse_meta_list(args.into()) {
+        Ok(v) => v,
+        Err(e) => return TokenStream::from(darling::Error::from(e).write_errors()),
+    };
     let mut fun = parse_macro_input!(input as ItemFn);
 
     let args = match QueryArgs::from_list(&attr_args) {
@@ -122,11 +125,13 @@ fn cache_query(fun: &mut ItemFn, delegate: bool, spawn: bool) {
             // TODO add custom hasher attribute
 
             input.attrs.retain(|attr| {
-                if attr.path.is_ident("skip") {
+                if attr.path().is_ident("skip") {
                     is_ignored = true;
                     false
-                } else if attr.path.is_ident("inject") {
-                    inject = Some(attr.tokens.clone());
+                } else if attr.path().is_ident("inject") {
+                    if let syn::Meta::List(meta_list) = &attr.meta {
+                        inject = Some(meta_list.tokens.clone());
+                    }
                     should_push = false;
                     false
                 } else {
