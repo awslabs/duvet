@@ -60,9 +60,9 @@ fn basic_query(fun: &mut ItemFn, delegate: bool, spawn: bool) {
         quote!(from(#block))
     };
 
-    fun.block = Box::new(syn::parse_quote!({
+    *fun.block = syn::parse_quote!({
         ::duvet_core::Query::#block
-    }));
+    });
 }
 
 fn global_query(fun: &mut ItemFn, delegate: bool, spawn: bool) {
@@ -88,13 +88,13 @@ fn global_query(fun: &mut ItemFn, delegate: bool, spawn: bool) {
     } else {
         quote!(from(#block))
     };
-    fun.block = Box::new(syn::parse_quote!({
+    *fun.block = syn::parse_quote!({
         #[derive(Copy, Clone, Hash, PartialEq, Eq)]
         struct Query;
         ::duvet_core::Cache::current().get_or_init_global(Query, move || {
             ::duvet_core::Query::#block
         })
-    }));
+    });
 }
 
 fn cache_query(fun: &mut ItemFn, delegate: bool, spawn: bool) {
@@ -170,7 +170,7 @@ fn cache_query(fun: &mut ItemFn, delegate: bool, spawn: bool) {
     } else {
         quote!(from(#block))
     };
-    fun.block = Box::new(syn::parse_quote!({
+    *fun.block = syn::parse_quote!({
         ::duvet_core::Query::delegate(async move {
             #inject_tokens
 
@@ -191,7 +191,7 @@ fn cache_query(fun: &mut ItemFn, delegate: bool, spawn: bool) {
                 ::duvet_core::Query::#block
             })
         })
-    }));
+    });
 }
 
 fn is_query_arg(ty: &syn::Type) -> bool {
