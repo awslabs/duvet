@@ -436,6 +436,16 @@ async fn execute_coverage_check(
             }
         }
         if !matches!(test_executed, AnnotationExecutionStatus::Executed) && !coverage_check_executed_tests_only {
+            // Checking for only executed tests is great
+            // but if you are working on coverage for a test that is failing
+            // because it is failing to cover its inteded annotation
+            // it is a bad idea to let this check succeed because 
+            // the single executed test being worked on no fails to execute
+            // This creates a false positive.
+            if !coverage_check_executed_tests_only || matches!(test_executed, AnnotationExecutionStatus::NotExecuted) {
+                continue;
+            }
+
             let result = CoveredTestAnnotation {
                 test: test.target.clone(),
                 test_execution_status: test_executed,
