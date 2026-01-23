@@ -180,4 +180,19 @@ mod tests {
             content: "*#".into(),
         }
     );
+    // ProVerif/CryptoVerif use OCaml-style block comments: (* ... *)
+    snapshot_test!(
+        proverif_style,
+        r#"
+        (*
+         *= https://example.com/spec.txt#section-1
+         *= type=test
+         *# The requirement text goes here
+         *)
+        "#,
+        Pattern {
+            meta: "*=".into(),
+            content: "*#".into(),
+        }
+    );
 }

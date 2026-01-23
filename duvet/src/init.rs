@@ -109,6 +109,12 @@ struct Languages {
     /// Include rules for the JavaScript language
     #[clap(long = "lang-javascript")]
     javascript: bool,
+    /// Include rules for the ProVerif language
+    #[clap(long = "lang-proverif")]
+    proverif: bool,
+    /// Include rules for the CryptoVerif language
+    #[clap(long = "lang-cryptoverif")]
+    cryptoverif: bool,
     /// Include rules for the Python language
     #[clap(long = "lang-python")]
     python: bool,
@@ -146,9 +152,11 @@ impl Languages {
         }
 
         write!(c);
+        write!(cryptoverif);
         write!(go);
         write!(java);
         write!(javascript);
+        write!(proverif);
         write!(python);
         write!(typescript);
         write!(ruby);
@@ -225,9 +233,28 @@ mod lang {
             "*=", "*#"
         )
     );
+    // CryptoVerif uses OCaml-style block comments: (* ... *)
+    lang!(
+        cryptoverif,
+        "**/*.cv",
+        format_args!(
+            "comment-style = {{ meta = {:?}, content = {:?} }}",
+            "*=", "*#"
+        )
+    );
     lang!(go, "src/**/*.go");
     lang!(java, "src/**/*.java");
     lang!(javascript, "src/**/*.js");
+    // ProVerif uses OCaml-style block comments: (* ... *)
+    // Also includes CryptoVerif (.cv) files which use the same syntax
+    lang!(
+        proverif,
+        "**/*.pv",
+        format_args!(
+            "comment-style = {{ meta = {:?}, content = {:?} }}",
+            "*=", "*#"
+        )
+    );
     lang!(
         python,
         "src/**/*.py",
