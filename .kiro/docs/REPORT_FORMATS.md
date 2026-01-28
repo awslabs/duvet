@@ -150,52 +150,85 @@ Machine-readable format for tooling integration.
 
 ### specifications
 
-Keyed by target path (URL or file path):
+**Keyed by the target specification document** (RFC URL or spec file path), NOT by annotation source files.
+
+```json
+{
+  "https://www.rfc-editor.org/rfc/rfc9000": { ... },
+  "../specifications/spec.md": { ... }
+}
+```
+
+These keys correspond to the `target` field from annotations - the specification being referenced.
+
+Structure per specification:
 
 ```json
 {
   "path/to/spec.md": {
     "title": "Spec Title",
     "format": "markdown",
-    "requirements": [0, 2, 5],     // Annotation IDs marked as SPEC type
+    "requirements": [0, 2, 5],
     "sections": [
       {
         "id": "section-id",
         "title": "Section Title",
-        "lines": [ ... ],          // Annotated line content
-        "requirements": [0]        // SPEC annotations in this section
+        "lines": [ ... ],
+        "requirements": [0]
       }
     ]
   }
 }
 ```
 
+**requirements field**: Array of annotation IDs where `AnnotationType::Spec`. These are annotations that *define* requirements extracted from the specification (via `duvet extract` or `[[specification]]` config). They mark "this spec text is a requirement needing coverage."
+
+- Spec-level `requirements`: All SPEC-type annotation IDs targeting this specification
+- Section-level `requirements`: Only SPEC-type annotation IDs within that section
+
+This is distinct from `Citation`/`Test`/etc. which are annotations in *implementation code* that provide coverage for requirements.
+
 ### sections[].lines
 
-Each line is either:
-- Plain string (no annotations)
-- Array of annotated segments: `[[annotation_ids], ref_status_id, "text"]`
+Contains the actual specification text with coverage information. Each line is either:
+- Plain string (no annotations covering this line)
+- Array of annotated segments showing which annotations cover each piece of text
 
 Segment structure:
 ```json
 [
-  [0, 1],      // Array of annotation IDs covering this text
-  16,          // Index into "refs" array for status lookup
-  "text here"  // The actual text content
+  [0, 1],      // Array of annotation IDs covering this text segment
+  16,          // Index into "refs" array for quick coverage status lookup
+  "text here"  // The actual specification text
 ]
 ```
 
+- **annotation_ids**: Which annotations (from the `annotations` array, by index) cover this text
+- **ref_status_id**: Pre-computed coverage status - look up in `refs` array to see coverage flags
+- **text**: The specification text content
+
+This allows the report consumer to see:
+1. What the specification says (the text)
+2. Which annotations reference this text (annotation IDs)
+3. Coverage completeness at a glance (ref_status_id → refs lookup)
+
 ### annotations
 
-Array of all annotations, ordered by ID:
+Array of all annotations from both source types, ordered by ID (array index = annotation ID):
+
+**Annotation sources:**
+- `SourceFile::Text` - parses `//=` comments from code files (`.rs`, `.c`, `.java`, etc.)
+- `SourceFile::Toml` - parses `.duvet/requirements/**/*.toml` files
+
+TOML files always produce `AnnotationType::Spec`. Text files default to `Citation` but can specify any type via `//= type=...`.
 
 ```json
 {
-  "source": "src/lib.rs",
-  "target_path": "https://example.com/spec",
+  "source": "src/lib.rs",                 // Where annotation is defined
+  "target_path": "https://example.com/spec",  // Specification being referenced
   "target_section": "section-1",      // Optional
   "line": 42,                         // Optional, 0 if not set
-  "type": "CITATION",                 // Optional, omitted if Citation
+  "type": "CITATION",                 // Optional, omitted if Citation (default)
   "level": "MUST",                    // Optional, omitted if Auto
   "comment": "...",                   // Optional
   "feature": "...",                   // Optional
@@ -204,24 +237,54 @@ Array of all annotations, ordered by ID:
 }
 ```
 
+**Key distinction:**
+- `source`: Where the annotation lives (code file or TOML file)
+- `target_path`: The specification document being referenced
+
 ### statuses
 
-Per-annotation coverage statistics, keyed by annotation ID:
+Per-SPEC-annotation coverage statistics, keyed by annotation ID. Only SPEC-type annotations have entries here.
 
 ```json
 {
   "0": {
-    "spec": 65,           // Total spec text bytes
-    "incomplete": 0,      // Uncovered bytes
-    "citation": 65,       // Citation coverage bytes
+    "spec": 65,
+    "incomplete": 0,
+    "citation": 65,
     "implication": 0,
     "test": 65,
     "exception": 0,
     "todo": 0,
-    "related": [1, 2]     // Related annotation IDs
+    "related": [1, 2]
   }
 }
 ```
+
+**How coverage works:**
+
+Each annotation has a `quote` field containing text from the specification. During reference matching, this quote is located in the spec file, producing a byte range (start..end offsets from the beginning of the spec file).
+
+A byte offset is "covered by Citation" when a Citation annotation's quote spans that position in the spec. Multiple annotations can cover the same offsets.
+
+**Values are counts of unique byte offsets** in the specification file:
+
+- `spec`: Total byte offsets spanned by this SPEC annotation's quote
+- `incomplete`: Byte offsets not yet fully covered (after applying coverage rules below)
+- `citation`: Byte offsets where Citation annotations' quotes overlap
+- `implication`: Byte offsets where Implication annotations' quotes overlap
+- `test`: Byte offsets where Test annotations' quotes overlap
+- `exception`: Byte offsets where Exception annotations' quotes overlap
+- `todo`: Byte offsets where Todo annotations' quotes overlap
+- `related`: IDs of non-SPEC annotations whose quotes overlap with this requirement
+
+**Coverage calculation** (from `status.rs`):
+1. Start with all SPEC byte offsets as "incomplete"
+2. Remove offsets covered by Exception (fully covered)
+3. Remove offsets covered by Implication (fully covered)
+4. Remove offsets covered by both Citation AND Test (requires both)
+5. Remaining offsets = `incomplete`
+
+**Note on usage**: The byte offset counts appear to be over-engineered for current use. The HTML frontend only uses these values for equality comparisons (e.g., `spec === citation`) to determine complete/incomplete status - the actual numeric values are never displayed. A simpler boolean model would suffice for current functionality. The granular counts could support partial coverage percentages (e.g., "70% covered") but this is not currently implemented.
 
 ### refs
 
@@ -264,19 +327,102 @@ Line-based coverage validation (used when snapshot not configured):
 
 ---
 
+## LCOV Report Format
+
+File: `duvet/src/report/lcov.rs`
+
+Generates LCOV-format files for integration with code coverage tools (e.g., IDE coverage visualization, CI coverage reports).
+
+### Output
+
+One `.lcov` file per specification in the output directory:
+```
+<output_dir>/compliance.0.lcov
+<output_dir>/compliance.1.lcov
+...
+```
+
+### LCOV Record Structure
+
+```
+TN:Compliance
+SF:<spec_file_path>
+FN:<line>,<section_title>       # Function (section) definitions
+FNF:<section_count>             # Total function count
+FNDA:<hit_count>,<section>      # Function hit data
+BRDA:<line>,<block>,<count>     # Branch data (coverage)
+DA:<line>,<hit_count>           # Line hit data
+end_of_record
+```
+
+### Coverage Model
+
+LCOV uses two "blocks" to track coverage:
+- `IMPL_BLOCK` (0,0): Citation/implementation coverage
+- `TEST_BLOCK` (1,0): Test coverage
+
+### Annotation Type Mapping
+
+| AnnotationType | Citation Block | Test Block |
+|----------------|----------------|------------|
+| Citation       | 1              | 0          |
+| Test           | 0              | 1          |
+| Implication    | 1              | 1          |
+| Exception      | 1              | 1          |
+| Spec           | 0              | 0          |
+| Todo           | 0              | 0          |
+
+### Line Coverage Calculation
+
+Final line coverage (`DA` records) depends on `require_citations` and `require_tests` settings:
+
+| require_citations | require_tests | Line is covered when...              |
+|-------------------|---------------|--------------------------------------|
+| true              | true          | Both cited AND tested                |
+| true              | false         | Cited (tests ignored)                |
+| false             | true          | Tested (citations ignored)           |
+| false             | false         | Either cited OR tested               |
+
+### Use Case
+
+The LCOV format allows specification coverage to be visualized in tools that understand code coverage, treating specification lines like source code lines. This enables:
+- Coverage visualization in IDEs
+- Integration with CI coverage reporting tools
+- Tracking coverage trends over time
+
+---
+
 ## Data Flow
 
 ```
-Source Files → Annotation Parsing → AnnotationSet
-                                         ↓
-Specifications → Section Parsing → SpecificationMap
-                                         ↓
-                              Reference Matching
-                                         ↓
-                                   ReportResult
-                                    ↓      ↓
-                              JSON Report  Snapshot Report
+Annotation Sources                        Specification Documents
+─────────────────                         ───────────────────────
+src/**/*.rs (//= comments)                RFC URLs (https://...)
+.duvet/requirements/**/*.toml             Local spec files (*.md)
+        │                                         │
+        ▼                                         ▼
+   AnnotationSet                            SpecificationMap
+   (all annotations                         (parsed spec content
+    with assigned IDs)                       by target path)
+        │                                         │
+        └──────────────┬──────────────────────────┘
+                       ▼
+              Reference Matching
+              (match annotation.quote to spec text)
+                       │
+                       ▼
+                 ReportResult
+                 ├── targets: spec path → TargetReport
+                 ├── annotations: all annotations
+                 └── statuses: coverage stats per SPEC annotation
+                       │
+           ┌───────────┴───────────┐
+           ▼                       ▼
+      JSON Report             Snapshot Report
+      (machine-readable)      (human-readable, CI diffing)
 ```
+
+**Key relationship:** Annotations *reference* specifications. The `specifications` object in JSON is organized by what's being referenced (the spec), showing which annotations provide coverage for each piece of spec text.
 
 ---
 
