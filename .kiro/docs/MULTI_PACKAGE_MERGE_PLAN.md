@@ -144,7 +144,7 @@ The frontend renders each segment with different styling (underline color = cove
 
 Byte offsets are used during segmentation to compute split points, then discarded. Only the final text segments with annotation IDs are serialized.
 
-**Open design question: refs table vs inline status**
+**Open design question: refs table vs inline status vs bitmap**
 
 Option A - refs table (matches v1):
 ```json
@@ -161,12 +161,24 @@ Option B - inline status:
 }
 ```
 
+Option C - bitmap:
+```json
+{
+  "lines": [[{ "annotation_ids": ["A"], "status": 48, "text": "..." }]]
+}
+```
+
+Bitmap encoding (8 bits total):
+- bits 0-5: `spec`, `citation`, `implication`, `test`, `exception`, `todo`
+- bits 6-7: `level` (0=AUTO, 1=MAY, 2=SHOULD, 3=MUST)
+
 | Approach | Pros | Cons |
 |----------|------|------|
 | `refs` table + `status_id` | Smaller JSON, matches v1 | Extra indirection, must include full 256-entry table |
 | Inline `status` | Self-contained segments, simpler merge | Repeated objects, larger file |
+| Bitmap | Smallest JSON, no refs table needed, fast bitwise merge (`a | b`) | Less readable, fixed capacity (would need `u16` if more types added) |
 
-Decision deferred - either works for the merge use case.
+Decision deferred - all work for the merge use case.
 
 **Open design question: coverage location**
 
