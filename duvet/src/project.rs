@@ -64,6 +64,7 @@ impl Project {
                         pattern: source.comment_style.clone(),
                         default_type: source.default_type,
                         path: entry.into_diagnostic()?.into(),
+                        blob_link: source.blob_link.clone(),
                     });
                 }
             }
@@ -98,6 +99,7 @@ impl Project {
                 pattern: compliance_pattern.clone(),
                 default_type: Default::default(),
                 path: entry.into_diagnostic()?.into(),
+                blob_link: None,
             });
         }
 

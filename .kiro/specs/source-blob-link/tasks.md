@@ -24,13 +24,13 @@ This implementation adds per-source blob link support to Duvet's configuration. 
   - Run `cargo xtask test` to ensure existing tests pass
   - Manually test parsing a config with `blob-link` on a source block
 
-- [ ] 3. Propagate blob_link through source file processing
-  - [ ] 3.1 Update `SourceFile::Text` variant to include blob_link
+- [x] 3. Propagate blob_link through source file processing
+  - [x] 3.1 Update `SourceFile::Text` variant to include blob_link
     - Add `blob_link: Option<Arc<str>>` field to the `Text` variant
     - Update all places that construct `SourceFile::Text` to include blob_link
     - _Requirements: 3.1, 3.3_
 
-  - [ ] 3.2 Update project sources collection to pass blob_link
+  - [x] 3.2 Update project sources collection to pass blob_link
     - Modify the code that creates `SourceFile` instances from config sources
     - Pass the source's `blob_link` to `SourceFile::Text`
     - _Requirements: 3.1_
