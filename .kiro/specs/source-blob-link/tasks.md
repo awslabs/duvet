@@ -85,8 +85,8 @@ This implementation adds per-source blob link support to Duvet's configuration. 
     - Explain override behavior and use cases
     - _Requirements: 9.2, 9.3_
 
-- [ ] 10. Add integration test
-  - [ ] 10.1 Create integration test config with per-source blob links
+- [-] 10. Add integration test
+  - [x] 10.1 Create integration test config with per-source blob links
     - Add new test config in `integration/` directory
     - Include sources with different blob-link values
     - _Requirements: 8.1, 8.2_

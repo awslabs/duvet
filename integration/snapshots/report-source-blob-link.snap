@@ -1,0 +1,10 @@
+---
+source: xtask/src/tests.rs
+expression: snapshot
+---
+SPECIFICATION: [My Specification](my-spec.md)
+  SECTION: [Feature A](#feature-a)
+    TEXT[!MUST,implementation]: Feature A MUST be implemented
+
+  SECTION: [Feature B](#feature-b)
+    TEXT[!SHOULD,implementation]: Feature B SHOULD be implemented
