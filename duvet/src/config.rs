@@ -46,6 +46,7 @@ pub struct Source {
     pub root: Path,
     pub comment_style: crate::comment::Pattern,
     pub default_type: crate::annotation::AnnotationType,
+    pub blob_link: Option<Arc<str>>,
 }
 
 #[derive(Clone, Debug)]

@@ -6,17 +6,17 @@ This implementation adds per-source blob link support to Duvet's configuration. 
 
 ## Tasks
 
-- [ ] 1. Update config schema to support blob-link on source blocks
-  - [ ] 1.1 Add `blob_link` field to `v0_4_0::Source` struct
+- [x] 1. Update config schema to support blob-link on source blocks
+  - [x] 1.1 Add `blob_link` field to `v0_4_0::Source` struct
     - Add `#[serde(default, rename = "blob-link")] pub blob_link: Option<TemplatedString>` field
     - Ensure `schemars::JsonSchema` derive generates correct schema
     - _Requirements: 1.1, 1.2, 1.3_
 
-  - [ ] 1.2 Update `load_sources()` to propagate blob_link to internal config
+  - [x] 1.2 Update `load_sources()` to propagate blob_link to internal config
     - Pass `source.blob_link.as_ref().map(From::from)` when creating `config::Source`
     - _Requirements: 2.1, 2.2_
 
-  - [ ] 1.3 Add `blob_link` field to `config::Source` struct
+  - [x] 1.3 Add `blob_link` field to `config::Source` struct
     - Add `pub blob_link: Option<Arc<str>>` field to the internal Source struct
     - _Requirements: 2.3_
 
