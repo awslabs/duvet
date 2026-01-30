@@ -95,7 +95,7 @@ This implementation adds per-source blob link support to Duvet's configuration. 
     - **Property 5: Backward Compatibility**
     - **Validates: Requirements 8.1, 8.2**
 
-- [ ] 11. Final checkpoint - Run full test suite
+- [x] 11. Final checkpoint - Run full test suite
   - Run `cargo xtask test` to verify all tests pass
   - Run `cargo xtask checks` to verify clippy and rustfmt pass
   - Ensure all tests pass, ask the user if questions arise
