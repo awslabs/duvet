@@ -75,12 +75,12 @@ This implementation adds per-source blob link support to Duvet's configuration. 
     - Verify `blob-link` property is included on Source definition
     - _Requirements: 7.1, 7.2, 7.3_
 
-- [ ] 9. Update documentation
-  - [ ] 9.1 Update `guide/src/example-config.toml`
+- [x] 9. Update documentation
+  - [x] 9.1 Update `guide/src/example-config.toml`
     - Add example of `blob-link` on a `[[source]]` block
     - _Requirements: 9.1_
 
-  - [ ] 9.2 Update `guide/src/config.md` with explanation
+  - [x] 9.2 Update `guide/src/config.md` with explanation
     - Add section explaining per-source blob links
     - Explain override behavior and use cases
     - _Requirements: 9.2, 9.3_
