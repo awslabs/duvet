@@ -69,8 +69,8 @@ This implementation adds per-source blob link support to Duvet's configuration. 
     - **Property 4: Frontend Blob Link Resolution**
     - **Validates: Requirements 6.1, 6.2, 6.3**
 
-- [ ] 8. Update JSON schema file
-  - [ ] 8.1 Regenerate `config/v0.4.0.json` schema
+- [x] 8. Update JSON schema file
+  - [x] 8.1 Regenerate `config/v0.4.0.json` schema
     - Run the schema generation test to update the JSON schema file
     - Verify `blob-link` property is included on Source definition
     - _Requirements: 7.1, 7.2, 7.3_
