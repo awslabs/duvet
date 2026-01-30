@@ -383,6 +383,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn source_blob_link_parsing_test() {
+        let toml_content = r#"
+[[source]]
+pattern = "src/**/*.rs"
+blob-link = "https://github.com/org/package-a/blob/main"
+
+[[source]]
+pattern = "tests/**/*.rs"
+"#;
+
+        let schema: Schema = toml::from_str(toml_content).unwrap();
+
+        // Verify sources parsed correctly
+        assert_eq!(schema.sources.len(), 2);
+
+        // First source has blob-link
+        assert_eq!(schema.sources[0].pattern, "src/**/*.rs");
+        let blob_link: Option<Arc<str>> = schema.sources[0].blob_link.as_ref().map(From::from);
+        assert_eq!(
+            blob_link.as_deref(),
+            Some("https://github.com/org/package-a/blob/main")
+        );
+
+        // Second source has no blob-link
+        assert_eq!(schema.sources[1].pattern, "tests/**/*.rs");
+        assert!(schema.sources[1].blob_link.is_none());
+    }
+
+    #[test]
     fn schema_test() {
         let mut schema = schemars::schema_for!(Schema);
 

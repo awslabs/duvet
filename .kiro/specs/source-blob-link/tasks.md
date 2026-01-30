@@ -20,7 +20,7 @@ This implementation adds per-source blob link support to Duvet's configuration. 
     - Add `pub blob_link: Option<Arc<str>>` field to the internal Source struct
     - _Requirements: 2.3_
 
-- [ ] 2. Checkpoint - Verify config parsing works
+- [x] 2. Checkpoint - Verify config parsing works
   - Run `cargo xtask test` to ensure existing tests pass
   - Manually test parsing a config with `blob-link` on a source block
 
