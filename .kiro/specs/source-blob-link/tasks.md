@@ -59,8 +59,8 @@ This implementation adds per-source blob link support to Duvet's configuration. 
     - **Property 3: JSON Serialization Consistency**
     - **Validates: Requirements 5.1**
 
-- [ ] 7. Update React frontend to use per-annotation blob links
-  - [ ] 7.1 Modify `createBlobLinker` function in `result.js`
+- [x] 7. Update React frontend to use per-annotation blob links
+  - [x] 7.1 Modify `createBlobLinker` function in `result.js`
     - Update to check `anno.blob_link` before falling back to global
     - Handle case where neither is available (return null href)
     - _Requirements: 6.1, 6.2, 6.3_

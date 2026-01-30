@@ -194,11 +194,14 @@ function sortRequirements(a, b) {
   return a.cmp(b);
 }
 
-function createBlobLinker(blob_link) {
-  blob_link = (blob_link || "").replace(/\/+$/, "");
+function createBlobLinker(global_blob_link) {
+  global_blob_link = (global_blob_link || "").replace(/\/+$/, "");
 
   return (anno) => {
     if (!anno.source) return null;
+
+    // Use annotation's blob_link if present, otherwise fall back to global
+    const blob_link = (anno.blob_link || global_blob_link || "").replace(/\/+$/, "");
 
     let link = anno.source;
 
