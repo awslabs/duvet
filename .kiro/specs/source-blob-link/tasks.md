@@ -35,17 +35,17 @@ This implementation adds per-source blob link support to Duvet's configuration. 
     - Pass the source's `blob_link` to `SourceFile::Text`
     - _Requirements: 3.1_
 
-- [ ] 4. Add blob_link to Annotation struct
-  - [ ] 4.1 Add `blob_link` field to `Annotation` struct
+- [x] 4. Add blob_link to Annotation struct
+  - [x] 4.1 Add `blob_link` field to `Annotation` struct
     - Add `pub blob_link: Option<Arc<str>>` field
     - _Requirements: 4.2_
 
-  - [ ] 4.2 Update annotation extraction to inherit blob_link from source
+  - [x] 4.2 Update annotation extraction to inherit blob_link from source
     - Modify `SourceFile::annotations()` to pass blob_link to extracted annotations
     - Update comment extraction to accept and propagate blob_link
     - _Requirements: 3.2, 4.1_
 
-- [ ] 5. Checkpoint - Verify annotation extraction works
+- [x] 5. Checkpoint - Verify annotation extraction works
   - Run `cargo xtask test` to ensure existing tests pass
   - Verify annotations have correct blob_link values
 

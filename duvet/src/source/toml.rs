@@ -141,6 +141,7 @@ impl Spec {
             source: source.path().clone(),
             level,
             format,
+            blob_link: None,
         })
     }
 }
@@ -187,6 +188,7 @@ impl Exception {
             source: source.path().clone(),
             level: AnnotationLevel::Auto,
             format: Format::Auto,
+            blob_link: None,
         })
     }
 }
@@ -241,6 +243,7 @@ impl Todo {
                 .unwrap_or_default(),
             level: AnnotationLevel::Auto,
             format: Format::Auto,
+            blob_link: None,
         })
     }
 }

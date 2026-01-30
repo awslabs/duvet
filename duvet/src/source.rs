@@ -28,9 +28,9 @@ impl SourceFile {
                 pattern,
                 default_type,
                 path,
-                blob_link: _,
+                blob_link,
             } => match duvet_core::vfs::read_string(path).await {
-                Ok(text) => comment::extract(&text, pattern, *default_type),
+                Ok(text) => comment::extract(&text, pattern, *default_type, blob_link.clone()),
                 Err(err) => (Default::default(), vec![err]),
             },
             Self::Toml(file) => toml::load(file).await,
