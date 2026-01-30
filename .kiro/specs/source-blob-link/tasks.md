@@ -49,8 +49,8 @@ This implementation adds per-source blob link support to Duvet's configuration. 
   - Run `cargo xtask test` to ensure existing tests pass
   - Verify annotations have correct blob_link values
 
-- [ ] 6. Update JSON report generation
-  - [ ] 6.1 Serialize blob_link field in annotation JSON output
+- [x] 6. Update JSON report generation
+  - [x] 6.1 Serialize blob_link field in annotation JSON output
     - Add conditional serialization of `blob_link` field in `json.rs`
     - Only include field when annotation has a blob_link value
     - _Requirements: 5.1, 5.2_
