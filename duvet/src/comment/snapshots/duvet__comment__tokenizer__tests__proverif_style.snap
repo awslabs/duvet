@@ -1,0 +1,20 @@
+---
+source: duvet/src/comment/tokenizer.rs
+assertion_line: 184
+expression: tokens
+---
+[
+    UnnamedMeta {
+        value: "https://example.com/spec.txt#section-1",
+        line: 2,
+    },
+    Meta {
+        key: "type",
+        value: "test",
+        line: 3,
+    },
+    Content {
+        value: "The requirement text goes here",
+        line: 4,
+    },
+]
