@@ -6,6 +6,7 @@ use crate::{
     comment, Error,
 };
 use duvet_core::path::Path;
+use std::sync::Arc;
 
 pub mod toml;
 
@@ -15,6 +16,7 @@ pub enum SourceFile {
         pattern: comment::Pattern,
         default_type: AnnotationType,
         path: Path,
+        blob_link: Option<Arc<str>>,
     },
     Toml(Path),
 }
@@ -26,8 +28,9 @@ impl SourceFile {
                 pattern,
                 default_type,
                 path,
+                blob_link,
             } => match duvet_core::vfs::read_string(path).await {
-                Ok(text) => comment::extract(&text, pattern, *default_type),
+                Ok(text) => comment::extract(&text, pattern, *default_type, blob_link.clone()),
                 Err(err) => (Default::default(), vec![err]),
             },
             Self::Toml(file) => toml::load(file).await,

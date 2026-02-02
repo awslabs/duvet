@@ -1,5 +1,6 @@
 ---
 source: duvet/src/comment/tests.rs
+assertion_line: 70
 expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n    //@= type=todo\n    //@= feature=cool-things\n    //@= tracking-issue=123\n    //@# Here is my citation\n    \"#)"
 ---
 (
@@ -20,6 +21,7 @@ expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n
             tracking_issue: "123",
             feature: "cool-things",
             tags: {},
+            blob_link: None,
         },
     },
     [],

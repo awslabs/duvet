@@ -41,6 +41,7 @@ impl Schema {
                 comment_style: (&source.comment_style).into(),
                 default_type: source.default_type.into(),
                 root: root.clone(),
+                blob_link: source.blob_link.as_ref().map(From::from),
             });
         }
 
@@ -116,6 +117,8 @@ pub struct Source {
     pub comment_style: CommentStyle,
     #[serde(rename = "type", default)]
     pub default_type: DefaultType,
+    #[serde(default, rename = "blob-link")]
+    pub blob_link: Option<TemplatedString>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize)]

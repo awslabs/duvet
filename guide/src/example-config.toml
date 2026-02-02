@@ -14,6 +14,11 @@ type = "implementation"
 # Sets the comment style for this group 
 comment-style = { meta = "##=", content = "##%" }
 
+[[source]]
+pattern = "packages/other-repo/**/*.rs"
+# Overrides the global blob-link for this source pattern
+blob-link = "https://github.com/awslabs/other-repo/blob/main"
+
 # Defines a required specification
 [[specification]]
 source = "https://www.rfc-editor.org/rfc/rfc2324" # URL to the specification

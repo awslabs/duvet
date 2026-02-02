@@ -12,10 +12,12 @@ use duvet_core::{
     file::{Slice, SourceFile},
     Result,
 };
+use std::sync::Arc;
 
 pub fn parse<T: IntoIterator<Item = Token>>(
     tokens: T,
     default_type: AnnotationType,
+    blob_link: Option<Arc<str>>,
 ) -> Parser<T::IntoIter> {
     Parser {
         prev_line: 0,
@@ -24,6 +26,7 @@ pub fn parse<T: IntoIterator<Item = Token>>(
         errors: Default::default(),
         tokens: tokens.into_iter(),
         default_type,
+        blob_link,
     }
 }
 
@@ -80,7 +83,12 @@ impl Meta {
         Ok(())
     }
 
-    fn build(self, contents: Vec<Slice>, default_type: AnnotationType) -> Result<Annotation> {
+    fn build(
+        self,
+        contents: Vec<Slice>,
+        default_type: AnnotationType,
+        blob_link: Option<Arc<str>>,
+    ) -> Result<Annotation> {
         let first_meta = self.first_meta.unwrap();
         let source = first_meta.file().clone();
 
@@ -147,6 +155,7 @@ impl Meta {
                 .unwrap_or_default(),
             feature: self.feature.map(|v| v.to_string()).unwrap_or_default(),
             tags: Default::default(),
+            blob_link,
         };
 
         Ok(annotation)
@@ -160,6 +169,7 @@ pub struct Parser<T> {
     contents: Vec<Slice>,
     errors: Vec<Error>,
     tokens: T,
+    blob_link: Option<Arc<str>>,
 }
 
 impl<T: Iterator<Item = Token>> Parser<T> {
@@ -229,7 +239,7 @@ impl<T: Iterator<Item = Token>> Parser<T> {
 
         ensure!(meta.first_meta.is_some(), None);
 
-        match meta.build(contents, self.default_type) {
+        match meta.build(contents, self.default_type, self.blob_link.clone()) {
             Ok(anno) => Some(anno),
             Err(err) => {
                 self.errors.push(err);
