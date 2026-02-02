@@ -1,0 +1,55 @@
+# Integration test for per-source blob-link configuration
+# Tests Requirements 8.1 and 8.2: backward compatibility and mixed blob-link scenarios
+
+source = { local = true }
+cmd = ["duvet report"]
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+# Global fallback blob link
+[report.html]
+blob-link = "https://github.com/org/main-repo/blob/main"
+
+# Source with custom blob link (overrides global)
+[[source]]
+pattern = "package-a/src/*.rs"
+blob-link = "https://github.com/org/package-a/blob/main"
+
+# Source without blob link (uses global fallback)
+[[source]]
+pattern = "package-b/src/*.rs"
+
+[[specification]]
+source = "my-spec.md"
+"""
+
+[[file]]
+path = "package-a/src/impl.rs"
+contents = """
+//= my-spec.md#feature-a
+//# Feature A MUST be implemented
+"""
+
+[[file]]
+path = "package-b/src/impl.rs"
+contents = """
+//= my-spec.md#feature-b
+//# Feature B SHOULD be implemented
+"""
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# My Specification
+
+## Feature A
+
+Feature A MUST be implemented
+
+## Feature B
+
+Feature B SHOULD be implemented
+"""

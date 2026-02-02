@@ -172,6 +172,16 @@
     "Source": {
       "type": "object",
       "properties": {
+        "blob-link": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TemplatedString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "comment-style": {
           "$ref": "#/$defs/CommentStyle"
         },

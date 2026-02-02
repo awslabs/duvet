@@ -159,6 +159,10 @@ pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) 
                                 kv!(obj, s!("tracking_issue"), s!(annotation.tracking_issue));
                             }
 
+                            if let Some(blob_link) = &annotation.blob_link {
+                                kv!(obj, s!("blob_link"), s!(blob_link));
+                            }
+
                             if !annotation.tags.is_empty() {
                                 kv!(
                                     obj,

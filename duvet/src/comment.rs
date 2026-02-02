@@ -18,9 +18,10 @@ pub fn extract(
     file: &SourceFile,
     pattern: &Pattern,
     default_type: AnnotationType,
+    blob_link: Option<Arc<str>>,
 ) -> (AnnotationSet, Vec<Error>) {
     let tokens = tokenizer::tokens(file, pattern);
-    let mut parser = parser::parse(tokens, default_type);
+    let mut parser = parser::parse(tokens, default_type, blob_link);
 
     let annotations = (&mut parser).map(Arc::new).collect();
     let errors = parser.errors();

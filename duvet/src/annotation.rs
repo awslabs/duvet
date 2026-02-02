@@ -122,6 +122,7 @@ pub struct Annotation {
     pub tracking_issue: String,
     pub feature: String,
     pub tags: BTreeSet<String>,
+    pub blob_link: Option<Arc<str>>,
 }
 
 impl Annotation {
