@@ -10,7 +10,7 @@ A single specification is implemented across multiple packages. Due to build sys
 
 2. **JSON format is write-only**: `json.rs` uses streaming macros with no deserialization. Format is optimized for React frontend, not roundtripping.
 
-3. **Ephemeral annotation IDs**: IDs assigned sequentially during `reference_map()`. Merging causes collisions.
+3. **Ephemeral annotation IDs**: IDs assigned sequentially during `reference_map()`. Merging causes collisions. IDs don't need to be stable across runs (any code change regenerates the report), but must be deterministic from content so two independent report runs produce the same ID for the same annotation.
 
 4. **No package context**: Annotations track `source` (file path) but not which package. Can't distinguish `src/lib.rs` from package A vs B after merge.
 
@@ -62,12 +62,64 @@ This keeps per-package config self-contained in each package's `.duvet/config.to
 
 ### 1.2 Stable annotation identifiers
 
-Replace sequential `usize` IDs with content-based composite key:
+Replace sequential `usize` IDs with content-based deterministic IDs.
+
+**Composite key:**
 ```
-(source_path, target_path, target_section, quote_hash) → deterministic ID
+(source_path, anno_line, target_path) → deterministic ID
 ```
 
-Same annotation across runs gets same ID.
+`(source_path, anno_line)` is already unique within a package — two annotations can't start on the same line in the same file. Including `target_path` is cheap insurance and aids debugging.
+
+Fields deliberately excluded:
+- `target_section`, `anno_type`, `quote_hash`: redundant given `(source, line)` uniqueness
+- `quote`: can be long; not needed for uniqueness
+
+**Stability guarantee:** IDs are deterministic from content, not stable across code changes. Any source edit regenerates the report. The only requirement is that two independent report runs over the *same* source produce the same IDs, so that merge can union them.
+
+**ID function:**
+
+```rust
+fn stable_annotation_id(annotation: &Annotation) -> String {
+    let mut buf = Vec::new();
+    let _ = write!(buf, "{}\0{}\0{}",
+        annotation.source.to_string_lossy(),
+        annotation.anno_line,
+        annotation.target_path(),
+    );
+    format!("{:016x}", fnv1a_64(&buf))
+}
+
+fn fnv1a_64(data: &[u8]) -> u64 {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for &byte in data {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
+}
+```
+
+Produces a 16-char hex string (e.g., `"a3f7b2c1e9d04856"`). FNV-1a is deterministic, has no dependencies, and 64 bits is more than sufficient for the expected annotation counts.
+
+**Phase-in strategy:**
+
+The v1 JSON frontend indexes annotations by array position (`input.annotations[id]`) and ignores unknown fields. We can add `stable_id` as inert metadata to v1 output without breaking compatibility:
+
+1. Add `stable_id: String` to `AnnotationWithId`, computed during `reference_map()`
+2. Emit `"stable_id"` as an extra field on each annotation in v1 JSON
+3. Optionally emit `"stable_id"` inside each status entry in `"statuses"`
+4. Frontend continues using integer indices — `stable_id` is ignored until v2
+
+This lets us validate determinism and check for collisions against real spec corpora before committing to stable IDs as primary keys in v2.
+
+```rust
+pub struct AnnotationWithId {
+    pub id: usize,
+    pub stable_id: String,  // NEW — content-derived, for v2/merge
+    pub annotation: Arc<Annotation>,
+}
+```
 
 ---
 
@@ -234,7 +286,7 @@ The segmentation is computed once during `duvet report` using the existing byte-
 ```rust
 #[derive(Serialize, Deserialize)]
 pub struct AnnotationV2 {
-    pub id: String,  // stable hash-based ID
+    pub id: String,  // content-derived ID: fnv1a(source_path, anno_line, target_path)
     pub source: String,
     pub blob_link: Option<String>,  // resolved link for this annotation's source
     pub target_path: String,
@@ -289,7 +341,7 @@ Current `json.rs` remains for HTML frontend compatibility. v2 is for tooling/mer
 | Aspect | v1 | v2 |
 |--------|----|----|
 | **Serialization** | Streaming macros, write-only | Serde derive, read/write |
-| **Annotation IDs** | Sequential `usize` (ephemeral) | Stable hash-based strings |
+| **Annotation IDs** | Sequential `usize` (ephemeral) | Content-derived 16-char hex strings (deterministic from source_path + line + target_path) |
 | **Blob links** | Per-annotation `blob_link` (from source config) | Per-annotation `blob_link` |
 | **Version field** | None | `"version": "2.0"` |
 
@@ -310,20 +362,21 @@ refs: [ ... ]                         coverage: { ... }  (renamed from statuses)
 **Annotation differences:**
 
 ```json
-// v1 annotation
+// v1 annotation (with phase-in stable_id)
 {
   "source": "src/lib.rs",
   "target_path": "https://example.com/rfc",
   "target_section": "section-2.1",
   "line": 42,
   "type": "CITATION",
-  "blob_link": "https://..."  // per-annotation, from source config
-  // no id, no package, no quote
+  "blob_link": "https://...",  // per-annotation, from source config
+  "stable_id": "a3f7b2c1e9d04856"  // NEW: inert metadata, ignored by frontend
+  // no package, no quote
 }
 
 // v2 annotation
 {
-  "id": "a1b2c3d4",           // NEW: stable ID
+  "id": "a3f7b2c1e9d04856",   // NEW: promoted to primary key
   "source": "src/lib.rs",
   "blob_link": "https://...",  // same as v1
   "target_path": "https://example.com/rfc",
@@ -409,8 +462,8 @@ Either:
 
 ## Implementation Order
 
-1. **Phase 2.1-2.2**: v2 JSON format (foundation, testable independently)
-2. **Phase 1.2**: Stable annotation IDs (required for correct merge)
+1. **Phase 1.2 (phase-in)**: Add `stable_id` to `AnnotationWithId` and emit as inert metadata in v1 JSON. Validate determinism and collisions early.
+2. **Phase 2.1-2.2**: v2 JSON format (foundation, testable independently). Promote `stable_id` to primary `id`.
 3. **Phase 3.1-3.2**: Basic merge command (working pipeline)
 4. ~~**Phase 1.1 + 4.1**: Per-source blob-link support (correct HTML output)~~ ✅ **COMPLETED** (commit 75acb7c4)
 5. **Phase 4.2**: Polish HTML output
@@ -562,7 +615,7 @@ If packages reference different spec versions, need strategy. Simplest: require 
       "properties": {
         "id": {
           "type": "string",
-          "description": "Stable hash-based identifier"
+          "description": "Content-derived identifier: FNV-1a hash of (source_path, anno_line, target_path), 16 hex chars"
         },
         "source": {
           "type": "string",
