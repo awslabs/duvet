@@ -33,7 +33,8 @@ Source
 ├── pattern: String                   # Glob pattern (e.g., "src/**/*.rs")
 ├── root: Path                        # Base directory (derived from config location)
 ├── comment_style: comment::Pattern   # Comment parsing configuration
-└── default_type: AnnotationType      # Default annotation type for this source
+├── default_type: AnnotationType      # Default annotation type for this source
+└── blob_link: Option<Arc<str>>       # Optional per-source blob link (overrides report.html.blob-link)
 ```
 
 ### Requirement Configuration
@@ -115,6 +116,7 @@ Defines which source files to scan for annotations.
 pattern = "src/**/*.rs"              # Required: glob pattern
 type = "implementation"              # Optional: default annotation type
 comment-style = { meta = "//=", content = "//#" }  # Optional: comment parsing
+blob-link = "https://github.com/org/repo/blob/main"  # Optional: overrides report.html.blob-link for this source
 ```
 
 **Supported Types** (TOML field: `type`):
@@ -136,6 +138,12 @@ Note: Different languages may use different comment styles when initialized via 
 - Python: `meta = "##="`, `content = "##%"`
 - Ruby: `meta = "##="`, `content = "##%"`
 - Go, Java, JavaScript, TypeScript, Rust: use defaults (`//=`, `//#`)
+
+**Blob Link** (TOML field: `blob-link`):
+- Optional URL prefix for source file links in reports
+- Overrides the global `report.html.blob-link` for annotations from this source pattern
+- Supports the same template string syntax as the global blob-link (e.g., `${{ GITHUB_REF || 'main' }}`)
+- Resolution: annotation uses its source's `blob-link` if present, otherwise falls back to `report.html.blob-link`
 
 ### Requirement Configuration
 

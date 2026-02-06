@@ -22,7 +22,8 @@ Annotation
 ├── format: Format            # Spec format hint
 ├── tracking_issue: String    # Issue tracker link
 ├── feature: String           # Feature flag
-└── tags: BTreeSet<String>    # Custom tags
+├── tags: BTreeSet<String>    # Custom tags
+└── blob_link: Option<Arc<str>>  # Per-source blob link (overrides global)
 ```
 
 ```
@@ -241,7 +242,8 @@ TOML files always produce `AnnotationType::Spec`. Text files default to `Citatio
   "comment": "...",                   // Optional
   "feature": "...",                   // Optional
   "tracking_issue": "...",            // Optional
-  "tags": ["tag1", "tag2"]            // Optional
+  "tags": ["tag1", "tag2"],           // Optional
+  "blob_link": "https://github.com/org/repo/blob/main"  // Optional, per-source blob link
 }
 ```
 

@@ -6,7 +6,7 @@ A single specification is implemented across multiple packages. Due to build sys
 
 ## Current Limitations
 
-1. **Single blob_link**: `HtmlReport.blob_link` is one string. Merged reports need per-package links since source files live in different repos/paths.
+1. ~~**Single blob_link**: `HtmlReport.blob_link` is one string. Merged reports need per-package links since source files live in different repos/paths.~~ ✅ **RESOLVED** - Per-source `blob-link` now supported in `[[source]]` config blocks, propagated to annotations.
 
 2. **JSON format is write-only**: `json.rs` uses streaming macros with no deserialization. Format is optimized for React frontend, not roundtripping.
 
@@ -18,7 +18,7 @@ A single specification is implemented across multiple packages. Due to build sys
 
 ## Phase 1: Data Model Enhancements
 
-### 1.1 Support blob links via source config
+### 1.1 Support blob links via source config ✅ COMPLETED (commit 75acb7c4)
 
 Extend `[[source]]` blocks to accept `blob-link`:
 
@@ -53,6 +53,12 @@ Resolution logic:
 2. If source has no `blob-link`, fall back to `report.html.blob-link`
 
 This keeps per-package config self-contained in each package's `.duvet/config.toml`.
+
+**Implementation notes:**
+- `blob_link` field added to `Annotation` struct (`annotation.rs`)
+- Comment parser propagates `blob_link` from source config to parsed annotations
+- JSON report includes `blob_link` per annotation when present
+- Frontend (`www/src/result.js`) uses annotation's `blob_link` if present, falls back to global
 
 ### 1.2 Stable annotation identifiers
 
@@ -284,7 +290,7 @@ Current `json.rs` remains for HTML frontend compatibility. v2 is for tooling/mer
 |--------|----|----|
 | **Serialization** | Streaming macros, write-only | Serde derive, read/write |
 | **Annotation IDs** | Sequential `usize` (ephemeral) | Stable hash-based strings |
-| **Blob links** | Single global `blob_link` | Per-annotation `blob_link` |
+| **Blob links** | Per-annotation `blob_link` (from source config) | Per-annotation `blob_link` |
 | **Version field** | None | `"version": "2.0"` |
 
 **Structure differences:**
@@ -310,15 +316,16 @@ refs: [ ... ]                         coverage: { ... }  (renamed from statuses)
   "target_path": "https://example.com/rfc",
   "target_section": "section-2.1",
   "line": 42,
-  "type": "CITATION"
-  // no id, no package, no blob_link, no quote
+  "type": "CITATION",
+  "blob_link": "https://..."  // per-annotation, from source config
+  // no id, no package, no quote
 }
 
 // v2 annotation
 {
   "id": "a1b2c3d4",           // NEW: stable ID
   "source": "src/lib.rs",
-  "blob_link": "https://...",  // NEW: resolved per-annotation
+  "blob_link": "https://...",  // same as v1
   "target_path": "https://example.com/rfc",
   "target_section": "section-2.1",
   "quote": "MUST accept...",   // NEW: included for merge
@@ -355,8 +362,7 @@ refs: [ ... ]                         coverage: { ... }  (renamed from statuses)
 
 1. **Roundtripping**: v1 cannot be read back; v2 can be deserialized and re-serialized
 2. **Merge**: v1 IDs collide across reports; v2 stable IDs allow union
-3. **Attribution**: v1 has single global blob_link; v2 tracks blob_link per annotation
-4. **Self-contained**: v2 annotations include `quote` and `blob_link`, making them portable
+3. **Self-contained**: v2 annotations include `quote`, making them portable for merge without re-parsing sources
 
 ---
 
@@ -388,10 +394,10 @@ duvet merge \
 
 ## Phase 4: Frontend Updates
 
-### 4.1 Update React frontend
+### 4.1 Update React frontend ✅ COMPLETED (commit 75acb7c4)
 
-- Generate correct blob links per annotation
-- Optional: coverage breakdown by source
+- Frontend now uses annotation's `blob_link` if present, falls back to global
+- Implemented in `www/src/result.js` via `createBlobLinker()` function
 
 ### 4.2 Generate merged HTML
 
@@ -406,7 +412,7 @@ Either:
 1. **Phase 2.1-2.2**: v2 JSON format (foundation, testable independently)
 2. **Phase 1.2**: Stable annotation IDs (required for correct merge)
 3. **Phase 3.1-3.2**: Basic merge command (working pipeline)
-4. **Phase 1.1 + 4.1**: Per-source blob-link support (correct HTML output)
+4. ~~**Phase 1.1 + 4.1**: Per-source blob-link support (correct HTML output)~~ ✅ **COMPLETED** (commit 75acb7c4)
 5. **Phase 4.2**: Polish HTML output
 
 ---
@@ -415,15 +421,17 @@ Either:
 
 ### Merge config format
 
+Since per-source `blob-link` is now stored in annotations in the JSON report, the merge config no longer needs to specify blob-link per input:
+
 ```toml
 [[input]]
 path = "package-a/.duvet/report-v2.json"
-blob-link = "https://github.com/org/package-a/blob/main"
 
 [[input]]
 path = "package-b/.duvet/report-v2.json"
-blob-link = "https://github.com/org/package-b/blob/main"
 ```
+
+Each package's `.duvet/config.toml` should specify `blob-link` in its `[[source]]` blocks, and these will be preserved in the merged report.
 
 ### Partial coverage tracking
 
