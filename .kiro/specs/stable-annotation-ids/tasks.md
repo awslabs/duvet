@@ -79,7 +79,7 @@ This implementation adds content-based deterministic IDs to annotations using FN
     - Verify `stable_id` values are identical
     - _Requirements: 9.1, 10.4_
 
-- [ ] 8. Final checkpoint - Run full test suite
+- [x] 8. Update integration tests
   - Run `cargo xtask test` to verify all tests pass
   - Run `cargo xtask checks` to verify clippy and rustfmt pass
   - Ensure all tests pass, ask the user if questions arise
