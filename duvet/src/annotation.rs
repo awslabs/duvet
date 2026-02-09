@@ -326,10 +326,40 @@ impl FromStr for AnnotationLevel {
 
 #[cfg(test)]
 mod tests {
-    use super::fnv1a_64;
+    use super::{fnv1a_64, stable_annotation_id, Annotation, AnnotationLevel, AnnotationType};
+    use crate::specification::Format;
     use bolero::check;
+    use duvet_core::{file::SourceFile, path::Path};
+    use std::collections::BTreeSet;
 
     const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+
+    /// Helper function to create a test Annotation with the given source, line, and target.
+    /// Other fields are set to sensible defaults.
+    fn make_test_annotation(source_path: &str, anno_line: usize, target: &str) -> Annotation {
+        // Create a minimal source file for the Slice fields
+        let source_file = SourceFile::new(Path::from(source_path), "test content").unwrap();
+        let slice = source_file.substr_range(0..4).unwrap();
+
+        Annotation {
+            source: Path::from(source_path),
+            anno_line,
+            original_target: slice.clone(),
+            original_text: slice.clone(),
+            original_quote: slice,
+            anno: AnnotationType::Citation,
+            target: target.to_string(),
+            quote: String::new(),
+            comment: String::new(),
+            manifest_dir: Path::from("."),
+            level: AnnotationLevel::Auto,
+            format: Format::Auto,
+            tracking_issue: String::new(),
+            feature: String::new(),
+            tags: BTreeSet::new(),
+            blob_link: None,
+        }
+    }
 
     #[test]
     fn fnv1a_64_empty_input_returns_offset_basis() {
@@ -452,6 +482,144 @@ mod tests {
         let id2 = format!("{:016x}", fnv1a_64(key2.as_bytes()));
 
         assert_eq!(id1, id2, "Same target_path should produce same ID");
+    }
+
+    // =========================================================================
+    // Tests that directly call stable_annotation_id() with real Annotation instances
+    // =========================================================================
+
+    #[test]
+    fn stable_annotation_id_returns_16_lowercase_hex_chars() {
+        let annotation = make_test_annotation(
+            "src/lib.rs",
+            42,
+            "https://example.com/spec#section-1",
+        );
+
+        let stable_id = stable_annotation_id(&annotation);
+
+        assert_eq!(stable_id.len(), 16, "Stable ID must be exactly 16 characters");
+        assert!(
+            stable_id.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+            "Stable ID must be lowercase hex, got: {stable_id}"
+        );
+    }
+
+    #[test]
+    fn stable_annotation_id_is_deterministic() {
+        let annotation = make_test_annotation(
+            "src/lib.rs",
+            42,
+            "https://example.com/spec#section-1",
+        );
+
+        let id1 = stable_annotation_id(&annotation);
+        let id2 = stable_annotation_id(&annotation);
+        let id3 = stable_annotation_id(&annotation);
+
+        assert_eq!(id1, id2, "stable_annotation_id must be deterministic");
+        assert_eq!(id2, id3, "stable_annotation_id must be deterministic");
+    }
+
+    #[test]
+    fn stable_annotation_id_different_line_produces_different_id() {
+        let anno1 = make_test_annotation("src/lib.rs", 42, "https://example.com/spec");
+        let anno2 = make_test_annotation("src/lib.rs", 43, "https://example.com/spec");
+
+        let id1 = stable_annotation_id(&anno1);
+        let id2 = stable_annotation_id(&anno2);
+
+        assert_ne!(id1, id2, "Different anno_line should produce different stable ID");
+    }
+
+    #[test]
+    fn stable_annotation_id_different_source_produces_different_id() {
+        let anno1 = make_test_annotation("src/lib.rs", 42, "https://example.com/spec");
+        let anno2 = make_test_annotation("src/other.rs", 42, "https://example.com/spec");
+
+        let id1 = stable_annotation_id(&anno1);
+        let id2 = stable_annotation_id(&anno2);
+
+        assert_ne!(id1, id2, "Different source path should produce different stable ID");
+    }
+
+    #[test]
+    fn stable_annotation_id_different_target_produces_different_id() {
+        let anno1 = make_test_annotation("src/lib.rs", 42, "https://example.com/spec1");
+        let anno2 = make_test_annotation("src/lib.rs", 42, "https://example.com/spec2");
+
+        let id1 = stable_annotation_id(&anno1);
+        let id2 = stable_annotation_id(&anno2);
+
+        assert_ne!(id1, id2, "Different target path should produce different stable ID");
+    }
+
+    #[test]
+    fn stable_annotation_id_uses_target_path_not_full_target() {
+        // Two annotations with same target_path but different sections should have same stable ID
+        // because stable_annotation_id uses target_path() which strips the section
+        let anno1 = make_test_annotation("src/lib.rs", 42, "https://example.com/spec#section-1");
+        let anno2 = make_test_annotation("src/lib.rs", 42, "https://example.com/spec#section-2");
+
+        let id1 = stable_annotation_id(&anno1);
+        let id2 = stable_annotation_id(&anno2);
+
+        assert_eq!(
+            id1, id2,
+            "Same target_path (ignoring section) should produce same stable ID"
+        );
+    }
+
+    #[test]
+    fn stable_annotation_id_ignores_other_annotation_fields() {
+        // Create two annotations with same (source, line, target_path) but different other fields
+        let mut anno1 = make_test_annotation("src/lib.rs", 42, "https://example.com/spec");
+        let mut anno2 = make_test_annotation("src/lib.rs", 42, "https://example.com/spec");
+
+        // Modify fields that should NOT affect the stable ID
+        anno1.quote = "Some quote text".to_string();
+        anno2.quote = "Different quote text".to_string();
+
+        anno1.comment = "Comment 1".to_string();
+        anno2.comment = "Comment 2".to_string();
+
+        anno1.anno = AnnotationType::Test;
+        anno2.anno = AnnotationType::Citation;
+
+        anno1.level = AnnotationLevel::Must;
+        anno2.level = AnnotationLevel::May;
+
+        let id1 = stable_annotation_id(&anno1);
+        let id2 = stable_annotation_id(&anno2);
+
+        assert_eq!(
+            id1, id2,
+            "Stable ID should only depend on (source, anno_line, target_path)"
+        );
+    }
+
+    #[test]
+    fn stable_annotation_id_matches_expected_composite_key_format() {
+        // Verify that stable_annotation_id produces the same result as manually
+        // constructing the composite key and hashing it
+        let annotation = make_test_annotation(
+            "src/lib.rs",
+            42,
+            "https://example.com/spec#section-1",
+        );
+
+        let stable_id = stable_annotation_id(&annotation);
+
+        // Manually construct the composite key the same way the function does
+        let expected_composite_key = format!(
+            "{}\0{}\0{}",
+            annotation.source.to_string_lossy(),
+            annotation.anno_line,
+            annotation.target_path()
+        );
+        let expected_id = format!("{:016x}", fnv1a_64(expected_composite_key.as_bytes()));
+
+        assert_eq!(stable_id, expected_id, "stable_annotation_id should match manual computation");
     }
 
     /// Property 1: Hash Determinism
