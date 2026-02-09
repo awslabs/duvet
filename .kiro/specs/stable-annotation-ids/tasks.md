@@ -34,22 +34,22 @@ This implementation adds content-based deterministic IDs to annotations using FN
     - **Property 1: Hash Determinism**
     - **Validates: Requirements 1.2, 2.2, 9.2**
 
-- [ ] 3. Checkpoint - Verify hash functions work
+- [x] 3. Checkpoint - Verify hash functions work
   - Run `cargo xtask test` to ensure tests pass
   - Ensure all tests pass, ask the user if questions arise
 
-- [ ] 4. Extend AnnotationWithId struct
-  - [ ] 4.1 Add `stable_id: String` field to `AnnotationWithId`
+- [x] 4. Extend AnnotationWithId struct
+  - [x] 4.1 Add `stable_id: String` field to `AnnotationWithId`
     - Add field to struct definition in `annotation.rs`
     - Update `PartialEq`, `PartialOrd`, `Eq`, `Ord`, `Hash` derives if needed
     - _Requirements: 4.1, 4.2, 4.3_
 
-  - [ ] 4.2 Update `reference_map()` to compute stable IDs
+  - [x] 4.2 Update `reference_map()` to compute stable IDs
     - Call `stable_annotation_id()` for each annotation
     - Populate `stable_id` field in `AnnotationWithId` constructor
     - _Requirements: 5.1, 5.2, 5.3_
 
-  - [ ] 4.3 Write property test for cross-run determinism
+  - [x] 4.3 Write property test for cross-run determinism
     - **Property 3: Cross-Run Determinism**
     - **Validates: Requirements 2.5, 5.4, 6.4, 9.1, 9.3**
 
