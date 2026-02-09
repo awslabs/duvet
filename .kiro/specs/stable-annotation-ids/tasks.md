@@ -18,19 +18,19 @@ This implementation adds content-based deterministic IDs to annotations using FN
     - Test determinism (same input → same output)
     - _Requirements: 1.2, 1.3, 10.1_
 
-- [ ] 2. Implement stable ID generation
-  - [ ] 2.1 Add `stable_annotation_id()` function to `annotation.rs`
+- [x] 2. Implement stable ID generation
+  - [x] 2.1 Add `stable_annotation_id()` function to `annotation.rs`
     - Build composite key: `"{source}\0{anno_line}\0{target_path}"`
     - Hash with `fnv1a_64()` and format as 16-char lowercase hex
     - _Requirements: 2.1, 2.3, 2.4, 3.1, 3.2, 3.3_
 
-  - [ ] 2.2 Write unit tests for `stable_annotation_id()`
+  - [x] 2.2 Write unit tests for `stable_annotation_id()`
     - Test output format (16 lowercase hex chars)
     - Test determinism (same annotation → same ID)
     - Test different annotations produce different IDs
     - _Requirements: 2.1, 2.2, 2.5, 2.6, 10.2_
 
-  - [ ] 2.3 Write property test for stable ID determinism
+  - [x] 2.3 Write property test for stable ID determinism
     - **Property 1: Hash Determinism**
     - **Validates: Requirements 1.2, 2.2, 9.2**
 

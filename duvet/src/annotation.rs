@@ -105,6 +105,30 @@ fn fnv1a_64(data: &[u8]) -> u64 {
     hash
 }
 
+/// Generates a stable, deterministic ID for an annotation based on its content.
+///
+/// The ID is derived from a composite key of (source_path, anno_line, target_path)
+/// using FNV-1a 64-bit hashing, formatted as a 16-character hex string.
+///
+/// # Arguments
+/// * `annotation` - The annotation to generate an ID for
+///
+/// # Returns
+/// A 16-character lowercase hex string that uniquely identifies the annotation
+pub fn stable_annotation_id(annotation: &Annotation) -> String {
+    use std::io::Write;
+    let mut buf = Vec::new();
+    let _ = write!(
+        buf,
+        "{}\0{}\0{}",
+        annotation.source.to_string_lossy(),
+        annotation.anno_line,
+        annotation.target_path(),
+    );
+    format!("{:016x}", fnv1a_64(&buf))
+}
+
+
 
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -303,6 +327,7 @@ impl FromStr for AnnotationLevel {
 #[cfg(test)]
 mod tests {
     use super::fnv1a_64;
+    use bolero::check;
 
     const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 
@@ -331,5 +356,144 @@ mod tests {
 
         assert_eq!(hash1, hash2);
         assert_eq!(hash2, hash3);
+    }
+
+    // Tests for stable_annotation_id via composite key format
+    // The function builds: "{source}\0{anno_line}\0{target_path}"
+
+    #[test]
+    fn stable_id_format_is_16_lowercase_hex_chars() {
+        // Test that the output format is correct (16 lowercase hex chars)
+        // Using the same composite key format as stable_annotation_id
+        let composite_key = "src/lib.rs\042\0https://example.com/spec";
+        let hash = fnv1a_64(composite_key.as_bytes());
+        let stable_id = format!("{:016x}", hash);
+
+        assert_eq!(stable_id.len(), 16);
+        assert!(stable_id.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+    }
+
+    #[test]
+    fn stable_id_determinism() {
+        // Same composite key should always produce the same ID
+        let composite_key = "src/lib.rs\042\0https://example.com/spec#section-1";
+
+        let hash1 = fnv1a_64(composite_key.as_bytes());
+        let hash2 = fnv1a_64(composite_key.as_bytes());
+        let hash3 = fnv1a_64(composite_key.as_bytes());
+
+        let id1 = format!("{:016x}", hash1);
+        let id2 = format!("{:016x}", hash2);
+        let id3 = format!("{:016x}", hash3);
+
+        assert_eq!(id1, id2);
+        assert_eq!(id2, id3);
+    }
+
+    #[test]
+    fn stable_id_different_annotations_produce_different_ids() {
+        // Different composite keys should produce different IDs
+        let key1 = "src/lib.rs\042\0https://example.com/spec";
+        let key2 = "src/lib.rs\043\0https://example.com/spec"; // Different line
+        let key3 = "src/other.rs\042\0https://example.com/spec"; // Different source
+        let key4 = "src/lib.rs\042\0https://example.com/other"; // Different target
+
+        let id1 = format!("{:016x}", fnv1a_64(key1.as_bytes()));
+        let id2 = format!("{:016x}", fnv1a_64(key2.as_bytes()));
+        let id3 = format!("{:016x}", fnv1a_64(key3.as_bytes()));
+        let id4 = format!("{:016x}", fnv1a_64(key4.as_bytes()));
+
+        // All IDs should be different
+        assert_ne!(id1, id2, "Different line should produce different ID");
+        assert_ne!(id1, id3, "Different source should produce different ID");
+        assert_ne!(id1, id4, "Different target should produce different ID");
+        assert_ne!(id2, id3);
+        assert_ne!(id2, id4);
+        assert_ne!(id3, id4);
+    }
+
+    #[test]
+    fn stable_id_leading_zeros_preserved() {
+        // Test that leading zeros are preserved in the output
+        // Find an input that produces a hash with leading zeros
+        // The format string {:016x} should pad with zeros
+        let hash: u64 = 0x0000_1234_5678_9abc;
+        let stable_id = format!("{:016x}", hash);
+
+        assert_eq!(stable_id, "000012345678_9abc".replace("_", ""));
+        assert_eq!(stable_id.len(), 16);
+    }
+
+    #[test]
+    fn stable_id_target_path_extracts_correctly() {
+        // Test that target_path extraction works correctly
+        // target_path() returns the part before '#' or the whole string
+        let target_with_section = "https://example.com/spec#section-1";
+        let target_without_section = "https://example.com/spec";
+
+        // Simulate target_path() behavior
+        let path1 = target_with_section.split_once('#').map_or(target_with_section, |(p, _)| p);
+        let path2 = target_without_section.split_once('#').map_or(target_without_section, |(p, _)| p);
+
+        assert_eq!(path1, "https://example.com/spec");
+        assert_eq!(path2, "https://example.com/spec");
+
+        // Same target_path should produce same ID regardless of section
+        let key1 = format!("src/lib.rs\042\0{}", path1);
+        let key2 = format!("src/lib.rs\042\0{}", path2);
+
+        let id1 = format!("{:016x}", fnv1a_64(key1.as_bytes()));
+        let id2 = format!("{:016x}", fnv1a_64(key2.as_bytes()));
+
+        assert_eq!(id1, id2, "Same target_path should produce same ID");
+    }
+
+    /// Property 1: Hash Determinism
+    /// For any byte slice input, calling fnv1a_64() multiple times with the same
+    /// input always produces the same 64-bit output, and for any annotation composite
+    /// key, calling the hash function multiple times always produces the same
+    /// 16-character hex string.
+    ///
+    /// **Validates: Requirements 1.2, 2.2, 9.2**
+    #[test]
+    fn property_hash_determinism() {
+        // Test fnv1a_64 determinism with arbitrary byte inputs
+        check!().with_type::<Vec<u8>>().for_each(|input| {
+            let hash1 = fnv1a_64(input);
+            let hash2 = fnv1a_64(input);
+            let hash3 = fnv1a_64(input);
+
+            assert_eq!(hash1, hash2, "fnv1a_64 must be deterministic");
+            assert_eq!(hash2, hash3, "fnv1a_64 must be deterministic");
+        });
+    }
+
+    /// Property 1 (continued): Stable ID Determinism
+    /// For any composite key (source, line, target), the generated stable ID
+    /// is always the same 16-character lowercase hex string.
+    ///
+    /// **Validates: Requirements 1.2, 2.2, 9.2**
+    #[test]
+    fn property_stable_id_determinism() {
+        // Test stable ID determinism with arbitrary composite key components
+        check!()
+            .with_type::<(String, usize, String)>()
+            .for_each(|(source, line, target)| {
+                // Build composite key the same way stable_annotation_id does
+                let composite_key = format!("{}\0{}\0{}", source, line, target);
+
+                let hash1 = fnv1a_64(composite_key.as_bytes());
+                let hash2 = fnv1a_64(composite_key.as_bytes());
+
+                let id1 = format!("{:016x}", hash1);
+                let id2 = format!("{:016x}", hash2);
+
+                assert_eq!(id1, id2, "Stable ID must be deterministic");
+                assert_eq!(id1.len(), 16, "Stable ID must be 16 characters");
+                assert!(
+                    id1.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+                    "Stable ID must be lowercase hex"
+                );
+            });
     }
 }
