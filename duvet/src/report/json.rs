@@ -3,7 +3,7 @@
 
 use super::{Reference, ReportResult, TargetReport};
 use crate::{
-    annotation::{AnnotationLevel, AnnotationType},
+    annotation::{stable_annotation_id, AnnotationLevel, AnnotationType},
     specification::Line,
     Error, Result,
 };
@@ -129,6 +129,7 @@ pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) 
                         arr,
                         obj!(|obj| {
                             kv!(obj, s!("source"), s!(annotation.source.to_string_lossy()));
+                            kv!(obj, s!("stable_id"), s!(stable_annotation_id(annotation)));
                             kv!(obj, s!("target_path"), s!(annotation.resolve_target_path()));
 
                             if let Some(section) = annotation.target_section() {

@@ -53,8 +53,8 @@ This implementation adds content-based deterministic IDs to annotations using FN
     - **Property 3: Cross-Run Determinism**
     - **Validates: Requirements 2.5, 5.4, 6.4, 9.1, 9.3**
 
-- [ ] 5. Update JSON report output
-  - [ ] 5.1 Modify annotation serialization in `json.rs`
+- [x] 5. Update JSON report output
+  - [x] 5.1 Modify annotation serialization in `json.rs`
     - Add `stable_id` field to annotation JSON object
     - Place after `source` field for logical grouping
     - _Requirements: 6.1, 6.2, 6.3_

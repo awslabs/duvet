@@ -77,7 +77,7 @@ pub async fn reference_map(set: AnnotationSet) -> Result<AnnotationReferenceMap>
     for (id, anno) in set.iter().enumerate() {
         let target = anno.target()?;
         let section = anno.target_section();
-        let stable_id = stable_annotation_id(&anno);
+        let stable_id = stable_annotation_id(anno);
         let entry: &mut Vec<_> = map.entry((target, section)).or_default();
         entry.push(AnnotationWithId {
             id,
@@ -129,9 +129,6 @@ pub fn stable_annotation_id(annotation: &Annotation) -> String {
     );
     format!("{:016x}", fnv1a_64(&buf))
 }
-
-
-
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct AnnotationWithId {
@@ -368,26 +365,28 @@ mod tests {
     fn stable_id_format_is_16_lowercase_hex_chars() {
         // Test that the output format is correct (16 lowercase hex chars)
         // Using the same composite key format as stable_annotation_id
-        let composite_key = "src/lib.rs\042\0https://example.com/spec";
+        let composite_key = "src/lib.rs\x0042\x00https://example.com/spec";
         let hash = fnv1a_64(composite_key.as_bytes());
-        let stable_id = format!("{:016x}", hash);
+        let stable_id = format!("{hash:016x}");
 
         assert_eq!(stable_id.len(), 16);
-        assert!(stable_id.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(stable_id
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
     }
 
     #[test]
     fn stable_id_determinism() {
         // Same composite key should always produce the same ID
-        let composite_key = "src/lib.rs\042\0https://example.com/spec#section-1";
+        let composite_key = "src/lib.rs\x0042\x00https://example.com/spec#section-1";
 
         let hash1 = fnv1a_64(composite_key.as_bytes());
         let hash2 = fnv1a_64(composite_key.as_bytes());
         let hash3 = fnv1a_64(composite_key.as_bytes());
 
-        let id1 = format!("{:016x}", hash1);
-        let id2 = format!("{:016x}", hash2);
-        let id3 = format!("{:016x}", hash3);
+        let id1 = format!("{hash1:016x}");
+        let id2 = format!("{hash2:016x}");
+        let id3 = format!("{hash3:016x}");
 
         assert_eq!(id1, id2);
         assert_eq!(id2, id3);
@@ -396,10 +395,10 @@ mod tests {
     #[test]
     fn stable_id_different_annotations_produce_different_ids() {
         // Different composite keys should produce different IDs
-        let key1 = "src/lib.rs\042\0https://example.com/spec";
-        let key2 = "src/lib.rs\043\0https://example.com/spec"; // Different line
-        let key3 = "src/other.rs\042\0https://example.com/spec"; // Different source
-        let key4 = "src/lib.rs\042\0https://example.com/other"; // Different target
+        let key1 = "src/lib.rs\x0042\x00https://example.com/spec";
+        let key2 = "src/lib.rs\x0043\x00https://example.com/spec"; // Different line
+        let key3 = "src/other.rs\x0042\x00https://example.com/spec"; // Different source
+        let key4 = "src/lib.rs\x0042\x00https://example.com/other"; // Different target
 
         let id1 = format!("{:016x}", fnv1a_64(key1.as_bytes()));
         let id2 = format!("{:016x}", fnv1a_64(key2.as_bytes()));
@@ -421,7 +420,7 @@ mod tests {
         // Find an input that produces a hash with leading zeros
         // The format string {:016x} should pad with zeros
         let hash: u64 = 0x0000_1234_5678_9abc;
-        let stable_id = format!("{:016x}", hash);
+        let stable_id = format!("{hash:016x}");
 
         assert_eq!(stable_id, "000012345678_9abc".replace("_", ""));
         assert_eq!(stable_id.len(), 16);
@@ -435,15 +434,19 @@ mod tests {
         let target_without_section = "https://example.com/spec";
 
         // Simulate target_path() behavior
-        let path1 = target_with_section.split_once('#').map_or(target_with_section, |(p, _)| p);
-        let path2 = target_without_section.split_once('#').map_or(target_without_section, |(p, _)| p);
+        let path1 = target_with_section
+            .split_once('#')
+            .map_or(target_with_section, |(p, _)| p);
+        let path2 = target_without_section
+            .split_once('#')
+            .map_or(target_without_section, |(p, _)| p);
 
         assert_eq!(path1, "https://example.com/spec");
         assert_eq!(path2, "https://example.com/spec");
 
         // Same target_path should produce same ID regardless of section
-        let key1 = format!("src/lib.rs\042\0{}", path1);
-        let key2 = format!("src/lib.rs\042\0{}", path2);
+        let key1 = format!("src/lib.rs\x0042\x00{path1}");
+        let key2 = format!("src/lib.rs\x0042\x00{path2}");
 
         let id1 = format!("{:016x}", fnv1a_64(key1.as_bytes()));
         let id2 = format!("{:016x}", fnv1a_64(key2.as_bytes()));
@@ -483,18 +486,19 @@ mod tests {
             .with_type::<(String, usize, String)>()
             .for_each(|(source, line, target)| {
                 // Build composite key the same way stable_annotation_id does
-                let composite_key = format!("{}\0{}\0{}", source, line, target);
+                let composite_key = format!("{source}\0{line}\0{target}");
 
                 let hash1 = fnv1a_64(composite_key.as_bytes());
                 let hash2 = fnv1a_64(composite_key.as_bytes());
 
-                let id1 = format!("{:016x}", hash1);
-                let id2 = format!("{:016x}", hash2);
+                let id1 = format!("{hash1:016x}");
+                let id2 = format!("{hash2:016x}");
 
                 assert_eq!(id1, id2, "Stable ID must be deterministic");
                 assert_eq!(id1.len(), 16, "Stable ID must be 16 characters");
                 assert!(
-                    id1.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+                    id1.chars()
+                        .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
                     "Stable ID must be lowercase hex"
                 );
             });
@@ -516,21 +520,20 @@ mod tests {
         // Test that simulated "runs" produce identical stable IDs
         // We test at the composite key level since stable_annotation_id only uses
         // (source_path, anno_line, target_path) from the annotation
-        check!()
-            .with_type::<(String, usize, String)>()
-            .for_each(|(source_path, anno_line, target_path)| {
+        check!().with_type::<(String, usize, String)>().for_each(
+            |(source_path, anno_line, target_path)| {
                 // Build composite key the same way stable_annotation_id does
-                let composite_key = format!("{}\0{}\0{}", source_path, anno_line, target_path);
+                let composite_key = format!("{source_path}\0{anno_line}\0{target_path}");
 
                 // Simulate multiple "runs" by computing the hash and ID multiple times
                 let run1_hash = fnv1a_64(composite_key.as_bytes());
-                let run1_id = format!("{:016x}", run1_hash);
+                let run1_id = format!("{run1_hash:016x}");
 
                 let run2_hash = fnv1a_64(composite_key.as_bytes());
-                let run2_id = format!("{:016x}", run2_hash);
+                let run2_id = format!("{run2_hash:016x}");
 
                 let run3_hash = fnv1a_64(composite_key.as_bytes());
-                let run3_id = format!("{:016x}", run3_hash);
+                let run3_id = format!("{run3_hash:016x}");
 
                 // All runs must produce identical stable IDs
                 assert_eq!(
@@ -544,9 +547,9 @@ mod tests {
 
                 // Verify the stable_id does not depend on processing order or timing
                 // by creating a fresh composite key with same content
-                let composite_key_copy = format!("{}\0{}\0{}", source_path, anno_line, target_path);
+                let composite_key_copy = format!("{source_path}\0{anno_line}\0{target_path}");
                 let independent_run_hash = fnv1a_64(composite_key_copy.as_bytes());
-                let independent_run_id = format!("{:016x}", independent_run_hash);
+                let independent_run_id = format!("{independent_run_hash:016x}");
 
                 assert_eq!(
                     run1_id, independent_run_id,
@@ -556,9 +559,12 @@ mod tests {
                 // Verify the ID format is correct (16 lowercase hex chars)
                 assert_eq!(run1_id.len(), 16, "Stable ID must be 16 characters");
                 assert!(
-                    run1_id.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+                    run1_id
+                        .chars()
+                        .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
                     "Stable ID must be lowercase hex"
                 );
-            });
+            },
+        );
     }
 }
