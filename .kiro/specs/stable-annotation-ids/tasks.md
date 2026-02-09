@@ -63,13 +63,13 @@ This implementation adds content-based deterministic IDs to annotations using FN
     - **Property 6: JSON Output Completeness**
     - **Validates: Requirements 6.1, 6.2, 6.3**
 
-- [ ] 6. Checkpoint - Verify JSON output
+- [x] 6. Checkpoint - Verify JSON output
   - Run `cargo xtask test` to ensure tests pass
   - Manually verify JSON output includes `stable_id` field
   - Ensure all tests pass, ask the user if questions arise
 
-- [ ] 7. Update integration tests
-  - [ ] 7.1 Update integration test snapshots
+- [x] 7. Update integration tests
+  - [x] 7.1 Update integration test snapshots
     - Run integration tests to generate new snapshots with `stable_id`
     - Review snapshots to verify `stable_id` appears correctly
     - _Requirements: 8.4, 10.4_
