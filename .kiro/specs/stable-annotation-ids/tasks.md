@@ -6,13 +6,13 @@ This implementation adds content-based deterministic IDs to annotations using FN
 
 ## Tasks
 
-- [ ] 1. Implement FNV-1a hash function
-  - [ ] 1.1 Add `fnv1a_64()` function to `annotation.rs`
+- [x] 1. Implement FNV-1a hash function
+  - [x] 1.1 Add `fnv1a_64()` function to `annotation.rs`
     - Implement FNV-1a 64-bit hash with standard constants
     - Use `const` for FNV_OFFSET_BASIS (0xcbf29ce484222325) and FNV_PRIME (0x100000001b3)
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-  - [ ] 1.2 Write unit tests for `fnv1a_64()`
+  - [x] 1.2 Write unit tests for `fnv1a_64()`
     - Test empty input returns FNV offset basis
     - Test known FNV-1a test vectors
     - Test determinism (same input → same output)

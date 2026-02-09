@@ -89,6 +89,23 @@ pub async fn reference_map(set: AnnotationSet) -> Result<AnnotationReferenceMap>
         .collect();
     Ok(Arc::new(map))
 }
+/// FNV-1a 64-bit hash function.
+///
+/// Deterministic, no dependencies, sufficient for expected annotation counts.
+/// Uses the standard FNV-1a constants for 64-bit hashing.
+fn fnv1a_64(data: &[u8]) -> u64 {
+    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+    const FNV_PRIME: u64 = 0x100000001b3;
+
+    let mut hash = FNV_OFFSET_BASIS;
+    for &byte in data {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(FNV_PRIME);
+    }
+    hash
+}
+
+
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct AnnotationWithId {
@@ -280,5 +297,39 @@ impl FromStr for AnnotationLevel {
                 ["AUTO", "MUST", "SHOULD", "MAY"]
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fnv1a_64;
+
+    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+
+    #[test]
+    fn fnv1a_64_empty_input_returns_offset_basis() {
+        // Empty input should return the FNV offset basis
+        assert_eq!(fnv1a_64(&[]), FNV_OFFSET_BASIS);
+    }
+
+    #[test]
+    fn fnv1a_64_known_test_vectors() {
+        // Known FNV-1a test vectors from the FNV specification
+        // Reference: http://www.isthe.com/chongo/tech/comp/fnv/
+        assert_eq!(fnv1a_64(b""), 0xcbf29ce484222325);
+        assert_eq!(fnv1a_64(b"a"), 0xaf63dc4c8601ec8c);
+        assert_eq!(fnv1a_64(b"foobar"), 0x85944171f73967e8);
+    }
+
+    #[test]
+    fn fnv1a_64_determinism() {
+        // Same input should always produce the same output
+        let input = b"test input for determinism check";
+        let hash1 = fnv1a_64(input);
+        let hash2 = fnv1a_64(input);
+        let hash3 = fnv1a_64(input);
+
+        assert_eq!(hash1, hash2);
+        assert_eq!(hash2, hash3);
     }
 }
