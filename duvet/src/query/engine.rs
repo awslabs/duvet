@@ -435,14 +435,15 @@ async fn execute_coverage_check(
                 test_executed = executed_status;
             }
         }
-        if !matches!(test_executed, AnnotationExecutionStatus::Executed) && !coverage_check_executed_tests_only {
+        if !matches!(test_executed, AnnotationExecutionStatus::Executed) {
             // Checking for only executed tests is great
             // but if you are working on coverage for a test that is failing
             // because it is failing to cover its intended annotation
             // it is a bad idea to let this check succeed because 
             // the single executed test being worked on no fails to execute
             // This creates a false positive.
-            if !coverage_check_executed_tests_only || matches!(test_executed, AnnotationExecutionStatus::NotExecuted) {
+            // TODO, need to work out this section.
+            if coverage_check_executed_tests_only && matches!(test_executed, AnnotationExecutionStatus::NotExecuted) {
                 continue;
             }
 
