@@ -28,6 +28,10 @@ pub struct Query {
     #[clap(short = 's', long, value_delimiter = ',')]
     pub section: Option<Vec<String>>,
     
+    /// Filter by quoted requirement text (case-insensitive substring match, comma-separated)
+    #[clap(short = 'q', long, value_delimiter = ',')]
+    pub quote: Option<Vec<String>>,
+    
     /// Coverage report path override
     #[clap(short = 'r', long)]
     pub coverage_report: Option<Vec<String>>,
@@ -139,12 +143,12 @@ impl Query {
             .map(|v| v.clone())
             .unwrap_or_else(|| vec![]);
 
-        // Convert sections to RequirementMode
-        let requirement_mode = if sections.is_empty() {
-            RequirementMode::Global
-        } else {
-            RequirementMode::parse_requirements(&sections)
-        };
+        let quotes = self.quote.as_ref()
+            .map(|v| v.clone())
+            .unwrap_or_else(|| vec![]);
+
+        // Convert sections and quotes to RequirementMode
+        let requirement_mode = RequirementMode::from_options(&sections, &quotes);
 
         let result = match &self.check {
             Some(check_types) => {
