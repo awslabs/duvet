@@ -1,7 +1,7 @@
 ---
 source: duvet/src/comment/tests.rs
-assertion_line: 119
-expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n    //@= type=test\n    //@= reason=Validates the encryption step ordering\n    //@# Here is my citation\n    \"#)"
+assertion_line: 79
+expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n    //@= type=test\n    //@= reason=This is why this actually tests the feature\n    //@# Here is my citation\n    \"#)"
 ---
 (
     {
@@ -9,12 +9,12 @@ expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n
             source: "file.rs",
             anno_line: 2,
             original_target: "https://example.com/spec.txt",
-            original_text: "https://example.com/spec.txt\n    //@= type=test\n    //@= reason=Validates the encryption step ordering\n    //@# Here is my citation",
+            original_text: "https://example.com/spec.txt\n    //@= type=test\n    //@= reason=This is why this actually tests the feature\n    //@# Here is my citation",
             original_quote: "Here is my citation",
             anno: Test,
             target: "https://example.com/spec.txt",
             quote: "Here is my citation",
-            comment: "Validates the encryption step ordering",
+            comment: "This is why this actually tests the feature",
             manifest_dir: "[CWD]",
             level: Auto,
             format: Auto,
