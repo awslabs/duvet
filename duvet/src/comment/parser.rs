@@ -108,14 +108,8 @@ impl Meta {
                 &[AnnotationType::Exception, AnnotationType::Implication][..],
                 self.reason.as_ref(),
             ),
-            (
-                &[AnnotationType::Todo][..],
-                self.tracking_issue.as_ref(),
-            ),
-            (
-                &[AnnotationType::Todo][..],
-                self.feature.as_ref(),
-            ),
+            (&[AnnotationType::Todo][..], self.tracking_issue.as_ref()),
+            (&[AnnotationType::Todo][..], self.feature.as_ref()),
         ] {
             if !allowed.contains(&anno) {
                 if let Some(value) = field {
