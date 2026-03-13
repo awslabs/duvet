@@ -1,0 +1,27 @@
+---
+source: duvet/src/comment/tests.rs
+assertion_line: 91
+expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n    //@= type=implication\n    //@= reason=This is implied by the protocol design\n    //@# Here is my citation\n    \"#)"
+---
+(
+    {
+        Annotation {
+            source: "file.rs",
+            anno_line: 2,
+            original_target: "https://example.com/spec.txt",
+            original_text: "https://example.com/spec.txt\n    //@= type=implication\n    //@= reason=This is implied by the protocol design\n    //@# Here is my citation",
+            original_quote: "Here is my citation",
+            anno: Implication,
+            target: "https://example.com/spec.txt",
+            quote: "Here is my citation",
+            comment: "This is implied by the protocol design",
+            manifest_dir: "[CWD]",
+            level: Auto,
+            format: Auto,
+            tracking_issue: "",
+            feature: "",
+            tags: {},
+        },
+    },
+    [],
+)
