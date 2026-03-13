@@ -89,6 +89,16 @@ snapshot!(
 );
 
 snapshot!(
+    type_implication,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=implication
+    //@= reason=This is implied by the protocol design
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
     missing_new_line,
     r#"
     //@= https://example.com/spec.txt

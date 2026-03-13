@@ -104,11 +104,20 @@ impl Meta {
         let anno = self.anno.map_or(default_type, |v| v.0);
 
         for (allowed, field) in [
-            (AnnotationType::Exception, self.reason.as_ref()),
-            (AnnotationType::Todo, self.tracking_issue.as_ref()),
-            (AnnotationType::Todo, self.feature.as_ref()),
+            (
+                &[AnnotationType::Exception, AnnotationType::Implication][..],
+                self.reason.as_ref(),
+            ),
+            (
+                &[AnnotationType::Todo][..],
+                self.tracking_issue.as_ref(),
+            ),
+            (
+                &[AnnotationType::Todo][..],
+                self.feature.as_ref(),
+            ),
         ] {
-            if anno != allowed {
+            if !allowed.contains(&anno) {
                 if let Some(value) = field {
                     return Err(value.error(error!("invalid key for type {anno}"), "defined here"));
                 }
