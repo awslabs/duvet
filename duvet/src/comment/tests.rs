@@ -93,6 +93,15 @@ snapshot!(
     r#"
     //@= https://example.com/spec.txt
     //@= type=implication
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
+    type_implication_with_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=implication
     //@= reason=This is implied by the protocol design
     //@# Here is my citation
     "#

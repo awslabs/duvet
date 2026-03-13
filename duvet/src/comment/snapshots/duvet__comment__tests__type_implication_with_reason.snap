@@ -14,6 +14,7 @@ expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n
             anno: Implication,
             target: "https://example.com/spec.txt",
             quote: "Here is my citation",
+            comment: "This is implied by the protocol design",
             manifest_dir: "[CWD]",
             level: Auto,
             format: Auto,
