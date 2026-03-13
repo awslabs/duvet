@@ -105,7 +105,12 @@ impl Meta {
 
         for (allowed, field) in [
             (
-                &[AnnotationType::Exception, AnnotationType::Implication][..],
+                &[
+                    AnnotationType::Exception,
+                    AnnotationType::Implication,
+                    AnnotationType::Citation,
+                    AnnotationType::Test,
+                ][..],
                 self.reason.as_ref(),
             ),
             (&[AnnotationType::Todo][..], self.tracking_issue.as_ref()),

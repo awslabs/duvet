@@ -108,6 +108,25 @@ snapshot!(
 );
 
 snapshot!(
+    type_citation_with_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= reason=This is required by the specification
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
+    type_test_with_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=test
+    //@= reason=Validates the encryption step ordering
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
     missing_new_line,
     r#"
     //@= https://example.com/spec.txt

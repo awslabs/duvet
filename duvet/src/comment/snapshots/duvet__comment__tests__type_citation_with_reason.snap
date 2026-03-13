@@ -1,0 +1,28 @@
+---
+source: duvet/src/comment/tests.rs
+assertion_line: 110
+expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n    //@= reason=This is required by the specification\n    //@# Here is my citation\n    \"#)"
+---
+(
+    {
+        Annotation {
+            source: "file.rs",
+            anno_line: 2,
+            original_target: "https://example.com/spec.txt",
+            original_text: "https://example.com/spec.txt\n    //@= reason=This is required by the specification\n    //@# Here is my citation",
+            original_quote: "Here is my citation",
+            anno: Citation,
+            target: "https://example.com/spec.txt",
+            quote: "Here is my citation",
+            comment: "This is required by the specification",
+            manifest_dir: "[CWD]",
+            level: Auto,
+            format: Auto,
+            tracking_issue: "",
+            feature: "",
+            tags: {},
+            blob_link: None,
+        },
+    },
+    [],
+)
