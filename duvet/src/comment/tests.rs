@@ -59,10 +59,29 @@ snapshot!(
 );
 
 snapshot!(
+    type_citation_with_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= reason=This is why the code does the feature
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
     type_test,
     r#"
     //@= https://example.com/spec.txt
     //@= type=test
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
+    type_test_with_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=test
+    //@= reason=This is why this actually tests the feature
     //@# Here is my citation
     "#
 );
@@ -103,25 +122,6 @@ snapshot!(
     //@= https://example.com/spec.txt
     //@= type=implication
     //@= reason=This is implied by the protocol design
-    //@# Here is my citation
-    "#
-);
-
-snapshot!(
-    type_citation_with_reason,
-    r#"
-    //@= https://example.com/spec.txt
-    //@= reason=This is required by the specification
-    //@# Here is my citation
-    "#
-);
-
-snapshot!(
-    type_test_with_reason,
-    r#"
-    //@= https://example.com/spec.txt
-    //@= type=test
-    //@= reason=Validates the encryption step ordering
     //@# Here is my citation
     "#
 );
