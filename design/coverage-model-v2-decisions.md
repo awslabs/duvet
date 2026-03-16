@@ -380,3 +380,206 @@ structural annotations belong to the team using duvet, not to duvet itself.
 
 This doesn't preclude adding an opt-in strict mode later. But the default
 should be informative, not prescriptive.
+
+## Decision 7: Representing unclassified lines (Unknown)
+
+### Context
+
+The current duvet implementation initializes every line as `Unknown` and then
+reclassifies lines as it gathers information from coverage data, annotation
+detection, and whitespace detection. Lines that remain `Unknown` after all
+passes are lines duvet cannot reason about — they break the forward walk and
+produce `AnnotationExecutionStatus::Unknown`.
+
+The v2 spec as originally drafted omitted `Unknown` from `LineProperty`,
+implicitly assuming the tree-sitter classifier can always classify every line.
+This is not realistic:
+
+- tree-sitter grammars may not cover every construct in every language version.
+- When no classifier exists for a language, the fallback path must treat
+  unclassified lines the same way the current implementation does.
+- Classifier bugs should produce false negatives (conservative), never false
+  positives. This requires `Unknown` lines to block propagation.
+
+### Option A: Unknown as a LineProperty variant
+
+Add `Unknown` to the `LineProperty` enum. A line's `LineClass` could be
+`{Unknown}` or theoretically `{Unknown, ScopeOpen}`.
+
+- Pro: Uniform — everything is a `LineProperty`.
+- Con: `Unknown` combined with other properties is semantically incoherent. If
+  we know a line is `ScopeOpen`, it's not unknown. The combination `{Unknown,
+  ScopeOpen}` should never occur, but the type system doesn't prevent it. This
+  complicates proofs — every property-level lemma must account for the
+  possibility of `Unknown` appearing alongside known properties.
+
+### Option B: Unknown as Option\<LineClass\>
+
+The classification function returns `Option<Set<LineProperty>>` (equivalently,
+`Option<LineClass>`). `None` means the line could not be classified. `Some(s)`
+means the line was classified with property set `s`.
+
+- Pro: Clean separation. `Unknown` is the absence of classification, not a
+  classification itself. The type system prevents incoherent combinations like
+  `{Unknown, ScopeOpen}`. Proofs only need to reason about `LineProperty`
+  values when the classification is `Some` — the `None` case is handled
+  uniformly as "block propagation, report Unknown."
+- Con: Slightly more verbose in code — every access to line properties must
+  handle the `Option` wrapper.
+
+### Decision: Option B (Option\<LineClass\>)
+
+`Unknown` is not a property of a line — it's the absence of classification.
+Modeling it as `Option<LineClass>` (where `None` means unknown) is the correct
+abstraction. This keeps the `LineProperty` enum clean and makes proofs simpler:
+when reasoning about property sets, we never encounter `Unknown` mixed in.
+
+The classification function signature becomes:
+
+```
+classify: (language: Language, source: File) → Vec<Option<LineClass>>
+```
+
+Where `LineClass = Set<LineProperty>` and `LineProperty` does not include an
+`Unknown` variant.
+
+In the algorithms:
+
+- **Phase 1 (target resolution)**: If the forward walk encounters a `None`
+  line, it returns `Some(TargetLine { line_number, properties: None })`. This
+  allows Phase 3 to report `ExecutionStatus::Unknown` with the specific line
+  number, giving developers actionable diagnostics ("annotation targets
+  unclassified line N") rather than a generic "dangling annotation."
+
+- **Phase 2 (execution propagation)**: `None` lines block backward
+  propagation, same as `ScopeClose` and `Statement`. If we don't know what a
+  line is, we cannot safely propagate through it.
+
+- **Phase 3 (annotation execution check)**: If the target's properties are
+  `None`, return `ExecutionStatus::Unknown`.
+
+This preserves the current behavior exactly: in the fallback path (no
+classifier available), all non-whitespace, non-annotation, non-coverage lines
+are `None`, and the walk stops at them — identical to the current `Unknown`
+behavior.
+
+## Decision 8: Duvet annotations in Verus proofs (requirements traceability for the model itself)
+
+### Context
+
+The coverage model is formally verified with Verus (Decision 5). The spec
+document defines five correctness properties (no false positives, no
+cross-scope leakage, conservative fallback, monotonicity, stacking
+transitivity) plus a sixth property for Unknown safety. Each property is proven
+by a Verus `proof fn`.
+
+Duvet's purpose is requirements traceability — linking specifications to
+implementations. The coverage model's own spec and proofs should practice what
+duvet preaches: the Verus proof files should carry duvet annotations linking
+each proof back to the spec requirement it satisfies.
+
+### Option A: No traceability (just write proofs)
+
+Write the Verus proofs without duvet annotations. Trust that the proof function
+names and comments are sufficient to establish correspondence with the spec.
+
+- Pro: Simpler. No overhead.
+- Con: The correspondence between spec requirements and proofs is informal.
+  Someone reading the proofs must manually find the matching spec section.
+  Ironic for a tool whose entire purpose is mechanized traceability.
+
+### Option B: Duvet annotations in Verus proof files
+
+Add duvet `//=` and `//#` annotations to the Verus proof files, linking each
+`proof fn` to the spec section it proves. Run `duvet report` to verify
+coverage of the spec by the proofs.
+
+- Pro: The coverage model's own development demonstrates duvet's value
+  proposition. The spec-to-proof correspondence is mechanically verified.
+  Developers can run `duvet report` to see which spec requirements have proofs
+  and which don't.
+- Con: Requires the spec document to have stable section anchors. Adds a duvet
+  configuration step to the proof workflow.
+
+### Decision: Option B (duvet annotations in Verus proofs)
+
+The spec document will use markdown heading anchors (e.g.,
+`## Section Name {#anchor-name}`) to provide stable references. The Verus proof
+files will carry duvet annotations pointing to these anchors:
+
+```rust
+verus! {
+
+//= coverage-model-v2-spec.md#property-1-no-false-positives
+//# The implementation MUST prove that if is_annotation_executed
+//# returns Executed, then there exists a directly-hit line in the
+//# same scope with a clear path to the target.
+proof fn property_no_false_positives(/* ... */)
+    requires /* ... */
+    ensures /* ... */
+{
+    // ...
+}
+
+} // verus!
+```
+
+The spec document will use normative language for the properties themselves
+(e.g., "The implementation MUST prove Property 1") while keeping the algorithm
+descriptions as-is (they are already precise pseudocode). This gives a
+reasonable relation between the design spec and the actual proofs without
+requiring a full RFC-style rewrite of every function description.
+
+A new Task 0 in the implementation plan will configure duvet to track the spec
+document and verify that the Verus proofs provide coverage.
+
+## Decision 9: Classifier contract for unclassifiable lines
+
+### Context
+
+Decision 7 established that classification returns `Option<LineClass>` where
+`None` means unknown. This decision addresses the contract for classifier
+implementations: what must a classifier do when it encounters a line it cannot
+classify?
+
+### Option A: Silently skip unclassifiable lines
+
+If the classifier can't determine a line's properties, leave it out of the
+result or default to some property like `Whitespace`.
+
+- Pro: Simple implementation.
+- Con: Silent misclassification. A line incorrectly classified as `Whitespace`
+  would be skipped during propagation, potentially allowing false positives.
+  This violates the core safety invariant.
+
+### Option B: Return None for unclassifiable lines
+
+The classifier must return `None` for any line it cannot confidently classify.
+The `LineClassifier` trait makes this explicit in its return type.
+
+- Pro: Conservative by construction. Unclassifiable lines block propagation
+  (Decision 7), so classifier gaps produce false negatives, never false
+  positives. The trait signature enforces this — implementors cannot forget to
+  handle the unknown case because the return type requires it.
+- Con: May produce more `Unknown` results than necessary if a classifier is
+  overly cautious. But this is the safe direction.
+
+### Decision: Option B (return None for unclassifiable lines)
+
+The `LineClassifier` trait signature becomes:
+
+```rust
+pub trait LineClassifier {
+    fn classify(&self, source: &str) -> Vec<Option<LineClass>>;
+}
+```
+
+Each element in the returned `Vec` corresponds to a source line (1-indexed).
+`None` means the classifier could not determine the line's properties. `Some(s)`
+means the line has property set `s`.
+
+When no classifier is available for a language, the fallback behavior is: all
+lines start as `None`, then coverage data, annotation detection, and whitespace
+detection reclassify the lines they can identify — exactly matching the current
+implementation's behavior where lines start as `Unknown` and get reclassified
+incrementally.
