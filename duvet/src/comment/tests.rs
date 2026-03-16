@@ -131,8 +131,9 @@ snapshot!(
     r#"
     //@= https://example.com/spec.txt
     //@= type=exception
-    //@= reason=Step 2 (serialize header) comes before
-    //@= reason=step 3 (encrypt body), so this ordering is guaranteed.
+    //@= reason=There's a lot to justify here,
+    //@= reason=so this reason needs to be split across two
+    //@= reason=or even three lines.
     //@# Before encrypting input plaintext,
     "#
 );
