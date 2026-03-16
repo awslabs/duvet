@@ -1,0 +1,28 @@
+---
+source: duvet/src/comment/tests.rs
+assertion_line: 129
+expression: "parse(\"//@=,//@#\",\nr#\"\n    //@= https://example.com/spec.txt\n    //@= type=exception\n    //@= reason=Step 2 (serialize header) comes before\n    //@= reason=step 3 (encrypt body), so this ordering is guaranteed.\n    //@# Before encrypting input plaintext,\n    \"#)"
+---
+(
+    {
+        Annotation {
+            source: "file.rs",
+            anno_line: 2,
+            original_target: "https://example.com/spec.txt",
+            original_text: "https://example.com/spec.txt\n    //@= type=exception\n    //@= reason=Step 2 (serialize header) comes before\n    //@= reason=step 3 (encrypt body), so this ordering is guaranteed.\n    //@# Before encrypting input plaintext,",
+            original_quote: "Before encrypting input plaintext,",
+            anno: Exception,
+            target: "https://example.com/spec.txt",
+            quote: "Before encrypting input plaintext,",
+            comment: "Step 2 (serialize header) comes before step 3 (encrypt body), so this ordering is guaranteed.",
+            manifest_dir: "[CWD]",
+            level: Auto,
+            format: Auto,
+            tracking_issue: "",
+            feature: "",
+            tags: {},
+            blob_link: None,
+        },
+    },
+    [],
+)

@@ -35,7 +35,7 @@ struct Meta {
     first_meta: Option<Slice>,
     target: Option<Slice>,
     anno: Option<(AnnotationType, Slice)>,
-    reason: Option<Slice>,
+    reason: Vec<Slice>,
     line: usize,
     feature: Option<Slice>,
     tracking_issue: Option<Slice>,
@@ -61,7 +61,10 @@ impl Meta {
                 let ty = value.parse()?;
                 self.anno.replace((ty, value)).map(|v| v.1)
             }
-            Some("reason") => self.reason.replace(value),
+            Some("reason") => {
+                self.reason.push(value);
+                None
+            }
             Some("feature") => self.feature.replace(value),
             Some("tracking-issue") => self.tracking_issue.replace(value),
             Some(_) => {
@@ -111,7 +114,7 @@ impl Meta {
                     AnnotationType::Citation,
                     AnnotationType::Test,
                 ][..],
-                self.reason.as_ref(),
+                self.reason.first(),
             ),
             (&[AnnotationType::Todo][..], self.tracking_issue.as_ref()),
             (&[AnnotationType::Todo][..], self.feature.as_ref()),
@@ -154,7 +157,15 @@ impl Meta {
             target,
             quote,
             manifest_dir: duvet_core::env::current_dir()?,
-            comment: self.reason.map(|v| v.to_string()).unwrap_or_default(),
+            comment: if self.reason.is_empty() {
+                String::new()
+            } else {
+                self.reason
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            },
             level: self.level.map_or(AnnotationLevel::Auto, |v| v.0),
             format: self.format.map_or(Format::Auto, |v| v.0),
             tracking_issue: self

@@ -127,6 +127,17 @@ snapshot!(
 );
 
 snapshot!(
+    type_exception_multiline_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=exception
+    //@= reason=Step 2 (serialize header) comes before
+    //@= reason=step 3 (encrypt body), so this ordering is guaranteed.
+    //@# Before encrypting input plaintext,
+    "#
+);
+
+snapshot!(
     missing_new_line,
     r#"
     //@= https://example.com/spec.txt
