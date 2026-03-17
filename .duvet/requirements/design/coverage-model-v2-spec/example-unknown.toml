@@ -1,0 +1,35 @@
+target = "design/coverage-model-v2-spec.md#example-unknown"
+
+# 6.7 Unknown line blocks propagation
+#
+# ```java
+# 1:  public void foo() {                 Some({Declaration, ScopeOpen})
+# 2:      //= spec.md#section-1          Some({Annotation})
+# 3:      //# MUST do X                   Some({Annotation})
+# 4:      someUnrecognizedConstruct       None
+# 5:      doX();                          Some({Statement})  ← coverage: Hit
+# 6:  }                                   Some({ScopeClose})
+# ```
+# 
+# Phase 1: Annotation (lines 2-3) → forward walk hits line 4 which is `None` →
+# target = line 4, properties: None.
+# 
+# Phase 3: Target properties are `None` → **Unknown**.
+# 
+# Note: Even though line 5 is executed, the unknown line at line 4 prevents the
+# annotation from being resolved to a known target. This is the conservative
+# behavior — unknown lines cannot produce false positives.
+
+[[spec]]
+level = "MUST"
+quote = '''
+```java
+1:  public void foo() {                 Some({Declaration, ScopeOpen})
+2:      //= spec.md#section-1          Some({Annotation})
+3:      //# MUST do X                   Some({Annotation})
+4:      someUnrecognizedConstruct       None
+5:      doX();                          Some({Statement})  ← coverage: Hit
+6:  }                                   Some({ScopeClose})
+```
+'''
+

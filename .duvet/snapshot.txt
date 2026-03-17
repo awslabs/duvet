@@ -1,0 +1,128 @@
+SPECIFICATION: https://www.rfc-editor.org/rfc/rfc2324
+  SECTION: [The BREW method, and the use of POST](#section-2.1.1)
+    TEXT[implementation,test]:    A coffee pot server MUST accept both the BREW and POST method
+    TEXT[implementation,test]:    equivalently.
+
+SPECIFICATION: [Duvet Coverage Model v2: Formal Specification](design/coverage-model-v2-spec.md)
+  SECTION: [5. Correctness Properties](#correctness-properties)
+    TEXT[!MUST]: These properties MUST be proven with Verus.
+    TEXT[!MUST]: The Verus proof files MUST carry
+    TEXT[!MUST]: duvet annotations linking each `proof fn` back to the corresponding property
+    TEXT[!MUST]: section in this document.
+
+  SECTION: [Property 1: No False Positives](#property-1-no-false-positives)
+    TEXT[!MUST,implementation]: The implementation MUST prove that if
+    TEXT[!MUST,implementation]: `is_annotation_executed(annotation, ...) = Executed`, then there exists a
+    TEXT[!MUST,implementation]: line L such that:
+
+  SECTION: [Property 2: No Cross-Scope Leakage](#property-2-no-cross-scope-leakage)
+    TEXT[!MUST,implementation]: The implementation MUST prove that for any two lines A and B where A is in
+    TEXT[!MUST,implementation]: scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
+    TEXT[!MUST,implementation]: S2 is not a parent of S1:
+
+  SECTION: [Property 3: Conservative Fallback](#property-3-conservative-fallback)
+    TEXT[!MUST,implementation]: The implementation MUST prove that if any line in scope S has the
+    TEXT[!MUST,implementation]: `NonLinearControl` property, then for all lines L in S:
+
+  SECTION: [Property 4: Monotonicity](#property-4-monotonicity)
+    TEXT[!MUST,implementation]: The implementation MUST prove that given two coverage reports E1 and E2 where
+    TEXT[!MUST,implementation]: E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
+
+  SECTION: [Property 5: Annotation Stacking Transitivity](#property-5-stacking-transitivity)
+    TEXT[!MUST,implementation]: The implementation MUST prove that if annotation A (lines a1..a2) is
+    TEXT[!MUST,implementation]: immediately above annotation B (lines b1..b2) with only whitespace between
+    TEXT[!MUST,implementation]: them, and `is_annotation_executed(B, ...) = Executed`, then
+    TEXT[!MUST,implementation]: `is_annotation_executed(A, ...) = Executed`.
+
+  SECTION: [Property 6: Unknown Safety](#property-6-unknown-safety)
+    TEXT[!MUST,implementation]: The implementation MUST prove that unknown lines cannot produce false
+    TEXT[!MUST,implementation]: positives.
+
+  SECTION: [6.1 Annotation before method signature (Java)](#example-method-signature)
+    TEXT[!MUST]: ```java
+    TEXT[!MUST]: 1:  //= spec.md#section-1              Some({Annotation})
+    TEXT[!MUST]: 2:  //# MUST do X                       Some({Annotation})
+    TEXT[!MUST]: 3:  public void foo() {                 Some({Declaration, ScopeOpen})
+    TEXT[!MUST]: 4:      int temp;                       Some({Declaration})
+    TEXT[!MUST]: 5:      doX();                          Some({Statement})  ← coverage: Hit
+    TEXT[!MUST]: 6:  }                                   Some({ScopeClose})
+    TEXT[!MUST]: ```
+
+  SECTION: [6.2 Annotation on interface (Java)](#example-interface)
+    TEXT[!MUST]: ```java
+    TEXT[!MUST]: 1:  //= spec.md#keyring                Some({Annotation})
+    TEXT[!MUST]: 2:  //# MUST define OnEncrypt           Some({Annotation})
+    TEXT[!MUST]: 3:  public interface IKeyring {         Some({Declaration, ScopeOpen})
+    TEXT[!MUST]: 4:      OnEncryptOutput OnEncrypt(      Some({Declaration})
+    TEXT[!MUST]: 5:          OnEncryptInput input        Some({Declaration})
+    TEXT[!MUST]: 6:      );                              Some({Declaration})
+    TEXT[!MUST]: 7:  }                                   Some({ScopeClose})
+    TEXT[!MUST]: ```
+
+  SECTION: [6.3 Cross-method leakage prevention](#example-cross-method)
+    TEXT[!MUST]: ```java
+    TEXT[!MUST]: 1:  public void foo() {                 Some({Declaration, ScopeOpen})
+    TEXT[!MUST]: 2:      //= spec.md#section-1          Some({Annotation})
+    TEXT[!MUST]: 3:      //# MUST do X                   Some({Annotation})
+    TEXT[!MUST]: 4:      doX();                          Some({Statement})  ← coverage: Hit
+    TEXT[!MUST]: 5:  }                                   Some({ScopeClose})
+    TEXT[!MUST]: 6:                                      Some({Whitespace})
+    TEXT[!MUST]: 7:  public void bar() {                 Some({Declaration, ScopeOpen})
+    TEXT[!MUST]: 8:      doY();                          Some({Statement})  ← coverage: Hit
+    TEXT[!MUST]: 9:  }                                   Some({ScopeClose})
+    TEXT[!MUST]: ```
+
+  SECTION: [6.4 Variable declaration without initializer](#example-var-decl)
+    TEXT[!MUST]: ```java
+    TEXT[!MUST]: 1:  public void foo() {                 Some({Declaration, ScopeOpen})
+    TEXT[!MUST]: 2:      //= spec.md#section-1          Some({Annotation})
+    TEXT[!MUST]: 3:      //# MUST compute X              Some({Annotation})
+    TEXT[!MUST]: 4:      int result;                     Some({Declaration})
+    TEXT[!MUST]: 5:      result = computeX();            Some({Statement})  ← coverage: Hit
+    TEXT[!MUST]: 6:  }                                   Some({ScopeClose})
+    TEXT[!MUST]: ```
+
+  SECTION: [6.5 Stacked annotations](#example-stacked)
+    TEXT[!MUST]: ```java
+    TEXT[!MUST]: 1:  public void foo() {                 Some({Declaration, ScopeOpen})
+    TEXT[!MUST]: 2:      //= spec.md#section-1          Some({Annotation})
+    TEXT[!MUST]: 3:      //# MUST do X                   Some({Annotation})
+    TEXT[!MUST]: 4:      //= spec.md#section-2          Some({Annotation})
+    TEXT[!MUST]: 5:      //# MUST do Y                   Some({Annotation})
+    TEXT[!MUST]: 6:      doXandY();                      Some({Statement})  ← coverage: Hit
+    TEXT[!MUST]: 7:  }                                   Some({ScopeClose})
+    TEXT[!MUST]: ```
+
+  SECTION: [6.6 C code with goto (conservative fallback)](#example-goto)
+    TEXT[!MUST]: ```c
+    TEXT[!MUST]: 1:  void foo() {                        Some({Declaration, ScopeOpen})
+    TEXT[!MUST]: 2:      //= spec.md#section-1          Some({Annotation})
+    TEXT[!MUST]: 3:      //# MUST do X                   Some({Annotation})
+    TEXT[!MUST]: 4:      int x;                          Some({Declaration})
+    TEXT[!MUST]: 5:      goto skip;                      Some({NonLinearControl, Statement})  ← coverage: Hit
+    TEXT[!MUST]: 6:      do_x();                         Some({Statement})  ← coverage: Miss
+    TEXT[!MUST]: 7:  skip:                               Some({NonLinearControl})
+    TEXT[!MUST]: 8:      do_y();                         Some({Statement})  ← coverage: Hit
+    TEXT[!MUST]: 9:  }                                   Some({ScopeClose})
+    TEXT[!MUST]: ```
+
+  SECTION: [6.7 Unknown line blocks propagation](#example-unknown)
+    TEXT[!MUST]: ```java
+    TEXT[!MUST]: 1:  public void foo() {                 Some({Declaration, ScopeOpen})
+    TEXT[!MUST]: 2:      //= spec.md#section-1          Some({Annotation})
+    TEXT[!MUST]: 3:      //# MUST do X                   Some({Annotation})
+    TEXT[!MUST]: 4:      someUnrecognizedConstruct       None
+    TEXT[!MUST]: 5:      doX();                          Some({Statement})  ← coverage: Hit
+    TEXT[!MUST]: 6:  }                                   Some({ScopeClose})
+    TEXT[!MUST]: ```
+
+  SECTION: [6.8 Unknown line blocks backward propagation](#example-unknown-propagation)
+    TEXT[!MUST]: ```java
+    TEXT[!MUST]: 1:  public void foo() {                 Some({Declaration, ScopeOpen})
+    TEXT[!MUST]: 2:      //= spec.md#section-1          Some({Annotation})
+    TEXT[!MUST]: 3:      //# MUST do X                   Some({Annotation})
+    TEXT[!MUST]: 4:      int x = 0;                      Some({Statement, Declaration})  ← coverage: Hit
+    TEXT[!MUST]: 5:      someUnrecognizedConstruct       None
+    TEXT[!MUST]: 6:      doX();                          Some({Statement})  ← coverage: Hit
+    TEXT[!MUST]: 7:  }                                   Some({ScopeClose})
+    TEXT[!MUST]: ```

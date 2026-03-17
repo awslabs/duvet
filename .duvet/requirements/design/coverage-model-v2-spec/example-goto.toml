@@ -1,0 +1,43 @@
+target = "design/coverage-model-v2-spec.md#example-goto"
+
+# 6.6 C code with goto (conservative fallback)
+#
+# ```c
+# 1:  void foo() {                        Some({Declaration, ScopeOpen})
+# 2:      //= spec.md#section-1          Some({Annotation})
+# 3:      //# MUST do X                   Some({Annotation})
+# 4:      int x;                          Some({Declaration})
+# 5:      goto skip;                      Some({NonLinearControl, Statement})  ← coverage: Hit
+# 6:      do_x();                         Some({Statement})  ← coverage: Miss
+# 7:  skip:                               Some({NonLinearControl})
+# 8:      do_y();                         Some({Statement})  ← coverage: Hit
+# 9:  }                                   Some({ScopeClose})
+# ```
+# 
+# Phase 2: Scope (1-9) contains NonLinearControl (lines 5, 7) → **no
+# propagation**. Execution set = {5, 8} (only directly hit lines).
+# 
+# Phase 1: Annotation (lines 2-3) → target = line 4, properties: Some({Declaration}).
+# 
+# Phase 3: Target (line 4) ∉ execution set → **NotExecuted**.
+# 
+# This is the conservative fallback. Without `goto`, line 4 would have been in
+# the execution set via backward propagation from line 5. With `goto`, we can't
+# be sure line 4 was actually reached, so we don't propagate.
+
+[[spec]]
+level = "MUST"
+quote = '''
+```c
+1:  void foo() {                        Some({Declaration, ScopeOpen})
+2:      //= spec.md#section-1          Some({Annotation})
+3:      //# MUST do X                   Some({Annotation})
+4:      int x;                          Some({Declaration})
+5:      goto skip;                      Some({NonLinearControl, Statement})  ← coverage: Hit
+6:      do_x();                         Some({Statement})  ← coverage: Miss
+7:  skip:                               Some({NonLinearControl})
+8:      do_y();                         Some({Statement})  ← coverage: Hit
+9:  }                                   Some({ScopeClose})
+```
+'''
+

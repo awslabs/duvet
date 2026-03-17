@@ -6,6 +6,13 @@ use crate::{
     source::SourceFile,
     query::{
         coverage::{CoverageData, CoverageParser, LineMap, SourceLineMap, FileCoverage, LineInfo, ExecutionType, AnnotationExecutionStatus},
+        coverage_model::types::{
+            self as v2, LineClass, LineProperty, AnnotationSpan, CoverageStatus,
+            CoverageReport as V2CoverageReport, Scope, ExecutionStatus,
+        },
+        coverage_model::scopes::build_scope_tree,
+        coverage_model::annotation_execution::is_annotation_executed as v2_is_annotation_executed,
+        classify::classifier_for_path,
         parsers::JacocoParser,
     },
     Result,
@@ -13,7 +20,7 @@ use crate::{
 use rustc_hash::FxHashMap;
 use std::{
     collections::{HashSet},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -23,12 +30,26 @@ pub enum CoverageFormat {
     // Future: Lcov, Clover
 }
 
+/// V2 coverage model data for a single file.
+/// Present only when a tree-sitter classifier is available for the file's language.
+#[derive(Debug, Clone)]
+pub struct V2FileData {
+    pub classifications: Vec<Option<LineClass>>,
+    pub scopes: Vec<Scope>,
+    pub coverage: V2CoverageReport,
+    pub file_length: u64,
+}
+
+/// Map from file path to v2 coverage model data.
+pub type V2DataMap = FxHashMap<PathBuf, V2FileData>;
+
 pub async fn build_source_line_map(
     annotations: &AnnotationSet,
     coverage_data: &CoverageData,
     project_sources: &HashSet<SourceFile>
-) -> Result<SourceLineMap> {
+) -> Result<(SourceLineMap, V2DataMap)> {
     let mut source_line_map = FxHashMap::default();
+    let mut v2_data_map = FxHashMap::default();
     
     // Process files in parallel for better performance
     let mut file_futures = Vec::new();
@@ -52,7 +73,8 @@ pub async fn build_source_line_map(
             
             let future = async move {
                 let line_map = build_line_map_for_file(&duvet_path, &annotations, &file_coverage).await?;
-                Result::<_, crate::Error>::Ok((duvet_path.to_path_buf(), line_map))
+                let v2_data = build_v2_data_for_file(&duvet_path, &annotations, &file_coverage).await?;
+                Result::<_, crate::Error>::Ok((duvet_path.to_path_buf(), line_map, v2_data))
             };
             
             file_futures.push(future);
@@ -62,12 +84,15 @@ pub async fn build_source_line_map(
     // Process all files concurrently
     let results = futures::future::try_join_all(file_futures).await?;
     
-    // Collect results into the map
-    for (path, line_map) in results {
-        source_line_map.insert(path, line_map);
+    // Collect results into the maps
+    for (path, line_map, v2_data) in results {
+        source_line_map.insert(path.clone(), line_map);
+        if let Some(data) = v2_data {
+            v2_data_map.insert(path, data);
+        }
     }
     
-    Ok(source_line_map)
+    Ok((source_line_map, v2_data_map))
 }
 
 async fn build_line_map_for_file(
@@ -96,6 +121,72 @@ async fn build_line_map_for_file(
     update_whitespace_lines(&mut line_map, &lines);
     
     Ok(line_map)
+}
+
+/// Build v2 coverage model data for a file, if a classifier is available.
+///
+/// Returns `None` when no classifier exists for the file's language,
+/// preserving the fallback to the existing LineMap-based behavior.
+async fn build_v2_data_for_file(
+    duvet_path: &Path,
+    annotations: &AnnotationSet,
+    file_coverage: &FileCoverage,
+) -> Result<Option<V2FileData>> {
+    let classifier = match classifier_for_path(duvet_path) {
+        Some(c) => c,
+        None => return Ok(None),
+    };
+
+    let source_file = duvet_core::vfs::read_string(duvet_path).await?;
+    let file_content = source_file.to_string();
+    let line_count = file_content.lines().count() as u64;
+
+    // Classify with tree-sitter
+    let mut classifications = classifier.classify(&file_content);
+
+    // Override annotation lines with Annotation property
+    for annotation in annotations.iter() {
+        if annotation.source == *duvet_path {
+            let start_line = annotation.anno_line as u64;
+            let text_lines = annotation.original_text.lines().count();
+            let end_line = start_line + text_lines as u64 - 1;
+            for line_num in start_line..=end_line {
+                let idx = (line_num - 1) as usize;
+                if idx < classifications.len() {
+                    classifications[idx] = Some(v2::line_class(&[LineProperty::Annotation]));
+                }
+            }
+        }
+    }
+
+    // Build scope tree
+    let scopes = build_scope_tree(&classifications, line_count);
+
+    // Convert coverage data to v2 format
+    let mut v2_coverage = V2CoverageReport::new();
+    for (&line_num, &hit_count) in &file_coverage.lines {
+        let status = if hit_count > 0 {
+            CoverageStatus::Hit
+        } else {
+            CoverageStatus::Miss
+        };
+        v2_coverage.insert(line_num as u64, status);
+    }
+    for (&line_num, branches) in &file_coverage.branches {
+        let status = if branches.iter().any(|&taken| taken) {
+            CoverageStatus::Hit
+        } else {
+            CoverageStatus::Miss
+        };
+        v2_coverage.insert(line_num as u64, status);
+    }
+
+    Ok(Some(V2FileData {
+        classifications,
+        scopes,
+        coverage: v2_coverage,
+        file_length: line_count,
+    }))
 }
 
 fn update_coverage_lines(
@@ -208,15 +299,68 @@ pub async fn parse_coverage_data(
     }
 }
 
-/// Check if an annotation is executed according to coverage data
+/// Check if an annotation is executed according to coverage data.
+///
+/// When v2 data (tree-sitter classification) is available for the file, uses the
+/// two-phase coverage model from spec Section 4.3. Otherwise falls back to the
+/// existing forward-only walk (identical to pre-v2 behavior).
 pub fn is_annotation_executed(
     annotation: &Arc<Annotation>,
-    source_line_map: &SourceLineMap
+    source_line_map: &SourceLineMap,
+    v2_data_map: &V2DataMap,
 ) -> AnnotationExecutionStatus {
     // Spec and Todo are never executable
     if matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo) {
         return AnnotationExecutionStatus::NotExecuted;
     }
+
+    let file_path = annotation.source.to_path_buf();
+
+    // Try v2 path first
+    if let Some(v2_data) = v2_data_map.get(&file_path) {
+        let start_line = annotation.anno_line as u64;
+        let text_lines = annotation.original_text.lines().count();
+        let end_line = start_line + text_lines as u64 - 1;
+
+        let ann_span = AnnotationSpan {
+            start_line,
+            end_line,
+        };
+
+        let status = v2_is_annotation_executed(
+            &ann_span,
+            &v2_data.classifications,
+            &v2_data.scopes,
+            &v2_data.coverage,
+            v2_data.file_length,
+        );
+
+        return match status {
+            ExecutionStatus::Executed => AnnotationExecutionStatus::Executed,
+            ExecutionStatus::NotExecuted => AnnotationExecutionStatus::NotExecuted,
+            ExecutionStatus::Structural => AnnotationExecutionStatus::NotExecuted,
+            ExecutionStatus::Unknown => {
+                let target = crate::query::coverage_model::target_resolution::annotation_target(
+                    &ann_span,
+                    &v2_data.classifications,
+                    v2_data.file_length,
+                );
+                let line_number = target.map_or(end_line + 1, |t| t.line_number);
+                AnnotationExecutionStatus::Unknown { line_number }
+            }
+        };
+    }
+
+    // Fallback: existing forward-only walk (no classifier available)
+    is_annotation_executed_fallback(annotation, source_line_map)
+}
+
+/// Original forward-only walk implementation, used as fallback when no classifier
+/// is available for the file's language. Behavior is identical to pre-v2.
+fn is_annotation_executed_fallback(
+    annotation: &Arc<Annotation>,
+    source_line_map: &SourceLineMap,
+) -> AnnotationExecutionStatus {
 
     // 1. Find the right file
     let line_map = match source_line_map.get(&annotation.source.to_path_buf()) {
@@ -257,7 +401,7 @@ pub fn is_annotation_executed(
                 // Execution is a transitive property
                 // If an annotation is stacked on an executable annotation
                 // the stacked annotation has the same executable value.
-                return is_annotation_executed(next_annotation, source_line_map);
+                return is_annotation_executed_fallback(next_annotation, source_line_map);
             }
             Some(LineInfo::Executed(_)) => {
                 return AnnotationExecutionStatus::Executed; // Found executed line

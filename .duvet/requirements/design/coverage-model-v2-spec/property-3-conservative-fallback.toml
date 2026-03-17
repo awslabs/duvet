@@ -1,0 +1,18 @@
+target = "design/coverage-model-v2-spec.md#property-3-conservative-fallback"
+
+# Property 3: Conservative Fallback
+#
+# The implementation MUST prove that if any line in scope S has the
+# `NonLinearControl` property, then for all lines L in S:
+# 
+# - L ∈ execution_set if and only if `coverage[L] == Hit`
+# 
+# No backward propagation occurs in scopes containing non-linear control flow.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that if any line in scope S has the
+`NonLinearControl` property, then for all lines L in S:
+'''
+

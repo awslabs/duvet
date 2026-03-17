@@ -1,0 +1,36 @@
+target = "design/coverage-model-v2-spec.md#example-interface"
+
+# 6.2 Annotation on interface (Java)
+#
+# ```java
+# 1:  //= spec.md#keyring                Some({Annotation})
+# 2:  //# MUST define OnEncrypt           Some({Annotation})
+# 3:  public interface IKeyring {         Some({Declaration, ScopeOpen})
+# 4:      OnEncryptOutput OnEncrypt(      Some({Declaration})
+# 5:          OnEncryptInput input        Some({Declaration})
+# 6:      );                              Some({Declaration})
+# 7:  }                                   Some({ScopeClose})
+# ```
+# 
+# Phase 1: Annotation (lines 1-2) → target = line 3, properties: Some({Declaration, ScopeOpen}).
+# 
+# Phase 2: No line in scope (3-7) has `coverage[line] == Hit`. No propagation.
+# Execution set = {} (for this scope).
+# 
+# Phase 3: Target (line 3) ∉ execution set. Target is {Declaration, ScopeOpen}
+# (no Statement). Scope contains no Statements → **Structural**.
+
+[[spec]]
+level = "MUST"
+quote = '''
+```java
+1:  //= spec.md#keyring                Some({Annotation})
+2:  //# MUST define OnEncrypt           Some({Annotation})
+3:  public interface IKeyring {         Some({Declaration, ScopeOpen})
+4:      OnEncryptOutput OnEncrypt(      Some({Declaration})
+5:          OnEncryptInput input        Some({Declaration})
+6:      );                              Some({Declaration})
+7:  }                                   Some({ScopeClose})
+```
+'''
+

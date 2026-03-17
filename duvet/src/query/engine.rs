@@ -356,7 +356,13 @@ async fn execute_coverage_check(
         build_source_line_map(&project_data.annotations, cover, &project_data.project_sources)
     }).collect();
 
-    let source_line_maps = futures::future::try_join_all(map_futures).await?;
+    let map_results = futures::future::try_join_all(map_futures).await?;
+    let mut source_line_maps = Vec::new();
+    let mut v2_data_maps = Vec::new();
+    for (slm, v2m) in map_results {
+        source_line_maps.push(slm);
+        v2_data_maps.push(v2m);
+    }
 
     let mut test_annotations: Vec<_> = Vec::new();
     let mut implementation_annotations: Vec<_> = Vec::new();
@@ -396,8 +402,9 @@ async fn execute_coverage_check(
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
         let mut test_executed = AnnotationExecutionStatus::NotExecuted;
-        for source_line_map in &source_line_maps {
-            let executed_status = is_annotation_executed(&test.target, &source_line_map);
+        for (idx, source_line_map) in source_line_maps.iter().enumerate() {
+            let v2_data_map = &v2_data_maps[idx];
+            let executed_status = is_annotation_executed(&test.target, &source_line_map, v2_data_map);
             if matches!(executed_status, AnnotationExecutionStatus::Executed) {
                 test_executed = executed_status;
 
@@ -405,7 +412,7 @@ async fn execute_coverage_check(
                 let mut not_executed_implementations = Vec::new();
 
                 for annotation in &test.covering_annotations {
-                    let status = is_annotation_executed(&annotation, &source_line_map);
+                    let status = is_annotation_executed(&annotation, &source_line_map, v2_data_map);
                     if matches!(status, AnnotationExecutionStatus::Executed) {
                         executed_implementations.push(annotation.clone());
                     } else {
@@ -483,7 +490,8 @@ async fn execute_coverage_check(
             } else {
                 source_line_maps
                     .iter()
-                    .any(|source_line_map| matches!(is_annotation_executed(annotation, &source_line_map), AnnotationExecutionStatus::Executed))
+                    .zip(v2_data_maps.iter())
+                    .any(|(source_line_map, v2_data_map)| matches!(is_annotation_executed(annotation, &source_line_map, v2_data_map), AnnotationExecutionStatus::Executed))
             }
         })
         .cloned()

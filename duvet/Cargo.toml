@@ -33,6 +33,8 @@ thiserror = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tree-sitter = "0.24"
+tree-sitter-java = "0.23"
 triple_accel = "0.4"
 url = "2"
 v_jsonescape = "0.7"

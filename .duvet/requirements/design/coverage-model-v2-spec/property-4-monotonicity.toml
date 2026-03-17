@@ -1,0 +1,19 @@
+target = "design/coverage-model-v2-spec.md#property-4-monotonicity"
+
+# Property 4: Monotonicity
+#
+# The implementation MUST prove that given two coverage reports E1 and E2 where
+# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
+# 
+# - execution_set(classifications, scopes, E1) ⊆ execution_set(classifications, scopes, E2)
+# 
+# Adding more executed lines can only increase the execution set, never decrease
+# it.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that given two coverage reports E1 and E2 where
+E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
+'''
+

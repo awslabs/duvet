@@ -1,0 +1,24 @@
+target = "design/coverage-model-v2-spec.md#property-1-no-false-positives"
+
+# Property 1: No False Positives
+#
+# The implementation MUST prove that if
+# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
+# line L such that:
+# 
+# - `coverage[L] == Hit` (L is directly reported as executed)
+# - L is in the same scope as the annotation's target
+# - Every line between L and the annotation's target (exclusive) is classified
+#   (`Some`) and has properties that are a subset of
+#   {Whitespace, Comment, Annotation, Declaration, ScopeOpen}
+# - No line between L and the annotation's target has the `ScopeClose` property
+# - No line between L and the annotation's target is unknown (`None`)
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that if
+`is_annotation_executed(annotation, ...) = Executed`, then there exists a
+line L such that:
+'''
+
