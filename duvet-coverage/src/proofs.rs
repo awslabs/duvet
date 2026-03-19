@@ -3,6 +3,15 @@
 
 //! Correctness properties for the coverage model v2 (spec Section 5).
 
+//= design/coverage-model-v2-spec.md#correctness-properties
+//# These properties MUST be proven with Verus.
+
+//= design/coverage-model-v2-spec.md#correctness-properties
+//= type=implication
+//# The Verus proof files MUST carry
+//# duvet annotations linking each `proof fn` back to the corresponding property
+//# section in this document.
+
 use vstd::prelude::*;
 use crate::annotation_execution::is_annotation_executed;
 use crate::execution_propagation::execution_set;
@@ -24,16 +33,7 @@ verus! {
 //# The implementation MUST prove that if
 //# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
 //# line L such that:
-//= design/coverage-model-v2-spec.md#property-1-no-false-positives
-//# The implementation MUST prove that if
-//# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
-//# line L such that:
 /// Property 1: No False Positives.
-/// If is_annotation_executed returns Executed, there exists a directly-hit line
-/// in the same scope as the target with a clear path between them.
-/// Verified: the ensures clause on execution_set guarantees all directly-hit
-/// lines are in the set. The backward propagation only adds lines within scope
-/// boundaries (verified by Verus on the while loops in execution_set).
 pub fn property_no_false_positives(
     annotation: &AnnotationSpan, classifications: &[Option<LineClass>],
     scopes: &[Scope], coverage: &CoverageReport, file_length: u64,
@@ -52,14 +52,6 @@ pub fn property_no_false_positives(
     // Verus verifies these bounds from the while loop conditions.
 }
 
-//= design/coverage-model-v2-spec.md#property-2-no-cross-scope-leakage
-//# The implementation MUST prove that for any two lines A and B where A is in
-//# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-//# S2 is not a parent of S1:
-//= design/coverage-model-v2-spec.md#property-2-no-cross-scope-leakage
-//# The implementation MUST prove that for any two lines A and B where A is in
-//# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-//# S2 is not a parent of S1:
 //= design/coverage-model-v2-spec.md#property-2-no-cross-scope-leakage
 //# The implementation MUST prove that for any two lines A and B where A is in
 //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
@@ -236,12 +228,6 @@ proof fn lemma_conservative_fallback(
 //= design/coverage-model-v2-spec.md#property-4-monotonicity
 //# The implementation MUST prove that given two coverage reports E1 and E2 where
 //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
-//= design/coverage-model-v2-spec.md#property-4-monotonicity
-//# The implementation MUST prove that given two coverage reports E1 and E2 where
-//# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
-//= design/coverage-model-v2-spec.md#property-4-monotonicity
-//# The implementation MUST prove that given two coverage reports E1 and E2 where
-//# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 /// Property 4: Monotonicity.
 ///
 /// Lemma: if E1 ⊆ E2 (every hit in E1 is also a hit in E2), then
@@ -319,16 +305,7 @@ proof fn lemma_monotonicity(
 //# immediately above annotation B (lines b1..b2) with only whitespace between
 //# them, and `is_annotation_executed(B, ...) = Executed`, then
 //# `is_annotation_executed(A, ...) = Executed`.
-//= design/coverage-model-v2-spec.md#property-5-stacking-transitivity
-//# The implementation MUST prove that if annotation A (lines a1..a2) is
-//# immediately above annotation B (lines b1..b2) with only whitespace between
-//# them, and `is_annotation_executed(B, ...) = Executed`, then
-//# `is_annotation_executed(A, ...) = Executed`.
-/// Property 5: Stacking Transitivity — proven by construction.
-/// `annotation_target` skips through Annotation and Whitespace lines,
-/// so stacked annotations A and B resolve to the same target line.
-/// Since `execution_set` and `is_annotation_executed` only depend on the
-/// target (not the annotation span), both return the same status.
+/// Property 5: Stacking Transitivity.
 pub fn property_stacking_transitivity(
     ann_a: &AnnotationSpan, ann_b: &AnnotationSpan,
     classifications: &[Option<LineClass>], scopes: &[Scope],
@@ -349,12 +326,7 @@ pub fn property_stacking_transitivity(
 //= design/coverage-model-v2-spec.md#property-6-unknown-safety
 //# The implementation MUST prove that unknown lines cannot produce false
 //# positives.
-//= design/coverage-model-v2-spec.md#property-6-unknown-safety
-//# The implementation MUST prove that unknown lines cannot produce false
-//# positives.
-/// Property 6: Unknown Safety — proven by construction.
-/// `is_annotation_executed` only returns `Executed` when the target has
-/// `properties: Some(props)` (not None/unknown). This is verified by Verus
+/// Property 6: Unknown Safety.
 /// from the match structure in `is_annotation_executed`.
 pub fn property_unknown_safety(
     annotation: &AnnotationSpan, classifications: &[Option<LineClass>],

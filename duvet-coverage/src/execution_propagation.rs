@@ -10,6 +10,7 @@ use crate::types::*;
 verus! {
 
 //= design/coverage-model-v2-spec.md#property-2-no-cross-scope-leakage
+//= type=implication
 //# The implementation MUST prove that for any two lines A and B where A is in
 //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
 //# S2 is not a parent of S1:
@@ -33,6 +34,7 @@ pub open spec fn propagated_within_scope(
 }
 
 //= design/coverage-model-v2-spec.md#property-1-no-false-positives
+//= type=implication
 //# The implementation MUST prove that if
 //# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
 //# line L such that:
@@ -74,6 +76,9 @@ pub open spec fn scope_has_non_linear_control(
         && classifications@[l as int - 1].unwrap()@.contains(LineProperty::NonLinearControl)
 }
 
+//= design/coverage-model-v2-spec.md#property-3-conservative-fallback
+//# If an ancestor scope S contains `NonLinearControl` but a child
+//# scope S' does not, propagation MAY occur through S'.
 /// Spec predicate: line was reached via backward propagation from hit_line.
 /// Composes: hit_line is directly hit, both are in the same scope (no leakage),
 /// the path between them is clear (no false positives), and the scope does
