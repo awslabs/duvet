@@ -30,8 +30,8 @@ pub open spec fn scopes_well_formed(scopes: Seq<Scope>) -> bool {
 
     &&& forall|i: int, j: int|
         0 <= i < scopes.len() && 0 <= j < scopes.len() && i != j
-        && (#[trigger] scopes[i]).open_line <= (#[trigger] scopes[j]).close_line
-        && scopes[j].open_line <= scopes[i].close_line
+        && (#[trigger] scopes[i]).open_line < (#[trigger] scopes[j]).close_line
+        && scopes[j].open_line < scopes[i].close_line
         ==> scope_contains(scopes, i, j) || scope_contains(scopes, j, i)
 }
 
@@ -77,19 +77,21 @@ pub fn build_scope_tree(classifications: &[Option<LineClass>], file_length: u64)
 }
 
 /// Pass 1: Match balanced ScopeOpen/ScopeClose using a stack.
-/// Returns Vec of (open_line, close_line) pairs sorted by open_line.
+/// Returns Vec of (open_line, close_line) pairs.
 /// Returns empty Vec on unbalanced input (fallback to file-level scope).
-#[verifier::external_body]
 fn match_scope_pairs(classifications: &[Option<LineClass>], file_length: u64) -> (pairs: Vec<(u64, u64)>)
     requires file_length < u64::MAX,
     ensures
+        // Every pair has open >= 1
+        forall|i: int| 0 <= i < pairs@.len() ==>
+            (#[trigger] pairs@[i]).0 >= 1,
         // Every pair has open <= close
         forall|i: int| 0 <= i < pairs@.len() ==>
             (#[trigger] pairs@[i]).0 <= pairs@[i].1,
-        // Pairs are properly nested: if two overlap, one contains the other
+        // Pairs are properly nested: if two strictly overlap, one contains the other
         forall|i: int, j: int| 0 <= i < pairs@.len() && 0 <= j < pairs@.len() && i != j
-            && (#[trigger] pairs@[i]).0 <= (#[trigger] pairs@[j]).1
-            && pairs@[j].0 <= pairs@[i].1
+            && (#[trigger] pairs@[i]).0 < (#[trigger] pairs@[j]).1
+            && pairs@[j].0 < pairs@[i].1
             ==> (pairs@[i].0 <= pairs@[j].0 && pairs@[j].1 <= pairs@[i].1
                  && (pairs@[i].0 < pairs@[j].0 || pairs@[j].1 < pairs@[i].1))
                 || (pairs@[j].0 <= pairs@[i].0 && pairs@[i].1 <= pairs@[j].1
@@ -97,31 +99,127 @@ fn match_scope_pairs(classifications: &[Option<LineClass>], file_length: u64) ->
 {
     let mut stack: Vec<u64> = Vec::new();
     let mut pairs: Vec<(u64, u64)> = Vec::new();
+    let mut done = false;
+    let mut unbalanced = false;
 
     let mut line_num: u64 = 1;
-    while line_num <= file_length {
-        let idx = (line_num - 1) as usize;
-        if idx >= classifications.len() { break; }
+    while line_num <= file_length && !done
+        invariant
+            line_num >= 1,
+            file_length < u64::MAX,
+            // Stack is sorted strictly ascending
+            forall|k: int| 0 <= k < stack@.len() ==> (#[trigger] stack@[k]) >= 1,
+            forall|k: int, l: int| 0 <= k < l && l < stack@.len()
+                ==> (#[trigger] stack@[k]) < (#[trigger] stack@[l]),
+            // All stack entries < line_num (pushed at earlier line_nums)
+            forall|k: int| 0 <= k < stack@.len() ==> (#[trigger] stack@[k]) < line_num,
+            // All emitted pairs have open >= 1 and open <= close
+            forall|i: int| 0 <= i < pairs@.len() ==> (#[trigger] pairs@[i]).0 >= 1,
+            forall|i: int| 0 <= i < pairs@.len() ==> (#[trigger] pairs@[i]).0 <= pairs@[i].1,
+            // All emitted pairs have close < line_num (emitted at earlier line_nums)
+            forall|i: int| 0 <= i < pairs@.len() ==> (#[trigger] pairs@[i]).1 < line_num,
+            // Nesting: emitted pairs are properly nested
+            forall|i: int, j: int| 0 <= i < pairs@.len() && 0 <= j < pairs@.len() && i != j
+                && (#[trigger] pairs@[i]).0 < (#[trigger] pairs@[j]).1
+                && pairs@[j].0 < pairs@[i].1
+                ==> (pairs@[i].0 <= pairs@[j].0 && pairs@[j].1 <= pairs@[i].1
+                     && (pairs@[i].0 < pairs@[j].0 || pairs@[j].1 < pairs@[i].1))
+                    || (pairs@[j].0 <= pairs@[i].0 && pairs@[i].1 <= pairs@[j].1
+                        && (pairs@[j].0 < pairs@[i].0 || pairs@[i].1 < pairs@[j].1)),
+            // Key nesting bridge: every emitted pair is either at or before
+            // a stack entry, or strictly contained within it (open > stack entry).
+            forall|i: int, k: int| 0 <= i < pairs@.len() && 0 <= k < stack@.len()
+                ==> (#[trigger] pairs@[i]).1 <= (#[trigger] stack@[k])
+                    || (stack@[k] < pairs@[i].0 && pairs@[i].0 <= pairs@[i].1),
+        decreases if done { 0 } else { file_length - line_num + 2 },
+    {
+        let idx: usize = ((line_num - 1) as usize);
+        if idx >= classifications.len() {
+            done = true;
+        } else {
+        match &classifications[idx] {
+            None => { }
+            Some(props) => {
+                proof { broadcast use crate::types::lemma_line_property_obeys_cmp_spec; }
 
-        if let Some(props) = &classifications[idx] {
-            // Process ScopeClose BEFORE ScopeOpen (handles } catch {, } else {)
-            if props.contains(&LineProperty::ScopeClose) {
-                if let Some(open) = stack.pop() {
-                    pairs.push((open, line_num));
-                } else {
-                    // Unbalanced — return empty, caller will use fallback
-                    return vec![];
+                // Process ScopeClose BEFORE ScopeOpen (handles } catch {, } else {)
+                if props.contains(&LineProperty::ScopeClose) {
+                    if stack.len() == 0 {
+                        // Unbalanced — return empty
+                        unbalanced = true;
+                        done = true;
+                    } else {
+                        let open = stack[stack.len() - 1];
+                        // Prove the new pair (open, line_num) nests with all existing pairs.
+                        // open is the top of stack. All existing pairs with close >= open
+                        // have open > some earlier stack entry, meaning they're inside
+                        // the scope we're closing. Their close < line_num (invariant).
+                        // So they're strictly contained in (open, line_num).
+                        proof {
+                            assert(open >= 1u64);
+                            assert(open < line_num);
+                            assert forall|i: int| 0 <= i < pairs@.len()
+                                && (#[trigger] pairs@[i]).0 < line_num
+                                && open < pairs@[i].1
+                            implies
+                                (open <= pairs@[i].0 && pairs@[i].1 <= line_num
+                                 && (open < pairs@[i].0 || pairs@[i].1 < line_num))
+                            by {
+                                assert(pairs@[i].1 < line_num);
+                            }
+                        }
+                        let ghost pairs_before = pairs@;
+                        let ghost stack_before = stack@;
+                        stack.pop();
+                        pairs.push((open, line_num));
+                        proof {
+                            // After pop, remaining stack entries are stack_before[0..len-1].
+                            // They were all < open (strictly ascending, open was last).
+                            // New pair (open, line_num) satisfies bridge: stack[k] < open = new_pair.0.
+                            // Old pairs: bridge held with stack_before, and stack is a prefix of
+                            // stack_before (minus the last element), so it still holds.
+                            assert forall|i: int, k: int|
+                                0 <= i < pairs@.len() && 0 <= k < stack@.len()
+                            implies
+                                (#[trigger] pairs@[i]).1 <= (#[trigger] stack@[k])
+                                || (stack@[k] < pairs@[i].0 && pairs@[i].0 <= pairs@[i].1)
+                            by {
+                                assert(stack@[k] == stack_before[k]);
+                                assert(stack@[k] < open);
+                                if i < pairs_before.len() {
+                                    // Old pair: bridge held before with stack_before[k]
+                                    assert(pairs@[i] == pairs_before[i]);
+                                } else {
+                                    // New pair: (open, line_num). stack[k] < open.
+                                    assert(pairs@[i] == (open, line_num));
+                                    assert(stack@[k] < open);
+                                }
+                            }
+                        }
+                    }
+                }
+                if !done && props.contains(&LineProperty::ScopeOpen) {
+                    // All existing stack entries < line_num (invariant).
+                    // line_num > all stack entries, so sorted order is maintained.
+                    proof {
+                        // Bridge for new stack entry: for all existing pairs (a,b),
+                        // b < line_num (from invariant), so first disjunct holds.
+                        assert forall|i: int| 0 <= i < pairs@.len()
+                        implies
+                            (#[trigger] pairs@[i]).1 <= line_num
+                        by {}
+                    }
+                    stack.push(line_num);
                 }
             }
-            if props.contains(&LineProperty::ScopeOpen) {
-                stack.push(line_num);
-            }
         }
-        if line_num == file_length { break; }
-        line_num += 1;
+        }
+        if !done {
+            line_num = line_num + 1;
+        }
     }
 
-    if !stack.is_empty() {
+    if unbalanced || !stack.is_empty() {
         // Unbalanced — return empty
         return vec![];
     }
@@ -136,8 +234,8 @@ fn build_from_pairs(pairs: &[(u64, u64)]) -> (scopes: Vec<Scope>)
         forall|i: int| 0 <= i < pairs@.len() ==>
             (#[trigger] pairs@[i]).0 <= pairs@[i].1,
         forall|i: int, j: int| 0 <= i < pairs@.len() && 0 <= j < pairs@.len() && i != j
-            && (#[trigger] pairs@[i]).0 <= (#[trigger] pairs@[j]).1
-            && pairs@[j].0 <= pairs@[i].1
+            && (#[trigger] pairs@[i]).0 < (#[trigger] pairs@[j]).1
+            && pairs@[j].0 < pairs@[i].1
             ==> (pairs@[i].0 <= pairs@[j].0 && pairs@[j].1 <= pairs@[i].1
                  && (pairs@[i].0 < pairs@[j].0 || pairs@[j].1 < pairs@[i].1))
                 || (pairs@[j].0 <= pairs@[i].0 && pairs@[i].1 <= pairs@[j].1
@@ -186,18 +284,15 @@ fn build_from_pairs(pairs: &[(u64, u64)]) -> (scopes: Vec<Scope>)
 
     assert forall|i: int, j: int|
         0 <= i < scopes@.len() && 0 <= j < scopes@.len() && i != j
-        && (#[trigger] scopes@[i]).open_line <= (#[trigger] scopes@[j]).close_line
-        && scopes@[j].open_line <= scopes@[i].close_line
+        && (#[trigger] scopes@[i]).open_line < (#[trigger] scopes@[j]).close_line
+        && scopes@[j].open_line < scopes@[i].close_line
     implies
         scope_contains(scopes@, i, j) || scope_contains(scopes@, j, i)
     by {
-        // Map back to pairs
         assert(scopes@[i].open_line == pairs@[i].0);
         assert(scopes@[i].close_line == pairs@[i].1);
         assert(scopes@[j].open_line == pairs@[j].0);
         assert(scopes@[j].close_line == pairs@[j].1);
-        // pairs overlap, so by precondition one contains the other
-        // This directly gives us scope_contains
     }
 
     // Parent/children are cosmetic for the well-formedness proof.
