@@ -8,7 +8,7 @@
 //! blank or annotations (Decision 9).
 
 use crate::query::classify::LineClassifier;
-use crate::query::coverage_model::types::{LineClass, LineProperty};
+use duvet_coverage::types::{LineClass, LineProperty};
 use std::collections::BTreeSet;
 
 /// Java source classifier using tree-sitter.
@@ -122,6 +122,9 @@ fn walk_node(
             mark_lines(start_line, start_line, LineProperty::ScopeOpen, line_props, visited);
             if end_line != start_line {
                 mark_lines(end_line, end_line, LineProperty::ScopeClose, line_props, visited);
+            } else {
+                // Single-line block: both open and close on same line
+                mark_lines(start_line, start_line, LineProperty::ScopeClose, line_props, visited);
             }
         }
 
@@ -415,6 +418,67 @@ mod tests {
         let result = classify(source);
         assert!(has_prop(&result[1], LineProperty::Declaration));
         assert!(has_prop(&result[1], LineProperty::Statement));
+    }
+
+    #[test]
+    fn balanced_scopes_all_constructs() {
+        let source = r#"public class AllScopes {
+    static { setup(); }
+    void method() {
+        if (a) { doA(); }
+        if (b) { doB(); } else { doC(); }
+        for (int i = 0; i < 10; i++) { loop(); }
+        while (cond) { spin(); }
+        try { risky(); } catch (Exception e) { handle(); } finally { cleanup(); }
+        switch (x) { case 1: break; }
+        Runnable r = () -> { lambda(); };
+        new Thread() { public void run() { anon(); } };
+    }
+    enum Inner { A, B, C }
+    interface Nested { void foo(); }
+}"#;
+        let result = classify(source);
+        let mut opens = 0;
+        let mut closes = 0;
+        for (_i, class) in result.iter().enumerate() {
+            if let Some(props) = class {
+                if props.contains(&LineProperty::ScopeOpen) { opens += 1; }
+                if props.contains(&LineProperty::ScopeClose) { closes += 1; }
+                eprintln!("line {:3}: {:?}", _i + 1, props);
+            }
+        }
+        assert_eq!(opens, closes, "ScopeOpen ({opens}) and ScopeClose ({closes}) count must match");
+    }
+
+    #[test]
+    fn balanced_scopes_try_catch_finally() {
+        let source = r#"public class T {
+    void foo() {
+        try {
+            a();
+        } catch (IOException e) {
+            b();
+        } catch (RuntimeException e) {
+            c();
+        } finally {
+            d();
+        }
+    }
+}"#;
+        let result = classify(source);
+        let mut opens = 0;
+        let mut closes = 0;
+        for (i, class) in result.iter().enumerate() {
+            if let Some(props) = class {
+                if props.contains(&LineProperty::ScopeOpen) { opens += 1; }
+                if props.contains(&LineProperty::ScopeClose) { closes += 1; }
+                if props.contains(&LineProperty::ScopeOpen) || props.contains(&LineProperty::ScopeClose) {
+                    eprintln!("line {:3}: {:?}", i + 1, props);
+                }
+            }
+        }
+        eprintln!("Opens: {}, Closes: {}", opens, closes);
+        assert_eq!(opens, closes, "ScopeOpen ({opens}) and ScopeClose ({closes}) count must match");
     }
 
     #[test]

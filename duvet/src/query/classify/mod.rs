@@ -8,7 +8,7 @@
 
 pub mod java;
 
-use crate::query::coverage_model::types::LineClass;
+use duvet_coverage::types::LineClass;
 use std::path::Path;
 
 /// Classifies source lines into `Option<LineClass>` values (spec Section 1.3).

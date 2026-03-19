@@ -9,7 +9,6 @@ use duvet_core::{progress};
 pub mod coverage;
 pub mod result;
 pub mod parsers;
-pub mod coverage_model;
 pub mod classify;
 
 // New query modules

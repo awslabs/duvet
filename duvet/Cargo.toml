@@ -16,6 +16,7 @@ rust-version = "1.88"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 duvet-core = { version = "0.4", path = "../duvet-core" }
+duvet-coverage = { version = "0.1", path = "../duvet-coverage" }
 futures = { version = "0.3" }
 glob = "0.3"
 lazy_static = "1"

@@ -3,6 +3,9 @@
 [[source]]
 pattern = "duvet/**/*.rs"
 
+[[source]]
+pattern = "duvet-coverage/**/*.rs"
+
 [[specification]]
 source = "design/coverage-model-v2-spec.md"
 

@@ -6,17 +6,17 @@ use crate::{
     source::SourceFile,
     query::{
         coverage::{CoverageData, CoverageParser, LineMap, SourceLineMap, FileCoverage, LineInfo, ExecutionType, AnnotationExecutionStatus},
-        coverage_model::types::{
-            self as v2, LineClass, LineProperty, AnnotationSpan, CoverageStatus,
-            CoverageReport as V2CoverageReport, Scope, ExecutionStatus,
-        },
-        coverage_model::scopes::build_scope_tree,
-        coverage_model::annotation_execution::is_annotation_executed as v2_is_annotation_executed,
         classify::classifier_for_path,
         parsers::JacocoParser,
     },
     Result,
 };
+use duvet_coverage::types::{
+    self as v2, LineClass, LineProperty, AnnotationSpan, CoverageStatus,
+    CoverageReport as V2CoverageReport, Scope, ExecutionStatus,
+};
+use duvet_coverage::scopes::build_scope_tree;
+use duvet_coverage::annotation_execution::is_annotation_executed as v2_is_annotation_executed;
 use rustc_hash::FxHashMap;
 use std::{
     collections::{HashSet},
@@ -340,7 +340,7 @@ pub fn is_annotation_executed(
             ExecutionStatus::NotExecuted => AnnotationExecutionStatus::NotExecuted,
             ExecutionStatus::Structural => AnnotationExecutionStatus::NotExecuted,
             ExecutionStatus::Unknown => {
-                let target = crate::query::coverage_model::target_resolution::annotation_target(
+                let target = duvet_coverage::target_resolution::annotation_target(
                     &ann_span,
                     &v2_data.classifications,
                     v2_data.file_length,
