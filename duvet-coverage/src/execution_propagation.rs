@@ -201,6 +201,7 @@ pub fn execution_set(
                     end > scope.close_line,
                     scope.open_line >= 1,
                     has_non_linear ==> check_line >= end,
+                    has_non_linear ==> scope_has_non_linear_control(classifications, scopes, si as int),
                     forall|line: u64| directly_executed@.contains(line) ==> result@.contains(line),
                     forall|line: u64| result@.contains(line)
                         ==> validly_in_exec_set(line, classifications, scopes, coverage),
@@ -223,6 +224,17 @@ pub fn execution_set(
                 if idx < classifications.len() {
                     if let Some(props) = &classifications[idx] {
                         if props.contains(&LineProperty::NonLinearControl) {
+                            proof {
+                                broadcast use crate::types::lemma_line_property_obeys_cmp_spec;
+                                // Narrow assume: the u64-to-usize cast is lossless.
+                                // Justified by compile-time assert in lib.rs that
+                                // usize >= u64 on this platform. This value is safe
+                                // because it is a valid index into an in-memory slice.
+                                assume(idx as int == check_line as int - 1);
+                                // Now Verus can connect exec-level classifications[idx]
+                                // to spec-level classifications@[check_line as int - 1]
+                                // and derive scope_has_non_linear_control.
+                            }
                             has_non_linear = true;
                             check_line = end; // jump to end so loop exits
                         }
@@ -558,9 +570,9 @@ pub fn execution_set(
         } else {
             // has_non_linear: has_valid_path requires !scope_has_non_linear_control
             // which is false here, so has_valid_path is vacuously false
-            // NOTE: assume needed due to usize cast limitation
+            // scope_has_non_linear_control derived from loop invariant (no assume here)
             proof {
-                assume(scope_has_non_linear_control(classifications, scopes, si as int));
+                assert(scope_has_non_linear_control(classifications, scopes, si as int));
                 assert forall|line: u64, hit_line: u64|
                     #[trigger] has_valid_path(line, hit_line, classifications, scopes, si as int, coverage)
                 implies result@.contains(line)
