@@ -191,20 +191,18 @@ proof fn lemma_no_cross_scope_leakage(
 }
 
 //= design/coverage-model-v2-spec.md#property-3-conservative-fallback
-//# The implementation MUST prove that if any line in scope S has the
-//# `NonLinearControl` property, then for all lines L in S:
+//# The implementation MUST prove that no backward propagation occurs WITHIN a
+//# scope that contains a `NonLinearControl` line.
 /// Property 3: Conservative Fallback.
 ///
 /// Lemma: if a line is in the execution set via propagation (not directly hit),
 /// the propagation scope does NOT have NonLinearControl. This is the core
 /// safety property — propagation is disabled in NLC scopes.
 ///
-/// Note: the spec literally says "for all L in S, L in exec_set iff directly hit."
-/// This holds when S is the tightest scope containing L. For nested scopes,
-/// a line in a NLC parent scope may also be in a non-NLC child scope and get
-/// propagated via the child. This is correct behavior — the child scope's
-/// rules apply. The has_valid_path predicate captures this precisely via
-/// !scope_has_non_linear_control on the propagation scope.
+/// For nested scopes, a line in a NLC parent scope may also be in a non-NLC
+/// child scope and get propagated via the child. This is sound because a goto
+/// in the parent cannot redirect control flow within the child without first
+/// exiting the child (crossing a ScopeClose).
 proof fn lemma_conservative_fallback(
     exec_set: Set<u64>,
     classifications: &[Option<LineClass>],

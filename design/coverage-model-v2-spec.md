@@ -294,7 +294,8 @@ fn execution_set(classifications, scopes, coverage):
   its own coverage status from the coverage tool).
 - **Unknown-bounded**: Propagation never crosses an unknown (`None`) line.
 - **Conservative under non-linear control**: If a scope contains `goto` or
-  labels, no propagation occurs in that scope.
+  labels, no propagation occurs within that scope. Propagation may still occur
+  through a child scope that does not itself contain non-linear control.
 
 ## 4. Phase 3: Annotation Execution Check {#annotation-execution-check}
 
@@ -402,12 +403,33 @@ sibling or unrelated scope to appear in the execution set.
 
 ### Property 3: Conservative Fallback {#property-3-conservative-fallback}
 
-The implementation MUST prove that if any line in scope S has the
-`NonLinearControl` property, then for all lines L in S:
+Backward propagation relies on a sequential execution model: if there is no
+control flow redirection between two lines, and one executed, the other must
+have too. The `NonLinearControl` property (goto, labels) breaks this model
+because control may jump over lines without executing them.
 
-- L ∈ execution_set if and only if `coverage[L] == Hit`
+The implementation MUST prove that no backward propagation occurs WITHIN a
+scope that contains a `NonLinearControl` line. Formally: if a line L is in the
+execution set via propagation (not directly hit), then the scope through which
+propagation occurred does not contain any `NonLinearControl` line.
 
-No backward propagation occurs in scopes containing non-linear control flow.
+For nested scopes, a line L may belong to multiple scopes (a child and its
+ancestors). If an ancestor scope S contains `NonLinearControl` but a child
+scope S' does not, propagation MAY occur through S'. This is sound because:
+
+1. The `NonLinearControl` line is in S but not in S' (it is outside S'
+   boundaries or S' does not contain it).
+2. The backward walk in S' only considers lines within S'.open_line to
+   S'.close_line.
+3. No `NonLinearControl` exists between the propagated line and the hit line
+   within S', so sequential execution holds within S'.
+4. A goto in the parent scope S cannot redirect control flow within the child
+   scope S' without first exiting S' (which would cross a ScopeClose, stopping
+   propagation).
+
+The `has_valid_path` predicate encodes this precisely:
+`!scope_has_non_linear_control(classifications, scopes, scope_idx)` applies to
+the propagation scope, not to all ancestor scopes.
 
 ### Property 4: Monotonicity {#property-4-monotonicity}
 
