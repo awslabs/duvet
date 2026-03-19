@@ -649,6 +649,10 @@ mod tests {
         let r = execution_set(&c, &[Scope { open_line: 2, close_line: 5, parent: None, children: vec![] }], &cov_hit(&[4]));
         assert!(r.contains(&2)); assert!(r.contains(&3)); assert!(!r.contains(&1));
     }
+    //= design/coverage-model-v2-spec.md#property-3-conservative-fallback
+    //= type=test
+    //# If an ancestor scope S contains `NonLinearControl` but a child
+    //# scope S' does not, propagation MAY occur through S'.
     #[test] fn try_block_propagation_into_parent_scope() {
         use crate::scopes::build_scope_tree;
         let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen, LineProperty::ScopeClose]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::ScopeClose])];

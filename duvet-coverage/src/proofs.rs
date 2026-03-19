@@ -371,10 +371,23 @@ mod tests {
     fn s(props: &[LineProperty]) -> Option<LineClass> { Some(line_class(props)) }
     fn cov_hit(lines: &[u64]) -> CoverageReport { lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect() }
 
+    //= design/coverage-model-v2-spec.md#correctness-properties
+    //= type=test
+    //# These properties MUST be proven with Verus.
+    //= design/coverage-model-v2-spec.md#property-1-no-false-positives
+    //= type=test
+    //# The implementation MUST prove that if
+    //# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
+    //# line L such that:
     #[test] fn test_property_1_method_signature() {
         let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
         property_no_false_positives(&AnnotationSpan { start_line: 1, end_line: 2 }, &c, &[Scope { open_line: 3, close_line: 6, parent: None, children: vec![] }], &cov_hit(&[5]), 6);
     }
+    //= design/coverage-model-v2-spec.md#property-2-no-cross-scope-leakage
+    //= type=test
+    //# The implementation MUST prove that for any two lines A and B where A is in
+    //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
+    //# S2 is not a parent of S1:
     #[test] fn test_property_2_sibling_scopes() {
         let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::Whitespace]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::ScopeClose])];
         // Property 2 is proven as a Verus proof fn (lemma_no_cross_scope_leakage).
@@ -383,6 +396,10 @@ mod tests {
         assert!(!exec_set.contains(&5));
         assert!(!exec_set.contains(&6));
     }
+    //= design/coverage-model-v2-spec.md#property-3-conservative-fallback
+    //= type=test
+    //# The implementation MUST prove that no backward propagation occurs WITHIN a
+    //# scope that contains a `NonLinearControl` line.
     #[test] fn test_property_3_goto_scope() {
         let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::NonLinearControl, LineProperty::Statement]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
         // Property 3 is proven as a Verus proof fn (lemma_conservative_fallback).
@@ -390,6 +407,10 @@ mod tests {
         let r = execution_set(&c, &[Scope { open_line: 1, close_line: 5, parent: None, children: vec![] }], &cov_hit(&[3, 4]));
         assert!(r.contains(&3)); assert!(r.contains(&4)); assert!(!r.contains(&1)); assert!(!r.contains(&2));
     }
+    //= design/coverage-model-v2-spec.md#property-4-monotonicity
+    //= type=test
+    //# The implementation MUST prove that given two coverage reports E1 and E2 where
+    //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
     #[test] fn test_property_4_monotonicity() {
         let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
         let sc = &[Scope { open_line: 1, close_line: 5, parent: None, children: vec![] }];
@@ -399,10 +420,20 @@ mod tests {
         let e2 = execution_set(&c, sc, &cov_hit(&[3, 4]));
         for line in e1.iter() { assert!(e2.contains(line)); }
     }
+    //= design/coverage-model-v2-spec.md#property-5-stacking-transitivity
+    //= type=test
+    //# The implementation MUST prove that if annotation A (lines a1..a2) is
+    //# immediately above annotation B (lines b1..b2) with only whitespace between
+    //# them, and `is_annotation_executed(B, ...) = Executed`, then
+    //# `is_annotation_executed(A, ...) = Executed`.
     #[test] fn test_property_5_stacking() {
         let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
         property_stacking_transitivity(&AnnotationSpan { start_line: 2, end_line: 3 }, &AnnotationSpan { start_line: 4, end_line: 5 }, &c, &[Scope { open_line: 1, close_line: 7, parent: None, children: vec![] }], &cov_hit(&[6]), 7);
     }
+    //= design/coverage-model-v2-spec.md#property-6-unknown-safety
+    //= type=test
+    //# The implementation MUST prove that unknown lines cannot produce false
+    //# positives.
     #[test] fn test_property_6_unknown_safety() {
         let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
         property_unknown_safety(&AnnotationSpan { start_line: 1, end_line: 1 }, &c, &[Scope { open_line: 2, close_line: 4, parent: None, children: vec![] }], &cov_hit(&[3]), 4);

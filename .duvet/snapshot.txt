@@ -5,41 +5,41 @@ SPECIFICATION: https://www.rfc-editor.org/rfc/rfc2324
 
 SPECIFICATION: [Duvet Coverage Model v2: Formal Specification](design/coverage-model-v2-spec.md)
   SECTION: [1.5 Scopes](#scopes)
-    TEXT[implementation]: A scope is a contiguous range of lines delimited by `ScopeOpen` and
-    TEXT[implementation]: `ScopeClose` properties. Scopes nest.
+    TEXT[implementation,test]: A scope is a contiguous range of lines delimited by `ScopeOpen` and
+    TEXT[implementation,test]: `ScopeClose` properties. Scopes nest.
 
   SECTION: [5. Correctness Properties](#correctness-properties)
-    TEXT[!MUST,implementation]: These properties MUST be proven with Verus.
+    TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus.
     TEXT[!MUST,implication]: The Verus proof files MUST carry
     TEXT[!MUST,implication]: duvet annotations linking each `proof fn` back to the corresponding property
     TEXT[!MUST,implication]: section in this document.
 
   SECTION: [Property 1: No False Positives](#property-1-no-false-positives)
-    TEXT[!MUST,implementation,implication]: The implementation MUST prove that if
-    TEXT[!MUST,implementation,implication]: `is_annotation_executed(annotation, ...) = Executed`, then there exists a
-    TEXT[!MUST,implementation,implication]: line L such that:
+    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that if
+    TEXT[!MUST,implementation,implication,test]: `is_annotation_executed(annotation, ...) = Executed`, then there exists a
+    TEXT[!MUST,implementation,implication,test]: line L such that:
 
   SECTION: [Property 2: No Cross-Scope Leakage](#property-2-no-cross-scope-leakage)
-    TEXT[!MUST,implementation,implication]: The implementation MUST prove that for any two lines A and B where A is in
-    TEXT[!MUST,implementation,implication]: scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-    TEXT[!MUST,implementation,implication]: S2 is not a parent of S1:
+    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that for any two lines A and B where A is in
+    TEXT[!MUST,implementation,implication,test]: scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
+    TEXT[!MUST,implementation,implication,test]: S2 is not a parent of S1:
 
   SECTION: [Property 3: Conservative Fallback](#property-3-conservative-fallback)
-    TEXT[!MUST,implementation]: The implementation MUST prove that no backward propagation occurs WITHIN a
-    TEXT[!MUST,implementation]: scope that contains a `NonLinearControl` line.
-    TEXT[!MAY,implementation]: If an ancestor scope S contains `NonLinearControl` but a child
-    TEXT[!MAY,implementation]: scope S' does not, propagation MAY occur through S'.
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that no backward propagation occurs WITHIN a
+    TEXT[!MUST,implementation,test]: scope that contains a `NonLinearControl` line.
+    TEXT[!MAY,implementation,test]: If an ancestor scope S contains `NonLinearControl` but a child
+    TEXT[!MAY,implementation,test]: scope S' does not, propagation MAY occur through S'.
 
   SECTION: [Property 4: Monotonicity](#property-4-monotonicity)
-    TEXT[!MUST,implementation]: The implementation MUST prove that given two coverage reports E1 and E2 where
-    TEXT[!MUST,implementation]: E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that given two coverage reports E1 and E2 where
+    TEXT[!MUST,implementation,test]: E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 
   SECTION: [Property 5: Annotation Stacking Transitivity](#property-5-stacking-transitivity)
-    TEXT[!MUST,implementation]: The implementation MUST prove that if annotation A (lines a1..a2) is
-    TEXT[!MUST,implementation]: immediately above annotation B (lines b1..b2) with only whitespace between
-    TEXT[!MUST,implementation]: them, and `is_annotation_executed(B, ...) = Executed`, then
-    TEXT[!MUST,implementation]: `is_annotation_executed(A, ...) = Executed`.
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that if annotation A (lines a1..a2) is
+    TEXT[!MUST,implementation,test]: immediately above annotation B (lines b1..b2) with only whitespace between
+    TEXT[!MUST,implementation,test]: them, and `is_annotation_executed(B, ...) = Executed`, then
+    TEXT[!MUST,implementation,test]: `is_annotation_executed(A, ...) = Executed`.
 
   SECTION: [Property 6: Unknown Safety](#property-6-unknown-safety)
-    TEXT[!MUST,implementation]: The implementation MUST prove that unknown lines cannot produce false
-    TEXT[!MUST,implementation]: positives.
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that unknown lines cannot produce false
+    TEXT[!MUST,implementation,test]: positives.

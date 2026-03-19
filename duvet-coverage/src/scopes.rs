@@ -319,6 +319,10 @@ mod tests {
     use crate::types::*;
     fn s(props: &[LineProperty]) -> Option<LineClass> { Some(line_class(props)) }
 
+    //= design/coverage-model-v2-spec.md#scopes
+    //= type=test
+    //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
+    //# `ScopeClose` properties. Scopes nest.
     #[test] fn simple_method_in_class() {
         let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::ScopeClose])];
         let sc = build_scope_tree(&c, 5);
