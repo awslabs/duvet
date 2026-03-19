@@ -74,6 +74,16 @@ enum.
 All subsequent operations are language-agnostic — they operate on
 `Option<LineClass>` values, not on source text.
 
+**NonLinearControl contract:** For the correctness of execution propagation
+(Property 3), classifiers MUST assign `NonLinearControl` to both the source and
+target of any non-linear control flow. For example, both `goto label;` and
+`label:` must be classified with `NonLinearControl`. This ensures that any
+scope which can be entered via a jump contains a `NonLinearControl` line,
+disabling backward propagation in that scope. If a language has non-linear
+control flow where the target is not syntactically distinguishable (e.g.,
+BASIC's `GOTO <line-number>`), the classifier MUST conservatively add
+`NonLinearControl` to all lines in the file.
+
 When no classifier is available for a language, all lines start as `None` and
 are reclassified incrementally by coverage data, annotation detection, and
 whitespace detection. Lines that remain `None` after all passes are unknown.
@@ -430,6 +440,18 @@ scope S' does not, propagation MAY occur through S'. This is sound because:
 The `has_valid_path` predicate encodes this precisely:
 `!scope_has_non_linear_control(classifications, scopes, scope_idx)` applies to
 the propagation scope, not to all ancestor scopes.
+
+**Classifier requirement:** The soundness of this property depends on the
+classification function marking BOTH the source (e.g., `goto`) and the target
+(e.g., label) of non-linear control flow with `NonLinearControl`. This ensures
+that any scope which can be jumped into contains a `NonLinearControl` line
+(the label), disabling propagation in that scope.
+
+If a language permits non-linear control flow where the target cannot be
+distinguished from ordinary code (e.g., BASIC's `GOTO <line-number>` where the
+target line has no syntactic marker), the classifier for that language MUST add
+`NonLinearControl` to every line in the file. This pushes the conservatism into
+the classifier, preserving the algorithm's soundness.
 
 ### Property 4: Monotonicity {#property-4-monotonicity}
 
