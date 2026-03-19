@@ -41,6 +41,7 @@ pub fn property_no_false_positives(
         annotation.end_line < u64::MAX,
         forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
 {
     let status = is_annotation_executed(annotation, classifications, scopes, coverage, file_length);
     let _exec_set = execution_set(classifications, scopes, coverage);
@@ -338,6 +339,7 @@ pub fn property_stacking_transitivity(
         ann_a.end_line < u64::MAX, ann_b.end_line < u64::MAX,
         forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
 {
     let status_b = is_annotation_executed(ann_b, classifications, scopes, coverage, file_length);
     let status_a = is_annotation_executed(ann_a, classifications, scopes, coverage, file_length);
@@ -363,6 +365,7 @@ pub fn property_unknown_safety(
         annotation.end_line < u64::MAX,
         forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
 {
     let _status = is_annotation_executed(annotation, classifications, scopes, coverage, file_length);
     // The code structure of is_annotation_executed guarantees:
@@ -381,6 +384,7 @@ pub fn property_execution_set_containment(
     requires
         forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
 {
     let exec_set = execution_set(classifications, scopes, coverage);
     // The ensures clause on execution_set guarantees:

@@ -21,6 +21,7 @@ pub fn is_annotation_executed(
         annotation.end_line < u64::MAX,
         forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
 {
     let target = annotation_target(annotation, classifications, file_length);
     match target {
