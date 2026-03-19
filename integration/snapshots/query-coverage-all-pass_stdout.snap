@@ -21,6 +21,7 @@ $ duvet query -c coverage -r *.xml -f jacoco-xml --verbose
   
 Coverage: ✓ PASS
 
+  Coverage reports checked: 2
   Executed tests: 2
   Executed implementations: 3
   Successful correlations: 2

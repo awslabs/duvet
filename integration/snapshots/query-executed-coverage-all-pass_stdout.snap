@@ -1,6 +1,6 @@
 ---
 source: xtask/src/tests.rs
-assertion_line: 319
+assertion_line: 317
 expression: stdout
 ---
 $ duvet query -c executed-coverage -r jacoco-coverage.xml -f jacoco-xml --verbose
@@ -21,6 +21,7 @@ $ duvet query -c executed-coverage -r jacoco-coverage.xml -f jacoco-xml --verbos
   
 Coverage: ✓ PASS
 
+  Coverage reports checked: 1
   Executed tests: 1
   Executed implementations: 3
   Successful correlations: 1

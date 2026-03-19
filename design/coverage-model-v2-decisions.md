@@ -1,7 +1,7 @@
 # Language-Aware Coverage Model: Design Decisions
 
 **Authors:** Ryan Emery
-**Date:** 2026-03-16
+**Date:** 2026-03-16 (Decisions 1–9), 2026-03-17 (Decisions 10–13)
 **Status:** Draft
 
 ## Context
@@ -583,3 +583,175 @@ lines start as `None`, then coverage data, annotation detection, and whitespace
 detection reclassify the lines they can identify — exactly matching the current
 implementation's behavior where lines start as `Unknown` and get reclassified
 incrementally.
+
+## Decision 10: Move files to `duvet-coverage`, don't copy
+
+### Context
+
+The coverage model code (`types.rs`, `scopes.rs`, `target_resolution.rs`,
+`execution_propagation.rs`, `annotation_execution.rs`, `proofs.rs`) needs to
+be extracted into a standalone `duvet-coverage` crate for Verus isolation
+(Decision 5) and clean commit decomposition.
+
+The original extraction prompt proposed copying the files — leaving the
+originals in `duvet/src/query/coverage_model/` until a later "wiring commit"
+switched `duvet` to depend on `duvet-coverage` and deleted the originals. This
+was designed to make the extraction commit a pure addition (no modifications to
+existing files), enabling a clean commit sequence where each commit is
+independently buildable.
+
+### Option A: Copy files, wire later
+
+Copy the 6 files into `duvet-coverage/src/`. The originals stay in
+`duvet/src/query/coverage_model/`. A subsequent "wiring commit" adds
+`duvet-coverage` as a dependency of `duvet`, updates imports, and deletes the
+originals.
+
+- Pro: The extraction commit is a pure addition — no existing files change.
+  Each commit in the sequence builds independently. Clean for review.
+- Con: Two copies of the same code exist between the extraction and wiring
+  commits. If any bug is found in the model during that window, it must be
+  fixed in both places. The duplication is a maintenance hazard, even if
+  short-lived.
+
+### Option B: Move files, wire in the same commit
+
+Move the 6 files into `duvet-coverage/src/`. Delete
+`duvet/src/query/coverage_model/`. Add `duvet-coverage` as a dependency of
+`duvet` and update all imports — all in one commit.
+
+- Pro: No code duplication at any point. Single source of truth for the
+  coverage model from the moment it's extracted. Simpler to reason about.
+- Con: The extraction commit modifies existing files (`query.rs`,
+  `checks/coverage.rs`, `classify/mod.rs`, `classify/java.rs`). The commit is
+  larger and touches more files. The clean "pure addition" property is lost.
+
+### Decision: Option B (move files, wire in the same commit)
+
+The duplication hazard of Option A outweighs the review cleanliness benefit.
+The import changes in `duvet` are mechanical (replacing
+`crate::query::coverage_model::` with `duvet_coverage::`) and easy to verify.
+The commit is larger but every change is straightforward.
+
+This collapses the original prompt's "extraction commit" and "wiring commit"
+into a single commit.
+
+## Decision 11: BTreeMap/BTreeSet for coverage model collections
+
+### Context
+
+The coverage model uses `BTreeMap<u64, CoverageStatus>` for `CoverageReport`
+and `BTreeSet<u64>` for the execution set. The alternative is `HashMap`/
+`HashSet`, which are also in `std::collections` and satisfy the "no external
+dependencies" constraint.
+
+### Option A: HashMap/HashSet
+
+Use hash-based collections for O(1) average-case lookups.
+
+- Pro: Faster for large inputs. Standard choice for most Rust code.
+- Con: Non-deterministic iteration order. Verus's subset of Rust may not
+  support `HashMap`/`HashSet` (they depend on `RandomState` and the `hash`
+  trait machinery). Makes proofs harder — iteration order affects reasoning
+  about loops over collections.
+
+### Option B: BTreeMap/BTreeSet
+
+Use tree-based collections for deterministic, sorted iteration.
+
+- Pro: Deterministic iteration order. Verus supports `BTreeMap`/`BTreeSet`
+  more naturally because they don't depend on hashing. Sorted order makes
+  debugging and test output reproducible. Proofs over sorted iteration are
+  simpler.
+- Con: O(log n) lookups instead of O(1). For the sizes involved (thousands of
+  lines per file, not millions), this is negligible.
+
+### Decision: Option B (BTreeMap/BTreeSet)
+
+The coverage model operates on per-file data (typically hundreds to low
+thousands of lines). The O(log n) vs O(1) difference is irrelevant at this
+scale. Deterministic iteration is valuable for Verus proofs, reproducible test
+output, and debuggability. The BTree collections are the right choice for code
+that will be formally verified.
+
+## Decision 12: Duvet annotation paths unchanged after crate extraction
+
+### Context
+
+The `proofs.rs` file contains duvet annotations like
+`//= design/coverage-model-v2-spec.md#property-1-no-false-positives`. After
+moving from `duvet/src/query/coverage_model/proofs.rs` to
+`duvet-coverage/src/proofs.rs`, the relative filesystem path from the source
+file to the spec changes.
+
+### Option A: Update annotation paths to use `../design/...`
+
+Change the annotations to reflect the new relative path from the
+`duvet-coverage/` crate directory.
+
+- Pro: Paths are "correct" relative to the file's new location.
+- Con: Duvet doesn't resolve annotation paths relative to the source file. It
+  uses `resolve_file()`, which walks up from the manifest directory looking for
+  the path. Changing to `../design/...` would break resolution.
+
+### Option B: Keep annotation paths as `design/coverage-model-v2-spec.md`
+
+Leave the annotation paths unchanged. Duvet's `resolve_file()` walks up from
+the crate's manifest directory to the workspace root, where
+`design/coverage-model-v2-spec.md` exists.
+
+- Pro: Paths resolve correctly. No change needed. Consistent with how all
+  other duvet annotations work (they use workspace-root-relative paths for
+  local specs).
+- Con: The path doesn't match the filesystem relationship from the file's
+  directory. But this is how duvet works — it's not a con, it's the design.
+
+### Decision: Option B (keep paths unchanged)
+
+Duvet's path resolution walks up the directory tree from the crate manifest.
+The annotation path `design/coverage-model-v2-spec.md` resolves correctly from
+any crate in the workspace because the workspace root contains the `design/`
+directory. The only configuration change needed is adding
+`duvet-coverage/**/*.rs` as a source pattern in `.duvet/config.toml` so duvet
+scans the new crate for annotations.
+
+## Decision 13: Existing unit tests are sufficient for the extracted crate
+
+### Context
+
+Each of the 6 files being extracted has comprehensive `#[cfg(test)]` modules
+with tests covering the spec examples (Sections 6.1–6.8), edge cases, and
+the 6 correctness properties. The question is whether additional tests are
+needed in the new crate.
+
+### Option A: Add integration-level tests
+
+Write additional tests in `duvet-coverage/tests/` that exercise the full
+pipeline (classify → scope tree → target resolution → execution propagation →
+annotation execution check) as integration tests.
+
+- Pro: Tests the composition of all modules. Catches integration bugs that
+  per-module tests might miss.
+- Con: The `annotation_execution.rs` tests already compose all three phases
+  (they call `is_annotation_executed`, which internally calls
+  `annotation_target` and `execution_set`). Adding more integration tests
+  would be redundant with the existing composition tests.
+
+### Option B: Carry over existing tests as-is
+
+Move the `#[cfg(test)]` modules with the source files. No new tests.
+
+- Pro: The existing tests are comprehensive and already test composition.
+  Formal verification with Verus (Decision 5) will replace exhaustive unit
+  testing — Verus proves properties over all inputs, not just the ones we
+  write tests for. Adding more example-based tests provides diminishing
+  returns when the goal is formal proof.
+- Con: No new coverage. But the existing coverage is already thorough.
+
+### Decision: Option B (carry over existing tests)
+
+The existing per-module tests are comprehensive. The `annotation_execution.rs`
+tests already exercise the full three-phase pipeline. The long-term strategy is
+formal verification with Verus, which will prove the correctness properties
+over all inputs. Adding more example-based tests now would be redundant work
+that Verus will supersede.
