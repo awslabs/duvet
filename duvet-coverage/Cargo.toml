@@ -1,0 +1,17 @@
+[package]
+name = "duvet-coverage"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Coverage model types and algorithms for duvet"
+
+[dependencies]
+vstd = { path = "../../verus/source/vstd" }
+builtin = { package = "verus_builtin", path = "../../verus/source/builtin" }
+builtin_macros = { package = "verus_builtin_macros", path = "../../verus/source/builtin_macros" }
+
+[package.metadata.verus]
+verify = true
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(verus_keep_ghost)'] }

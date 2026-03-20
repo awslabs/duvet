@@ -1,0 +1,218 @@
+---
+source: xtask/src/tests.rs
+assertion_line: 317
+expression: stdout
+---
+$ duvet query -c coverage -r *.xml -f jacoco-xml --verbose
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 14 sources 
+     Parsing annotations
+      Parsed 16 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 8 sections 
+    Matching references
+     Matched 16 references 
+     Running test execution correlation check...
+  
+Coverage: ✓ PASS
+
+  Coverage reports checked: 1
+  Executed tests: 4
+  Executed implementations: 4
+  Successful correlations: 4
+  Failed correlations: 0
+
+  ☞ Successful correlation
+   ╭─[src/test/java/com/example/CommentTestTest.java:5:9]
+ 4 │     
+ 5 │ ╭─▶     //= spec.md#section-7
+ 6 │ │       //= type=test
+ 7 │ ├─▶     //# This MUST skip comments
+   · ╰──── Test annotation
+ 8 │         public void testBaz() {
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Successful correlation
+   ╭─[src/main/java/com/example/CommentTest.java:6:13]
+ 5 │         public void baz() {
+ 6 │ ╭─▶         //= spec.md#section-7
+ 7 │ │           //= type=implementation
+ 8 │ ├─▶         //# This MUST skip comments
+   · ╰──── Executed implementation
+ 9 │             // This is a regular comment that should be skipped
+   ╰────
+
+  ☞ Successful correlation
+   ╭─[src/test/java/com/example/MethodSigTestTest.java:5:9]
+ 4 │     
+ 5 │ ╭─▶     //= spec.md#section-1
+ 6 │ │       //= type=test
+ 7 │ ├─▶     //# This MUST be implemented in the method body
+   · ╰──── Test annotation
+ 8 │         public void testFoo() {
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Successful correlation
+   ╭─[src/main/java/com/example/MethodSigTest.java:5:9]
+ 4 │     
+ 5 │ ╭─▶     //= spec.md#section-1
+ 6 │ │       //= type=implementation
+ 7 │ ├─▶     //# This MUST be implemented in the method body
+   · ╰──── Executed implementation
+ 8 │         public void foo() {
+   ╰────
+
+  ☞ Successful correlation
+   ╭─[src/test/java/com/example/StackedTestTest.java:5:9]
+ 4 │     
+ 5 │ ╭─▶     //= spec.md#section-5
+ 6 │ │       //= type=test
+ 7 │ ├─▶     //# This MUST be stacked annotation A
+   · ╰──── Test annotation
+ 8 │         public void testA() {
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Successful correlation
+   ╭─[src/main/java/com/example/StackedTest.java:6:13]
+ 5 │         public void bar() {
+ 6 │ ╭─▶         //= spec.md#section-5
+ 7 │ │           //= type=implementation
+ 8 │ ├─▶         //# This MUST be stacked annotation A
+   · ╰──── Executed implementation
+ 9 │             //= spec.md#section-6
+   ╰────
+
+  ☞ Successful correlation
+    ╭─[src/test/java/com/example/StackedTestTest.java:12:9]
+ 11 │     
+ 12 │ ╭─▶     //= spec.md#section-6
+ 13 │ │       //= type=test
+ 14 │ ├─▶     //# This MUST be stacked annotation B
+    · ╰──── Test annotation
+ 15 │         public void testB() {
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Successful correlation
+    ╭─[src/main/java/com/example/StackedTest.java:9:13]
+  8 │             //# This MUST be stacked annotation A
+  9 │ ╭─▶         //= spec.md#section-6
+ 10 │ │           //= type=implementation
+ 11 │ ├─▶         //# This MUST be stacked annotation B
+    · ╰──── Executed implementation
+ 12 │             doXandY();
+    ╰────
+
+  ☞ Executed annotations
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+   ╭─[src/test/java/com/example/CommentTestTest.java:5:9]
+ 4 │     
+ 5 │ ╭─▶     //= spec.md#section-7
+ 6 │ │       //= type=test
+ 7 │ ├─▶     //# This MUST skip comments
+   · ╰──── Executed test
+ 8 │         public void testBaz() {
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+   ╭─[src/test/java/com/example/MethodSigTestTest.java:5:9]
+ 4 │     
+ 5 │ ╭─▶     //= spec.md#section-1
+ 6 │ │       //= type=test
+ 7 │ ├─▶     //# This MUST be implemented in the method body
+   · ╰──── Executed test
+ 8 │         public void testFoo() {
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+   ╭─[src/test/java/com/example/StackedTestTest.java:5:9]
+ 4 │     
+ 5 │ ╭─▶     //= spec.md#section-5
+ 6 │ │       //= type=test
+ 7 │ ├─▶     //# This MUST be stacked annotation A
+   · ╰──── Executed test
+ 8 │         public void testA() {
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+    ╭─[src/test/java/com/example/StackedTestTest.java:12:9]
+ 11 │     
+ 12 │ ╭─▶     //= spec.md#section-6
+ 13 │ │       //= type=test
+ 14 │ ├─▶     //# This MUST be stacked annotation B
+    · ╰──── Executed test
+ 15 │         public void testB() {
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+   ╭─[src/main/java/com/example/CommentTest.java:6:13]
+ 5 │         public void baz() {
+ 6 │ ╭─▶         //= spec.md#section-7
+ 7 │ │           //= type=implementation
+ 8 │ ├─▶         //# This MUST skip comments
+   · ╰──── Executed implementation
+ 9 │             // This is a regular comment that should be skipped
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+   ╭─[src/main/java/com/example/MethodSigTest.java:5:9]
+ 4 │     
+ 5 │ ╭─▶     //= spec.md#section-1
+ 6 │ │       //= type=implementation
+ 7 │ ├─▶     //# This MUST be implemented in the method body
+   · ╰──── Executed implementation
+ 8 │         public void foo() {
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+   ╭─[src/main/java/com/example/StackedTest.java:6:13]
+ 5 │         public void bar() {
+ 6 │ ╭─▶         //= spec.md#section-5
+ 7 │ │           //= type=implementation
+ 8 │ ├─▶         //# This MUST be stacked annotation A
+   · ╰──── Executed implementation
+ 9 │             //= spec.md#section-6
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+    ╭─[src/main/java/com/example/StackedTest.java:9:13]
+  8 │             //# This MUST be stacked annotation A
+  9 │ ╭─▶         //= spec.md#section-6
+ 10 │ │           //= type=implementation
+ 11 │ ├─▶         //# This MUST be stacked annotation B
+    · ╰──── Executed implementation
+ 12 │             doXandY();
+    ╰────
+
+
+
+Overall: ✓ PASS
