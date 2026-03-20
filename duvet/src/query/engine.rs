@@ -169,3 +169,78 @@ async fn load_project_data(verbose: bool) -> Result<ProjectData> {
         annotations,
     })
 }
+
+async fn execute_implementation_check(
+    project_data: &ProjectData,
+    mode: &RequirementMode,
+    verbose: bool,
+) -> Result<CheckResult> {
+    if verbose {
+        progress!("Running implementation annotation coverage check...");
+    }
+
+    let (
+        spec_annotations,
+        implemented_annotations,
+        todo_annotations,
+    ) = project_data
+        .annotations
+        .iter()
+        .filter(|annotation| mode.in_scope(annotation))
+        .filter(|annotation| !matches!(annotation.anno, AnnotationType::Test))
+        .fold(
+            (Vec::new(), Vec::new(), Vec::new()),
+            |(mut specs, mut impls, mut todos), annotation| {
+
+                match &annotation.anno {
+                    AnnotationType::Spec => {
+                        specs.push(annotation.clone());
+                    }
+                    AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => {
+                        impls.push(annotation.clone());
+                    }
+                    AnnotationType::Todo => {
+                        todos.push(annotation.clone());
+                    }
+                    // Shouldn't happen due to filter, but good to be explicit
+                    _ => unreachable!()
+                }
+
+                (specs, impls, todos)
+            }
+        );
+
+    // 4. Classify each spec annotation
+    let ClassifiedCoverage {
+        complete_coverage: fully_implemented,
+        mixed_coverage: mixed_implementation,
+        incomplete_coverage: incomplete_implementation,
+        secondary_coverage: todo,
+        no_coverage: not_implemented,
+    } = classify_annotation_coverage(
+        project_data,
+        &spec_annotations,
+        &implemented_annotations,
+        &todo_annotations,
+    ).await?;
+    
+    let status = if mixed_implementation.len() == 0
+        && incomplete_implementation.len() == 0
+        && todo.len() == 0
+        && not_implemented.len() == 0 {
+            QueryStatus::Pass
+        } else {
+            QueryStatus::Fail
+        };
+
+    Ok(CheckResult::Implementation(ImplementationResult {
+        status: status,
+        in_scope_requirements: spec_annotations,
+        fully_implemented: fully_implemented,
+        mixed_implementation: mixed_implementation,
+        incomplete_implementation: incomplete_implementation,
+        todo: todo,
+        not_implemented: not_implemented,
+        verbose: verbose,
+    }))
+}
