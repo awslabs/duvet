@@ -17,6 +17,13 @@ pub struct Project {
 }
 
 impl Project {
+    pub fn new() -> Self {
+        Self {
+            deprecated: Deprecated::default(),
+            config_path: None,
+        }
+    }
+
     pub async fn download_path(&self) -> Result<Path> {
         if let Some(config) = self.config().await? {
             return Ok(config.download_path.clone());
@@ -115,8 +122,8 @@ impl Project {
 
 // Set of options that are preserved for backwards compatibility but either
 // don't do anything or are undocumented
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
-struct Deprecated {
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser, Default)]
+pub struct Deprecated {
     #[clap(long, short = 'p', hide = true)]
     package: Option<String>,
 
@@ -155,4 +162,10 @@ struct Deprecated {
 
     #[clap(long = "spec-path", hide = true)]
     spec_path: Option<Path>,
+
+    #[clap(long = "require-tests", hide = true)]
+    require_tests: Option<String>,
+
+    #[clap(long = "require-citations", hide = true)]
+    require_citations: Option<String>,
 }

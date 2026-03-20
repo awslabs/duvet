@@ -174,7 +174,7 @@ impl TargetPath {
         }
     }
 
-    fn canonical_url(url: &str) -> Cow<str> {
+    fn canonical_url(url: &str) -> Cow<'_, str> {
         fn remove_extension(url: &str) -> &str {
             url.trim_end_matches('/')
                 .trim_end_matches(".txt")

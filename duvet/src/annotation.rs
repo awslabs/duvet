@@ -185,6 +185,14 @@ impl Annotation {
     pub fn quote_range(&self, contents: &str) -> Option<(Range<usize>, crate::text::find::Kind)> {
         crate::text::find(&self.quote, contents)
     }
+
+    /// Returns the 1-based (start_line, end_line) range for this annotation.
+    pub fn line_range(&self) -> (u64, u64) {
+        let start_line = self.anno_line as u64;
+        let text_lines = self.original_text.lines().count() as u64;
+        let end_line = start_line + text_lines - 1;
+        (start_line, end_line)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash)]

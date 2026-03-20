@@ -59,7 +59,7 @@ impl View {
         }
     }
 
-    pub fn ranges(&self, src: Range<usize>) -> StrRangeIter {
+    pub fn ranges(&self, src: Range<usize>) -> StrRangeIter<'_> {
         StrRangeIter {
             byte_map: &self.byte_map,
             file: &self.file,
