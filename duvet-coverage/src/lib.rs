@@ -4,7 +4,7 @@
 //! Coverage model types and algorithms for duvet.
 //!
 //! This crate contains the pure-function coverage model from the
-//! [coverage model v2 spec](../design/coverage-model-v2-spec.md).
+//! [coverage model spec](../design/query/coverage-model-spec.md).
 //! When compiled with Verus, the correctness properties are machine-checked.
 
 // The Verus proofs assume that u64-to-usize casts are lossless (usize >= 64 bits).

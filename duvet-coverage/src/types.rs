@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Core types for the coverage model v2.
+//! Core types for the coverage model.
 
 use vstd::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};

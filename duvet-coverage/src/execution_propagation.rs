@@ -9,7 +9,7 @@ use crate::types::*;
 
 verus! {
 
-//= design/coverage-model-v2-spec.md#property-2-no-cross-scope-leakage
+//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
 //= type=implication
 //# The implementation MUST prove that for any two lines A and B where A is in
 //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
@@ -33,7 +33,7 @@ pub open spec fn propagated_within_scope(
     &&& in_scope(hit_line, scopes, scope_idx)
 }
 
-//= design/coverage-model-v2-spec.md#property-1-no-false-positives
+//= design/query/coverage-model-spec.md#property-1-no-false-positives
 //= type=implication
 //# The implementation MUST prove that if
 //# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
@@ -76,7 +76,7 @@ pub open spec fn scope_has_non_linear_control(
         && classifications@[l as int - 1].unwrap()@.contains(LineProperty::NonLinearControl)
 }
 
-//= design/coverage-model-v2-spec.md#property-3-conservative-fallback
+//= design/query/coverage-model-spec.md#property-3-conservative-fallback
 //# If an ancestor scope S contains `NonLinearControl` but a child
 //# scope S' does not, propagation MAY occur through S'.
 /// Spec predicate: line was reached via backward propagation from hit_line.
@@ -649,7 +649,7 @@ mod tests {
         let r = execution_set(&c, &[Scope { open_line: 2, close_line: 5, parent: None, children: vec![] }], &cov_hit(&[4]));
         assert!(r.contains(&2)); assert!(r.contains(&3)); assert!(!r.contains(&1));
     }
-    //= design/coverage-model-v2-spec.md#property-3-conservative-fallback
+    //= design/query/coverage-model-spec.md#property-3-conservative-fallback
     //= type=test
     //# If an ancestor scope S contains `NonLinearControl` but a child
     //# scope S' does not, propagation MAY occur through S'.

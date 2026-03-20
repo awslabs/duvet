@@ -1,12 +1,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Correctness properties for the coverage model v2 (spec Section 5).
+//! Correctness properties for the coverage model (spec Section 5).
 
-//= design/coverage-model-v2-spec.md#correctness-properties
+//= design/query/coverage-model-spec.md#correctness-properties
 //# These properties MUST be proven with Verus.
 
-//= design/coverage-model-v2-spec.md#correctness-properties
+//= design/query/coverage-model-spec.md#correctness-properties
 //= type=implication
 //# The Verus proof files MUST carry
 //# duvet annotations linking each `proof fn` back to the corresponding property
@@ -29,7 +29,7 @@ verus! {
 // concrete inputs and will be converted to full proof fn's as the
 // verification matures.
 
-//= design/coverage-model-v2-spec.md#property-1-no-false-positives
+//= design/query/coverage-model-spec.md#property-1-no-false-positives
 //# The implementation MUST prove that if
 //# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
 //# line L such that:
@@ -52,7 +52,7 @@ pub fn property_no_false_positives(
     // Verus verifies these bounds from the while loop conditions.
 }
 
-//= design/coverage-model-v2-spec.md#property-2-no-cross-scope-leakage
+//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
 //# The implementation MUST prove that for any two lines A and B where A is in
 //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
 //# S2 is not a parent of S1:
@@ -182,7 +182,7 @@ proof fn lemma_no_cross_scope_leakage(
     }
 }
 
-//= design/coverage-model-v2-spec.md#property-3-conservative-fallback
+//= design/query/coverage-model-spec.md#property-3-conservative-fallback
 //# The implementation MUST prove that no backward propagation occurs WITHIN a
 //# scope that contains a `NonLinearControl` line.
 /// Property 3: Conservative Fallback.
@@ -225,7 +225,7 @@ proof fn lemma_conservative_fallback(
     assert(path_scope_idx != scope_idx);
 }
 
-//= design/coverage-model-v2-spec.md#property-4-monotonicity
+//= design/query/coverage-model-spec.md#property-4-monotonicity
 //# The implementation MUST prove that given two coverage reports E1 and E2 where
 //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 /// Property 4: Monotonicity.
@@ -300,7 +300,7 @@ proof fn lemma_monotonicity(
     }
 }
 
-//= design/coverage-model-v2-spec.md#property-5-stacking-transitivity
+//= design/query/coverage-model-spec.md#property-5-stacking-transitivity
 //# The implementation MUST prove that if annotation A (lines a1..a2) is
 //# immediately above annotation B (lines b1..b2) with only whitespace between
 //# them, and `is_annotation_executed(B, ...) = Executed`, then
@@ -323,7 +323,7 @@ pub fn property_stacking_transitivity(
     // Therefore status_a == status_b. QED.
 }
 
-//= design/coverage-model-v2-spec.md#property-6-unknown-safety
+//= design/query/coverage-model-spec.md#property-6-unknown-safety
 //# The implementation MUST prove that unknown lines cannot produce false
 //# positives.
 /// Property 6: Unknown Safety.
@@ -371,10 +371,10 @@ mod tests {
     fn s(props: &[LineProperty]) -> Option<LineClass> { Some(line_class(props)) }
     fn cov_hit(lines: &[u64]) -> CoverageReport { lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect() }
 
-    //= design/coverage-model-v2-spec.md#correctness-properties
+    //= design/query/coverage-model-spec.md#correctness-properties
     //= type=test
     //# These properties MUST be proven with Verus.
-    //= design/coverage-model-v2-spec.md#property-1-no-false-positives
+    //= design/query/coverage-model-spec.md#property-1-no-false-positives
     //= type=test
     //# The implementation MUST prove that if
     //# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
@@ -383,7 +383,7 @@ mod tests {
         let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
         property_no_false_positives(&AnnotationSpan { start_line: 1, end_line: 2 }, &c, &[Scope { open_line: 3, close_line: 6, parent: None, children: vec![] }], &cov_hit(&[5]), 6);
     }
-    //= design/coverage-model-v2-spec.md#property-2-no-cross-scope-leakage
+    //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
     //= type=test
     //# The implementation MUST prove that for any two lines A and B where A is in
     //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
@@ -396,7 +396,7 @@ mod tests {
         assert!(!exec_set.contains(&5));
         assert!(!exec_set.contains(&6));
     }
-    //= design/coverage-model-v2-spec.md#property-3-conservative-fallback
+    //= design/query/coverage-model-spec.md#property-3-conservative-fallback
     //= type=test
     //# The implementation MUST prove that no backward propagation occurs WITHIN a
     //# scope that contains a `NonLinearControl` line.
@@ -407,7 +407,7 @@ mod tests {
         let r = execution_set(&c, &[Scope { open_line: 1, close_line: 5, parent: None, children: vec![] }], &cov_hit(&[3, 4]));
         assert!(r.contains(&3)); assert!(r.contains(&4)); assert!(!r.contains(&1)); assert!(!r.contains(&2));
     }
-    //= design/coverage-model-v2-spec.md#property-4-monotonicity
+    //= design/query/coverage-model-spec.md#property-4-monotonicity
     //= type=test
     //# The implementation MUST prove that given two coverage reports E1 and E2 where
     //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
@@ -420,7 +420,7 @@ mod tests {
         let e2 = execution_set(&c, sc, &cov_hit(&[3, 4]));
         for line in e1.iter() { assert!(e2.contains(line)); }
     }
-    //= design/coverage-model-v2-spec.md#property-5-stacking-transitivity
+    //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
     //= type=test
     //# The implementation MUST prove that if annotation A (lines a1..a2) is
     //# immediately above annotation B (lines b1..b2) with only whitespace between
@@ -430,7 +430,7 @@ mod tests {
         let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
         property_stacking_transitivity(&AnnotationSpan { start_line: 2, end_line: 3 }, &AnnotationSpan { start_line: 4, end_line: 5 }, &c, &[Scope { open_line: 1, close_line: 7, parent: None, children: vec![] }], &cov_hit(&[6]), 7);
     }
-    //= design/coverage-model-v2-spec.md#property-6-unknown-safety
+    //= design/query/coverage-model-spec.md#property-6-unknown-safety
     //= type=test
     //# The implementation MUST prove that unknown lines cannot produce false
     //# positives.

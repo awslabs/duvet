@@ -7,7 +7,7 @@ pattern = "duvet/**/*.rs"
 pattern = "duvet-coverage/**/*.rs"
 
 [[specification]]
-source = "design/coverage-model-v2-spec.md"
+source = "design/query/coverage-model-spec.md"
 
 [report.html]
 enabled = true

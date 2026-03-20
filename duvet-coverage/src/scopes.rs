@@ -17,7 +17,7 @@ pub open spec fn scope_contains(scopes: Seq<Scope>, i: int, j: int) -> bool {
     &&& (scopes[i].open_line < scopes[j].open_line || scopes[j].close_line < scopes[i].close_line)
 }
 
-//= design/coverage-model-v2-spec.md#scopes
+//= design/query/coverage-model-spec.md#scopes
 //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
 //# `ScopeClose` properties. Scopes nest.
 /// Spec predicate: the scope tree is well-formed.
@@ -319,7 +319,7 @@ mod tests {
     use crate::types::*;
     fn s(props: &[LineProperty]) -> Option<LineClass> { Some(line_class(props)) }
 
-    //= design/coverage-model-v2-spec.md#scopes
+    //= design/query/coverage-model-spec.md#scopes
     //= type=test
     //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
     //# `ScopeClose` properties. Scopes nest.
