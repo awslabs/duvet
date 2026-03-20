@@ -99,6 +99,44 @@ to all lines in the file.
 See [Property 3](#property-3-conservative-fallback)
 for the soundness argument.
 
+**Mutual exclusivity contract:** {#mutual-exclusivity-contract}
+The properties `Annotation`, `Comment`, and `Whitespace`
+are mutually exclusive with `Statement` and `Declaration`.
+A line classified as `{Annotation}` MUST NOT also have
+`Statement` or `Declaration` in its property set.
+The same applies to `Comment` and `Whitespace`.
+
+This invariant is necessary for the correctness
+of Phase 1 (target resolution).
+The forward walk skips lines whose properties are exactly
+`{Whitespace}`, `{Comment}`, or contain `Annotation`.
+If a line had `{Annotation, Statement}`,
+the walk would skip it (because it contains `Annotation`),
+but the line is actually executable code —
+the `Statement` property would be silently ignored.
+This would produce correct behavior by accident
+(the annotation is skipped),
+but the classification is semantically wrong
+and would cause incorrect behavior in Phase 2
+(backward propagation stops at `Statement`,
+so a contaminated annotation line would block propagation).
+
+This situation arises in practice
+when a tree-sitter AST node spans multiple lines
+(e.g., a fluent builder chain classified as a single
+`local_variable_declaration`).
+The classifier marks all lines in the node's span
+with `Statement` and `Declaration`,
+including lines that are actually annotations or comments.
+
+Classifiers MUST apply a post-processing pass
+after AST classification:
+for any line that has `Annotation`, `Comment`, or `Whitespace`,
+remove `Statement` and `Declaration` from its property set.
+This ensures that annotation lines are always pure `{Annotation}`,
+comment lines are always pure `{Comment}`,
+and whitespace lines are always pure `{Whitespace}`.
+
 When no classifier is available for a language,
 all lines start as `None`
 and are reclassified incrementally by coverage data,
@@ -251,6 +289,25 @@ fn annotation_target(annotation, classifications, file_length):
     // Reached end of file without finding a target.
     return None
 ```
+
+**Note on Whitespace and Comment checks:**
+The checks `props == {Whitespace}` and `props == {Comment}`
+use equality, not containment.
+This means a line with `{Whitespace, Comment}` would match
+the `{Comment}` check (not the `{Whitespace}` check),
+and a line with `{Whitespace, ScopeOpen}` would match neither —
+it would fall through to the target case.
+In practice,
+the [mutual exclusivity contract](#mutual-exclusivity-contract)
+ensures that `Whitespace` and `Comment` do not appear
+in compound classifications with `Statement` or `Declaration`,
+so the only realistic compound cases are
+`{Whitespace}`, `{Comment}`, or `{Whitespace, Comment}`.
+The `Annotation` check uses containment (`props contains Annotation`)
+because annotations may appear on lines
+that the AST parser also visits,
+though the mutual exclusivity contract
+ensures `Statement` and `Declaration` are stripped.
 
 ### 2.4 Properties {#annotation-target-resolution-properties}
 
@@ -582,6 +639,43 @@ Unknown lines block both target resolution (Phase 1)
 and execution propagation (Phase 2),
 so they can only produce `Unknown` or `NotExecuted` results,
 never `Executed`.
+
+### Property 7: Target Determinism {#property-7-target-determinism}
+
+`annotation_target` is a pure function:
+given the same annotation, classifications, and file length,
+it always returns the same result.
+This is free in Verus
+(all `fn` in Verus are deterministic by construction).
+
+### Property 8: Scope Well-formedness {#property-8-scope-well-formedness}
+
+`build_scope_tree` produces a well-formed scope tree:
+
+- Every scope has `open_line <= close_line`.
+- If two scopes overlap,
+  one strictly contains the other (proper nesting).
+  No partial overlaps.
+
+### Property 9: Execution Set Containment {#property-9-execution-set-containment}
+
+The execution set always contains all directly-hit lines.
+Formally:
+
+If `coverage[line] == Hit`,
+then `line ∈ execution_set(classifications, scopes, coverage)`.
+
+Execution propagation only adds lines to the set —
+it never removes directly-hit lines.
+
+### Property 10: Annotation Target Bounds {#property-10-annotation-target-bounds}
+
+If `annotation_target(annotation, ...) = Some(target)`,
+then `target.line_number > annotation.end_line`.
+
+The target is always strictly after the annotation.
+This follows from the forward walk starting at
+`annotation.end_line + 1`.
 
 ## 6. Worked Examples
 

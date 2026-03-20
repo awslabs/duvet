@@ -447,9 +447,14 @@ async fn execute_coverage_check(
             // but if you are working on coverage for a test that is failing
             // because it is failing to cover its intended annotation
             // it is a bad idea to let this check succeed because 
-            // the single executed test being worked on no fails to execute
+            // the single executed test being worked on now fails to execute.
             // This creates a false positive.
-            // TODO, need to work out this section.
+            //
+            // Unknown tests are NOT skipped: they represent annotation placement
+            // errors (e.g., annotation before an unclassified line) that must be
+            // fixed regardless of which test you're working on. Silently skipping
+            // them would allow unreachable annotations to accumulate and only
+            // surface when running full coverage.
             if coverage_check_executed_tests_only && matches!(test_executed, AnnotationExecutionStatus::NotExecuted) {
                 continue;
             }

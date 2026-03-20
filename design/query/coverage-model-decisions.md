@@ -676,3 +676,144 @@ thousands of lines). The O(log n) vs O(1) difference is irrelevant at this
 scale. Deterministic iteration is valuable for Verus proofs, reproducible test
 output, and debuggability. The BTree collections are the right choice for code
 that will be formally verified.
+
+---
+
+## Decision 11: Scope builder — ScopeClose before ScopeOpen on same line {#decision-11}
+
+**Context:** Lines like `} catch (Exception e) {` or `} else {`
+have both `ScopeClose` and `ScopeOpen` properties.
+The scope builder must process these correctly
+to produce a well-formed scope tree.
+
+### Option A: Ignore ScopeClose when ScopeOpen is present
+
+Only process ScopeOpen. The previous scope never closes.
+
+- Pro: Simpler logic.
+- Con: Produces unbalanced scope trees.
+  The scope tree falls back to a single file-level scope,
+  making scope-aware propagation useless.
+
+### Option B: Process ScopeClose before ScopeOpen
+
+When both properties are present on the same line,
+close the previous scope first, then open the new one.
+`} catch {` means: close the try block, then open the catch block.
+
+- Pro: Produces correct sibling scopes for try/catch/finally,
+  if/else, and similar patterns.
+  The scope tree accurately reflects the source structure.
+- Con: Slightly more complex logic.
+
+### Decision: Option B (ScopeClose before ScopeOpen)
+
+The `} catch {` pattern is fundamental to Java
+and similar languages.
+Processing ScopeClose before ScopeOpen
+produces the correct scope tree:
+try and catch blocks are siblings under the method scope.
+This is required for scope-aware propagation
+to work correctly with try/catch patterns.
+
+---
+
+## Decision 12: Separate `duvet-coverage` crate {#decision-12}
+
+**Context:** The coverage model logic
+(types, scope analysis, target resolution, execution propagation,
+annotation execution check, correctness proofs)
+needs to be formally verified with Verus.
+
+### Option A: Keep in `duvet` crate
+
+Keep the coverage model code in `duvet/src/query/`.
+
+- Pro: No new crate to manage.
+- Con: Verus's subset-of-Rust constraints
+  (no `Arc`, no async, no IO, no trait objects)
+  would leak into the rest of duvet.
+  The coverage model types are used by both
+  the coverage check and the classifier —
+  keeping them in `duvet` creates implicit coupling.
+
+### Option B: Extract to `duvet-coverage` crate
+
+Move the pure-function coverage model
+into a dedicated workspace crate.
+The crate has no external dependencies
+(only `std::collections` and Verus build macros).
+
+- Pro: Verus isolation —
+  the subset-of-Rust constraints stay in one crate.
+  Single source of truth for coverage model types.
+  Clean dependency: `duvet` depends on `duvet-coverage`,
+  not the other way around.
+  The crate can be verified independently
+  (`cargo verus build -p duvet-coverage`).
+- Con: Another crate to maintain.
+  Thin adapter layer needed between Verus-compatible types
+  and duvet's existing types.
+
+### Decision: Option B (separate crate)
+
+Verus isolation is the primary driver.
+The coverage model operates on plain data types
+(`Vec`, `BTreeMap`, `BTreeSet`, `u64`)
+with no IO, no async, no `Arc`.
+Keeping it in its own crate means
+the Verus constraints don't affect
+the rest of duvet's codebase.
+The adapter layer in `duvet/src/query/checks/coverage.rs`
+bridges between duvet's `Arc<Annotation>` world
+and duvet-coverage's plain-data world.
+
+---
+
+## Decision 13: Classifier mutual exclusivity contract {#decision-13}
+
+**Context:** Tree-sitter AST nodes can span multiple lines.
+When a multi-line node (e.g., a fluent builder chain
+classified as `local_variable_declaration`)
+contains annotation or comment lines,
+the classifier marks those lines with `Statement`
+and `Declaration` properties from the parent node.
+This produces classifications like `{Annotation, Statement, Declaration}`
+which are semantically incorrect —
+a comment line is not executable code.
+
+### Option A: Fix in the algorithm
+
+Change the forward walk and backward propagation
+to handle contaminated classifications.
+Check `Annotation` before `Statement` in all walks.
+
+- Pro: No classifier change needed.
+- Con: Implicit ordering dependency.
+  Every algorithm that inspects line properties
+  must know to check `Annotation` first.
+  Fragile — a future algorithm might not follow this convention.
+  The classification is still semantically wrong.
+
+### Option B: Fix in the classifier (post-processing pass)
+
+After AST classification,
+strip `Statement`, `Declaration`, `ScopeOpen`, `ScopeClose`,
+and `NonLinearControl` from any line
+that has `Annotation`, `Comment`, or `Whitespace`.
+
+- Pro: Clean data — algorithms operate on correct classifications.
+  No ordering dependencies.
+  Language-agnostic rule that all classifiers apply.
+  The mutual exclusivity invariant is explicit and documented.
+- Con: Extra pass over the classification data.
+
+### Decision: Option B (post-processing pass)
+
+The classification should be correct at the source.
+Algorithms should not need to work around
+incorrect classifications.
+The post-processing pass is simple, language-agnostic,
+and makes the mutual exclusivity invariant explicit.
+The spec documents this as a classifier contract
+(see [spec §1.3](#mutual-exclusivity-contract)).

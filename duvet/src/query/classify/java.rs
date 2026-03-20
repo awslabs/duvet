@@ -49,6 +49,24 @@ impl LineClassifier for JavaClassifier {
         // Walk the CST
         walk_node(&tree.root_node(), &lines, &mut line_props, &mut visited);
 
+        // Post-processing: enforce mutual exclusivity contract (spec §1.3).
+        // Annotation, Comment, and Whitespace lines must not carry
+        // Statement or Declaration properties. This prevents contamination
+        // from multi-line AST nodes (e.g., fluent builder chains) that
+        // span annotation/comment lines.
+        for line_num in 1..=line_count {
+            if line_props[line_num].contains(&LineProperty::Annotation)
+                || line_props[line_num].contains(&LineProperty::Comment)
+                || line_props[line_num].contains(&LineProperty::Whitespace)
+            {
+                line_props[line_num].remove(&LineProperty::Statement);
+                line_props[line_num].remove(&LineProperty::Declaration);
+                line_props[line_num].remove(&LineProperty::ScopeOpen);
+                line_props[line_num].remove(&LineProperty::ScopeClose);
+                line_props[line_num].remove(&LineProperty::NonLinearControl);
+            }
+        }
+
         // Build result: 0-indexed output, each element corresponds to line (i+1)
         (0..line_count)
             .map(|i| {
@@ -487,5 +505,31 @@ mod tests {
         let result = classify(source);
         assert!(has_prop(&result[1], LineProperty::Declaration));
         assert!(!has_prop(&result[1], LineProperty::Statement));
+    }
+
+    /// Annotation lines inside a multi-line fluent builder chain must be
+    /// pure {Annotation}, not contaminated with Statement/Declaration from
+    /// the parent AST node (spec §1.3 mutual exclusivity contract).
+    #[test]
+    fn annotation_inside_builder_chain_not_contaminated() {
+        let source = r#"public class Foo {
+    void bar() {
+        Object keyring = SomeBuilder.builder()
+            //= spec.md#section-1
+            //# MUST do X
+            .keyNamespace("myNamespace")
+            .build();
+    }
+}"#;
+        let result = classify(source);
+        // line 4: //= spec.md#section-1 → must be pure {Annotation}
+        assert!(is_exactly(&result[3], &[LineProperty::Annotation]));
+        // line 5: //# MUST do X → must be pure {Annotation}
+        assert!(is_exactly(&result[4], &[LineProperty::Annotation]));
+        // Must NOT have Statement or Declaration
+        assert!(!has_prop(&result[3], LineProperty::Statement));
+        assert!(!has_prop(&result[3], LineProperty::Declaration));
+        assert!(!has_prop(&result[4], LineProperty::Statement));
+        assert!(!has_prop(&result[4], LineProperty::Declaration));
     }
 }

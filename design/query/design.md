@@ -179,6 +179,22 @@ the coverage check will surface this as a failed correlation
 because there are no implementation annotations
 to verify execution against.
 
+**Structural annotations:**
+When the two-phase coverage model determines
+that an annotation targets a purely structural construct
+(e.g., an interface with no executable code),
+it returns `Structural` status.
+The coverage check treats `Structural` as `NotExecuted` —
+this is intentional.
+If a test annotation targets structural code,
+the test cannot verify execution of that code,
+and the coverage check reports this as a failure.
+Teams that annotate structural constructs
+should use `type=implication` rather than `type=test`
+for annotations that cannot be verified by execution.
+See [Coverage Model Decision 6](coverage-model-decisions.md)
+for the rationale.
+
 ### 2.5 Executed Coverage (`--check executed-coverage`) {#check-executed-coverage}
 
 **Question:** Same as coverage,

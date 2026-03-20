@@ -21,7 +21,7 @@ use checks::coverage::CoverageFormat;
 
 #[derive(Debug, Parser)]
 pub struct Query {
-    /// Types of checks to run
+    /// Types of checks to run (comma-separated)
     #[clap(short = 'c', long, value_delimiter = ',')]
     pub check: Option<Vec<CheckType>>,
     
@@ -29,16 +29,16 @@ pub struct Query {
     #[clap(short = 's', long, value_delimiter = ',')]
     pub section: Option<Vec<String>>,
     
-    /// Filter by quoted requirement text (case-insensitive substring match, comma-separated)
-    #[clap(short = 'q', long, value_delimiter = ',')]
+    /// Filter by quoted requirement text (case-insensitive substring match, repeatable)
+    #[clap(short = 'q', long)]
     pub quote: Option<Vec<String>>,
     
-    /// Coverage report path override
-    #[clap(short = 'r', long)]
+    /// Coverage report path(s), supports globs (required for coverage checks)
+    #[clap(short = 'r', long, required_if_eq_any([("check", "coverage"), ("check", "executed-coverage")]))]
     pub coverage_report: Option<Vec<String>>,
     
-    /// Coverage format override
-    #[clap(short = 'f', long)]
+    /// Coverage format (required for coverage checks)
+    #[clap(short = 'f', long, required_if_eq_any([("check", "coverage"), ("check", "executed-coverage")]))]
     pub coverage_format: Option<CoverageFormat>, 
     
     /// Enable verbose output
@@ -152,7 +152,7 @@ impl Query {
         let requirement_mode = RequirementMode::from_options(&sections, &quotes);
 
         let result = match &self.check {
-            Some(check_types) => {
+            Some(check_types) if !check_types.is_empty() => {
                 let checks: Vec<(CheckType, &RequirementMode)> = check_types
                     .iter()
                     .map(|check_type| (check_type.clone(), &requirement_mode))
@@ -166,7 +166,17 @@ impl Query {
                     self.verbose,
                 ).await
             },
-            None => unreachable!("Nothing to check?")
+            _ => {
+                // No check types specified — show help
+                use clap::CommandFactory;
+                let mut cmd = crate::Arguments::command();
+                cmd.find_subcommand_mut("query")
+                    .expect("query subcommand")
+                    .print_help()
+                    .expect("print help");
+                println!();
+                return Ok(());
+            }
         }?;
 
         progress!(progress, "{}", result);
