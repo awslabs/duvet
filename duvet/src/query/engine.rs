@@ -244,3 +244,87 @@ async fn execute_implementation_check(
         verbose: verbose,
     }))
 }
+
+async fn execute_test_check(
+    project_data: &ProjectData,
+    mode: &RequirementMode,
+    verbose: bool,
+) -> Result<CheckResult> {
+
+    if verbose {
+        progress!("Running test annotation coverage check...");
+    }
+
+    let (
+        implementation_annotations,
+        test_annotations,
+    ) = project_data
+        .annotations
+        .iter()
+        // 1. Gather annotations that need testing
+        // We are interested in testing things that are implemented
+        // Making sure you have implemented everything is a job for the implementation check.
+        .filter(|annotation| !matches!(annotation.anno,
+            // A requirement. i.e. something that needs to be implemented
+            AnnotationType::Spec
+            // Not yet been implemented. Test driven development?
+            | AnnotationType::Todo
+            // Fundamentally true or not testable. No test required.
+            | AnnotationType::Implication
+            // You don't do it. not test required.
+            | AnnotationType::Exception
+        ))
+        // 2. Only annotations that are in scope
+        .filter(|annotation| mode.in_scope(annotation))
+        // 3. Organize the annotations into implementations (things needing tests) and tests
+        .fold(
+            (Vec::new(), Vec::new()),
+            |(mut impls, mut tests), annotation| {
+
+                match &annotation.anno {
+                    // An implementation, it needs a test
+                    AnnotationType::Citation  => {
+                        impls.push(annotation.clone());
+                    }
+                    // A test!
+                    AnnotationType::Test => {
+                        tests.push(annotation.clone());
+                    }
+                    // Shouldn't happen due to filter, but good to be explicit
+                    _ => unreachable!()
+                }
+
+                (impls, tests)
+            }
+        );
+    
+    // 4. Classify each annotation
+    let ClassifiedCoverage {
+        complete_coverage: fully_tested,
+        incomplete_coverage: incomplete_tests,
+        no_coverage: not_tested,
+        ..
+    } = classify_annotation_coverage(
+        project_data,
+        &implementation_annotations,
+        &test_annotations,
+        &Vec::new(),
+    ).await?;
+
+    let status = if incomplete_tests.len() == 0
+        && not_tested.len() == 0 {
+            QueryStatus::Pass
+        } else {
+            QueryStatus::Fail
+        };
+
+    Ok(CheckResult::Tests(TestResult {
+        status: status,
+        in_scope_requirements: implementation_annotations,
+        fully_tested,
+        incomplete_tests,
+        not_tested,
+        verbose,
+    }))
+}
+
