@@ -12,14 +12,14 @@ use crate::{
     Result,
 };
 use duvet_coverage::types::{
-    self as v2, LineClass, LineProperty, AnnotationSpan, CoverageStatus,
-    CoverageReport as V2CoverageReport, Scope, ExecutionStatus,
+    LineClass, LineProperty, AnnotationSpan, CoverageStatus,
+    CoverageReport as CoverageReportMap, Scope, ExecutionStatus,
 };
 use duvet_coverage::scopes::build_scope_tree;
-use duvet_coverage::annotation_execution::is_annotation_executed as v2_is_annotation_executed;
+use duvet_coverage::annotation_execution::is_annotation_executed as classified_is_annotation_executed;
 use rustc_hash::FxHashMap;
 use std::{
-    collections::{HashSet},
+    collections::{BTreeMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -30,69 +30,114 @@ pub enum CoverageFormat {
     // Future: Lcov, Clover
 }
 
-/// V2 coverage model data for a single file.
-/// Present only when a tree-sitter classifier is available for the file's language.
+/// Coverage model data for a file with a tree-sitter classifier.
+/// Contains the classified line properties, scope tree, and coverage data
+/// in the format expected by the verified `duvet-coverage` algorithms.
 #[derive(Debug, Clone)]
-pub struct V2FileData {
+pub struct ClassifiedFileData {
     pub classifications: Vec<Option<LineClass>>,
     pub scopes: Vec<Scope>,
-    pub coverage: V2CoverageReport,
+    pub coverage: CoverageReportMap,
     pub file_length: u64,
 }
 
-/// Map from file path to v2 coverage model data.
-pub type V2DataMap = FxHashMap<PathBuf, V2FileData>;
+/// Per-file execution data: either classified (enhanced two-phase model)
+/// or unclassified (basic forward-walk fallback).
+#[derive(Debug, Clone)]
+pub enum FileExecutionData {
+    /// File has a tree-sitter classifier — uses the two-phase coverage model
+    /// (target resolution + execution propagation) from duvet-coverage.
+    Classified(ClassifiedFileData),
+    /// No classifier available — uses the basic forward-walk over a LineMap.
+    Unclassified(LineMap),
+}
 
-pub async fn build_source_line_map(
+/// Map from file path to execution data.
+pub type ExecutionDataMap = FxHashMap<PathBuf, FileExecutionData>;
+
+/// Build execution data for all source files that have coverage.
+/// Each file gets either classified data (when a tree-sitter classifier exists)
+/// or a LineMap (fallback). Never both.
+pub async fn build_execution_data(
     annotations: &AnnotationSet,
     coverage_data: &CoverageData,
     project_sources: &HashSet<SourceFile>
-) -> Result<(SourceLineMap, V2DataMap)> {
-    let mut source_line_map = FxHashMap::default();
-    let mut v2_data_map = FxHashMap::default();
-    
-    // Process files in parallel for better performance
+) -> Result<ExecutionDataMap> {
     let mut file_futures = Vec::new();
-    
+
     for source_file in project_sources {
-        // Only process Text files, skip Toml files
         let duvet_path = match source_file {
             SourceFile::Text { path, .. } => path,
-            SourceFile::Toml(_) => continue, // Skip TOML files
+            SourceFile::Toml(_) => continue,
         };
-        
-        // Find matching coverage using paths_match
+
         let coverage_option = coverage_data.as_generic().files.iter()
             .find(|(coverage_path, _)| paths_match(duvet_path, coverage_path))
             .map(|(_, file_coverage)| file_coverage);
-            
+
         if let Some(file_coverage) = coverage_option {
             let duvet_path = duvet_path.clone();
             let annotations = annotations.clone();
             let file_coverage = file_coverage.clone();
-            
+
             let future = async move {
-                let line_map = build_line_map_for_file(&duvet_path, &annotations, &file_coverage).await?;
-                let v2_data = build_v2_data_for_file(&duvet_path, &annotations, &file_coverage).await?;
-                Result::<_, crate::Error>::Ok((duvet_path.to_path_buf(), line_map, v2_data))
+                let data = build_file_execution_data(&duvet_path, &annotations, &file_coverage).await?;
+                Result::<_, crate::Error>::Ok((duvet_path.to_path_buf(), data))
             };
-            
+
             file_futures.push(future);
         }
     }
-    
-    // Process all files concurrently
+
     let results = futures::future::try_join_all(file_futures).await?;
-    
-    // Collect results into the maps
-    for (path, line_map, v2_data) in results {
-        source_line_map.insert(path.clone(), line_map);
-        if let Some(data) = v2_data {
-            v2_data_map.insert(path, data);
+    Ok(results.into_iter().collect())
+}
+
+/// Build execution data for a single file.
+/// Uses the classified path if a tree-sitter classifier exists, otherwise falls back
+/// to the basic LineMap. Only one path is built — no redundant work.
+async fn build_file_execution_data(
+    duvet_path: &Path,
+    annotations: &AnnotationSet,
+    file_coverage: &FileCoverage,
+) -> Result<FileExecutionData> {
+    if let Some(classifier) = classifier_for_path(duvet_path) {
+        // Enhanced path: tree-sitter classification + verified two-phase model
+        let source_file = duvet_core::vfs::read_string(duvet_path).await?;
+        let file_content = source_file.to_string();
+        let line_count = file_content.lines().count() as u64;
+
+        let mut classifications = classifier.classify(&file_content);
+
+        // Override annotation lines using duvet's authoritative parsed annotation data.
+        // The classifier's heuristic prefix detection (e.g., `//=` for Java) serves as
+        // a first pass; this override ensures correctness across all comment styles.
+        for annotation in annotations.iter() {
+            if annotation.source == *duvet_path {
+                let (start_line, end_line) = annotation.line_range();
+                for line_num in start_line..=end_line {
+                    let idx = (line_num - 1) as usize;
+                    if idx < classifications.len() {
+                        classifications[idx] = Some(duvet_coverage::types::line_class(&[LineProperty::Annotation]));
+                    }
+                }
+            }
         }
+
+        let scopes = build_scope_tree(&classifications, line_count);
+        let coverage = file_coverage.to_coverage_report();
+
+        Ok(FileExecutionData::Classified(ClassifiedFileData {
+            classifications,
+            scopes,
+            coverage,
+            file_length: line_count,
+        }))
+    } else {
+        // Fallback path: basic forward-walk over LineMap
+        let line_map = build_line_map_for_file(duvet_path, annotations, file_coverage).await?;
+        Ok(FileExecutionData::Unclassified(line_map))
     }
-    
-    Ok((source_line_map, v2_data_map))
 }
 
 async fn build_line_map_for_file(
@@ -100,102 +145,23 @@ async fn build_line_map_for_file(
     annotations: &AnnotationSet,
     file_coverage: &FileCoverage
 ) -> Result<LineMap> {
-    // 1. Read file using duvet's VFS system for consistency
     let source_file = duvet_core::vfs::read_string(duvet_path).await?;
     let file_content = source_file.to_string();
     let lines: Vec<&str> = file_content.lines().collect();
     let line_count = lines.len();
-    
-    // 2. Initialize all lines as Unknown
+
     let mut line_map: LineMap = (1..=line_count as u64)
         .map(|line_num| (line_num, LineInfo::Unknown))
         .collect();
-    
-    // 3. Update with coverage data
+
     update_coverage_lines(&mut line_map, file_coverage);
-    
-    // 4. Update with annotations for this specific file
     update_annotation_lines(&mut line_map, annotations, duvet_path);
-    
-    // 5. Update whitespace lines
     update_whitespace_lines(&mut line_map, &lines);
-    
+
     Ok(line_map)
 }
 
-/// Build v2 coverage model data for a file, if a classifier is available.
-///
-/// Returns `None` when no classifier exists for the file's language,
-/// preserving the fallback to the existing LineMap-based behavior.
-async fn build_v2_data_for_file(
-    duvet_path: &Path,
-    annotations: &AnnotationSet,
-    file_coverage: &FileCoverage,
-) -> Result<Option<V2FileData>> {
-    let classifier = match classifier_for_path(duvet_path) {
-        Some(c) => c,
-        None => return Ok(None),
-    };
-
-    let source_file = duvet_core::vfs::read_string(duvet_path).await?;
-    let file_content = source_file.to_string();
-    let line_count = file_content.lines().count() as u64;
-
-    // Classify with tree-sitter
-    let mut classifications = classifier.classify(&file_content);
-
-    // Override annotation lines with Annotation property.
-    // This is the authoritative source — it uses duvet's parsed annotation data
-    // rather than the classifier's heuristic prefix detection (which is
-    // language-specific and may disagree). The classifier's annotation detection
-    // serves as a first pass; this override ensures correctness.
-    for annotation in annotations.iter() {
-        if annotation.source == *duvet_path {
-            let (start_line, end_line) = annotation.line_range();
-            for line_num in start_line..=end_line {
-                let idx = (line_num - 1) as usize;
-                if idx < classifications.len() {
-                    classifications[idx] = Some(v2::line_class(&[LineProperty::Annotation]));
-                }
-            }
-        }
-    }
-
-    // Build scope tree
-    let scopes = build_scope_tree(&classifications, line_count);
-
-    // Convert coverage data to v2 format
-    let mut v2_coverage = V2CoverageReport::new();
-    for (&line_num, &hit_count) in &file_coverage.lines {
-        let status = if hit_count > 0 {
-            CoverageStatus::Hit
-        } else {
-            CoverageStatus::Miss
-        };
-        v2_coverage.insert(line_num as u64, status);
-    }
-    for (&line_num, branches) in &file_coverage.branches {
-        let status = if branches.iter().any(|&taken| taken) {
-            CoverageStatus::Hit
-        } else {
-            CoverageStatus::Miss
-        };
-        v2_coverage.insert(line_num as u64, status);
-    }
-
-    Ok(Some(V2FileData {
-        classifications,
-        scopes,
-        coverage: v2_coverage,
-        file_length: line_count,
-    }))
-}
-
-fn update_coverage_lines(
-    line_map: &mut LineMap, 
-    file_coverage: &FileCoverage
-) {
-    // 1. Process line coverage
+fn update_coverage_lines(line_map: &mut LineMap, file_coverage: &FileCoverage) {
     for (&line_num, &hit_count) in &file_coverage.lines {
         let line_info = if hit_count > 0 {
             LineInfo::Executed(ExecutionType::Line)
@@ -204,8 +170,7 @@ fn update_coverage_lines(
         };
         line_map.insert(line_num as u64, line_info);
     }
-    
-    // 2. Process branch coverage (overwrites line coverage if both exist)
+
     for (&line_num, branches) in &file_coverage.branches {
         let any_branch_taken = branches.iter().any(|&taken| taken);
         let line_info = if any_branch_taken {
@@ -215,10 +180,6 @@ fn update_coverage_lines(
         };
         line_map.insert(line_num as u64, line_info);
     }
-    
-    // Function/method boundary data from coverage tools (e.g., JaCoCo's <method line="N">)
-    // is stored in FileCoverage.functions but not currently used for line classification.
-    // The v2 coverage model handles method boundaries via tree-sitter classification instead.
 }
 
 fn update_annotation_lines(line_map: &mut LineMap, annotations: &AnnotationSet, duvet_path: &Path) {
@@ -232,73 +193,61 @@ fn update_annotation_lines(line_map: &mut LineMap, annotations: &AnnotationSet, 
     }
 }
 
-fn update_whitespace_lines(
-    line_map: &mut LineMap,
-    lines: &[&str]
-) {
+fn update_whitespace_lines(line_map: &mut LineMap, lines: &[&str]) {
     for (index, line_content) in lines.iter().enumerate() {
-        let line_num = (index + 1) as u64; // Convert 0-based index to 1-based line number
-        
-        // Only process lines that are still Unknown
+        let line_num = (index + 1) as u64;
         if let Some(LineInfo::Unknown) = line_map.get(&line_num) {
-            // Check if line contains only whitespace
             if line_content.trim().is_empty() {
                 line_map.insert(line_num, LineInfo::Whitespace);
             }
-            // If not whitespace, leave as Unknown
         }
     }
 }
 
-/// Check if a Duvet source path matches a coverage report path
-/// Handles various path format differences between Duvet and coverage tools
+/// Check if a Duvet source path matches a coverage report path.
+/// Handles various path format differences between Duvet and coverage tools.
 fn paths_match(duvet_path: &Path, coverage_path: &str) -> bool {
-
-    // Explicitly use the Display trait
     let duvet_path_str = format!("{}", duvet_path.display());
-    
+
     // Strategy 1: Direct exact match
     if duvet_path_str == coverage_path {
         return true;
     }
-    
-    // Strategy 2: Check if duvet path ends with coverage path at a path separator boundary
-    // e.g., duvet="/project/src/main/java/Foo.java" matches coverage="src/main/java/Foo.java"
-    // but duvet="/project/FooTest.java" does NOT match coverage="Test.java"
+
+    // Strategy 2: Duvet path ends with coverage path at a path separator boundary
     if duvet_path_str.ends_with(coverage_path) {
         let prefix_len = duvet_path_str.len() - coverage_path.len();
         if prefix_len == 0 || duvet_path_str.as_bytes()[prefix_len - 1] == b'/' {
             return true;
         }
     }
-    
-    // Strategy 3: Handle Jacoco parser bug where coverage path has extra package prefix
-    // e.g. coverage_path = "com/example/src/main/java/com/example/StackingTest.java"
-    // should match duvet_path = "src/main/java/com/example/StackingTest.java"
+
+    // Strategy 3: Handle JaCoCo parser where coverage path has extra package prefix
+    // e.g. coverage_path = "com/example/src/main/java/com/example/Foo.java"
+    // should match duvet_path = "src/main/java/com/example/Foo.java"
     if let Some(src_index) = coverage_path.find("src/") {
         let trimmed_coverage_path = &coverage_path[src_index..];
         if duvet_path_str == trimmed_coverage_path {
             return true;
         }
     }
-    
-    // Strategy 4: Check reverse at a path separator boundary
+
+    // Strategy 4: Coverage path ends with duvet path at a path separator boundary
     if coverage_path.ends_with(&duvet_path_str) {
         let prefix_len = coverage_path.len() - duvet_path_str.len();
         if prefix_len == 0 || coverage_path.as_bytes()[prefix_len - 1] == b'/' {
             return true;
         }
     }
-    
+
     false
 }
 
-/// Parse coverage data from file
+/// Parse coverage data from file.
 pub async fn parse_coverage_data(
     coverage_path: &String,
     format: &CoverageFormat,
 ) -> Result<CoverageData> {
-    // Parse coverage data directly (async traits aren't dyn-compatible)
     match format {
         CoverageFormat::JacocoXml => {
             let parser = JacocoParser;
@@ -309,127 +258,99 @@ pub async fn parse_coverage_data(
 
 /// Check if an annotation is executed according to coverage data.
 ///
-/// When v2 data (tree-sitter classification) is available for the file, uses the
-/// two-phase coverage model from spec Section 4.3. Otherwise falls back to the
-/// existing forward-only walk (identical to pre-v2 behavior).
+/// When classified data (tree-sitter) is available for the file, uses the
+/// two-phase coverage model (target resolution + execution propagation)
+/// from the verified duvet-coverage crate. Otherwise falls back to the
+/// basic forward-walk for unclassified languages.
 pub fn is_annotation_executed(
     annotation: &Arc<Annotation>,
-    source_line_map: &SourceLineMap,
-    v2_data_map: &V2DataMap,
+    execution_data_map: &ExecutionDataMap,
 ) -> AnnotationExecutionStatus {
-    // Spec and Todo are never executable
     if matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo) {
         return AnnotationExecutionStatus::NotExecuted;
     }
 
     let file_path = annotation.source.to_path_buf();
 
-    // Try v2 path first
-    if let Some(v2_data) = v2_data_map.get(&file_path) {
-        let (start_line, end_line) = annotation.line_range();
+    match execution_data_map.get(&file_path) {
+        Some(FileExecutionData::Classified(data)) => {
+            let (start_line, end_line) = annotation.line_range();
+            let ann_span = AnnotationSpan { start_line, end_line };
 
-        let ann_span = AnnotationSpan {
-            start_line,
-            end_line,
-        };
+            let status = classified_is_annotation_executed(
+                &ann_span,
+                &data.classifications,
+                &data.scopes,
+                &data.coverage,
+                data.file_length,
+            );
 
-        let status = v2_is_annotation_executed(
-            &ann_span,
-            &v2_data.classifications,
-            &v2_data.scopes,
-            &v2_data.coverage,
-            v2_data.file_length,
-        );
-
-        return match status {
-            ExecutionStatus::Executed => AnnotationExecutionStatus::Executed,
-            ExecutionStatus::NotExecuted => AnnotationExecutionStatus::NotExecuted,
-            ExecutionStatus::Structural => AnnotationExecutionStatus::NotExecuted,
-            ExecutionStatus::Unknown => {
-                let target = duvet_coverage::target_resolution::annotation_target(
-                    &ann_span,
-                    &v2_data.classifications,
-                    v2_data.file_length,
-                );
-                let line_number = target.map_or(end_line + 1, |t| t.line_number);
-                AnnotationExecutionStatus::Unknown { line_number }
+            match status {
+                ExecutionStatus::Executed => AnnotationExecutionStatus::Executed,
+                ExecutionStatus::NotExecuted => AnnotationExecutionStatus::NotExecuted,
+                ExecutionStatus::Structural => AnnotationExecutionStatus::NotExecuted,
+                ExecutionStatus::Unknown => {
+                    let target = duvet_coverage::target_resolution::annotation_target(
+                        &ann_span,
+                        &data.classifications,
+                        data.file_length,
+                    );
+                    let line_number = target.map_or(end_line + 1, |t| t.line_number);
+                    AnnotationExecutionStatus::Unknown { line_number }
+                }
             }
-        };
+        }
+        Some(FileExecutionData::Unclassified(line_map)) => {
+            is_annotation_executed_fallback(annotation, line_map)
+        }
+        None => AnnotationExecutionStatus::NotExecuted,
     }
-
-    // Fallback: existing forward-only walk (no classifier available)
-    is_annotation_executed_fallback(annotation, source_line_map)
 }
 
-/// Original forward-only walk implementation, used as fallback when no classifier
-/// is available for the file's language. Behavior is identical to pre-v2.
+/// Basic forward-walk execution detection for unclassified languages.
+/// Walks forward from the annotation, skipping whitespace and stacked annotations,
+/// until reaching a line that coverage data has an opinion about.
 fn is_annotation_executed_fallback(
     annotation: &Arc<Annotation>,
-    source_line_map: &SourceLineMap,
+    line_map: &LineMap,
 ) -> AnnotationExecutionStatus {
-
-    // 1. Find the right file
-    let line_map = match source_line_map.get(&annotation.source.to_path_buf()) {
-        Some(map) => map,
-        None => return AnnotationExecutionStatus::NotExecuted, // File not in coverage data
-    };
-    
-    // 2. Find annotation line range
     let (start_line, end_line) = annotation.line_range();
-    
-    // 3. Confirm this is the same annotation
+
+    // Confirm this is the same annotation in the line map
     for line_num in start_line..=end_line {
         if let Some(LineInfo::Annotation(stored_annotation)) = line_map.get(&line_num) {
             if stored_annotation != annotation {
-                // Line map has a different annotation at this location — data inconsistency
                 return AnnotationExecutionStatus::Unknown { line_number: line_num };
             }
         } else {
-            // Expected annotation line not found in line map — data inconsistency
             return AnnotationExecutionStatus::Unknown { line_number: line_num };
         }
     }
-    
-    // 4. Proceed forward from end of annotation
+
+    // Walk forward from end of annotation
     let mut current_line = end_line + 1;
-    
+
     loop {
         match line_map.get(&current_line) {
             Some(LineInfo::Whitespace) => {
-                // Skip whitespace and continue
-                // whitespace is not executable.
                 current_line += 1;
             }
             Some(LineInfo::Annotation(next_annotation)) => {
-                // Recurse the next annotation
-                // Execution is a transitive property
-                // If an annotation is stacked on an executable annotation
-                // the stacked annotation has the same executable value.
-                return is_annotation_executed_fallback(next_annotation, source_line_map);
+                // Stacked annotation — execution is transitive
+                return is_annotation_executed_fallback(next_annotation, line_map);
             }
             Some(LineInfo::Executed(_)) => {
-                return AnnotationExecutionStatus::Executed; // Found executed line
+                return AnnotationExecutionStatus::Executed;
             }
             Some(LineInfo::NotExecuted(_)) => {
-                // Line is tracked by coverage but was not executed
                 return AnnotationExecutionStatus::NotExecuted;
             }
             Some(LineInfo::Unknown) => {
-                // If a line is not executed clearly the annotation is not executed.
-                // If the line is unknown we don't know what to do with this line.
-                // The line could be a comment, but we can't know this without parsing the language.
-                // Is the line a comment is a complicated question since we have to deal with many languages.
                 return AnnotationExecutionStatus::Unknown { line_number: current_line };
             }
             None => {
-                return AnnotationExecutionStatus::NotExecuted; // End of file reached
+                return AnnotationExecutionStatus::NotExecuted;
             }
         }
     }
 }
-
-
-// NOTE: Unit tests for this module would require extensive mocking of duvet's
-// internal types (Reference, Annotation, Target, Specification, CoverageData) which have
-// complex APIs and construction requirements. The function logic is tested
-// through integration tests via the query command.

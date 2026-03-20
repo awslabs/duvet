@@ -6,7 +6,7 @@ use std::fmt;
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
     comment::{Pattern},
-    query::coverage::{AnnotationExecutionStatus, SourceLineMap},
+    query::coverage::AnnotationExecutionStatus,
 };
 use std::{
     sync::Arc,
@@ -67,7 +67,7 @@ pub struct TestResult {
 #[derive(Debug)]
 pub struct CoverageResult {
     pub status: QueryStatus,
-    pub execution_reports: Vec<SourceLineMap>,
+    pub report_count: usize,
     pub executed_tests: AnnotationSet,
     pub executed_implementations: AnnotationSet,
     pub successful: Vec<CoveredTestAnnotation>,
@@ -393,7 +393,7 @@ impl fmt::Display for CoverageResult {
         writeln!(f)?;
 
         // Summary counts
-        let reports_count = self.execution_reports.len();
+        let reports_count = self.report_count;
         let executed_tests = self.executed_tests.len();
         let executed_implementations = self.executed_implementations.len();
         let successful = self.successful.len();

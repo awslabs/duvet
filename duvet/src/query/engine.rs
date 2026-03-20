@@ -7,8 +7,9 @@ use super::{
         coverage::{
             CoverageFormat,
             parse_coverage_data,
-            build_source_line_map,
+            build_execution_data,
             is_annotation_executed,
+            ExecutionDataMap,
         },
         classify_annotation_coverage,
         ClassifiedCoverage,
@@ -339,18 +340,14 @@ async fn execute_coverage_check(
         progress!("Running test execution correlation check...");
     }
 
-    // Build source line maps in parallel for better performance
-    let map_futures: Vec<_> = coverage_data.iter().map(|cover| {
-        build_source_line_map(&project_data.annotations, cover, &project_data.project_sources)
+    // Build execution data for each coverage report in parallel.
+    // Each report produces an ExecutionDataMap (one entry per source file with coverage).
+    let build_futures: Vec<_> = coverage_data.iter().map(|cover| {
+        build_execution_data(&project_data.annotations, cover, &project_data.project_sources)
     }).collect();
 
-    let map_results = futures::future::try_join_all(map_futures).await?;
-    let mut source_line_maps = Vec::new();
-    let mut v2_data_maps = Vec::new();
-    for (slm, v2m) in map_results {
-        source_line_maps.push(slm);
-        v2_data_maps.push(v2m);
-    }
+    let execution_data_maps: Vec<ExecutionDataMap> = futures::future::try_join_all(build_futures).await?;
+    let report_count = execution_data_maps.len();
 
     let mut test_annotations: Vec<_> = Vec::new();
     let mut implementation_annotations: Vec<_> = Vec::new();
@@ -358,7 +355,6 @@ async fn execute_coverage_check(
     for annotation in project_data
         .annotations
         .iter()
-        // Spec and Todo are not executable, remove them
         .filter(|annotation| !matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo))
         .filter(|annotation| mode.in_scope(annotation))
     {
@@ -366,13 +362,10 @@ async fn execute_coverage_check(
             AnnotationType::Test => test_annotations.push(annotation.clone()),
             AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => 
                 implementation_annotations.push(annotation.clone()),
-            // Shouldn't happen due to filter, but good to be explicit
             _ => unreachable!()
-
         }
     }
 
-    // 4. Classify each annotation
     let ClassifiedCoverage {
         complete_coverage,
         incomplete_coverage,
@@ -390,9 +383,8 @@ async fn execute_coverage_check(
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
         let mut test_executed = AnnotationExecutionStatus::NotExecuted;
-        for (idx, source_line_map) in source_line_maps.iter().enumerate() {
-            let v2_data_map = &v2_data_maps[idx];
-            let executed_status = is_annotation_executed(&test.target, &source_line_map, v2_data_map);
+        for exec_data in &execution_data_maps {
+            let executed_status = is_annotation_executed(&test.target, exec_data);
             if matches!(executed_status, AnnotationExecutionStatus::Executed) {
                 test_executed = executed_status;
 
@@ -400,7 +392,7 @@ async fn execute_coverage_check(
                 let mut not_executed_implementations = Vec::new();
 
                 for annotation in &test.covering_annotations {
-                    let status = is_annotation_executed(&annotation, &source_line_map, v2_data_map);
+                    let status = is_annotation_executed(annotation, exec_data);
                     if matches!(status, AnnotationExecutionStatus::Executed) {
                         executed_implementations.push(annotation.clone());
                     } else {
@@ -422,27 +414,14 @@ async fn execute_coverage_check(
                     failed.push(result);
                 }
             } else if !matches!(test_executed, AnnotationExecutionStatus::Executed | AnnotationExecutionStatus::Unknown{..}) {
-                // NotExecuted is the default status
-                // It is possible for one source_line_map to have information
-                // that indicates that an annotation is Unknown
-                // but then for another source_line_map to not even have the file,
-                // which would result in NotExecuted and less information.
+                // Prefer Unknown over NotExecuted — Unknown carries more diagnostic info.
                 test_executed = executed_status;
             }
         }
         if !matches!(test_executed, AnnotationExecutionStatus::Executed) {
-            // Checking for only executed tests is great
-            // but if you are working on coverage for a test that is failing
-            // because it is failing to cover its intended annotation
-            // it is a bad idea to let this check succeed because 
-            // the single executed test being worked on now fails to execute.
-            // This creates a false positive.
-            //
-            // Unknown tests are NOT skipped: they represent annotation placement
-            // errors (e.g., annotation before an unclassified line) that must be
-            // fixed regardless of which test you're working on. Silently skipping
-            // them would allow unreachable annotations to accumulate and only
-            // surface when running full coverage.
+            // Unknown tests are NOT skipped in executed-coverage mode: they represent
+            // annotation placement errors that must be fixed regardless of which test
+            // you're working on. Only NotExecuted tests are skipped.
             if coverage_check_executed_tests_only && matches!(test_executed, AnnotationExecutionStatus::NotExecuted) {
                 continue;
             }
@@ -480,31 +459,29 @@ async fn execute_coverage_check(
             if executed_from_tests.contains(annotation) {
                 true
             } else {
-                source_line_maps
+                execution_data_maps
                     .iter()
-                    .zip(v2_data_maps.iter())
-                    .any(|(source_line_map, v2_data_map)| matches!(is_annotation_executed(annotation, &source_line_map, v2_data_map), AnnotationExecutionStatus::Executed))
+                    .any(|exec_data| matches!(is_annotation_executed(annotation, exec_data), AnnotationExecutionStatus::Executed))
             }
         })
         .cloned()
         .collect::<BTreeSet<_>>()
         .into();
 
-    let status = if 0 == failed.len() {
+    let status = if failed.is_empty() {
         QueryStatus::Pass
     } else {
         QueryStatus::Fail
     };
 
-    // Put the output here
     Ok(CheckResult::Coverage(CoverageResult {
         status,
-        execution_reports: source_line_maps,
+        report_count,
         executed_tests,
         executed_implementations,
         successful,
         failed,
-        verbose: verbose,
+        verbose,
     }))
 }
 

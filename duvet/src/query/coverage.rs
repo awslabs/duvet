@@ -47,6 +47,23 @@ pub struct FileCoverage {
     pub functions: FxHashMap<String, String>,  // function_name -> function_info
 }
 
+impl FileCoverage {
+    /// Convert to the coverage report format used by the verified duvet-coverage crate.
+    pub fn to_coverage_report(&self) -> duvet_coverage::types::CoverageReport {
+        use duvet_coverage::types::CoverageStatus;
+        let mut report = BTreeMap::new();
+        for (&line_num, &hit_count) in &self.lines {
+            let status = if hit_count > 0 { CoverageStatus::Hit } else { CoverageStatus::Miss };
+            report.insert(line_num as u64, status);
+        }
+        for (&line_num, branches) in &self.branches {
+            let status = if branches.iter().any(|&taken| taken) { CoverageStatus::Hit } else { CoverageStatus::Miss };
+            report.insert(line_num as u64, status);
+        }
+        report
+    }
+}
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LineInfo {
