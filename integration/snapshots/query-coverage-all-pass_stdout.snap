@@ -1,0 +1,138 @@
+---
+source: xtask/src/tests.rs
+assertion_line: 317
+expression: stdout
+---
+$ duvet query -c coverage -r *.xml -f jacoco-xml --verbose
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 4 sources 
+     Parsing annotations
+      Parsed 7 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 3 sections 
+    Matching references
+     Matched 7 references 
+     Running test execution correlation check...
+  
+Coverage: ✓ PASS
+
+  Coverage reports checked: 2
+  Executed tests: 2
+  Executed implementations: 3
+  Successful correlations: 2
+  Failed correlations: 0
+
+  ☞ Successful correlation
+    ╭─[src/test/java/com/example/StackingTestTest.java:14:13]
+ 13 │         public void testGenerateKey() {
+ 14 │ ╭─▶         //= spec.md#section-1
+ 15 │ │           //= type=test
+ 16 │ ├─▶         //# This MUST be stacked on another annotation
+    · ╰──── Test annotation
+ 17 │             
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Successful correlation
+    ╭─[src/main/java/com/example/StackingTest.java:11:17]
+ 10 │             try {
+ 11 │ ╭─▶             //= spec.md#section-1
+ 12 │ │               //= type=implementation
+ 13 │ ├─▶             //# This MUST be stacked on another annotation
+    · ╰──── Executed implementation
+ 14 │                 //= spec.md#section-2
+    ╰────
+
+  ☞ Successful correlation
+    ╭─[src/test/java/com/example/StackingTestTest.java:26:13]
+ 25 │         public void testGenerateKeyExactSize() {
+ 26 │ ╭─▶         //= spec.md#section-2
+ 27 │ │           //= type=test
+ 28 │ ├─▶         //# This MUST have an annotation stacked on top of it
+    · ╰──── Test annotation
+ 29 │             
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Successful correlation
+    ╭─[src/main/java/com/example/StackingTest.java:14:17]
+ 13 │                 //# This MUST be stacked on another annotation
+ 14 │ ╭─▶             //= spec.md#section-2
+ 15 │ │               //= type=implementation
+ 16 │ ├─▶             //# This MUST have an annotation stacked on top of it
+    · ╰──── Executed implementation
+ 17 │                 keyMaterial = new byte[32]; // This line should be executed (line 17)
+    ╰────
+
+  ☞ Executed annotations
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+    ╭─[src/test/java/com/example/StackingTestTest.java:14:13]
+ 13 │         public void testGenerateKey() {
+ 14 │ ╭─▶         //= spec.md#section-1
+ 15 │ │           //= type=test
+ 16 │ ├─▶         //# This MUST be stacked on another annotation
+    · ╰──── Executed test
+ 17 │             
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+    ╭─[src/test/java/com/example/StackingTestTest.java:26:13]
+ 25 │         public void testGenerateKeyExactSize() {
+ 26 │ ╭─▶         //= spec.md#section-2
+ 27 │ │           //= type=test
+ 28 │ ├─▶         //# This MUST have an annotation stacked on top of it
+    · ╰──── Executed test
+ 29 │             
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+    ╭─[src/main/java/com/example/StackingTest.java:11:17]
+ 10 │             try {
+ 11 │ ╭─▶             //= spec.md#section-1
+ 12 │ │               //= type=implementation
+ 13 │ ├─▶             //# This MUST be stacked on another annotation
+    · ╰──── Executed implementation
+ 14 │                 //= spec.md#section-2
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+    ╭─[src/main/java/com/example/StackingTest.java:14:17]
+ 13 │                 //# This MUST be stacked on another annotation
+ 14 │ ╭─▶             //= spec.md#section-2
+ 15 │ │               //= type=implementation
+ 16 │ ├─▶             //# This MUST have an annotation stacked on top of it
+    · ╰──── Executed implementation
+ 17 │                 keyMaterial = new byte[32]; // This line should be executed (line 17)
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+    ╭─[src/main/java/com/example/StackingTest.java:19:13]
+ 18 │     
+ 19 │ ╭─▶         //= spec.md#section-3
+ 20 │ │           //= type=implementation
+ 21 │ ├─▶         //# This does not have a level.
+    · ╰──── Executed implementation
+ 22 │             return keyMaterial;
+    ╰────
+
+
+
+Overall: ✓ PASS
