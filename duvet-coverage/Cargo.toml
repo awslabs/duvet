@@ -12,3 +12,6 @@ builtin_macros = { package = "verus_builtin_macros", path = "../../verus/source/
 
 [package.metadata.verus]
 verify = true
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(verus_keep_ghost)'] }

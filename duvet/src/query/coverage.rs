@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 use crate::Result;
 use crate::annotation::{Annotation};
 use std::{
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
 
@@ -94,7 +94,6 @@ pub enum AnnotationExecutionStatus {
 }
 
 pub type LineMap = BTreeMap<u64, LineInfo>;
-pub type SourceLineMap = FxHashMap<PathBuf, LineMap>;
 
 /// Trait for parsing coverage reports
 pub trait CoverageParser {

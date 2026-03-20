@@ -5,21 +5,21 @@ use crate::{
     annotation::{Annotation, AnnotationType, AnnotationSet},
     source::SourceFile,
     query::{
-        coverage::{CoverageData, CoverageParser, LineMap, SourceLineMap, FileCoverage, LineInfo, ExecutionType, AnnotationExecutionStatus},
+        coverage::{CoverageData, CoverageParser, LineMap, FileCoverage, LineInfo, ExecutionType, AnnotationExecutionStatus},
         classify::classifier_for_path,
         parsers::JacocoParser,
     },
     Result,
 };
 use duvet_coverage::types::{
-    LineClass, LineProperty, AnnotationSpan, CoverageStatus,
+    LineClass, LineProperty, AnnotationSpan,
     CoverageReport as CoverageReportMap, Scope, ExecutionStatus,
 };
 use duvet_coverage::scopes::build_scope_tree;
 use duvet_coverage::annotation_execution::is_annotation_executed as classified_is_annotation_executed;
 use rustc_hash::FxHashMap;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::HashSet,
     path::{Path, PathBuf},
     sync::Arc,
 };

@@ -7,6 +7,11 @@
 //! [coverage model spec](../design/query/coverage-model-spec.md).
 //! When compiled with Verus, the correctness properties are machine-checked.
 
+// Verus generates code patterns that trigger these warnings under normal rustc.
+// The verus_keep_ghost cfg, unused proof variables, double-paren casts, and
+// vstd imports are all required for `cargo verus build` verification.
+#![allow(unused_imports, unused_variables, unused_parens, dead_code)]
+
 // The Verus proofs assume that u64-to-usize casts are lossless (usize >= 64 bits).
 // This compile-time assertion ensures the proofs are only trusted on platforms
 // where this holds. If this fails, the proofs' assume statements are unsound.
