@@ -5,6 +5,7 @@ use clap::Parser;
 use std::sync::Arc;
 
 mod annotation;
+mod query;
 mod comment;
 mod config;
 mod extract;
@@ -28,6 +29,8 @@ pub enum Arguments {
     Extract(extract::Extract),
     /// Generates reports for the project
     Report(report::Report),
+    /// Queries requirement traceability using coverage data
+    Query(query::Query),
 }
 
 #[duvet_core::query(cache)]
@@ -41,6 +44,7 @@ impl Arguments {
             Self::Init(args) => args.exec().await,
             Self::Extract(args) => args.exec().await,
             Self::Report(args) => args.exec().await,
+            Self::Query(args) => args.exec().await,
         }
     }
 }
