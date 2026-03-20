@@ -23,6 +23,7 @@ const _: () = assert!(
 use vstd::prelude::*;
 
 pub mod types;
+pub mod predicates;
 pub mod scopes;
 pub mod target_resolution;
 pub mod execution_propagation;

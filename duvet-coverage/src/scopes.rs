@@ -2,50 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Scope analysis (spec Section 1.5).
+//!
+//! This module contains the `build_scope_tree` algorithm and its proof
+//! engineering. The spec predicates it references (`scopes_well_formed`,
+//! `scope_contains`, `scopes_match_classifications`) are defined in
+//! [`crate::predicates`] for reviewer accessibility.
 
 use vstd::prelude::*;
 use crate::types::*;
+#[cfg(verus_keep_ghost)]
+pub use crate::predicates::{scope_contains, scopes_well_formed, scopes_match_classifications};
 
 verus! {
-
-/// Spec predicate: scope i strictly contains scope j (i is a parent/ancestor).
-pub open spec fn scope_contains(scopes: Seq<Scope>, i: int, j: int) -> bool {
-    &&& 0 <= i < scopes.len()
-    &&& 0 <= j < scopes.len()
-    &&& scopes[i].open_line <= scopes[j].open_line
-    &&& scopes[j].close_line <= scopes[i].close_line
-    &&& (scopes[i].open_line < scopes[j].open_line || scopes[j].close_line < scopes[i].close_line)
-}
-
-//= design/query/coverage-model-spec.md#scopes
-//# A scope is a contiguous range of lines delimited by `ScopeOpen` and
-//# `ScopeClose` properties. Scopes nest.
-/// Spec predicate: the scope tree is well-formed.
-/// - Every scope has open_line <= close_line
-/// - If two scopes overlap, one strictly contains the other (proper nesting)
-/// - Every scope's close_line has the ScopeClose property in classifications
-pub open spec fn scopes_well_formed(scopes: Seq<Scope>) -> bool {
-    &&& forall|i: int| 0 <= i < scopes.len() ==>
-        (#[trigger] scopes[i]).open_line <= scopes[i].close_line
-
-    &&& forall|i: int, j: int|
-        0 <= i < scopes.len() && 0 <= j < scopes.len() && i != j
-        && (#[trigger] scopes[i]).open_line < (#[trigger] scopes[j]).close_line
-        && scopes[j].open_line < scopes[i].close_line
-        ==> scope_contains(scopes, i, j) || scope_contains(scopes, j, i)
-}
-
-/// Spec predicate: scope close lines have ScopeClose in classifications.
-pub open spec fn scopes_match_classifications(
-    scopes: Seq<Scope>,
-    classifications: &[Option<LineClass>],
-) -> bool {
-    forall|i: int| 0 <= i < scopes.len()
-        && (scopes[i].close_line as int - 1) >= 0
-        && (scopes[i].close_line as int - 1) < classifications@.len()
-        ==> (#[trigger] classifications@[scopes[i].close_line as int - 1]).is_some()
-            && classifications@[scopes[i].close_line as int - 1].unwrap()@.contains(LineProperty::ScopeClose)
-}
 
 /// Two-pass scope tree construction.
 ///

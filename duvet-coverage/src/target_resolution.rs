@@ -5,9 +5,15 @@
 
 use vstd::prelude::*;
 use crate::types::*;
+#[cfg(verus_keep_ghost)]
+pub use crate::predicates::line_is_skippable;
 
 verus! {
 
+//= design/query/coverage-model-spec.md#property-10-annotation-target-bounds
+//= type=implication
+//# If `annotation_target(annotation, ...) = Some(target)`,
+//# then `target.line_number > annotation.end_line`.
 pub fn annotation_target(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -17,6 +23,24 @@ pub fn annotation_target(
         annotation.end_line < u64::MAX,
     ensures
         result.is_some() ==> result.unwrap().line_number > annotation.end_line,
+        // Property 5 support: all lines between the annotation end and the
+        // target (exclusive) are skippable. This enables the stacking proof:
+        // if annotation A is above B with only skippable lines between them,
+        // A's walk skips through to B's end, then continues identically to B's walk.
+        result.is_some() ==> forall|l: u64|
+            annotation.end_line < l && l < result.unwrap().line_number
+            ==> line_is_skippable(classifications, l),
+        // When result is None, all lines from end_line+1 to file_length are
+        // either skippable or past the classifications array.
+        result.is_none() ==> forall|l: u64|
+            annotation.end_line < l && l <= file_length
+            && (l as int - 1) >= 0 && (l as int - 1) < classifications@.len()
+            ==> line_is_skippable(classifications, l)
+                || (classifications@[l as int - 1].is_some()
+                    && classifications@[l as int - 1].unwrap()@.contains(LineProperty::ScopeClose)
+                    && !classifications@[l as int - 1].unwrap()@.contains(LineProperty::Statement)
+                    && !classifications@[l as int - 1].unwrap()@.contains(LineProperty::Declaration)
+                    && !classifications@[l as int - 1].unwrap()@.contains(LineProperty::ScopeOpen)),
 {
     let mut current: u64 = annotation.end_line + 1;
 
@@ -24,6 +48,10 @@ pub fn annotation_target(
         invariant
             current > annotation.end_line,
             current >= 1,
+            annotation.end_line < u64::MAX,
+            // All lines from annotation.end_line+1 to current-1 were skippable
+            forall|l: u64| annotation.end_line < l && l < current
+                ==> line_is_skippable(classifications, l),
         decreases file_length - current + 1,
     {
         if current == 0 { break; }
@@ -37,17 +65,21 @@ pub fn annotation_target(
                 return Some(TargetLine { line_number: current, properties: None });
             }
             Some(props) => {
+                proof { broadcast use crate::types::lemma_line_property_obeys_cmp_spec; }
                 if props.len() == 1 && props.contains(&LineProperty::Whitespace) {
+                    proof { assert(line_is_skippable(classifications, current)); }
                     if current == file_length { break; }
                     current = current + 1;
                     continue;
                 }
                 if props.len() == 1 && props.contains(&LineProperty::Comment) {
+                    proof { assert(line_is_skippable(classifications, current)); }
                     if current == file_length { break; }
                     current = current + 1;
                     continue;
                 }
                 if props.contains(&LineProperty::Annotation) {
+                    proof { assert(line_is_skippable(classifications, current)); }
                     if current == file_length { break; }
                     current = current + 1;
                     continue;

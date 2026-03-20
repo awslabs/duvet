@@ -2,120 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Phase 2: Execution Propagation (spec Section 3).
+//!
+//! This module contains the `execution_set` algorithm and its proof engineering
+//! (loop invariants, case analysis). The spec predicates it references
+//! (`in_scope`, `clear_path`, `has_valid_path`, etc.) are defined in
+//! [`crate::predicates`] for reviewer accessibility.
 
 use vstd::prelude::*;
 use std::collections::BTreeSet;
 use crate::types::*;
+#[cfg(verus_keep_ghost)]
+pub use crate::predicates::{
+    in_scope, propagated_within_scope, clear_path,
+    scope_has_non_linear_control, has_valid_path, validly_in_exec_set,
+};
 
 verus! {
-
-//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-//= type=implication
-//# The implementation MUST prove that for any two lines A and B where A is in
-//# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-//# S2 is not a parent of S1:
-/// Spec predicate: a line is within a scope's boundaries.
-pub open spec fn in_scope(line: u64, scopes: &[Scope], scope_idx: int) -> bool {
-    &&& 0 <= scope_idx < scopes@.len()
-    &&& line >= scopes@[scope_idx].open_line
-    &&& line <= scopes@[scope_idx].close_line
-}
-
-/// Spec predicate: No Cross-Scope Leakage.
-/// A propagated line and its source hit line are both within the same scope.
-pub open spec fn propagated_within_scope(
-    line: u64,
-    hit_line: u64,
-    scopes: &[Scope],
-    scope_idx: int,
-) -> bool {
-    &&& in_scope(line, scopes, scope_idx)
-    &&& in_scope(hit_line, scopes, scope_idx)
-}
-
-//= design/query/coverage-model-spec.md#property-1-no-false-positives
-//= type=implication
-//# The implementation MUST prove that if
-//# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
-//# line L such that:
-/// Spec predicate: every line strictly between `line` and `hit_line` is
-/// classified (Some), contains no ScopeClose, and contains no Statement.
-pub open spec fn clear_path(
-    line: u64,
-    hit_line: u64,
-    classifications: &[Option<LineClass>],
-) -> bool {
-    &&& hit_line > line
-    &&& (line as int - 1) >= 0
-    &&& (hit_line as int - 1) < classifications@.len()
-    &&& forall|l: int| (line as int) < l < (hit_line as int) ==> {
-        &&& 0 <= l - 1 < classifications@.len()
-        &&& #[trigger] classifications@[l - 1].is_some()
-        &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::ScopeClose)
-        &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::Statement)
-        &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::ScopeOpen)
-    }
-}
-
-/// Spec predicate: line was reached via backward propagation from hit_line.
-/// Composes: hit_line is directly hit, both are in the same scope (no leakage),
-/// and the path between them is clear (no false positives).
-/// Spec predicate: scope contains a line with NonLinearControl.
-pub open spec fn scope_has_non_linear_control(
-    classifications: &[Option<LineClass>],
-    scopes: &[Scope],
-    scope_idx: int,
-) -> bool {
-    &&& 0 <= scope_idx < scopes@.len()
-    &&& exists|l: u64|
-        l >= scopes@[scope_idx].open_line
-        && l <= scopes@[scope_idx].close_line
-        && (l as int - 1) >= 0
-        && (l as int - 1) < classifications@.len()
-        && #[trigger] classifications@[l as int - 1].is_some()
-        && classifications@[l as int - 1].unwrap()@.contains(LineProperty::NonLinearControl)
-}
-
-//= design/query/coverage-model-spec.md#property-3-conservative-fallback
-//# If an ancestor scope S contains `NonLinearControl` but a child
-//# scope S' does not, propagation MAY occur through S'.
-/// Spec predicate: line was reached via backward propagation from hit_line.
-/// Composes: hit_line is directly hit, both are in the same scope (no leakage),
-/// the path between them is clear (no false positives), and the scope does
-/// not contain NonLinearControl (conservative fallback).
-pub open spec fn has_valid_path(
-    line: u64,
-    hit_line: u64,
-    classifications: &[Option<LineClass>],
-    scopes: &[Scope],
-    scope_idx: int,
-    coverage: &CoverageReport,
-) -> bool {
-    &&& coverage@.contains_key(hit_line)
-    &&& coverage@[hit_line] == CoverageStatus::Hit
-    &&& propagated_within_scope(line, hit_line, scopes, scope_idx)
-    &&& clear_path(line, hit_line, classifications)
-    &&& !scope_has_non_linear_control(classifications, scopes, scope_idx)
-    // The propagated line itself is not ScopeClose or Statement (the walk stops before inserting)
-    &&& (line as int - 1) < classifications@.len()
-    &&& classifications@[line as int - 1].is_some()
-    &&& !classifications@[line as int - 1].unwrap()@.contains(LineProperty::ScopeClose)
-    &&& !classifications@[line as int - 1].unwrap()@.contains(LineProperty::Statement)
-}
-
-/// Spec predicate: line is validly in the execution set — either directly hit,
-/// or reachable via a valid propagation path from a hit line.
-pub open spec fn validly_in_exec_set(
-    line: u64,
-    classifications: &[Option<LineClass>],
-    scopes: &[Scope],
-    coverage: &CoverageReport,
-) -> bool {
-    (coverage@.contains_key(line) && coverage@[line] == CoverageStatus::Hit)
-    ||
-    exists|hit_line: u64, scope_idx: int|
-        has_valid_path(line, hit_line, classifications, scopes, scope_idx, coverage)
-}
 
 #[verifier::external_body]
 fn vec_from_btreeset(s: &BTreeSet<u64>) -> (result: Vec<u64>)

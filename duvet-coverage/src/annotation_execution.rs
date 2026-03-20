@@ -22,6 +22,15 @@ pub fn is_annotation_executed(
         forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
+    ensures
+        // Property 6 (Unknown Safety): Executed requires a classified target.
+        // If the result is Executed, then annotation_target returned Some with
+        // properties: Some(_) — the target is not an unknown line.
+        status == ExecutionStatus::Executed ==> {
+            let target = annotation_target(annotation, classifications, file_length);
+            &&& target.is_some()
+            &&& target.unwrap().properties.is_some()
+        },
 {
     let target = annotation_target(annotation, classifications, file_length);
     match target {
