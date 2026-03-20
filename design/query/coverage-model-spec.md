@@ -234,6 +234,13 @@ fn annotation_target(annotation, classifications, file_length):
                 if props contains ScopeClose and not (Statement or Declaration or ScopeOpen):
                     // Reached a closing brace with no substantive content.
                     // The annotation is dangling — it targets nothing.
+                    //
+                    // The compound check is necessary because some lines have
+                    // ScopeClose combined with other properties:
+                    //   `} catch (Exception e) {` → {ScopeClose, ScopeOpen, Declaration}
+                    //   `} while (condition);`    → {ScopeClose, Statement}
+                    // These are real targets, not dangling braces.
+                    // Only a bare `}` (ScopeClose alone) is dangling.
                     return None
 
                 // Any other combination: this is the target.
@@ -542,13 +549,13 @@ never decrease it.
 The implementation MUST prove that
 if annotation A (lines a1..a2) is immediately above
 annotation B (lines b1..b2)
-with only whitespace between them,
+with only whitespace, comments, or other annotations between them,
 and `is_annotation_executed(B, ...) = Executed`,
 then `is_annotation_executed(A, ...) = Executed`.
 
 This follows from:
 A and B resolve to the same target
-(Phase 1 walks through both),
+(Phase 1 walks through all three: annotations, whitespace, and comments),
 and if B's target is in the execution set,
 A's target is too (same target).
 

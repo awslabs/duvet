@@ -142,9 +142,28 @@ Phase 1: Annotation (lines 2-3) → target = line 4, properties: Some({Declarati
 
 Phase 3: Target (line 4) ∉ execution set → **NotExecuted**.
 
-This is the conservative fallback. Without `goto`, line 4 would have been in
-the execution set via backward propagation from line 5. With `goto`, we can't
-be sure line 4 was actually reached, so we don't propagate.
+This is the conservative fallback.
+In this specific example,
+it may seem tempting to reason that `int x;` on line 4 was reached —
+the function was entered and `goto skip` on line 5 executed,
+so sequential execution must have passed through line 4.
+However,
+there is no guarantee that the `goto` on line 5
+is the only jump targeting `skip:` on line 7.
+Another `goto skip` elsewhere in the program
+could also reach that label,
+and without a full control flow graph
+we cannot determine the exclusivity
+of any goto-to-label relationship.
+Rather than attempting a CFG analysis
+that would be difficult to verify formally,
+the model disables propagation entirely in scopes
+containing non-linear control flow.
+This is a safe over-approximation:
+it may report some annotations as NotExecuted
+when they were actually reached,
+but it will never report an annotation as Executed
+when it was not.
 
 ### 6.7 Unknown line blocks propagation {#example-unknown}
 

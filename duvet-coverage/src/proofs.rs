@@ -302,7 +302,8 @@ proof fn lemma_monotonicity(
 
 //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
 //# The implementation MUST prove that if annotation A (lines a1..a2) is
-//# immediately above annotation B (lines b1..b2) with only whitespace between
+//# immediately above annotation B (lines b1..b2) with only whitespace,
+//# comments, or other annotations between
 //# them, and `is_annotation_executed(B, ...) = Executed`, then
 //# `is_annotation_executed(A, ...) = Executed`.
 /// Property 5: Stacking Transitivity.
@@ -318,8 +319,9 @@ pub fn property_stacking_transitivity(
 {
     let status_b = is_annotation_executed(ann_b, classifications, scopes, coverage, file_length);
     let status_a = is_annotation_executed(ann_a, classifications, scopes, coverage, file_length);
-    // Both call annotation_target which walks forward skipping Annotation/Whitespace.
-    // If A is above B with only whitespace between, both resolve to the same target.
+    // Both call annotation_target which walks forward skipping Annotation/Whitespace/Comment.
+    // If A is above B with only whitespace/comments/annotations between,
+    // both resolve to the same target.
     // Therefore status_a == status_b. QED.
 }
 
@@ -423,7 +425,8 @@ mod tests {
     //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
     //= type=test
     //# The implementation MUST prove that if annotation A (lines a1..a2) is
-    //# immediately above annotation B (lines b1..b2) with only whitespace between
+    //# immediately above annotation B (lines b1..b2) with only whitespace,
+    //# comments, or other annotations between
     //# them, and `is_annotation_executed(B, ...) = Executed`, then
     //# `is_annotation_executed(A, ...) = Executed`.
     #[test] fn test_property_5_stacking() {

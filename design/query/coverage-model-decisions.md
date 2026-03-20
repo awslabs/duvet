@@ -1,7 +1,7 @@
 # Coverage Model: Design Decisions
 
-**Authors:** Ryan Emery
-**Date:** 2026-03-16 (Decisions 1–9), 2026-03-17 (Decisions 10–13)
+**Authors:** Seebees
+**Date:** 2026-03-16
 **Status:** Implemented
 
 ## Context
