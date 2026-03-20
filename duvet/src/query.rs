@@ -5,13 +5,11 @@ use clap::Parser;
 use crate::Result;
 use duvet_core::{progress};
 
-// Keep existing coverage modules for now (they will be used by the new coverage check)
 pub mod coverage;
 pub mod result;
 pub mod parsers;
 pub mod classify;
 
-// New query modules
 mod requirements;
 mod checks;
 mod engine;

@@ -144,12 +144,14 @@ async fn build_v2_data_for_file(
     // Classify with tree-sitter
     let mut classifications = classifier.classify(&file_content);
 
-    // Override annotation lines with Annotation property
+    // Override annotation lines with Annotation property.
+    // This is the authoritative source — it uses duvet's parsed annotation data
+    // rather than the classifier's heuristic prefix detection (which is
+    // language-specific and may disagree). The classifier's annotation detection
+    // serves as a first pass; this override ensures correctness.
     for annotation in annotations.iter() {
         if annotation.source == *duvet_path {
-            let start_line = annotation.anno_line as u64;
-            let text_lines = annotation.original_text.lines().count();
-            let end_line = start_line + text_lines as u64 - 1;
+            let (start_line, end_line) = annotation.line_range();
             for line_num in start_line..=end_line {
                 let idx = (line_num - 1) as usize;
                 if idx < classifications.len() {
@@ -214,17 +216,15 @@ fn update_coverage_lines(
         line_map.insert(line_num as u64, line_info);
     }
     
-    // 3. Process functions for method boundaries (if we decide to implement this)
-    // TODO: Handle functions for MethodBoundary detection
+    // Function/method boundary data from coverage tools (e.g., JaCoCo's <method line="N">)
+    // is stored in FileCoverage.functions but not currently used for line classification.
+    // The v2 coverage model handles method boundaries via tree-sitter classification instead.
 }
 
 fn update_annotation_lines(line_map: &mut LineMap, annotations: &AnnotationSet, duvet_path: &Path) {
     for annotation in annotations.iter() {
         if annotation.source == *duvet_path {
-            let start_line = annotation.anno_line as u64;
-            let text_lines = annotation.original_text.lines().count();
-            let end_line = start_line + text_lines as u64 - 1;
-
+            let (start_line, end_line) = annotation.line_range();
             for line_num in start_line..=end_line {
                 line_map.insert(line_num, LineInfo::Annotation(annotation.clone()));
             }
@@ -262,9 +262,14 @@ fn paths_match(duvet_path: &Path, coverage_path: &str) -> bool {
         return true;
     }
     
-    // Strategy 2: Check if duvet path (usually longer/absolute) ends with coverage path (usually shorter/relative)
+    // Strategy 2: Check if duvet path ends with coverage path at a path separator boundary
+    // e.g., duvet="/project/src/main/java/Foo.java" matches coverage="src/main/java/Foo.java"
+    // but duvet="/project/FooTest.java" does NOT match coverage="Test.java"
     if duvet_path_str.ends_with(coverage_path) {
-        return true;
+        let prefix_len = duvet_path_str.len() - coverage_path.len();
+        if prefix_len == 0 || duvet_path_str.as_bytes()[prefix_len - 1] == b'/' {
+            return true;
+        }
     }
     
     // Strategy 3: Handle Jacoco parser bug where coverage path has extra package prefix
@@ -277,9 +282,12 @@ fn paths_match(duvet_path: &Path, coverage_path: &str) -> bool {
         }
     }
     
-    // Strategy 4: Check reverse - if coverage path ends with duvet path
+    // Strategy 4: Check reverse at a path separator boundary
     if coverage_path.ends_with(&duvet_path_str) {
-        return true;
+        let prefix_len = coverage_path.len() - duvet_path_str.len();
+        if prefix_len == 0 || coverage_path.as_bytes()[prefix_len - 1] == b'/' {
+            return true;
+        }
     }
     
     false
@@ -318,9 +326,7 @@ pub fn is_annotation_executed(
 
     // Try v2 path first
     if let Some(v2_data) = v2_data_map.get(&file_path) {
-        let start_line = annotation.anno_line as u64;
-        let text_lines = annotation.original_text.lines().count();
-        let end_line = start_line + text_lines as u64 - 1;
+        let (start_line, end_line) = annotation.line_range();
 
         let ann_span = AnnotationSpan {
             start_line,
@@ -368,21 +374,19 @@ fn is_annotation_executed_fallback(
         None => return AnnotationExecutionStatus::NotExecuted, // File not in coverage data
     };
     
-    // 2. Find annotation end line
-    let start_line = annotation.anno_line as u64;
-    let text_lines = annotation.original_text.lines().count();
-    let end_line = start_line + text_lines as u64 - 1;
+    // 2. Find annotation line range
+    let (start_line, end_line) = annotation.line_range();
     
     // 3. Confirm this is the same annotation
     for line_num in start_line..=end_line {
         if let Some(LineInfo::Annotation(stored_annotation)) = line_map.get(&line_num) {
             if stored_annotation != annotation {
-                // TODO, this should be an error, Unknown is just confusing
-                return AnnotationExecutionStatus::Unknown { line_number: line_num }; // Different annotation at expected location
+                // Line map has a different annotation at this location — data inconsistency
+                return AnnotationExecutionStatus::Unknown { line_number: line_num };
             }
         } else {
-            // TODO, this should be an error, Unknown is just confusing
-            return AnnotationExecutionStatus::Unknown { line_number: line_num }; // Expected annotation not found
+            // Expected annotation line not found in line map — data inconsistency
+            return AnnotationExecutionStatus::Unknown { line_number: line_num };
         }
     }
     

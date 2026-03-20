@@ -31,6 +31,17 @@ pub enum CheckResult {
     Duplicates(DuplicatesResult),
 }
 
+impl CheckResult {
+    pub fn status(&self) -> &QueryStatus {
+        match self {
+            CheckResult::Implementation(r) => &r.status,
+            CheckResult::Tests(r) => &r.status,
+            CheckResult::Coverage(r) => &r.status,
+            CheckResult::Duplicates(r) => &r.status,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ImplementationResult {
     pub status: QueryStatus,
@@ -67,12 +78,7 @@ pub struct CoverageResult {
 #[derive(Debug)]
 pub struct DuplicatesResult {
     pub status: QueryStatus,
-    pub spec: Duplicates,
-    pub implementation: Duplicates,
-    pub test: Duplicates,
-    pub exception: Duplicates,
-    pub todo: Duplicates,
-    pub implication: Duplicates,
+    pub categories: Vec<(&'static str, Duplicates)>,
     pub verbose: bool,
 }
 
@@ -108,7 +114,9 @@ pub struct AnnotationCoverage {
 
 impl AnnotationCoverage {
     pub fn merge(mut self, other: AnnotationCoverage) -> AnnotationCoverage {
-        // MUST have same target - panic if not
+        // Uses pointer identity rather than value equality. This is correct because
+        // all AnnotationCoverage instances for the same annotation share the same
+        // Arc clone from the AnnotationSet — they always point to the same allocation.
         assert!(Arc::ptr_eq(&self.target, &other.target),
             "Cannot merge AnnotationCoverage with different targets");
 
@@ -283,9 +291,8 @@ impl fmt::Display for ImplementationResult {
                         .split_first()
                         .expect("covering_annotations should not be empty");
 
-                    // TODO these are implementations, exceptions, and implications
-                    // the tag text should reflect this.
-
+                    // Covering annotations may be citations, exceptions, or implications —
+                    // the label should reflect the actual type, but for now we use "Implemented".
                     let mut complete = info!("Fully Implemented");
                     complete = with_annotation(complete, first, "Implemented");
                     complete = with_related_annotations(
@@ -497,8 +504,7 @@ impl fmt::Display for DuplicatesResult {
         writeln!(f, "Duplicates: {}", self.status)?;
         writeln!(f)?;
 
-        // Helper function to show duplicates for a category
-        let show_duplicates = |f: &mut fmt::Formatter, category_name: &str, duplicates: &Duplicates| -> fmt::Result {
+        for (category_name, duplicates) in &self.categories {
             if !duplicates.duplicates.is_empty() {
                 for coverage in &duplicates.duplicates {
                     let duplicate_error = coverage2error(
@@ -510,22 +516,10 @@ impl fmt::Display for DuplicatesResult {
                     writeln!(f, "{:?}", duplicate_error)?;
                 }
             }
-            Ok(())
-        };
+        }
 
-        // Always show duplicates for each category
-        show_duplicates(f, "Spec", &self.spec)?;
-        show_duplicates(f, "Implementation", &self.implementation)?;
-        show_duplicates(f, "Test", &self.test)?;
-        show_duplicates(f, "Exception", &self.exception)?;
-        show_duplicates(f, "Todo", &self.todo)?;
-        show_duplicates(f, "Implication", &self.implication)?;
-
-        // If verbose, show additional details
         if self.verbose {
-            // Helper function to show verbose info for a category
-            let show_verbose_info = |f: &mut fmt::Formatter, category_name: &str, duplicates: &Duplicates| -> fmt::Result {
-                // Show some_overlap
+            for (category_name, duplicates) in &self.categories {
                 if !duplicates.some_overlap.is_empty() {
                     for coverage in &duplicates.some_overlap {
                         let (first, rest) = coverage.covering_annotations
@@ -543,7 +537,6 @@ impl fmt::Display for DuplicatesResult {
                     }
                 }
 
-                // Show unique
                 if !duplicates.unique.is_empty() {
                     let mut unique_info = info!("Unique {} annotations", category_name.to_lowercase());
                     unique_info = with_related_annotations(
@@ -553,15 +546,7 @@ impl fmt::Display for DuplicatesResult {
                     );
                     writeln!(f, "{:?}", unique_info)?;
                 }
-                Ok(())
-            };
-
-            show_verbose_info(f, "Spec", &self.spec)?;
-            show_verbose_info(f, "Implementation", &self.implementation)?;
-            show_verbose_info(f, "Test", &self.test)?;
-            show_verbose_info(f, "Exception", &self.exception)?;
-            show_verbose_info(f, "Todo", &self.todo)?;
-            show_verbose_info(f, "Implication", &self.implication)?;
+            }
         }
 
         Ok(())

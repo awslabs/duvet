@@ -43,9 +43,12 @@ pub async fn is_annotation_covered(
 
     // Get the target and find the specification
     let target = target_annotation.target()?;
-    let specification = specifications.get(&target).expect("Specification not found for target annotation");
-    let target_section = target_annotation.target_section().expect("Section not found for specification");
-    let section = specification.section(&target_section).expect("Target section not found in specification");
+    let specification = specifications.get(&target)
+        .ok_or_else(|| duvet_core::error!("Specification not found for target: {}", target_annotation.target))?;
+    let target_section = target_annotation.target_section()
+        .ok_or_else(|| duvet_core::error!("No section in annotation target: {}", target_annotation.target))?;
+    let section = specification.section(&target_section)
+        .ok_or_else(|| duvet_core::error!("Section '{}' not found in specification: {}", target_section, target_annotation.target))?;
     let section_contents = section.view();
 
     // Normalize the sections for our matching
@@ -147,12 +150,17 @@ pub async fn classify_annotation_coverage(
     let mut mixed_coverage: Vec<AnnotationCoverage> = Vec::new();
     let mut secondary_coverage: Vec<AnnotationCoverage> = Vec::new();
 
+    // Wrap in Arc to share across futures without cloning the entire Vec per annotation
+    let specifications = project_data.specifications.clone();
+    let primary_annotations = Arc::new(maybe_primary_covering_annotations.clone());
+    let secondary_annotations = Arc::new(maybe_secondary_covering_annotations.clone());
+
     // Create futures for concurrent coverage calculation
     let coverage_futures: Vec<_> = annotations.iter().map(|annotation| {
         let annotation = annotation.clone();
-        let specifications = project_data.specifications.clone();
-        let primary_annotations = maybe_primary_covering_annotations.clone();
-        let secondary_annotations = maybe_secondary_covering_annotations.clone();
+        let specifications = specifications.clone();
+        let primary_annotations = primary_annotations.clone();
+        let secondary_annotations = secondary_annotations.clone();
         
         async move {
             let (primary_coverage, secondary_coverage) = futures::future::try_join(

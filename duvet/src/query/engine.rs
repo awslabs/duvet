@@ -82,11 +82,7 @@ pub async fn execute_checks(
                         "Coverage format is required. Use --coverage-format"
                     ))?;
 
-                let coverage_check_executed_tests_only = if matches!(check_type, CheckType::ExecutedCoverage) {
-                    true
-                } else {
-                    false
-                };
+                let coverage_check_executed_tests_only = matches!(check_type, CheckType::ExecutedCoverage);
 
                 // Parse coverage data in parallel using async
                 let parse_futures: Vec<_> = report_paths.iter().map(|path| {
@@ -109,12 +105,7 @@ pub async fn execute_checks(
     }
     
     // Calculate overall status
-    let overall_status = if results.iter().all(|r| match r {
-        CheckResult::Implementation(impl_result) => impl_result.status == QueryStatus::Pass,
-        CheckResult::Tests(test_result) => test_result.status == QueryStatus::Pass,
-        CheckResult::Coverage(cov_result) => cov_result.status == QueryStatus::Pass,
-        CheckResult::Duplicates(dup_result) => dup_result.status == QueryStatus::Pass,
-    }) {
+    let overall_status = if results.iter().all(|r| *r.status() == QueryStatus::Pass) {
         QueryStatus::Pass
     } else {
         QueryStatus::Fail
@@ -129,8 +120,6 @@ pub async fn execute_checks(
 
 #[derive(Debug)]
 pub struct ProjectData {
-    // Currently references are not used.
-    // pub references: Arc<[crate::reference::Reference]>,
     pub specifications: Arc<std::collections::HashMap<Arc<crate::target::Target>, Arc<crate::specification::Specification>>>,
     pub project_sources: Arc<HashSet<SourceFile>>,
     pub annotations: AnnotationSet,
@@ -174,7 +163,6 @@ async fn load_project_data(verbose: bool) -> Result<ProjectData> {
     progress!(progress, "Matched {} references", references.len());
 
     Ok(ProjectData {
-        // references,
         specifications,
         project_sources,
         annotations,
@@ -463,14 +451,13 @@ async fn execute_coverage_check(
                 test: test.target.clone(),
                 test_execution_status: test_executed,
                 executed_implementations: Vec::new(),
-                // What is the right value here?
-                // Some of these annotations might be executed in some of the coverage.
-                // Does communicate anything meaningful?
+                // When the test itself wasn't executed, its implementation
+                // correlations are meaningless — we can't know which
+                // implementations would have been reached.
                 not_executed_implementations: Vec::new(),
             };
             failed.push(result);
         }
-        // What happens if the test is executed in multiple runs?
     }
 
     let executed_tests: AnnotationSet = successful
@@ -571,14 +558,25 @@ async fn execute_duplicates(
         QueryStatus::Pass
     };
 
+    // Build categories in a stable order
+    let category_order: &[(&str, AnnotationType)] = &[
+        ("Spec", AnnotationType::Spec),
+        ("Implementation", AnnotationType::Citation),
+        ("Test", AnnotationType::Test),
+        ("Exception", AnnotationType::Exception),
+        ("Todo", AnnotationType::Todo),
+        ("Implication", AnnotationType::Implication),
+    ];
+    let categories: Vec<(&'static str, Duplicates)> = category_order
+        .iter()
+        .map(|(name, anno_type)| {
+            (*name, duplicates_by_type.remove(anno_type).unwrap_or_else(empty_duplicates))
+        })
+        .collect();
+
     Ok(CheckResult::Duplicates(DuplicatesResult{
         status,
-        spec: duplicates_by_type.remove(&AnnotationType::Spec).unwrap_or_else(empty_duplicates),
-        implementation: duplicates_by_type.remove(&AnnotationType::Citation).unwrap_or_else(empty_duplicates),
-        test: duplicates_by_type.remove(&AnnotationType::Test).unwrap_or_else(empty_duplicates),
-        exception: duplicates_by_type.remove(&AnnotationType::Exception).unwrap_or_else(empty_duplicates),
-        todo: duplicates_by_type.remove(&AnnotationType::Todo).unwrap_or_else(empty_duplicates),
-        implication: duplicates_by_type.remove(&AnnotationType::Implication).unwrap_or_else(empty_duplicates),
+        categories,
         verbose,
     }))
 
