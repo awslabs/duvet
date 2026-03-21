@@ -25,7 +25,7 @@ globset = "0.4"
 http = { version = "1", optional = true }
 miette = { version = "7", features = ["fancy"] }
 once_cell = "1"
-reqwest = { version = "0.12", optional = true, features = ["native-tls"] }
+reqwest = { version = "0.13", optional = true }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 similar = { version = "2.6", features = ["inline"], optional = true }
