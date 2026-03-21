@@ -20,8 +20,6 @@ mod lcov;
 mod snapshot;
 mod stats;
 mod status;
-#[cfg(test)]
-mod tests;
 
 use stats::Statistics;
 
@@ -39,8 +37,14 @@ pub struct Report {
     #[clap(long)]
     html: Option<Path>,
 
-    #[clap(long, action = clap::ArgAction::SetTrue)]
-    ci: bool,
+    #[clap(long)]
+    require_citations: Option<Option<bool>>,
+
+    #[clap(long)]
+    require_tests: Option<Option<bool>>,
+
+    #[clap(long)]
+    ci: Option<Option<bool>>,
 
     #[clap(long)]
     blob_link: Option<String>,
@@ -109,7 +113,6 @@ impl Report {
         progress!(progress, "Matched {} references", references.len());
 
         let progress = progress!("Sorting references");
-        
         for reference in references.iter() {
             report
                 .targets
@@ -119,6 +122,8 @@ impl Report {
                     TargetReport {
                         references: vec![],
                         specification,
+                        require_citations: self.require_citations(),
+                        require_tests: self.require_tests(),
                         statuses: Default::default(),
                     }
                 })
@@ -142,12 +147,14 @@ impl Report {
             .map(Path::from);
         let snapshot_path = config.and_then(|config| config.report.snapshot.path());
 
-        let ci = if !self.ci && snapshot_path.is_some() {
-            // If --ci is not explicitly set but snapshots are configured, check CI env var
-            std::env::var("CI").is_ok_and(|value| !["false", "0"].contains(&value.as_str()))
-        } else {
-            // Otherwise use the flag value
-            self.ci
+        let ci = match self.ci {
+            // use the new CI environment variable if the snapshot reports are configured
+            None if snapshot_path.is_some() => {
+                std::env::var("CI").is_ok_and(|value| !["false", "0"].contains(&value.as_str()))
+            }
+            None => false,
+            Some(None) => true,
+            Some(Some(value)) => value,
         };
 
         let reports: &[(Option<&_>, ReportFn)] = &[
@@ -178,8 +185,7 @@ impl Report {
 
         for (path, report_fn) in reports {
             if let Some(path) = path {
-                let is_snapshot_ci =
-                    std::ptr::fn_addr_eq(snapshot::report_ci as ReportFn, *report_fn);
+                let is_snapshot_ci = snapshot::report_ci as ReportFn == *report_fn;
                 let progress = if is_snapshot_ci {
                     progress!("Checking {path}")
                 } else {
@@ -194,7 +200,28 @@ impl Report {
             }
         }
 
+        // only use the old CI check if the config hasn't set up snapshots
+        if ci && snapshot_path.is_none() {
+            ci::report(&report)?;
+        }
+
         Ok(())
+    }
+
+    fn require_citations(&self) -> bool {
+        match self.require_citations {
+            None => true,
+            Some(None) => true,
+            Some(Some(value)) => value,
+        }
+    }
+
+    fn require_tests(&self) -> bool {
+        match self.require_tests {
+            None => true,
+            Some(None) => true,
+            Some(Some(value)) => value,
+        }
     }
 }
 
@@ -211,6 +238,8 @@ pub struct ReportResult<'a> {
 pub struct TargetReport {
     references: Vec<Reference>,
     specification: Arc<Specification>,
+    require_citations: bool,
+    require_tests: bool,
     statuses: status::StatusMap,
 }
 

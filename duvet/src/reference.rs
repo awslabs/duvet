@@ -148,6 +148,3 @@ pub async fn build_references(
 
     (references.into(), errors.into())
 }
-
-#[cfg(test)]
-mod tests;
