@@ -3,7 +3,7 @@ description: 'Installs Duvet in the GitHub Actions environment'
 inputs:
   version:
     description: 'Version of Duvet to install'
-    default: 0.3.0
+    default: 0.4.1
     required: false
 runs:
   using: "composite"
