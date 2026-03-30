@@ -62,7 +62,7 @@ jobs:
       - name: Setup Pages
         id: pages
         if: github.event_name == 'push'
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
@@ -80,4 +80,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
