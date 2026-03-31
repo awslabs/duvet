@@ -59,10 +59,29 @@ snapshot!(
 );
 
 snapshot!(
+    type_citation_with_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= reason=This is why the code does the feature
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
     type_test,
     r#"
     //@= https://example.com/spec.txt
     //@= type=test
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
+    type_test_with_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=test
+    //@= reason=This is why this actually tests the feature
     //@# Here is my citation
     "#
 );
@@ -85,6 +104,37 @@ snapshot!(
     //@= type=exception
     //@= reason=This isn't possible currently
     //@# Here is my citation
+    "#
+);
+
+snapshot!(
+    type_implication,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=implication
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
+    type_implication_with_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=implication
+    //@= reason=This is implied by the protocol design
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
+    type_exception_multiline_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=exception
+    //@= reason=There's a lot to justify here,
+    //@= reason=so this reason needs to be split across two
+    //@= reason=or even three lines.
+    //@# Before encrypting input plaintext,
     "#
 );
 
