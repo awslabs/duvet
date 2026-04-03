@@ -13,7 +13,7 @@ use core::{
     str::FromStr,
 };
 use duvet_core::{diagnostic::IntoDiagnostic, error, file::Slice, path::Path, query};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     path::PathBuf,
@@ -240,7 +240,10 @@ impl FromStr for AnnotationType {
 }
 
 // The order is in terms of priority from least to greatest
-#[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "UPPERCASE")]
 #[cfg_attr(test, derive(bolero::TypeGenerator))]
 pub enum AnnotationLevel {
     #[default]
@@ -279,6 +282,38 @@ impl FromStr for AnnotationLevel {
                 v,
                 ["AUTO", "MUST", "SHOULD", "MAY"]
             )),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Annotation, AnnotationLevel, AnnotationType};
+    use crate::specification::Format;
+    use duvet_core::{file::SourceFile, path::Path};
+    use std::collections::BTreeSet;
+
+    fn make_test_annotation(source_path: &str, anno_line: usize, target: &str) -> Annotation {
+        let source_file = SourceFile::new(Path::from(source_path), "test content").unwrap();
+        let slice = source_file.substr_range(0..4).unwrap();
+
+        Annotation {
+            source: Path::from(source_path),
+            anno_line,
+            original_target: slice.clone(),
+            original_text: slice.clone(),
+            original_quote: slice,
+            anno: AnnotationType::Citation,
+            target: target.to_string(),
+            quote: String::new(),
+            comment: String::new(),
+            manifest_dir: Path::from("."),
+            level: AnnotationLevel::Auto,
+            format: Format::Auto,
+            tracking_issue: String::new(),
+            feature: String::new(),
+            tags: BTreeSet::new(),
+            blob_link: None,
         }
     }
 }

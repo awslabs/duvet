@@ -227,7 +227,7 @@ impl IntegrationTest {
     fn run(&self, target: &Path, sh: &Shell) -> Result {
         let Self { name, cmd, cwd, .. } = self;
 
-        let (stderr, json_report, snapshot_report) = {
+        let (stderr, json_report, json_v2_report, snapshot_report) = {
             let target_dir = if let Some(cwd) = cwd {
                 target.join(cwd)
             } else {
@@ -236,6 +236,7 @@ impl IntegrationTest {
             let _dir = sh.push_dir(&target_dir);
             let html_report = sh.current_dir().join("duvet_report.html");
             let json_report = sh.current_dir().join("duvet_report.json");
+            let json_v2_report = sh.current_dir().join("duvet_report_v2.json");
             let snapshot_report = sh.current_dir().join("duvet_snapshot.txt");
 
             // override this variable if we're in the duvet CI
@@ -243,6 +244,10 @@ impl IntegrationTest {
             let _env = sh.push_env("DUVET_INTERNAL_CI", "true");
             let _env = sh.push_env("DUVET_INTERNAL_CI_HTML", html_report.display().to_string());
             let _env = sh.push_env("DUVET_INTERNAL_CI_JSON", json_report.display().to_string());
+            let _env = sh.push_env(
+                "DUVET_INTERNAL_CI_JSON_V2",
+                json_v2_report.display().to_string(),
+            );
             let _env = sh.push_env(
                 "DUVET_INTERNAL_CI_SNAPSHOT",
                 snapshot_report.display().to_string(),
@@ -275,10 +280,11 @@ impl IntegrationTest {
             if stderr.is_empty() {
                 assert!(html_report.exists());
                 assert!(json_report.exists());
+                assert!(json_v2_report.exists());
                 assert!(snapshot_report.exists());
             }
 
-            (stderr, json_report, snapshot_report)
+            (stderr, json_report, json_v2_report, snapshot_report)
         };
 
         let mut settings = insta::Settings::clone_current();
@@ -296,11 +302,15 @@ impl IntegrationTest {
         let json_file = sh.read_file(&json_report)?;
         let json: serde_json::Value = serde_json::from_str(&json_file)?;
 
+        let json_v2_file = sh.read_file(&json_v2_report)?;
+        let json_v2: serde_json::Value = serde_json::from_str(&json_v2_file)?;
+
         let snapshot = sh.read_file(&snapshot_report)?;
 
         settings.bind(|| {
             insta::assert_snapshot!(format!("{name}"), snapshot);
             insta::assert_json_snapshot!(format!("{name}_json"), json);
+            insta::assert_json_snapshot!(format!("{name}_json_v2"), json_v2);
         });
 
         Ok(())
