@@ -236,7 +236,8 @@ impl ReportV2 {
                 .specification
                 .sorted_sections()
                 .into_iter()
-                .find_map(|s| Some(s.full_title.file().clone()));
+                .map(|s| s.full_title.file().clone())
+                .next();
 
             if let Some(file) = source_file {
                 let contents: &str = &file;
