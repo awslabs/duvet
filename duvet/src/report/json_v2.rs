@@ -6,10 +6,7 @@
 //! This module provides a roundtrip-friendly JSON format with entity-typed
 //! deterministic IDs, enabling multi-package report merging.
 
-use crate::{
-    ids,
-    report::ReportResult,
-};
+use crate::{ids, report::ReportResult};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
@@ -276,11 +273,7 @@ impl ReportV2 {
                 .blob_link
                 .as_ref()
                 .and_then(|bl| blob_link_to_repo_id.get(bl.as_ref()))
-                .or_else(|| {
-                    report
-                        .blob_link
-                        .and_then(|bl| blob_link_to_repo_id.get(bl))
-                })
+                .or_else(|| report.blob_link.and_then(|bl| blob_link_to_repo_id.get(bl)))
                 .cloned()
                 .unwrap_or_default();
 
@@ -395,25 +388,14 @@ impl ReportV2 {
                     .blob_link
                     .as_ref()
                     .and_then(|bl| blob_link_to_repo_id.get(bl.as_ref()))
-                    .or_else(|| {
-                        report
-                            .blob_link
-                            .and_then(|bl| blob_link_to_repo_id.get(bl))
-                    })
+                    .or_else(|| report.blob_link.and_then(|bl| blob_link_to_repo_id.get(bl)))
                     .cloned()
                     .unwrap_or_default();
 
                 let lnk_key = (file_name.clone(), repo_id.clone());
-                let lnk_id = source_to_lnk_id
-                    .get(&lnk_key)
-                    .cloned()
-                    .unwrap_or_default();
+                let lnk_id = source_to_lnk_id.get(&lnk_key).cloned().unwrap_or_default();
 
-                let cite_id = ids::cite_id(
-                    &lnk_id,
-                    reference.annotation.anno_line,
-                    src_id,
-                );
+                let cite_id = ids::cite_id(&lnk_id, reference.annotation.anno_line, src_id);
 
                 // Add byte range to existing impl annotation or create new one
                 let range = ByteRange {
@@ -503,8 +485,9 @@ impl ReportV2 {
                     }
                 }
 
-                req_annotations.entry(req_id).or_insert_with(|| {
-                    RequirementAnnotation {
+                req_annotations
+                    .entry(req_id)
+                    .or_insert_with(|| RequirementAnnotation {
                         source: SourceRef {
                             source: src_id.clone(),
                             start: req_start,
@@ -512,8 +495,7 @@ impl ReportV2 {
                         },
                         level: reference.annotation.level.into(),
                         coverage,
-                    }
-                });
+                    });
             }
         }
 

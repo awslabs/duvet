@@ -133,7 +133,8 @@ mod tests {
             let hex = &id[prefix.len()..];
             assert_eq!(hex.len(), 16, "{id} hex part wrong length");
             assert!(
-                hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+                hex.chars()
+                    .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
                 "{id} contains non-hex chars"
             );
         }
@@ -166,16 +167,14 @@ mod tests {
     fn separator_safety_lnk() {
         use bolero::check;
 
-        check!()
-            .with_type::<(String, String)>()
-            .for_each(|(a, b)| {
-                if a != b {
-                    assert_ne!(lnk_id(a, b), lnk_id(b, a));
-                }
-                // Embedding \0 in a field must not collide with the separator
-                let fused = format!("{a}\0{b}");
-                assert_ne!(lnk_id(&fused, ""), lnk_id(a, b));
-            });
+        check!().with_type::<(String, String)>().for_each(|(a, b)| {
+            if a != b {
+                assert_ne!(lnk_id(a, b), lnk_id(b, a));
+            }
+            // Embedding \0 in a field must not collide with the separator
+            let fused = format!("{a}\0{b}");
+            assert_ne!(lnk_id(&fused, ""), lnk_id(a, b));
+        });
     }
 
     /// Swapping start/end in spc_id produces different IDs.
