@@ -13,6 +13,7 @@ use std::collections::{BTreeMap, HashMap};
 // ── Top-level structure ──────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct ReportV2 {
     pub version: String,
@@ -25,6 +26,7 @@ pub struct ReportV2 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct Repository {
     pub blob_link: String,
 }
@@ -32,6 +34,7 @@ pub struct Repository {
 // ── Sources ──────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct SourcesV2 {
     #[serde(rename = "https://awslabs.github.io/duvet/v2/sources.json#inline")]
     pub inline: BTreeMap<String, InlineSource>,
@@ -40,12 +43,14 @@ pub struct SourcesV2 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct InlineSource {
     pub file_name: String,
     pub contents: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct LinkedSource {
     pub file_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,6 +60,7 @@ pub struct LinkedSource {
 // ── Annotations ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct AnnotationsV2 {
     #[serde(rename = "https://awslabs.github.io/duvet/v2/annotations.json#specification")]
     pub specification: BTreeMap<String, SpecificationAnnotation>,
@@ -69,6 +75,7 @@ pub struct AnnotationsV2 {
 // ── Shared types ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct SourceRef {
     pub source: String,
     pub start: usize,
@@ -76,6 +83,7 @@ pub struct SourceRef {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct SourceLocation {
     pub source: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -83,6 +91,7 @@ pub struct SourceLocation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct ByteRange {
     pub start: usize,
     pub end: usize,
@@ -91,6 +100,7 @@ pub struct ByteRange {
 // ── Annotation types ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct SpecificationAnnotation {
     pub source: SourceRef,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -99,6 +109,7 @@ pub struct SpecificationAnnotation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct SectionAnnotation {
     pub source: SourceRef,
     pub short_name: String,
@@ -107,6 +118,7 @@ pub struct SectionAnnotation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct RequirementAnnotation {
     pub source: SourceRef,
     pub level: AnnotationLevel,
@@ -115,6 +127,7 @@ pub struct RequirementAnnotation {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct ImplAnnotation {
     pub source: SourceLocation,
     pub target_source: String,
@@ -138,6 +151,7 @@ pub struct ImplAnnotation {
 /// Note: `Spec` is not included — spec-derived annotations are represented by
 /// `SpecificationAnnotation`, `SectionAnnotation`, and `RequirementAnnotation`.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub enum AnnotationType {
     #[serde(rename = "CITATION")]
     #[default]
@@ -154,6 +168,7 @@ pub enum AnnotationType {
 
 /// Annotation level for v2 format.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub enum AnnotationLevel {
     #[serde(rename = "AUTO")]
     #[default]
@@ -768,5 +783,25 @@ mod tests {
                 let rt: ReportV2 = serde_json::from_str(&json).unwrap();
                 assert_eq!(report, rt);
             });
+    }
+
+    #[test]
+    fn schema_test() {
+        let mut schema = schemars::schema_for!(ReportV2);
+
+        schema.insert(
+            "title".to_string(),
+            serde_json::Value::String("Duvet Report V2".to_string()),
+        );
+
+        schema.insert(
+            "$id".to_string(),
+            serde_json::Value::String("https://awslabs.github.io/duvet/v2/report.json".to_string()),
+        );
+
+        duvet_core::artifact::sync(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../schemas/report-v2.json"),
+            serde_json::to_string_pretty(&schema).unwrap(),
+        );
     }
 }

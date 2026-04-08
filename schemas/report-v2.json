@@ -1,0 +1,338 @@
+{
+  "$id": "https://awslabs.github.io/duvet/v2/report.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Duvet Report V2",
+  "type": "object",
+  "properties": {
+    "annotations": {
+      "$ref": "#/$defs/AnnotationsV2"
+    },
+    "issue_links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "repositories": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Repository"
+      }
+    },
+    "sources": {
+      "$ref": "#/$defs/SourcesV2"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "sources",
+    "annotations"
+  ],
+  "$defs": {
+    "AnnotationLevel": {
+      "description": "Annotation level for v2 format.",
+      "type": "string",
+      "enum": [
+        "AUTO",
+        "MAY",
+        "SHOULD",
+        "MUST"
+      ]
+    },
+    "AnnotationType": {
+      "description": "Annotation type for impl annotations (v2 format).\n\nNote: `Spec` is not included — spec-derived annotations are represented by\n`SpecificationAnnotation`, `SectionAnnotation`, and `RequirementAnnotation`.",
+      "type": "string",
+      "enum": [
+        "CITATION",
+        "TEST",
+        "IMPLICATION",
+        "EXCEPTION",
+        "TODO"
+      ]
+    },
+    "AnnotationsV2": {
+      "type": "object",
+      "properties": {
+        "https://awslabs.github.io/duvet/v2/annotations.json#impl": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ImplAnnotation"
+          }
+        },
+        "https://awslabs.github.io/duvet/v2/annotations.json#requirement": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/RequirementAnnotation"
+          }
+        },
+        "https://awslabs.github.io/duvet/v2/annotations.json#section": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SectionAnnotation"
+          }
+        },
+        "https://awslabs.github.io/duvet/v2/annotations.json#specification": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SpecificationAnnotation"
+          }
+        }
+      },
+      "required": [
+        "https://awslabs.github.io/duvet/v2/annotations.json#specification",
+        "https://awslabs.github.io/duvet/v2/annotations.json#section",
+        "https://awslabs.github.io/duvet/v2/annotations.json#requirement",
+        "https://awslabs.github.io/duvet/v2/annotations.json#impl"
+      ]
+    },
+    "ByteRange": {
+      "type": "object",
+      "properties": {
+        "end": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "start": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "ImplAnnotation": {
+      "type": "object",
+      "properties": {
+        "comment": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "feature": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "level": {
+          "$ref": "#/$defs/AnnotationLevel",
+          "default": "AUTO"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceLocation"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "target_ranges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ByteRange"
+          }
+        },
+        "target_source": {
+          "type": "string"
+        },
+        "tracking_issue": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/AnnotationType"
+        }
+      },
+      "required": [
+        "source",
+        "target_source",
+        "target_ranges",
+        "type"
+      ]
+    },
+    "InlineSource": {
+      "type": "object",
+      "properties": {
+        "contents": {
+          "type": "string"
+        },
+        "file_name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "file_name",
+        "contents"
+      ]
+    },
+    "LinkedSource": {
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string"
+        },
+        "repository": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "file_name"
+      ]
+    },
+    "Repository": {
+      "type": "object",
+      "properties": {
+        "blob_link": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "blob_link"
+      ]
+    },
+    "RequirementAnnotation": {
+      "type": "object",
+      "properties": {
+        "coverage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/ByteRange"
+            }
+          }
+        },
+        "level": {
+          "$ref": "#/$defs/AnnotationLevel"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        }
+      },
+      "required": [
+        "source",
+        "level"
+      ]
+    },
+    "SectionAnnotation": {
+      "type": "object",
+      "properties": {
+        "long_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "short_name": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        }
+      },
+      "required": [
+        "source",
+        "short_name"
+      ]
+    },
+    "SourceLocation": {
+      "type": "object",
+      "properties": {
+        "line": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ]
+    },
+    "SourceRef": {
+      "type": "object",
+      "properties": {
+        "end": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "source": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "source",
+        "start",
+        "end"
+      ]
+    },
+    "SourcesV2": {
+      "type": "object",
+      "properties": {
+        "https://awslabs.github.io/duvet/v2/sources.json#inline": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/InlineSource"
+          }
+        },
+        "https://awslabs.github.io/duvet/v2/sources.json#linked": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/LinkedSource"
+          }
+        }
+      },
+      "required": [
+        "https://awslabs.github.io/duvet/v2/sources.json#inline",
+        "https://awslabs.github.io/duvet/v2/sources.json#linked"
+      ]
+    },
+    "SpecificationAnnotation": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "format"
+      ]
+    }
+  }
+}
