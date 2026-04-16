@@ -1,6 +1,6 @@
 [package]
 name = "duvet-macros"
-version = "0.4.1"
+version = "0.4.2"
 description = "Internal crate used by duvet"
 authors = ["Cameron Bytheway <bythewc@amazon.com>"]
 edition = "2021"
