@@ -118,11 +118,7 @@ impl<T: Iterator<Item = Token>> Parser<T> {
         let mut section = core::mem::take(&mut self.section)?;
 
         // trim any trailing lines
-        loop {
-            let Some(line) = section.lines.last() else {
-                break;
-            };
-
+        while let Some(line) = section.lines.last() {
             if !line.trim().is_empty() {
                 break;
             }
