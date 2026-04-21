@@ -6,9 +6,7 @@ license = "Apache-2.0"
 description = "Coverage model types and algorithms for duvet"
 
 [dependencies]
-vstd = { path = "../../verus/source/vstd" }
-builtin = { package = "verus_builtin", path = "../../verus/source/builtin" }
-builtin_macros = { package = "verus_builtin_macros", path = "../../verus/source/builtin_macros" }
+vstd = "0.0.0-2026-03-15-0111"
 
 [package.metadata.verus]
 verify = true
