@@ -220,12 +220,18 @@
         "level": {
           "$ref": "#/$defs/AnnotationLevel"
         },
-        "source": {
+        "origin": {
+          "description": "Spec byte range this requirement represents.",
           "$ref": "#/$defs/SourceRef"
+        },
+        "source": {
+          "description": "Authoring site: where this requirement was declared (TOML file or\ninline `//= type=spec` comment).",
+          "$ref": "#/$defs/SourceLocation"
         }
       },
       "required": [
         "source",
+        "origin",
         "level"
       ]
     },
@@ -261,12 +267,12 @@
           "format": "uint",
           "minimum": 0
         },
-        "source": {
+        "src": {
           "type": "string"
         }
       },
       "required": [
-        "source"
+        "src"
       ]
     },
     "SourceRef": {
@@ -277,7 +283,7 @@
           "format": "uint",
           "minimum": 0
         },
-        "source": {
+        "src": {
           "type": "string"
         },
         "start": {
@@ -287,7 +293,7 @@
         }
       },
       "required": [
-        "source",
+        "src",
         "start",
         "end"
       ]

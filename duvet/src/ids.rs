@@ -7,13 +7,14 @@
 //! hashing of its content-derived key fields. The prefix indicates the entity type
 //! and hash input schema:
 //!
-//! | Prefix  | Entity                  | Hash input                                    |
-//! |---------|-------------------------|-----------------------------------------------|
-//! | `repo-` | Repository              | `blob_link`                                   |
-//! | `src-`  | Inline source (spec)    | `contents` (raw file bytes)                   |
-//! | `lnk-`  | Linked source (code)    | `file_name \0 repository_id`                  |
-//! | `spc-`  | Spec/section/requirement| `source_id \0 start \0 end` (decimal strings) |
-//! | `cite-` | Impl annotation         | `source_id \0 line \0 target_source_id`       |
+//! | Prefix  | Entity                  | Hash input                                                         |
+//! |---------|-------------------------|--------------------------------------------------------------------|
+//! | `repo-` | Repository              | `blob_link`                                                        |
+//! | `src-`  | Inline source (spec)    | `contents` (raw file bytes)                                        |
+//! | `lnk-`  | Linked source (code)    | `file_name \0 repository_id`                                       |
+//! | `spc-`  | Specification/section   | `source_id \0 start \0 end` (decimal strings)                      |
+//! | `req-`  | Requirement             | `source_id \0 start \0 end \0 authoring_id \0 line` (decimal strs) |
+//! | `cite-` | Impl annotation         | `source_id \0 line \0 target_source_id`                            |
 //!
 //! All functions take pre-resolved string inputs and are independently testable.
 //! They are wired into the v2 schema during Phase 2.5's `from_report_result()`.
@@ -69,6 +70,19 @@ pub fn spc_id(source_id: &str, start: usize, end: usize) -> String {
     prefixed_id("spc-", &buf)
 }
 
+pub fn req_id(
+    source_id: &str,
+    start: usize,
+    end: usize,
+    authoring_id: &str,
+    line: usize,
+) -> String {
+    use std::io::Write;
+    let mut buf = Vec::new();
+    let _ = write!(buf, "{source_id}\0{start}\0{end}\0{authoring_id}\0{line}");
+    prefixed_id("req-", &buf)
+}
+
 pub fn cite_id(source_id: &str, line: usize, target_source_id: &str) -> String {
     use std::io::Write;
     let mut buf = Vec::new();
@@ -117,6 +131,24 @@ mod tests {
     }
 
     #[test]
+    fn req_id_known_vector() {
+        assert_eq!(
+            req_id("src-aaa", 10, 35, "lnk-bbb", 7),
+            req_id("src-aaa", 10, 35, "lnk-bbb", 7)
+        );
+        // Different authoring sites must produce different IDs for the same spec range.
+        assert_ne!(
+            req_id("src-aaa", 10, 35, "lnk-bbb", 7),
+            req_id("src-aaa", 10, 35, "lnk-ccc", 7)
+        );
+        // Different lines at the same authoring file must produce different IDs.
+        assert_ne!(
+            req_id("src-aaa", 10, 35, "lnk-bbb", 7),
+            req_id("src-aaa", 10, 35, "lnk-bbb", 8)
+        );
+    }
+
+    #[test]
     fn cite_id_known_vector() {
         assert_eq!(cite_id("lnk-bbb", 42, "src-aaa"), "cite-1a2fb6b5abf8ae91");
     }
@@ -144,6 +176,7 @@ mod tests {
             check_format(&src_id(s.as_bytes()), "src-");
             check_format(&lnk_id(s, s), "lnk-");
             check_format(&spc_id(s, 0, 100), "spc-");
+            check_format(&req_id(s, 0, 100, s, 0), "req-");
             check_format(&cite_id(s, 0, s), "cite-");
         });
     }
@@ -158,6 +191,7 @@ mod tests {
             assert_eq!(src_id(s.as_bytes()), src_id(s.as_bytes()));
             assert_eq!(lnk_id(s, s), lnk_id(s, s));
             assert_eq!(spc_id(s, 42, 99), spc_id(s, 42, 99));
+            assert_eq!(req_id(s, 42, 99, s, 3), req_id(s, 42, 99, s, 3));
             assert_eq!(cite_id(s, 7, s), cite_id(s, 7, s));
         });
     }

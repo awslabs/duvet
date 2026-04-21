@@ -77,7 +77,7 @@ pub struct AnnotationsV2 {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct SourceRef {
-    pub source: String,
+    pub src: String,
     pub start: usize,
     pub end: usize,
 }
@@ -85,7 +85,7 @@ pub struct SourceRef {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct SourceLocation {
-    pub source: String,
+    pub src: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line: Option<usize>,
 }
@@ -120,7 +120,11 @@ pub struct SectionAnnotation {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct RequirementAnnotation {
-    pub source: SourceRef,
+    /// Authoring site: where this requirement was declared (TOML file or
+    /// inline `//= type=spec` comment).
+    pub source: SourceLocation,
+    /// Spec byte range this requirement represents.
+    pub origin: SourceRef,
     pub level: AnnotationLevel,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub coverage: BTreeMap<String, Vec<ByteRange>>,
@@ -342,7 +346,7 @@ impl ReportV2 {
                 spc_anno_id,
                 SpecificationAnnotation {
                     source: SourceRef {
-                        source: src_id.clone(),
+                        src: src_id.clone(),
                         start: 0,
                         end: file_len,
                     },
@@ -369,7 +373,7 @@ impl ReportV2 {
                     sec_id,
                     SectionAnnotation {
                         source: SourceRef {
-                            source: src_id.clone(),
+                            src: src_id.clone(),
                             start,
                             end,
                         },
@@ -424,7 +428,7 @@ impl ReportV2 {
                     .and_modify(|a| a.target_ranges.push(range.clone()))
                     .or_insert_with(|| ImplAnnotation {
                         source: SourceLocation {
-                            source: lnk_id.clone(),
+                            src: lnk_id.clone(),
                             line: if reference.annotation.anno_line > 0 {
                                 Some(reference.annotation.anno_line)
                             } else {
@@ -479,7 +483,24 @@ impl ReportV2 {
 
                 let req_start = reference.start();
                 let req_end = reference.end();
-                let req_id = ids::spc_id(src_id, req_start, req_end);
+
+                // Resolve the authoring site (TOML file or inline //= type=spec comment).
+                // Already registered in source_to_lnk_id during Step 3 (which iterates all annotations).
+                let file_name = reference.annotation.source.to_string_lossy().to_string();
+                let repo_id = reference
+                    .annotation
+                    .blob_link
+                    .as_ref()
+                    .and_then(|bl| blob_link_to_repo_id.get(bl.as_ref()))
+                    .or_else(|| report.blob_link.and_then(|bl| blob_link_to_repo_id.get(bl)))
+                    .cloned()
+                    .unwrap_or_default();
+
+                let lnk_key = (file_name, repo_id);
+                let lnk_id = source_to_lnk_id.get(&lnk_key).cloned().unwrap_or_default();
+
+                let anno_line = reference.annotation.anno_line;
+                let req_id = ids::req_id(src_id, req_start, req_end, &lnk_id, anno_line);
 
                 // Build coverage map: for each non-Spec reference that overlaps
                 // this requirement's byte range, compute clamped intersection
@@ -504,8 +525,12 @@ impl ReportV2 {
                 req_annotations
                     .entry(req_id)
                     .or_insert_with(|| RequirementAnnotation {
-                        source: SourceRef {
-                            source: src_id.clone(),
+                        source: SourceLocation {
+                            src: lnk_id,
+                            line: if anno_line > 0 { Some(anno_line) } else { None },
+                        },
+                        origin: SourceRef {
+                            src: src_id.clone(),
                             start: req_start,
                             end: req_end,
                         },
@@ -650,7 +675,7 @@ mod tests {
             "spc-001".to_string(),
             SpecificationAnnotation {
                 source: SourceRef {
-                    source: "src-def456".to_string(),
+                    src: "src-def456".to_string(),
                     start: 0,
                     end: 18,
                 },
@@ -662,7 +687,7 @@ mod tests {
             "spc-002".to_string(),
             SectionAnnotation {
                 source: SourceRef {
-                    source: "src-def456".to_string(),
+                    src: "src-def456".to_string(),
                     start: 0,
                     end: 18,
                 },
@@ -671,10 +696,14 @@ mod tests {
             },
         );
         report.annotations.requirement.insert(
-            "spc-003".to_string(),
+            "req-003".to_string(),
             RequirementAnnotation {
-                source: SourceRef {
-                    source: "src-def456".to_string(),
+                source: SourceLocation {
+                    src: "lnk-789abc".to_string(),
+                    line: Some(5),
+                },
+                origin: SourceRef {
+                    src: "src-def456".to_string(),
                     start: 7,
                     end: 18,
                 },
@@ -689,7 +718,7 @@ mod tests {
             "cite-aaa".to_string(),
             ImplAnnotation {
                 source: SourceLocation {
-                    source: "lnk-789abc".to_string(),
+                    src: "lnk-789abc".to_string(),
                     line: Some(42),
                 },
                 target_source: "src-def456".to_string(),
@@ -765,10 +794,14 @@ mod tests {
                         }],
                     );
                     report.annotations.requirement.insert(
-                        format!("spc-{val}"),
+                        format!("req-{val}"),
                         RequirementAnnotation {
-                            source: SourceRef {
-                                source: "src-x".to_string(),
+                            source: SourceLocation {
+                                src: "lnk-x".to_string(),
+                                line: Some(i + 1),
+                            },
+                            origin: SourceRef {
+                                src: "src-x".to_string(),
                                 start: 0,
                                 end: i + 1,
                             },
