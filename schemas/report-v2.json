@@ -136,14 +136,9 @@
             "type": "string"
           }
         },
-        "target_ranges": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ByteRange"
-          }
-        },
-        "target_source": {
-          "type": "string"
+        "target": {
+          "description": "Matched byte range(s) within the target specification file. May\ncontain multiple disjoint ranges when the quote spans regions the\nspec parser normalized away (e.g., IETF RFC page breaks).",
+          "$ref": "#/$defs/SourceRanges"
         },
         "tracking_issue": {
           "type": [
@@ -157,8 +152,7 @@
       },
       "required": [
         "source",
-        "target_source",
-        "target_ranges",
+        "target",
         "type"
       ]
     },
@@ -221,8 +215,8 @@
           "$ref": "#/$defs/AnnotationLevel"
         },
         "origin": {
-          "description": "Spec byte range this requirement represents.",
-          "$ref": "#/$defs/SourceRef"
+          "description": "Spec byte range(s) this requirement represents. May contain multiple\ndisjoint ranges when the matched quote spans regions the spec parser\nnormalized away (e.g., IETF RFC page breaks).",
+          "$ref": "#/$defs/SourceRanges"
         },
         "source": {
           "description": "Authoring site: where this requirement was declared (TOML file or\ninline `//= type=spec` comment).",
@@ -273,6 +267,25 @@
       },
       "required": [
         "src"
+      ]
+    },
+    "SourceRanges": {
+      "description": "A reference to one or more (possibly disjoint) byte ranges within an\ninline source file. Used wherever a matched quote can span multiple\nnon-contiguous regions of the spec (e.g., across IETF RFC page breaks).",
+      "type": "object",
+      "properties": {
+        "ranges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ByteRange"
+          }
+        },
+        "src": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "src",
+        "ranges"
       ]
     },
     "SourceRef": {

@@ -82,6 +82,16 @@ pub struct SourceRef {
     pub end: usize,
 }
 
+/// A reference to one or more (possibly disjoint) byte ranges within an
+/// inline source file. Used wherever a matched quote can span multiple
+/// non-contiguous regions of the spec (e.g., across IETF RFC page breaks).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct SourceRanges {
+    pub src: String,
+    pub ranges: Vec<ByteRange>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct SourceLocation {
@@ -90,7 +100,7 @@ pub struct SourceLocation {
     pub line: Option<usize>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct ByteRange {
     pub start: usize,
@@ -123,8 +133,10 @@ pub struct RequirementAnnotation {
     /// Authoring site: where this requirement was declared (TOML file or
     /// inline `//= type=spec` comment).
     pub source: SourceLocation,
-    /// Spec byte range this requirement represents.
-    pub origin: SourceRef,
+    /// Spec byte range(s) this requirement represents. May contain multiple
+    /// disjoint ranges when the matched quote spans regions the spec parser
+    /// normalized away (e.g., IETF RFC page breaks).
+    pub origin: SourceRanges,
     pub level: AnnotationLevel,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub coverage: BTreeMap<String, Vec<ByteRange>>,
@@ -134,8 +146,10 @@ pub struct RequirementAnnotation {
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct ImplAnnotation {
     pub source: SourceLocation,
-    pub target_source: String,
-    pub target_ranges: Vec<ByteRange>,
+    /// Matched byte range(s) within the target specification file. May
+    /// contain multiple disjoint ranges when the quote spans regions the
+    /// spec parser normalized away (e.g., IETF RFC page breaks).
+    pub target: SourceRanges,
     #[serde(rename = "type")]
     pub anno_type: AnnotationType,
     #[serde(default)]
@@ -425,7 +439,7 @@ impl ReportV2 {
 
                 impl_annotations
                     .entry(cite_id.clone())
-                    .and_modify(|a| a.target_ranges.push(range.clone()))
+                    .and_modify(|a| a.target.ranges.push(range.clone()))
                     .or_insert_with(|| ImplAnnotation {
                         source: SourceLocation {
                             src: lnk_id.clone(),
@@ -435,8 +449,10 @@ impl ReportV2 {
                                 None
                             },
                         },
-                        target_source: src_id.clone(),
-                        target_ranges: vec![range.clone()],
+                        target: SourceRanges {
+                            src: src_id.clone(),
+                            ranges: vec![range.clone()],
+                        },
                         anno_type: reference.annotation.anno.into(),
                         level: reference.annotation.level.into(),
                         comment: if reference.annotation.comment.is_empty() {
@@ -465,8 +481,28 @@ impl ReportV2 {
             }
         }
 
+        // Normalize impl target ranges: sort and dedup for deterministic output.
+        for impl_anno in impl_annotations.values_mut() {
+            impl_anno.target.ranges.sort();
+            impl_anno.target.ranges.dedup();
+        }
+
         // Step 6: Build requirement annotations (Spec references with coverage)
+        // Step 6: Build requirement annotations (Spec references with coverage).
+        // Group Spec references by authoring site so that a single logical
+        // requirement whose quote matched N disjoint byte ranges (e.g., across
+        // an IETF RFC page break) becomes one RequirementAnnotation with all
+        // N ranges, not N separate requirements.
         let mut req_annotations: BTreeMap<String, RequirementAnnotation> = BTreeMap::new();
+
+        // Grouping key: (src_id, lnk_id, anno_line, level). Level is included
+        // because AnnotationLevel has no Copy+Ord impl to share across borrows
+        // cleanly, but it's invariant per authoring site by construction.
+        type ReqGroupKey = (String, String, usize);
+        struct ReqGroup {
+            level: crate::annotation::AnnotationLevel,
+            ranges: Vec<(usize, usize)>,
+        }
 
         for (target, target_report) in report.targets.iter() {
             let target_path_str = target.path.to_string();
@@ -476,16 +512,13 @@ impl ReportV2 {
 
             let target_coverage = coverage_refs.get(&target_path_str);
 
+            // Pass 1: group Spec references by authoring site.
+            let mut groups: BTreeMap<ReqGroupKey, ReqGroup> = BTreeMap::new();
             for reference in &target_report.references {
                 if reference.annotation.anno != crate::annotation::AnnotationType::Spec {
                     continue;
                 }
 
-                let req_start = reference.start();
-                let req_end = reference.end();
-
-                // Resolve the authoring site (TOML file or inline //= type=spec comment).
-                // Already registered in source_to_lnk_id during Step 3 (which iterates all annotations).
                 let file_name = reference.annotation.source.to_string_lossy().to_string();
                 let repo_id = reference
                     .annotation
@@ -500,43 +533,70 @@ impl ReportV2 {
                 let lnk_id = source_to_lnk_id.get(&lnk_key).cloned().unwrap_or_default();
 
                 let anno_line = reference.annotation.anno_line;
-                let req_id = ids::req_id(src_id, req_start, req_end, &lnk_id, anno_line);
+                let key = (src_id.clone(), lnk_id, anno_line);
+                groups
+                    .entry(key)
+                    .or_insert_with(|| ReqGroup {
+                        level: reference.annotation.level,
+                        ranges: Vec::new(),
+                    })
+                    .ranges
+                    .push((reference.start(), reference.end()));
+            }
 
-                // Build coverage map: for each non-Spec reference that overlaps
-                // this requirement's byte range, compute clamped intersection
+            // Pass 2: emit one RequirementAnnotation per group.
+            for ((group_src_id, lnk_id, anno_line), mut group) in groups {
+                group.ranges.sort();
+                group.ranges.dedup();
+
+                let req_id = ids::req_id(&group_src_id, &group.ranges, &lnk_id, anno_line);
+
+                // Build coverage: for each origin range, clamp every non-Spec
+                // reference on this target against it. A single impl reference
+                // may contribute under multiple origin ranges of the same
+                // requirement.
                 let mut coverage: BTreeMap<String, Vec<ByteRange>> = BTreeMap::new();
-
                 if let Some(refs) = target_coverage {
-                    for (cite_id, ref_start, ref_end) in refs {
-                        let clamped_start = (*ref_start).max(req_start);
-                        let clamped_end = (*ref_end).min(req_end);
-                        if clamped_start < clamped_end {
-                            coverage
-                                .entry(cite_id.clone())
-                                .or_default()
-                                .push(ByteRange {
-                                    start: clamped_start,
-                                    end: clamped_end,
-                                });
+                    for (origin_start, origin_end) in &group.ranges {
+                        for (cite_id, ref_start, ref_end) in refs {
+                            let clamped_start = (*ref_start).max(*origin_start);
+                            let clamped_end = (*ref_end).min(*origin_end);
+                            if clamped_start < clamped_end {
+                                coverage
+                                    .entry(cite_id.clone())
+                                    .or_default()
+                                    .push(ByteRange {
+                                        start: clamped_start,
+                                        end: clamped_end,
+                                    });
+                            }
                         }
+                    }
+                    for ranges in coverage.values_mut() {
+                        ranges.sort();
+                        ranges.dedup();
                     }
                 }
 
-                req_annotations
-                    .entry(req_id)
-                    .or_insert_with(|| RequirementAnnotation {
+                req_annotations.insert(
+                    req_id,
+                    RequirementAnnotation {
                         source: SourceLocation {
                             src: lnk_id,
                             line: if anno_line > 0 { Some(anno_line) } else { None },
                         },
-                        origin: SourceRef {
-                            src: src_id.clone(),
-                            start: req_start,
-                            end: req_end,
+                        origin: SourceRanges {
+                            src: group_src_id,
+                            ranges: group
+                                .ranges
+                                .into_iter()
+                                .map(|(start, end)| ByteRange { start, end })
+                                .collect(),
                         },
-                        level: reference.annotation.level.into(),
+                        level: group.level.into(),
                         coverage,
-                    });
+                    },
+                );
             }
         }
 
@@ -702,10 +762,9 @@ mod tests {
                     src: "lnk-789abc".to_string(),
                     line: Some(5),
                 },
-                origin: SourceRef {
+                origin: SourceRanges {
                     src: "src-def456".to_string(),
-                    start: 7,
-                    end: 18,
+                    ranges: vec![ByteRange { start: 7, end: 18 }],
                 },
                 level: AnnotationLevel::Must,
                 coverage: BTreeMap::from([(
@@ -721,8 +780,10 @@ mod tests {
                     src: "lnk-789abc".to_string(),
                     line: Some(42),
                 },
-                target_source: "src-def456".to_string(),
-                target_ranges: vec![ByteRange { start: 7, end: 18 }],
+                target: SourceRanges {
+                    src: "src-def456".to_string(),
+                    ranges: vec![ByteRange { start: 7, end: 18 }],
+                },
                 anno_type: AnnotationType::Citation,
                 level: AnnotationLevel::Auto,
                 comment: None,
@@ -800,10 +861,12 @@ mod tests {
                                 src: "lnk-x".to_string(),
                                 line: Some(i + 1),
                             },
-                            origin: SourceRef {
+                            origin: SourceRanges {
                                 src: "src-x".to_string(),
-                                start: 0,
-                                end: i + 1,
+                                ranges: vec![ByteRange {
+                                    start: 0,
+                                    end: i + 1,
+                                }],
                             },
                             level: AnnotationLevel::Must,
                             coverage,
