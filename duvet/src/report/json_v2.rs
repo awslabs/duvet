@@ -258,395 +258,42 @@ struct ReqGroup {
     ranges: Vec<(usize, usize)>,
 }
 
+// Per-target index of (cite_id, start, end) built by Step 5 and consumed by
+// Step 6 to compute coverage.
+type CoverageRefs = HashMap<String, Vec<(String, usize, usize)>>;
+
 impl ReportV2 {
     /// Build a v2 report from the internal report result.
     pub fn from_report_result(report: &ReportResult) -> Self {
-        // Step 1: Build repository map from unique blob_links
-        let mut repo_map: BTreeMap<String, Repository> = BTreeMap::new();
-        let mut blob_link_to_repo_id: HashMap<String, String> = HashMap::new();
+        let (repo_map, blob_link_to_repo_id) = build_repositories(report);
 
-        for annotation in report.annotations.iter() {
-            if let Some(bl) = &annotation.blob_link {
-                let bl_str = bl.to_string();
-                blob_link_to_repo_id
-                    .entry(bl_str.clone())
-                    .or_insert_with(|| {
-                        let id = ids::repo_id(&bl_str);
-                        repo_map.insert(id.clone(), Repository { blob_link: bl_str });
-                        id
-                    });
-            }
-        }
-        // Also check the global blob_link
-        if let Some(bl) = report.blob_link {
-            let bl_str = bl.to_string();
-            blob_link_to_repo_id
-                .entry(bl_str.clone())
-                .or_insert_with(|| {
-                    let id = ids::repo_id(&bl_str);
-                    repo_map.insert(id.clone(), Repository { blob_link: bl_str });
-                    id
-                });
-        }
+        let (inline_sources, target_to_src_id) = build_inline_sources(report);
 
-        // Step 2: Build inline source map from spec file contents
-        let mut inline_sources: BTreeMap<String, InlineSource> = BTreeMap::new();
-        // Maps target path string → src-ID for lookup during annotation building
-        let mut target_to_src_id: HashMap<String, String> = HashMap::new();
-
-        for (target, target_report) in report.targets.iter() {
-            let sections = target_report.specification.sorted_sections();
-            // Get the spec file contents from the first section's backing SourceFile.
-            let Some(first_section) = sections.first() else {
-                continue;
-            };
-            let file = first_section.full_title.file().clone();
-
-            let contents: &str = &file;
-            let id = ids::src_id(contents.as_bytes());
-
-            if !inline_sources.contains_key(&id) {
-                let file_name = file
-                    .path()
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_else(|| target.path.to_string());
-
-                inline_sources.insert(
-                    id.clone(),
-                    InlineSource {
-                        file_name,
-                        contents: contents.to_string(),
-                    },
-                );
-            }
-
-            target_to_src_id.insert(target.path.to_string(), id);
-        }
-
-        // Step 3: Build linked source map from annotations
-        let mut linked_sources: BTreeMap<String, LinkedSource> = BTreeMap::new();
-        // Maps (file_name, repo_id_or_empty) → lnk-ID
-        let mut source_to_lnk_id: HashMap<(String, String), String> = HashMap::new();
-
-        for annotation in report.annotations.iter() {
-            let file_name = annotation.source.to_string_lossy().to_string();
-            let repo_id = annotation
-                .blob_link
-                .as_ref()
-                .and_then(|bl| blob_link_to_repo_id.get(bl.as_ref()))
-                .or_else(|| report.blob_link.and_then(|bl| blob_link_to_repo_id.get(bl)))
-                .cloned()
-                .unwrap_or_default();
-
-            let key = (file_name.clone(), repo_id.clone());
-            source_to_lnk_id.entry(key).or_insert_with(|| {
-                let id = ids::lnk_id(&file_name, &repo_id);
-                linked_sources.insert(
-                    id.clone(),
-                    LinkedSource {
-                        file_name,
-                        repository: if repo_id.is_empty() {
-                            None
-                        } else {
-                            Some(repo_id)
-                        },
-                    },
-                );
-                id
-            });
-        }
+        let (linked_sources, source_to_lnk_id) =
+            build_linked_sources(report, &blob_link_to_repo_id);
 
         let issue_links = report
             .issue_link
             .map(|s| vec![s.to_string()])
             .unwrap_or_default();
 
-        // Step 4: Build specification and section annotations
-        let mut spec_annotations: BTreeMap<String, SpecificationAnnotation> = BTreeMap::new();
-        let mut section_annotations: BTreeMap<String, SectionAnnotation> = BTreeMap::new();
+        let (spec_annotations, section_annotations) =
+            build_spec_and_section_annotations(report, &target_to_src_id);
 
-        for (target, target_report) in report.targets.iter() {
-            let Some(src_id) = target_to_src_id.get(&target.path.to_string()) else {
-                continue;
-            };
+        let (impl_annotations, coverage_refs) = build_impl_annotations(
+            report,
+            &target_to_src_id,
+            &blob_link_to_repo_id,
+            &source_to_lnk_id,
+        );
 
-            let sections = target_report.specification.sorted_sections();
-
-            // Get file length from the backing SourceFile
-            let file_len = sections
-                .first()
-                .map(|s| {
-                    let file: &str = s.full_title.file();
-                    file.len()
-                })
-                .unwrap_or(0);
-
-            // Specification annotation: full byte range of the file
-            let spc_anno_id = ids::spc_id(src_id, 0, file_len);
-            spec_annotations.insert(
-                spc_anno_id,
-                SpecificationAnnotation {
-                    source: SourceRef {
-                        src: src_id.clone(),
-                        start: 0,
-                        end: file_len,
-                    },
-                    title: target_report.specification.title.clone(),
-                    format: target_report.specification.format.to_string(),
-                },
-            );
-
-            // Section annotations
-            for section in &sections {
-                let start = section.full_title.range().start;
-                let end = section
-                    .lines
-                    .iter()
-                    .filter_map(|l| match l {
-                        crate::specification::Line::Str(s) => Some(s.range().end),
-                        crate::specification::Line::Break => None,
-                    })
-                    .max()
-                    .unwrap_or(section.full_title.range().end);
-
-                let sec_id = ids::spc_id(src_id, start, end);
-                section_annotations.insert(
-                    sec_id,
-                    SectionAnnotation {
-                        source: SourceRef {
-                            src: src_id.clone(),
-                            start,
-                            end,
-                        },
-                        short_name: section.id.clone(),
-                        long_name: Some(section.title.clone()),
-                    },
-                );
-            }
-        }
-
-        // Step 5: Build impl annotations (non-Spec references)
-        // Group references by cite-ID to collect all byte ranges per impl annotation
-        let mut impl_annotations: BTreeMap<String, ImplAnnotation> = BTreeMap::new();
-        // Also collect all non-Spec reference ranges indexed by target, for coverage computation
-        // Key: target path string, Value: vec of (cite_id, start, end)
-        let mut coverage_refs: HashMap<String, Vec<(String, usize, usize)>> = HashMap::new();
-
-        for (target, target_report) in report.targets.iter() {
-            let target_path_str = target.path.to_string();
-            let Some(src_id) = target_to_src_id.get(&target_path_str) else {
-                continue;
-            };
-
-            for reference in &target_report.references {
-                if reference.annotation.anno == crate::annotation::AnnotationType::Spec {
-                    continue;
-                }
-
-                let file_name = reference.annotation.source.to_string_lossy().to_string();
-                let repo_id = reference
-                    .annotation
-                    .blob_link
-                    .as_ref()
-                    .and_then(|bl| blob_link_to_repo_id.get(bl.as_ref()))
-                    .or_else(|| report.blob_link.and_then(|bl| blob_link_to_repo_id.get(bl)))
-                    .cloned()
-                    .unwrap_or_default();
-
-                let lnk_key = (file_name.clone(), repo_id.clone());
-                let lnk_id = source_to_lnk_id.get(&lnk_key).cloned().unwrap_or_default();
-
-                let cite_id = ids::cite_id(&lnk_id, reference.annotation.anno_line, src_id);
-
-                // Add byte range to existing impl annotation or create new one
-                let range = ByteRange {
-                    start: reference.start(),
-                    end: reference.end(),
-                };
-
-                // When multiple references collapse to the same cite-id
-                // (same authoring lnk-id, anno_line, and target src-id), the
-                // first reference's metadata wins. In debug builds, verify
-                // that subsequent references agree — they should, because
-                // they come from the same annotation comment.
-                let new_anno_type: AnnotationType = reference.annotation.anno.into();
-                let new_level: AnnotationLevel = reference.annotation.level.into();
-                impl_annotations
-                    .entry(cite_id.clone())
-                    .and_modify(|a| {
-                        debug_assert_eq!(a.anno_type, new_anno_type, "cite_id {cite_id}");
-                        debug_assert_eq!(a.level, new_level, "cite_id {cite_id}");
-                        debug_assert_eq!(
-                            a.comment.as_deref().unwrap_or(""),
-                            reference.annotation.comment,
-                            "cite_id {cite_id}"
-                        );
-                        debug_assert_eq!(
-                            a.feature.as_deref().unwrap_or(""),
-                            reference.annotation.feature,
-                            "cite_id {cite_id}"
-                        );
-                        debug_assert_eq!(
-                            a.tracking_issue.as_deref().unwrap_or(""),
-                            reference.annotation.tracking_issue,
-                            "cite_id {cite_id}"
-                        );
-                        debug_assert!(
-                            a.tags.iter().eq(reference.annotation.tags.iter()),
-                            "cite_id {cite_id}: tag mismatch"
-                        );
-                        a.target.ranges.push(range.clone());
-                    })
-                    .or_insert_with(|| ImplAnnotation {
-                        source: SourceLocation {
-                            src: lnk_id.clone(),
-                            line: if reference.annotation.anno_line > 0 {
-                                Some(reference.annotation.anno_line)
-                            } else {
-                                None
-                            },
-                        },
-                        target: SourceRanges {
-                            src: src_id.clone(),
-                            ranges: vec![range.clone()],
-                        },
-                        anno_type: reference.annotation.anno.into(),
-                        level: reference.annotation.level.into(),
-                        comment: if reference.annotation.comment.is_empty() {
-                            None
-                        } else {
-                            Some(reference.annotation.comment.clone())
-                        },
-                        feature: if reference.annotation.feature.is_empty() {
-                            None
-                        } else {
-                            Some(reference.annotation.feature.clone())
-                        },
-                        tracking_issue: if reference.annotation.tracking_issue.is_empty() {
-                            None
-                        } else {
-                            Some(reference.annotation.tracking_issue.clone())
-                        },
-                        tags: reference.annotation.tags.iter().cloned().collect(),
-                    });
-
-                // Track for coverage computation
-                coverage_refs
-                    .entry(target_path_str.clone())
-                    .or_default()
-                    .push((cite_id, reference.start(), reference.end()));
-            }
-        }
-
-        // Normalize impl target ranges: sort and dedup for deterministic output.
-        for impl_anno in impl_annotations.values_mut() {
-            impl_anno.target.ranges.sort();
-            impl_anno.target.ranges.dedup();
-        }
-
-        // Step 6: Build requirement annotations (Spec references with coverage).
-        // Group Spec references by authoring site so that a single logical
-        // requirement whose quote matched N disjoint byte ranges (e.g., across
-        // an IETF RFC page break) becomes one RequirementAnnotation with all
-        // N ranges, not N separate requirements.
-        let mut req_annotations: BTreeMap<String, RequirementAnnotation> = BTreeMap::new();
-
-        for (target, target_report) in report.targets.iter() {
-            let target_path_str = target.path.to_string();
-            let Some(src_id) = target_to_src_id.get(&target_path_str) else {
-                continue;
-            };
-
-            let target_coverage = coverage_refs.get(&target_path_str);
-
-            // Pass 1: group Spec references by authoring site.
-            let mut groups: BTreeMap<ReqGroupKey, ReqGroup> = BTreeMap::new();
-            for reference in &target_report.references {
-                if reference.annotation.anno != crate::annotation::AnnotationType::Spec {
-                    continue;
-                }
-
-                let file_name = reference.annotation.source.to_string_lossy().to_string();
-                let repo_id = reference
-                    .annotation
-                    .blob_link
-                    .as_ref()
-                    .and_then(|bl| blob_link_to_repo_id.get(bl.as_ref()))
-                    .or_else(|| report.blob_link.and_then(|bl| blob_link_to_repo_id.get(bl)))
-                    .cloned()
-                    .unwrap_or_default();
-
-                let lnk_key = (file_name, repo_id);
-                let lnk_id = source_to_lnk_id.get(&lnk_key).cloned().unwrap_or_default();
-
-                let anno_line = reference.annotation.anno_line;
-                let key = (src_id.clone(), lnk_id, anno_line);
-                groups
-                    .entry(key)
-                    .or_insert_with(|| ReqGroup {
-                        level: reference.annotation.level,
-                        ranges: Vec::new(),
-                    })
-                    .ranges
-                    .push((reference.start(), reference.end()));
-            }
-
-            // Pass 2: emit one RequirementAnnotation per group.
-            for ((group_src_id, lnk_id, anno_line), mut group) in groups {
-                group.ranges.sort();
-                group.ranges.dedup();
-
-                let req_id = ids::req_id(&group_src_id, &group.ranges, &lnk_id, anno_line);
-
-                // Build coverage: for each origin range, clamp every non-Spec
-                // reference on this target against it. A single impl reference
-                // may contribute under multiple origin ranges of the same
-                // requirement.
-                let mut coverage: BTreeMap<String, Vec<ByteRange>> = BTreeMap::new();
-                if let Some(refs) = target_coverage {
-                    for (origin_start, origin_end) in &group.ranges {
-                        for (cite_id, ref_start, ref_end) in refs {
-                            let clamped_start = (*ref_start).max(*origin_start);
-                            let clamped_end = (*ref_end).min(*origin_end);
-                            if clamped_start < clamped_end {
-                                coverage
-                                    .entry(cite_id.clone())
-                                    .or_default()
-                                    .push(ByteRange {
-                                        start: clamped_start,
-                                        end: clamped_end,
-                                    });
-                            }
-                        }
-                    }
-                    for ranges in coverage.values_mut() {
-                        ranges.sort();
-                        ranges.dedup();
-                    }
-                }
-
-                req_annotations.insert(
-                    req_id,
-                    RequirementAnnotation {
-                        source: SourceLocation {
-                            src: lnk_id,
-                            line: if anno_line > 0 { Some(anno_line) } else { None },
-                        },
-                        origin: SourceRanges {
-                            src: group_src_id,
-                            ranges: group
-                                .ranges
-                                .into_iter()
-                                .map(|(start, end)| ByteRange { start, end })
-                                .collect(),
-                        },
-                        level: group.level.into(),
-                        coverage,
-                    },
-                );
-            }
-        }
+        let req_annotations = build_requirement_annotations(
+            report,
+            &target_to_src_id,
+            &blob_link_to_repo_id,
+            &source_to_lnk_id,
+            &coverage_refs,
+        );
 
         ReportV2 {
             version: "2.0".to_string(),
@@ -664,6 +311,439 @@ impl ReportV2 {
             },
         }
     }
+}
+
+// ── Step helpers ─────────────────────────────────────────────────────────────
+
+/// Resolve the repo-id for an annotation, falling back to the report-level
+/// blob_link when the annotation doesn't carry one. Returns an empty string
+/// when neither is present.
+fn resolve_repo_id(
+    annotation_blob_link: Option<&str>,
+    report: &ReportResult,
+    blob_link_to_repo_id: &HashMap<String, String>,
+) -> String {
+    annotation_blob_link
+        .and_then(|bl| blob_link_to_repo_id.get(bl))
+        .or_else(|| report.blob_link.and_then(|bl| blob_link_to_repo_id.get(bl)))
+        .cloned()
+        .unwrap_or_default()
+}
+
+/// Step 1: build the repository map from all unique blob_links seen in
+/// annotations and at the report level.
+fn build_repositories(
+    report: &ReportResult,
+) -> (BTreeMap<String, Repository>, HashMap<String, String>) {
+    let mut repo_map: BTreeMap<String, Repository> = BTreeMap::new();
+    let mut blob_link_to_repo_id: HashMap<String, String> = HashMap::new();
+
+    let mut insert = |bl_str: String| {
+        blob_link_to_repo_id
+            .entry(bl_str.clone())
+            .or_insert_with(|| {
+                let id = ids::repo_id(&bl_str);
+                repo_map.insert(id.clone(), Repository { blob_link: bl_str });
+                id
+            });
+    };
+
+    for annotation in report.annotations.iter() {
+        if let Some(bl) = &annotation.blob_link {
+            insert(bl.to_string());
+        }
+    }
+    if let Some(bl) = report.blob_link {
+        insert(bl.to_string());
+    }
+
+    (repo_map, blob_link_to_repo_id)
+}
+
+/// Step 2: build the inline source map from the spec file contents backing
+/// each target. Returns the map plus a target-path → src-id index used by
+/// later steps.
+fn build_inline_sources(
+    report: &ReportResult,
+) -> (BTreeMap<String, InlineSource>, HashMap<String, String>) {
+    let mut inline_sources: BTreeMap<String, InlineSource> = BTreeMap::new();
+    let mut target_to_src_id: HashMap<String, String> = HashMap::new();
+
+    for (target, target_report) in report.targets.iter() {
+        let sections = target_report.specification.sorted_sections();
+        let Some(first_section) = sections.first() else {
+            continue;
+        };
+        let file = first_section.full_title.file().clone();
+
+        let contents: &str = &file;
+        let id = ids::src_id(contents.as_bytes());
+
+        if !inline_sources.contains_key(&id) {
+            let file_name = file
+                .path()
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| target.path.to_string());
+
+            inline_sources.insert(
+                id.clone(),
+                InlineSource {
+                    file_name,
+                    contents: contents.to_string(),
+                },
+            );
+        }
+
+        target_to_src_id.insert(target.path.to_string(), id);
+    }
+
+    (inline_sources, target_to_src_id)
+}
+
+/// Step 3: build the linked source map from annotation source paths.
+/// Returns the map plus a (file_name, repo_id) → lnk-id index used by
+/// later steps.
+fn build_linked_sources(
+    report: &ReportResult,
+    blob_link_to_repo_id: &HashMap<String, String>,
+) -> (
+    BTreeMap<String, LinkedSource>,
+    HashMap<(String, String), String>,
+) {
+    let mut linked_sources: BTreeMap<String, LinkedSource> = BTreeMap::new();
+    let mut source_to_lnk_id: HashMap<(String, String), String> = HashMap::new();
+
+    for annotation in report.annotations.iter() {
+        let file_name = annotation.source.to_string_lossy().to_string();
+        let repo_id = resolve_repo_id(
+            annotation.blob_link.as_deref(),
+            report,
+            blob_link_to_repo_id,
+        );
+
+        let key = (file_name.clone(), repo_id.clone());
+        source_to_lnk_id.entry(key).or_insert_with(|| {
+            let id = ids::lnk_id(&file_name, &repo_id);
+            linked_sources.insert(
+                id.clone(),
+                LinkedSource {
+                    file_name,
+                    repository: if repo_id.is_empty() {
+                        None
+                    } else {
+                        Some(repo_id)
+                    },
+                },
+            );
+            id
+        });
+    }
+
+    (linked_sources, source_to_lnk_id)
+}
+
+/// Step 4: build specification and section annotations from each target's
+/// parsed specification.
+fn build_spec_and_section_annotations(
+    report: &ReportResult,
+    target_to_src_id: &HashMap<String, String>,
+) -> (
+    BTreeMap<String, SpecificationAnnotation>,
+    BTreeMap<String, SectionAnnotation>,
+) {
+    let mut spec_annotations: BTreeMap<String, SpecificationAnnotation> = BTreeMap::new();
+    let mut section_annotations: BTreeMap<String, SectionAnnotation> = BTreeMap::new();
+
+    for (target, target_report) in report.targets.iter() {
+        let Some(src_id) = target_to_src_id.get(&target.path.to_string()) else {
+            continue;
+        };
+
+        let sections = target_report.specification.sorted_sections();
+
+        let file_len = sections
+            .first()
+            .map(|s| {
+                let file: &str = s.full_title.file();
+                file.len()
+            })
+            .unwrap_or(0);
+
+        let spc_anno_id = ids::spc_id(src_id, 0, file_len);
+        spec_annotations.insert(
+            spc_anno_id,
+            SpecificationAnnotation {
+                source: SourceRef {
+                    src: src_id.clone(),
+                    start: 0,
+                    end: file_len,
+                },
+                title: target_report.specification.title.clone(),
+                format: target_report.specification.format.to_string(),
+            },
+        );
+
+        for section in &sections {
+            let start = section.full_title.range().start;
+            let end = section
+                .lines
+                .iter()
+                .filter_map(|l| match l {
+                    crate::specification::Line::Str(s) => Some(s.range().end),
+                    crate::specification::Line::Break => None,
+                })
+                .max()
+                .unwrap_or(section.full_title.range().end);
+
+            let sec_id = ids::spc_id(src_id, start, end);
+            section_annotations.insert(
+                sec_id,
+                SectionAnnotation {
+                    source: SourceRef {
+                        src: src_id.clone(),
+                        start,
+                        end,
+                    },
+                    short_name: section.id.clone(),
+                    long_name: Some(section.title.clone()),
+                },
+            );
+        }
+    }
+
+    (spec_annotations, section_annotations)
+}
+
+/// Step 5: build impl annotations from every non-Spec reference. Returns
+/// the impl map plus a per-target index of (cite_id, start, end) used by
+/// Step 6 to compute coverage.
+fn build_impl_annotations(
+    report: &ReportResult,
+    target_to_src_id: &HashMap<String, String>,
+    blob_link_to_repo_id: &HashMap<String, String>,
+    source_to_lnk_id: &HashMap<(String, String), String>,
+) -> (BTreeMap<String, ImplAnnotation>, CoverageRefs) {
+    let mut impl_annotations: BTreeMap<String, ImplAnnotation> = BTreeMap::new();
+    let mut coverage_refs: CoverageRefs = HashMap::new();
+
+    for (target, target_report) in report.targets.iter() {
+        let target_path_str = target.path.to_string();
+        let Some(src_id) = target_to_src_id.get(&target_path_str) else {
+            continue;
+        };
+
+        for reference in &target_report.references {
+            if reference.annotation.anno == crate::annotation::AnnotationType::Spec {
+                continue;
+            }
+
+            let file_name = reference.annotation.source.to_string_lossy().to_string();
+            let repo_id = resolve_repo_id(
+                reference.annotation.blob_link.as_deref(),
+                report,
+                blob_link_to_repo_id,
+            );
+
+            let lnk_key = (file_name, repo_id);
+            let lnk_id = source_to_lnk_id.get(&lnk_key).cloned().unwrap_or_default();
+
+            let cite_id = ids::cite_id(&lnk_id, reference.annotation.anno_line, src_id);
+
+            let range = ByteRange {
+                start: reference.start(),
+                end: reference.end(),
+            };
+
+            // When multiple references collapse to the same cite-id
+            // (same authoring lnk-id, anno_line, and target src-id), the
+            // first reference's metadata wins. In debug builds, verify
+            // that subsequent references agree — they should, because
+            // they come from the same annotation comment.
+            let new_anno_type: AnnotationType = reference.annotation.anno.into();
+            let new_level: AnnotationLevel = reference.annotation.level.into();
+            impl_annotations
+                .entry(cite_id.clone())
+                .and_modify(|a| {
+                    debug_assert_eq!(a.anno_type, new_anno_type, "cite_id {cite_id}");
+                    debug_assert_eq!(a.level, new_level, "cite_id {cite_id}");
+                    debug_assert_eq!(
+                        a.comment.as_deref().unwrap_or(""),
+                        reference.annotation.comment,
+                        "cite_id {cite_id}"
+                    );
+                    debug_assert_eq!(
+                        a.feature.as_deref().unwrap_or(""),
+                        reference.annotation.feature,
+                        "cite_id {cite_id}"
+                    );
+                    debug_assert_eq!(
+                        a.tracking_issue.as_deref().unwrap_or(""),
+                        reference.annotation.tracking_issue,
+                        "cite_id {cite_id}"
+                    );
+                    debug_assert!(
+                        a.tags.iter().eq(reference.annotation.tags.iter()),
+                        "cite_id {cite_id}: tag mismatch"
+                    );
+                    a.target.ranges.push(range.clone());
+                })
+                .or_insert_with(|| ImplAnnotation {
+                    source: SourceLocation {
+                        src: lnk_id.clone(),
+                        line: if reference.annotation.anno_line > 0 {
+                            Some(reference.annotation.anno_line)
+                        } else {
+                            None
+                        },
+                    },
+                    target: SourceRanges {
+                        src: src_id.clone(),
+                        ranges: vec![range.clone()],
+                    },
+                    anno_type: reference.annotation.anno.into(),
+                    level: reference.annotation.level.into(),
+                    comment: if reference.annotation.comment.is_empty() {
+                        None
+                    } else {
+                        Some(reference.annotation.comment.clone())
+                    },
+                    feature: if reference.annotation.feature.is_empty() {
+                        None
+                    } else {
+                        Some(reference.annotation.feature.clone())
+                    },
+                    tracking_issue: if reference.annotation.tracking_issue.is_empty() {
+                        None
+                    } else {
+                        Some(reference.annotation.tracking_issue.clone())
+                    },
+                    tags: reference.annotation.tags.iter().cloned().collect(),
+                });
+
+            coverage_refs
+                .entry(target_path_str.clone())
+                .or_default()
+                .push((cite_id, reference.start(), reference.end()));
+        }
+    }
+
+    // Normalize impl target ranges: sort and dedup for deterministic output.
+    for impl_anno in impl_annotations.values_mut() {
+        impl_anno.target.ranges.sort();
+        impl_anno.target.ranges.dedup();
+    }
+
+    (impl_annotations, coverage_refs)
+}
+
+/// Step 6: build requirement annotations from Spec references, grouping by
+/// authoring site so a single logical requirement whose quote matched N
+/// disjoint byte ranges (e.g., across an IETF RFC page break) becomes one
+/// RequirementAnnotation with all N ranges.
+fn build_requirement_annotations(
+    report: &ReportResult,
+    target_to_src_id: &HashMap<String, String>,
+    blob_link_to_repo_id: &HashMap<String, String>,
+    source_to_lnk_id: &HashMap<(String, String), String>,
+    coverage_refs: &CoverageRefs,
+) -> BTreeMap<String, RequirementAnnotation> {
+    let mut req_annotations: BTreeMap<String, RequirementAnnotation> = BTreeMap::new();
+
+    for (target, target_report) in report.targets.iter() {
+        let target_path_str = target.path.to_string();
+        let Some(src_id) = target_to_src_id.get(&target_path_str) else {
+            continue;
+        };
+
+        let target_coverage = coverage_refs.get(&target_path_str);
+
+        // Pass 1: group Spec references by authoring site.
+        let mut groups: BTreeMap<ReqGroupKey, ReqGroup> = BTreeMap::new();
+        for reference in &target_report.references {
+            if reference.annotation.anno != crate::annotation::AnnotationType::Spec {
+                continue;
+            }
+
+            let file_name = reference.annotation.source.to_string_lossy().to_string();
+            let repo_id = resolve_repo_id(
+                reference.annotation.blob_link.as_deref(),
+                report,
+                blob_link_to_repo_id,
+            );
+
+            let lnk_key = (file_name, repo_id);
+            let lnk_id = source_to_lnk_id.get(&lnk_key).cloned().unwrap_or_default();
+
+            let anno_line = reference.annotation.anno_line;
+            let key = (src_id.clone(), lnk_id, anno_line);
+            groups
+                .entry(key)
+                .or_insert_with(|| ReqGroup {
+                    level: reference.annotation.level,
+                    ranges: Vec::new(),
+                })
+                .ranges
+                .push((reference.start(), reference.end()));
+        }
+
+        // Pass 2: emit one RequirementAnnotation per group.
+        for ((group_src_id, lnk_id, anno_line), mut group) in groups {
+            group.ranges.sort();
+            group.ranges.dedup();
+
+            let req_id = ids::req_id(&group_src_id, &group.ranges, &lnk_id, anno_line);
+
+            // Build coverage: for each origin range, clamp every non-Spec
+            // reference on this target against it. A single impl reference
+            // may contribute under multiple origin ranges of the same
+            // requirement.
+            let mut coverage: BTreeMap<String, Vec<ByteRange>> = BTreeMap::new();
+            if let Some(refs) = target_coverage {
+                for (origin_start, origin_end) in &group.ranges {
+                    for (cite_id, ref_start, ref_end) in refs {
+                        let clamped_start = (*ref_start).max(*origin_start);
+                        let clamped_end = (*ref_end).min(*origin_end);
+                        if clamped_start < clamped_end {
+                            coverage
+                                .entry(cite_id.clone())
+                                .or_default()
+                                .push(ByteRange {
+                                    start: clamped_start,
+                                    end: clamped_end,
+                                });
+                        }
+                    }
+                }
+                for ranges in coverage.values_mut() {
+                    ranges.sort();
+                    ranges.dedup();
+                }
+            }
+
+            req_annotations.insert(
+                req_id,
+                RequirementAnnotation {
+                    source: SourceLocation {
+                        src: lnk_id,
+                        line: if anno_line > 0 { Some(anno_line) } else { None },
+                    },
+                    origin: SourceRanges {
+                        src: group_src_id,
+                        ranges: group
+                            .ranges
+                            .into_iter()
+                            .map(|(start, end)| ByteRange { start, end })
+                            .collect(),
+                    },
+                    level: group.level.into(),
+                    coverage,
+                },
+            );
+        }
+    }
+
+    req_annotations
 }
 
 // ── CLI entry point ──────────────────────────────────────────────────────────
