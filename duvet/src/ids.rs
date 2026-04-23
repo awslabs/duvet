@@ -17,10 +17,8 @@
 //! | `cite-` | Impl annotation         | `source_id \0 line \0 target_source_id`                            |
 //!
 //! All functions take pre-resolved string inputs and are independently testable.
-//! They are wired into the v2 schema during Phase 2.5's `from_report_result()`.
 
-// These functions are pre-built for Phase 2.5; no callers yet.
-#![allow(dead_code)]
+use std::io::Write;
 
 /// FNV-1a 64-bit hash function.
 ///
@@ -47,15 +45,15 @@ fn prefixed_id(prefix: &str, data: &[u8]) -> String {
     format!("{prefix}{:016x}", fnv1a_64(data))
 }
 
-pub fn repo_id(blob_link: &str) -> String {
+pub(crate) fn repo_id(blob_link: &str) -> String {
     prefixed_id("repo-", blob_link.as_bytes())
 }
 
-pub fn src_id(contents: &[u8]) -> String {
+pub(crate) fn src_id(contents: &[u8]) -> String {
     prefixed_id("src-", contents)
 }
 
-pub fn lnk_id(file_name: &str, repository_id: &str) -> String {
+pub(crate) fn lnk_id(file_name: &str, repository_id: &str) -> String {
     let mut buf = Vec::new();
     buf.extend_from_slice(file_name.as_bytes());
     buf.push(0);
@@ -63,15 +61,18 @@ pub fn lnk_id(file_name: &str, repository_id: &str) -> String {
     prefixed_id("lnk-", &buf)
 }
 
-pub fn spc_id(source_id: &str, start: usize, end: usize) -> String {
-    use std::io::Write;
+pub(crate) fn spc_id(source_id: &str, start: usize, end: usize) -> String {
     let mut buf = Vec::new();
     let _ = write!(buf, "{source_id}\0{start}\0{end}");
     prefixed_id("spc-", &buf)
 }
 
-pub fn req_id(origin_id: &str, ranges: &[(usize, usize)], source_id: &str, line: usize) -> String {
-    use std::io::Write;
+pub(crate) fn req_id(
+    origin_id: &str,
+    ranges: &[(usize, usize)],
+    source_id: &str,
+    line: usize,
+) -> String {
     let mut sorted: Vec<(usize, usize)> = ranges.to_vec();
     sorted.sort();
     let mut buf = Vec::new();
@@ -83,8 +84,7 @@ pub fn req_id(origin_id: &str, ranges: &[(usize, usize)], source_id: &str, line:
     prefixed_id("req-", &buf)
 }
 
-pub fn cite_id(source_id: &str, line: usize, target_source_id: &str) -> String {
-    use std::io::Write;
+pub(crate) fn cite_id(source_id: &str, line: usize, target_source_id: &str) -> String {
     let mut buf = Vec::new();
     let _ = write!(buf, "{source_id}\0{line}\0{target_source_id}");
     prefixed_id("cite-", &buf)

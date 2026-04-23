@@ -5,6 +5,15 @@
 //!
 //! This module provides a roundtrip-friendly JSON format with entity-typed
 //! deterministic IDs, enabling multi-package report merging.
+//!
+//! ## Schema-URL JSON keys
+//!
+//! `SourcesV2` and `AnnotationsV2` are serialized with full schema URLs as
+//! keys (e.g. `"https://awslabs.github.io/duvet/v2/sources.json#inline"`)
+//! rather than plain field names. This is an intentional design choice by
+//! the format owners to make the document self-addressing: each nested
+//! collection advertises the schema it conforms to, so the JSON can be
+//! validated and navigated without out-of-band context.
 
 use crate::{ids, report::ReportResult};
 use serde::{Deserialize, Serialize};
@@ -27,6 +36,7 @@ pub struct ReportV2 {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct Repository {
     pub blob_link: String,
 }
@@ -35,6 +45,7 @@ pub struct Repository {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct SourcesV2 {
     #[serde(rename = "https://awslabs.github.io/duvet/v2/sources.json#inline")]
     pub inline: BTreeMap<String, InlineSource>,
@@ -44,6 +55,7 @@ pub struct SourcesV2 {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct InlineSource {
     pub file_name: String,
     pub contents: String,
@@ -51,6 +63,7 @@ pub struct InlineSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct LinkedSource {
     pub file_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -61,6 +74,7 @@ pub struct LinkedSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct AnnotationsV2 {
     #[serde(rename = "https://awslabs.github.io/duvet/v2/annotations.json#specification")]
     pub specification: BTreeMap<String, SpecificationAnnotation>,
@@ -76,6 +90,7 @@ pub struct AnnotationsV2 {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct SourceRef {
     pub src: String,
     pub start: usize,
@@ -87,6 +102,7 @@ pub struct SourceRef {
 /// non-contiguous regions of the spec (e.g., across IETF RFC page breaks).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct SourceRanges {
     pub src: String,
     pub ranges: Vec<ByteRange>,
@@ -94,6 +110,7 @@ pub struct SourceRanges {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct SourceLocation {
     pub src: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -102,6 +119,7 @@ pub struct SourceLocation {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct ByteRange {
     pub start: usize,
     pub end: usize,
@@ -111,6 +129,7 @@ pub struct ByteRange {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct SpecificationAnnotation {
     pub source: SourceRef,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -120,6 +139,7 @@ pub struct SpecificationAnnotation {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct SectionAnnotation {
     pub source: SourceRef,
     pub short_name: String,
@@ -129,6 +149,7 @@ pub struct SectionAnnotation {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct RequirementAnnotation {
     /// Authoring site: where this requirement was declared (TOML file or
     /// inline `//= type=spec` comment).
@@ -144,6 +165,7 @@ pub struct RequirementAnnotation {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct ImplAnnotation {
     pub source: SourceLocation,
     /// Matched byte range(s) within the target specification file. May
@@ -219,13 +241,22 @@ impl From<crate::annotation::AnnotationType> for AnnotationType {
             crate::annotation::AnnotationType::Exception => Self::Exception,
             crate::annotation::AnnotationType::Todo => Self::Todo,
             crate::annotation::AnnotationType::Spec => {
-                panic!("Spec annotations should not be converted to ImplAnnotation type")
+                unreachable!("Spec annotations are filtered out before impl conversion in Step 5")
             }
         }
     }
 }
 
 // ── Report construction ──────────────────────────────────────────────────────
+
+// Grouping key for Step 6: (origin src-id, authoring lnk-id, anno_line).
+// One key identifies a single logical requirement authoring site.
+type ReqGroupKey = (String, String, usize);
+
+struct ReqGroup {
+    level: crate::annotation::AnnotationLevel,
+    ranges: Vec<(usize, usize)>,
+}
 
 impl ReportV2 {
     /// Build a v2 report from the internal report result.
@@ -264,36 +295,33 @@ impl ReportV2 {
         let mut target_to_src_id: HashMap<String, String> = HashMap::new();
 
         for (target, target_report) in report.targets.iter() {
-            // Get the spec file contents from any section's backing SourceFile
-            let source_file = target_report
-                .specification
-                .sorted_sections()
-                .into_iter()
-                .map(|s| s.full_title.file().clone())
-                .next();
+            let sections = target_report.specification.sorted_sections();
+            // Get the spec file contents from the first section's backing SourceFile.
+            let Some(first_section) = sections.first() else {
+                continue;
+            };
+            let file = first_section.full_title.file().clone();
 
-            if let Some(file) = source_file {
-                let contents: &str = &file;
-                let id = ids::src_id(contents.as_bytes());
+            let contents: &str = &file;
+            let id = ids::src_id(contents.as_bytes());
 
-                if !inline_sources.contains_key(&id) {
-                    let file_name = file
-                        .path()
-                        .file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| target.path.to_string());
+            if !inline_sources.contains_key(&id) {
+                let file_name = file
+                    .path()
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| target.path.to_string());
 
-                    inline_sources.insert(
-                        id.clone(),
-                        InlineSource {
-                            file_name,
-                            contents: contents.to_string(),
-                        },
-                    );
-                }
-
-                target_to_src_id.insert(target.path.to_string(), id);
+                inline_sources.insert(
+                    id.clone(),
+                    InlineSource {
+                        file_name,
+                        contents: contents.to_string(),
+                    },
+                );
             }
+
+            target_to_src_id.insert(target.path.to_string(), id);
         }
 
         // Step 3: Build linked source map from annotations
@@ -343,10 +371,10 @@ impl ReportV2 {
                 continue;
             };
 
+            let sections = target_report.specification.sorted_sections();
+
             // Get file length from the backing SourceFile
-            let file_len = target_report
-                .specification
-                .sorted_sections()
+            let file_len = sections
                 .first()
                 .map(|s| {
                     let file: &str = s.full_title.file();
@@ -370,7 +398,7 @@ impl ReportV2 {
             );
 
             // Section annotations
-            for section in target_report.specification.sorted_sections() {
+            for section in &sections {
                 let start = section.full_title.range().start;
                 let end = section
                     .lines
@@ -437,9 +465,39 @@ impl ReportV2 {
                     end: reference.end(),
                 };
 
+                // When multiple references collapse to the same cite-id
+                // (same authoring lnk-id, anno_line, and target src-id), the
+                // first reference's metadata wins. In debug builds, verify
+                // that subsequent references agree — they should, because
+                // they come from the same annotation comment.
+                let new_anno_type: AnnotationType = reference.annotation.anno.into();
+                let new_level: AnnotationLevel = reference.annotation.level.into();
                 impl_annotations
                     .entry(cite_id.clone())
-                    .and_modify(|a| a.target.ranges.push(range.clone()))
+                    .and_modify(|a| {
+                        debug_assert_eq!(a.anno_type, new_anno_type, "cite_id {cite_id}");
+                        debug_assert_eq!(a.level, new_level, "cite_id {cite_id}");
+                        debug_assert_eq!(
+                            a.comment.as_deref().unwrap_or(""),
+                            reference.annotation.comment,
+                            "cite_id {cite_id}"
+                        );
+                        debug_assert_eq!(
+                            a.feature.as_deref().unwrap_or(""),
+                            reference.annotation.feature,
+                            "cite_id {cite_id}"
+                        );
+                        debug_assert_eq!(
+                            a.tracking_issue.as_deref().unwrap_or(""),
+                            reference.annotation.tracking_issue,
+                            "cite_id {cite_id}"
+                        );
+                        debug_assert!(
+                            a.tags.iter().eq(reference.annotation.tags.iter()),
+                            "cite_id {cite_id}: tag mismatch"
+                        );
+                        a.target.ranges.push(range.clone());
+                    })
                     .or_insert_with(|| ImplAnnotation {
                         source: SourceLocation {
                             src: lnk_id.clone(),
@@ -487,22 +545,12 @@ impl ReportV2 {
             impl_anno.target.ranges.dedup();
         }
 
-        // Step 6: Build requirement annotations (Spec references with coverage)
         // Step 6: Build requirement annotations (Spec references with coverage).
         // Group Spec references by authoring site so that a single logical
         // requirement whose quote matched N disjoint byte ranges (e.g., across
         // an IETF RFC page break) becomes one RequirementAnnotation with all
         // N ranges, not N separate requirements.
         let mut req_annotations: BTreeMap<String, RequirementAnnotation> = BTreeMap::new();
-
-        // Grouping key: (src_id, lnk_id, anno_line, level). Level is included
-        // because AnnotationLevel has no Copy+Ord impl to share across borrows
-        // cleanly, but it's invariant per authoring site by construction.
-        type ReqGroupKey = (String, String, usize);
-        struct ReqGroup {
-            level: crate::annotation::AnnotationLevel,
-            ranges: Vec<(usize, usize)>,
-        }
 
         for (target, target_report) in report.targets.iter() {
             let target_path_str = target.path.to_string();
