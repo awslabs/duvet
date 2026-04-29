@@ -513,7 +513,7 @@ fn build_spec_and_section_annotations(
                 .max()
                 .unwrap_or(section.full_title.range().end);
 
-            let sec_id = ids::spc_id(src_id, start, end);
+            let sec_id = ids::sec_id(src_id, start, end);
             section_annotations.insert(
                 sec_id,
                 SectionAnnotation {

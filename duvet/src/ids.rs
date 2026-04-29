@@ -12,7 +12,8 @@
 //! | `repo-` | Repository              | `blob_link`                                                        |
 //! | `src-`  | Inline source (spec)    | `contents` (raw file bytes)                                        |
 //! | `lnk-`  | Linked source (code)    | `file_name \0 repository_id`                                       |
-//! | `spc-`  | Specification/section   | `source_id \0 start \0 end` (decimal strings)                      |
+//! | `spc-`  | Specification           | `source_id \0 start \0 end` (decimal strings)                      |
+//! | `sec-`  | Section                 | `source_id \0 start \0 end` (decimal strings)                      |
 //! | `req-`  | Requirement             | `origin_id \0 s1 \0 e1 \0 s2 \0 e2 ... \0 source_id \0 line`       |
 //! | `cite-` | Impl annotation         | `source_id \0 line \0 target_source_id`                            |
 //!
@@ -65,6 +66,12 @@ pub(crate) fn spc_id(source_id: &str, start: usize, end: usize) -> String {
     let mut buf = Vec::new();
     let _ = write!(buf, "{source_id}\0{start}\0{end}");
     prefixed_id("spc-", &buf)
+}
+
+pub(crate) fn sec_id(source_id: &str, start: usize, end: usize) -> String {
+    let mut buf = Vec::new();
+    let _ = write!(buf, "{source_id}\0{start}\0{end}");
+    prefixed_id("sec-", &buf)
 }
 
 pub(crate) fn req_id(
@@ -131,6 +138,20 @@ mod tests {
     }
 
     #[test]
+    fn sec_id_known_vector() {
+        assert_eq!(sec_id("src-aaa", 0, 98765), "sec-dfc8916cc1aac4ca");
+    }
+
+    #[test]
+    fn spc_and_sec_ids_share_hash_differ_by_prefix() {
+        let spc = spc_id("src-aaa", 0, 100);
+        let sec = sec_id("src-aaa", 0, 100);
+        assert_eq!(&spc[4..], &sec[4..]);
+        assert!(spc.starts_with("spc-"));
+        assert!(sec.starts_with("sec-"));
+    }
+
+    #[test]
     fn req_id_known_vector() {
         assert_eq!(
             req_id("src-aaa", &[(10, 35)], "lnk-bbb", 7),
@@ -186,6 +207,7 @@ mod tests {
             check_format(&src_id(s.as_bytes()), "src-");
             check_format(&lnk_id(s, s), "lnk-");
             check_format(&spc_id(s, 0, 100), "spc-");
+            check_format(&sec_id(s, 0, 100), "sec-");
             check_format(&req_id(s, &[(0, 100)], s, 0), "req-");
             check_format(&cite_id(s, 0, s), "cite-");
         });
@@ -201,6 +223,7 @@ mod tests {
             assert_eq!(src_id(s.as_bytes()), src_id(s.as_bytes()));
             assert_eq!(lnk_id(s, s), lnk_id(s, s));
             assert_eq!(spc_id(s, 42, 99), spc_id(s, 42, 99));
+            assert_eq!(sec_id(s, 42, 99), sec_id(s, 42, 99));
             assert_eq!(req_id(s, &[(42, 99)], s, 3), req_id(s, &[(42, 99)], s, 3));
             assert_eq!(cite_id(s, 7, s), cite_id(s, 7, s));
         });
@@ -231,6 +254,20 @@ mod tests {
             .for_each(|(s, start, end)| {
                 if start != end {
                     assert_ne!(spc_id(s, *start, *end), spc_id(s, *end, *start));
+                }
+            });
+    }
+
+    /// Swapping start/end in sec_id produces different IDs.
+    #[test]
+    fn separator_safety_sec() {
+        use bolero::check;
+
+        check!()
+            .with_type::<(String, usize, usize)>()
+            .for_each(|(s, start, end)| {
+                if start != end {
+                    assert_ne!(sec_id(s, *start, *end), sec_id(s, *end, *start));
                 }
             });
     }
