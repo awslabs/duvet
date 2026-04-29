@@ -232,18 +232,24 @@ impl From<crate::annotation::AnnotationLevel> for AnnotationLevel {
     }
 }
 
-impl From<crate::annotation::AnnotationType> for AnnotationType {
-    fn from(anno_type: crate::annotation::AnnotationType) -> Self {
-        match anno_type {
+impl TryFrom<crate::annotation::AnnotationType> for AnnotationType {
+    type Error = ();
+
+    /// Converts an internal annotation type to the v2 impl annotation type.
+    ///
+    /// Returns `Err(())` for `Spec`: spec-derived annotations are represented
+    /// by `SpecificationAnnotation`, `SectionAnnotation`, and
+    /// `RequirementAnnotation`, not by `ImplAnnotation`. Callers in Step 5
+    /// use this to filter Spec references out of the impl pipeline.
+    fn try_from(anno_type: crate::annotation::AnnotationType) -> Result<Self, Self::Error> {
+        Ok(match anno_type {
             crate::annotation::AnnotationType::Citation => Self::Citation,
             crate::annotation::AnnotationType::Test => Self::Test,
             crate::annotation::AnnotationType::Implication => Self::Implication,
             crate::annotation::AnnotationType::Exception => Self::Exception,
             crate::annotation::AnnotationType::Todo => Self::Todo,
-            crate::annotation::AnnotationType::Spec => {
-                unreachable!("Spec annotations are filtered out before impl conversion in Step 5")
-            }
-        }
+            crate::annotation::AnnotationType::Spec => return Err(()),
+        })
     }
 }
 
@@ -534,9 +540,14 @@ fn build_impl_annotations(
         };
 
         for reference in &target_report.references {
-            if reference.annotation.anno == crate::annotation::AnnotationType::Spec {
+            // Skip Spec references; they're represented by RequirementAnnotation
+            // in Step 6. TryFrom returning Err for Spec makes this filter
+            // compiler-enforced so future edits can't accidentally let Spec
+            // references reach the impl pipeline.
+            let Ok(new_anno_type): Result<AnnotationType, _> = reference.annotation.anno.try_into()
+            else {
                 continue;
-            }
+            };
 
             let file_name = reference.annotation.source.to_string_lossy().to_string();
             let repo_id = resolve_repo_id(
@@ -560,7 +571,6 @@ fn build_impl_annotations(
             // first reference's metadata wins. In debug builds, verify
             // that subsequent references agree — they should, because
             // they come from the same annotation comment.
-            let new_anno_type: AnnotationType = reference.annotation.anno.into();
             let new_level: AnnotationLevel = reference.annotation.level.into();
             impl_annotations
                 .entry(cite_id.clone())
@@ -601,7 +611,7 @@ fn build_impl_annotations(
                         src: src_id.clone(),
                         ranges: vec![range.clone()],
                     },
-                    anno_type: reference.annotation.anno.into(),
+                    anno_type: new_anno_type,
                     level: reference.annotation.level.into(),
                     comment: if reference.annotation.comment.is_empty() {
                         None
