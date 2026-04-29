@@ -160,6 +160,7 @@
       ]
     },
     "InlineSource": {
+      "description": "A specification source file whose full contents are embedded in the report.\n\n`file_name` is a path relative to the project root\n(e.g. `specs/rfc7541.txt`), matching the `LinkedSource.file_name`\ncontract.",
       "type": "object",
       "properties": {
         "contents": {
@@ -176,6 +177,7 @@
       ]
     },
     "LinkedSource": {
+      "description": "A code or authoring source file referenced by path (and optionally by the\nrepository it lives in). Contents are not embedded; consumers resolve\n`file_name` against the referenced `repository.blob_link` or local\nfilesystem.\n\n`file_name` is a path relative to the project root, matching the\n`InlineSource.file_name` contract.",
       "type": "object",
       "properties": {
         "file_name": {

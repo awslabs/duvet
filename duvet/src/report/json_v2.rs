@@ -53,6 +53,11 @@ pub struct SourcesV2 {
     pub linked: BTreeMap<String, LinkedSource>,
 }
 
+/// A specification source file whose full contents are embedded in the report.
+///
+/// `file_name` is a path relative to the project root
+/// (e.g. `specs/rfc7541.txt`), matching the `LinkedSource.file_name`
+/// contract.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
@@ -61,6 +66,13 @@ pub struct InlineSource {
     pub contents: String,
 }
 
+/// A code or authoring source file referenced by path (and optionally by the
+/// repository it lives in). Contents are not embedded; consumers resolve
+/// `file_name` against the referenced `repository.blob_link` or local
+/// filesystem.
+///
+/// `file_name` is a path relative to the project root, matching the
+/// `InlineSource.file_name` contract.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
@@ -386,11 +398,10 @@ fn build_inline_sources(
         let id = ids::src_id(contents.as_bytes());
 
         if !inline_sources.contains_key(&id) {
-            let file_name = file
-                .path()
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_else(|| target.path.to_string());
+            // Use Display, which strips the current-dir prefix, so the
+            // path is relative to the project root — matching the
+            // LinkedSource contract.
+            let file_name = file.path().to_string();
 
             inline_sources.insert(
                 id.clone(),
