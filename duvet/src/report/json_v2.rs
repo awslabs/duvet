@@ -568,7 +568,10 @@ fn build_impl_annotations(
             );
 
             let lnk_key = (file_name, repo_id);
-            let lnk_id = source_to_lnk_id.get(&lnk_key).cloned().unwrap_or_default();
+            let lnk_id = source_to_lnk_id
+                .get(&lnk_key)
+                .cloned()
+                .expect("linked source must be registered in build_linked_sources");
 
             let cite_id = ids::cite_id(&lnk_id, reference.annotation.anno_line, src_id);
 
@@ -694,7 +697,10 @@ fn build_requirement_annotations(
             );
 
             let lnk_key = (file_name, repo_id);
-            let lnk_id = source_to_lnk_id.get(&lnk_key).cloned().unwrap_or_default();
+            let lnk_id = source_to_lnk_id
+                .get(&lnk_key)
+                .cloned()
+                .expect("linked source must be registered in build_linked_sources");
 
             let anno_line = reference.annotation.anno_line;
             let key = (src_id.clone(), lnk_id, anno_line);
