@@ -862,6 +862,48 @@ mod tests {
         assert_eq!(report, deserialized);
     }
 
+    /// Roundtrip a real report fixture produced by an integration test run.
+    ///
+    /// Unlike the handwritten fixtures in this module, this exercises the
+    /// output shape of `ReportV2::from_report_result` as serialized by the
+    /// production code path. If the serializer and the type definitions
+    /// ever drift (e.g. a field is renamed on the struct but not the
+    /// matching `#[serde(rename)]`), the fixture tests can still pass
+    /// while real reports fail to deserialize — this test catches that.
+    ///
+    /// The fixture is an insta snapshot stored under
+    /// `integration/snapshots/`, so it is regenerated automatically
+    /// whenever the serialization format changes.
+    #[test]
+    fn real_report_snapshot_roundtrip() {
+        // Strip the YAML front matter that insta prepends to snapshots
+        // (delimited by `---` lines) to leave just the JSON body.
+        const SNAPSHOT: &str =
+            include_str!("../../../integration/snapshots/report-markdown_json_v2.snap");
+        let json = SNAPSHOT
+            .split_once("---\n")
+            .and_then(|(_, rest)| rest.split_once("---\n"))
+            .map(|(_, body)| body)
+            .expect("snapshot should have two `---` front-matter delimiters");
+
+        let report: ReportV2 = serde_json::from_str(json)
+            .expect("real report snapshot must deserialize into ReportV2");
+
+        // Sanity-check: every annotation bucket in this fixture is populated.
+        assert!(!report.annotations.specification.is_empty());
+        assert!(!report.annotations.section.is_empty());
+        assert!(!report.annotations.requirement.is_empty());
+        assert!(!report.annotations.r#impl.is_empty());
+        assert!(!report.sources.inline.is_empty());
+        assert!(!report.sources.linked.is_empty());
+
+        // Idempotent roundtrip: re-serializing and re-parsing must yield
+        // an equal value.
+        let reserialized = serde_json::to_string(&report).unwrap();
+        let redeserialized: ReportV2 = serde_json::from_str(&reserialized).unwrap();
+        assert_eq!(report, redeserialized);
+    }
+
     #[test]
     fn populated_report_roundtrip() {
         let mut report = empty_report();
