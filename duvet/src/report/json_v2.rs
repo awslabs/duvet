@@ -94,8 +94,8 @@ pub struct AnnotationsV2 {
     pub section: BTreeMap<String, SectionAnnotation>,
     #[serde(rename = "https://awslabs.github.io/duvet/v2/annotations.json#requirement")]
     pub requirement: BTreeMap<String, RequirementAnnotation>,
-    #[serde(rename = "https://awslabs.github.io/duvet/v2/annotations.json#impl")]
-    pub r#impl: BTreeMap<String, ImplAnnotation>,
+    #[serde(rename = "https://awslabs.github.io/duvet/v2/annotations.json#cite")]
+    pub cite: BTreeMap<String, CiteAnnotation>,
 }
 
 // ── Shared types ─────────────────────────────────────────────────────────────
@@ -178,7 +178,7 @@ pub struct RequirementAnnotation {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
-pub struct ImplAnnotation {
+pub struct CiteAnnotation {
     pub source: SourceLocation,
     /// Matched byte range(s) within the target specification file. May
     /// contain multiple disjoint ranges when the quote spans regions the
@@ -198,7 +198,7 @@ pub struct ImplAnnotation {
     pub tags: Vec<String>,
 }
 
-/// Annotation type for impl annotations (v2 format).
+/// Annotation type for cite annotations (v2 format).
 ///
 /// Note: `Spec` is not included — spec-derived annotations are represented by
 /// `SpecificationAnnotation`, `SectionAnnotation`, and `RequirementAnnotation`.
@@ -251,7 +251,7 @@ impl TryFrom<crate::annotation::AnnotationType> for AnnotationType {
     ///
     /// Returns `Err(())` for `Spec`: spec-derived annotations are represented
     /// by `SpecificationAnnotation`, `SectionAnnotation`, and
-    /// `RequirementAnnotation`, not by `ImplAnnotation`. Callers in Step 5
+    /// `RequirementAnnotation`, not by `CiteAnnotation`. Callers in Step 5
     /// use this to filter Spec references out of the impl pipeline.
     fn try_from(anno_type: crate::annotation::AnnotationType) -> Result<Self, Self::Error> {
         Ok(match anno_type {
@@ -298,7 +298,7 @@ impl ReportV2 {
         let (spec_annotations, section_annotations) =
             build_spec_and_section_annotations(report, &target_to_src_id);
 
-        let (impl_annotations, coverage_refs) = build_impl_annotations(
+        let (cite_annotations, coverage_refs) = build_cite_annotations(
             report,
             &target_to_src_id,
             &blob_link_to_repo_id,
@@ -325,7 +325,7 @@ impl ReportV2 {
                 specification: spec_annotations,
                 section: section_annotations,
                 requirement: req_annotations,
-                r#impl: impl_annotations,
+                cite: cite_annotations,
             },
         }
     }
@@ -533,15 +533,15 @@ fn build_spec_and_section_annotations(
 }
 
 /// Step 5: build impl annotations from every non-Spec reference. Returns
-/// the impl map plus a per-target index of (cite_id, start, end) used by
+/// the cite map plus a per-target index of (cite_id, start, end) used by
 /// Step 6 to compute coverage.
-fn build_impl_annotations(
+fn build_cite_annotations(
     report: &ReportResult,
     target_to_src_id: &HashMap<String, String>,
     blob_link_to_repo_id: &HashMap<String, String>,
     source_to_lnk_id: &HashMap<(String, String), String>,
-) -> (BTreeMap<String, ImplAnnotation>, CoverageRefs) {
-    let mut impl_annotations: BTreeMap<String, ImplAnnotation> = BTreeMap::new();
+) -> (BTreeMap<String, CiteAnnotation>, CoverageRefs) {
+    let mut cite_annotations: BTreeMap<String, CiteAnnotation> = BTreeMap::new();
     let mut coverage_refs: CoverageRefs = HashMap::new();
 
     for (target, target_report) in report.targets.iter() {
@@ -554,7 +554,7 @@ fn build_impl_annotations(
             // Skip Spec references; they're represented by RequirementAnnotation
             // in Step 6. TryFrom returning Err for Spec makes this filter
             // compiler-enforced so future edits can't accidentally let Spec
-            // references reach the impl pipeline.
+            // references reach the cite pipeline.
             let Ok(new_anno_type): Result<AnnotationType, _> = reference.annotation.anno.try_into()
             else {
                 continue;
@@ -586,7 +586,7 @@ fn build_impl_annotations(
             // that subsequent references agree — they should, because
             // they come from the same annotation comment.
             let new_level: AnnotationLevel = reference.annotation.level.into();
-            impl_annotations
+            cite_annotations
                 .entry(cite_id.clone())
                 .and_modify(|a| {
                     debug_assert_eq!(a.anno_type, new_anno_type, "cite_id {cite_id}");
@@ -612,7 +612,7 @@ fn build_impl_annotations(
                     );
                     a.target.ranges.push(range.clone());
                 })
-                .or_insert_with(|| ImplAnnotation {
+                .or_insert_with(|| CiteAnnotation {
                     source: SourceLocation {
                         src: lnk_id.clone(),
                         line: if reference.annotation.anno_line > 0 {
@@ -652,13 +652,13 @@ fn build_impl_annotations(
         }
     }
 
-    // Normalize impl target ranges: sort and dedup for deterministic output.
-    for impl_anno in impl_annotations.values_mut() {
-        impl_anno.target.ranges.sort();
-        impl_anno.target.ranges.dedup();
+    // Normalize cite target ranges: sort and dedup for deterministic output.
+    for cite_anno in cite_annotations.values_mut() {
+        cite_anno.target.ranges.sort();
+        cite_anno.target.ranges.dedup();
     }
 
-    (impl_annotations, coverage_refs)
+    (cite_annotations, coverage_refs)
 }
 
 /// Step 6: build requirement annotations from Spec references, grouping by
@@ -849,7 +849,7 @@ mod tests {
                 specification: BTreeMap::new(),
                 section: BTreeMap::new(),
                 requirement: BTreeMap::new(),
-                r#impl: BTreeMap::new(),
+                cite: BTreeMap::new(),
             },
         }
     }
@@ -893,7 +893,7 @@ mod tests {
         assert!(!report.annotations.specification.is_empty());
         assert!(!report.annotations.section.is_empty());
         assert!(!report.annotations.requirement.is_empty());
-        assert!(!report.annotations.r#impl.is_empty());
+        assert!(!report.annotations.cite.is_empty());
         assert!(!report.sources.inline.is_empty());
         assert!(!report.sources.linked.is_empty());
 
@@ -970,9 +970,9 @@ mod tests {
                 )]),
             },
         );
-        report.annotations.r#impl.insert(
+        report.annotations.cite.insert(
             "cite-aaa".to_string(),
-            ImplAnnotation {
+            CiteAnnotation {
                 source: SourceLocation {
                     src: "lnk-789abc".to_string(),
                     line: Some(42),
@@ -1007,7 +1007,7 @@ mod tests {
                 "https://awslabs.github.io/duvet/v2/annotations.json#specification": {},
                 "https://awslabs.github.io/duvet/v2/annotations.json#section": {},
                 "https://awslabs.github.io/duvet/v2/annotations.json#requirement": {},
-                "https://awslabs.github.io/duvet/v2/annotations.json#impl": {}
+                "https://awslabs.github.io/duvet/v2/annotations.json#cite": {}
             }
         }"#;
         let result = read_report_v2_from_reader(json.as_bytes());
@@ -1030,11 +1030,11 @@ mod tests {
         assert!(json.contains("annotations.json#specification"));
         assert!(json.contains("annotations.json#section"));
         assert!(json.contains("annotations.json#requirement"));
-        assert!(json.contains("annotations.json#impl"));
+        assert!(json.contains("annotations.json#cite"));
     }
 
     /// Coverage map keys in requirement annotations should reference valid
-    /// cite- prefixed IDs that could exist in the impl annotation map.
+    /// cite- prefixed IDs that could exist in the cite annotation map.
     #[test]
     fn coverage_keys_have_cite_prefix() {
         check!()

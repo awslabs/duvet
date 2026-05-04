@@ -44,7 +44,7 @@
       ]
     },
     "AnnotationType": {
-      "description": "Annotation type for impl annotations (v2 format).\n\nNote: `Spec` is not included — spec-derived annotations are represented by\n`SpecificationAnnotation`, `SectionAnnotation`, and `RequirementAnnotation`.",
+      "description": "Annotation type for cite annotations (v2 format).\n\nNote: `Spec` is not included — spec-derived annotations are represented by\n`SpecificationAnnotation`, `SectionAnnotation`, and `RequirementAnnotation`.",
       "type": "string",
       "enum": [
         "CITATION",
@@ -57,10 +57,10 @@
     "AnnotationsV2": {
       "type": "object",
       "properties": {
-        "https://awslabs.github.io/duvet/v2/annotations.json#impl": {
+        "https://awslabs.github.io/duvet/v2/annotations.json#cite": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/ImplAnnotation"
+            "$ref": "#/$defs/CiteAnnotation"
           }
         },
         "https://awslabs.github.io/duvet/v2/annotations.json#requirement": {
@@ -87,7 +87,7 @@
         "https://awslabs.github.io/duvet/v2/annotations.json#specification",
         "https://awslabs.github.io/duvet/v2/annotations.json#section",
         "https://awslabs.github.io/duvet/v2/annotations.json#requirement",
-        "https://awslabs.github.io/duvet/v2/annotations.json#impl"
+        "https://awslabs.github.io/duvet/v2/annotations.json#cite"
       ]
     },
     "ByteRange": {
@@ -110,7 +110,7 @@
         "end"
       ]
     },
-    "ImplAnnotation": {
+    "CiteAnnotation": {
       "type": "object",
       "properties": {
         "comment": {
