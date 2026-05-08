@@ -397,12 +397,17 @@ fn build_inline_sources(
         let contents: &str = &file;
         let id = ids::src_id(contents.as_bytes());
 
-        if !inline_sources.contains_key(&id) {
-            // Use Display, which strips the current-dir prefix, so the
-            // path is relative to the project root — matching the
-            // LinkedSource contract.
-            let file_name = file.path().to_string();
+        // Use Display, which strips the current-dir prefix, so the
+        // path is relative to the project root — matching the
+        // LinkedSource contract.
+        let file_name = file.path().to_string();
 
+        if let Some(existing) = inline_sources.get(&id) {
+            debug_assert_eq!(
+                existing.file_name, file_name,
+                "src-id {id}: file_name drift"
+            );
+        } else {
             inline_sources.insert(
                 id.clone(),
                 InlineSource {
@@ -488,18 +493,23 @@ fn build_spec_and_section_annotations(
             .unwrap_or(0);
 
         let spc_anno_id = ids::spc_id(src_id, 0, file_len);
-        spec_annotations.insert(
-            spc_anno_id,
-            SpecificationAnnotation {
-                source: SourceRef {
-                    src: src_id.clone(),
-                    start: 0,
-                    end: file_len,
-                },
-                title: target_report.specification.title.clone(),
-                format: target_report.specification.format.to_string(),
+        let new_spec = SpecificationAnnotation {
+            source: SourceRef {
+                src: src_id.clone(),
+                start: 0,
+                end: file_len,
             },
-        );
+            title: target_report.specification.title.clone(),
+            format: target_report.specification.format.to_string(),
+        };
+        if let Some(existing) = spec_annotations.get(&spc_anno_id) {
+            debug_assert_eq!(
+                existing, &new_spec,
+                "spc-id {spc_anno_id}: specification metadata drift"
+            );
+        } else {
+            spec_annotations.insert(spc_anno_id, new_spec);
+        }
 
         for section in &sections {
             let start = section.full_title.range().start;
@@ -514,18 +524,23 @@ fn build_spec_and_section_annotations(
                 .unwrap_or(section.full_title.range().end);
 
             let sec_id = ids::sec_id(src_id, start, end);
-            section_annotations.insert(
-                sec_id,
-                SectionAnnotation {
-                    source: SourceRef {
-                        src: src_id.clone(),
-                        start,
-                        end,
-                    },
-                    short_name: section.id.clone(),
-                    long_name: Some(section.title.clone()),
+            let new_section = SectionAnnotation {
+                source: SourceRef {
+                    src: src_id.clone(),
+                    start,
+                    end,
                 },
-            );
+                short_name: section.id.clone(),
+                long_name: Some(section.title.clone()),
+            };
+            if let Some(existing) = section_annotations.get(&sec_id) {
+                debug_assert_eq!(
+                    existing, &new_section,
+                    "sec-id {sec_id}: section metadata drift"
+                );
+            } else {
+                section_annotations.insert(sec_id, new_section);
+            }
         }
     }
 
