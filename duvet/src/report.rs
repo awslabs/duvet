@@ -16,10 +16,11 @@ use std::{collections::BTreeMap, sync::Arc};
 mod ci;
 mod html;
 mod json;
+pub(crate) mod json_v2;
 mod lcov;
 mod snapshot;
 mod stats;
-mod status;
+pub(crate) mod status;
 
 use stats::Statistics;
 
@@ -33,6 +34,9 @@ pub struct Report {
 
     #[clap(long)]
     json: Option<Path>,
+
+    #[clap(long)]
+    json_v2: Option<Path>,
 
     #[clap(long)]
     html: Option<Path>,
@@ -141,6 +145,9 @@ impl Report {
         type ReportFn = fn(&ReportResult, &Path) -> crate::Result<()>;
 
         let internal_json = std::env::var("DUVET_INTERNAL_CI_JSON").ok().map(Path::from);
+        let internal_json_v2 = std::env::var("DUVET_INTERNAL_CI_JSON_V2")
+            .ok()
+            .map(Path::from);
         let internal_html = std::env::var("DUVET_INTERNAL_CI_HTML").ok().map(Path::from);
         let internal_snapshot = std::env::var("DUVET_INTERNAL_CI_SNAPSHOT")
             .ok()
@@ -159,6 +166,7 @@ impl Report {
 
         let reports: &[(Option<&_>, ReportFn)] = &[
             (self.json.as_ref(), json::report),
+            (self.json_v2.as_ref(), json_v2::report),
             (self.html.as_ref(), html::report),
             (self.lcov.as_ref(), lcov::report),
             (
@@ -178,6 +186,7 @@ impl Report {
                 },
             ),
             (internal_json.as_ref(), json::report),
+            (internal_json_v2.as_ref(), json_v2::report),
             (internal_html.as_ref(), html::report),
             // the duvet CI uses its own snapshotting mechanism
             (internal_snapshot.as_ref(), snapshot::report),
@@ -237,11 +246,11 @@ pub struct ReportResult<'a> {
 
 #[derive(Debug)]
 pub struct TargetReport {
-    references: Vec<Reference>,
-    specification: Arc<Specification>,
-    require_citations: bool,
-    require_tests: bool,
-    statuses: status::StatusMap,
+    pub(crate) references: Vec<Reference>,
+    pub(crate) specification: Arc<Specification>,
+    pub(crate) require_citations: bool,
+    pub(crate) require_tests: bool,
+    pub(crate) statuses: status::StatusMap,
 }
 
 impl TargetReport {

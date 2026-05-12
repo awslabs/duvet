@@ -1,0 +1,370 @@
+{
+  "$id": "https://awslabs.github.io/duvet/v2/report.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Duvet Report V2",
+  "type": "object",
+  "properties": {
+    "annotations": {
+      "$ref": "#/$defs/AnnotationsV2"
+    },
+    "issue_links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "repositories": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Repository"
+      }
+    },
+    "sources": {
+      "$ref": "#/$defs/SourcesV2"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "sources",
+    "annotations"
+  ],
+  "$defs": {
+    "AnnotationLevel": {
+      "description": "Annotation level for v2 format.",
+      "type": "string",
+      "enum": [
+        "AUTO",
+        "MAY",
+        "SHOULD",
+        "MUST"
+      ]
+    },
+    "AnnotationType": {
+      "description": "Annotation type for cite annotations (v2 format).\n\nNote: `Spec` is not included — spec-derived annotations are represented by\n`SpecificationAnnotation`, `SectionAnnotation`, and `RequirementAnnotation`.",
+      "type": "string",
+      "enum": [
+        "CITATION",
+        "TEST",
+        "IMPLICATION",
+        "EXCEPTION",
+        "TODO"
+      ]
+    },
+    "AnnotationsV2": {
+      "description": "Container for annotations keyed by schema URL. Each known bucket\n(`#specification`, `#section`, `#requirement`, `#cite`) is optional, and\nunknown URL-keyed buckets are preserved verbatim in `extensions` so\nconsumers and merge tooling can roundtrip new annotation types added by\nfuture schema revisions or out-of-band extensions.",
+      "type": "object",
+      "properties": {
+        "https://awslabs.github.io/duvet/v2/annotations.json#cite": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/CiteAnnotation"
+          },
+          "default": {}
+        },
+        "https://awslabs.github.io/duvet/v2/annotations.json#requirement": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/RequirementAnnotation"
+          },
+          "default": {}
+        },
+        "https://awslabs.github.io/duvet/v2/annotations.json#section": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SectionAnnotation"
+          },
+          "default": {}
+        },
+        "https://awslabs.github.io/duvet/v2/annotations.json#specification": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SpecificationAnnotation"
+          },
+          "default": {}
+        }
+      },
+      "additionalProperties": true
+    },
+    "ByteRange": {
+      "type": "object",
+      "properties": {
+        "end": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "start": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "CiteAnnotation": {
+      "type": "object",
+      "properties": {
+        "comment": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "feature": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "level": {
+          "$ref": "#/$defs/AnnotationLevel",
+          "default": "AUTO"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceLocation"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "target": {
+          "description": "Matched byte range(s) within the target specification file. May\ncontain multiple disjoint ranges when the quote spans regions the\nspec parser normalized away (e.g., IETF RFC page breaks).",
+          "$ref": "#/$defs/SourceRanges"
+        },
+        "tracking_issue": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/AnnotationType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "target",
+        "type"
+      ]
+    },
+    "InlineSource": {
+      "description": "A specification source file whose full contents are embedded in the report.\n\n`file_name` is a path relative to the project root\n(e.g. `specs/rfc7541.txt`), matching the `LinkedSource.file_name`\ncontract.",
+      "type": "object",
+      "properties": {
+        "contents": {
+          "type": "string"
+        },
+        "file_name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "file_name",
+        "contents"
+      ]
+    },
+    "LinkedSource": {
+      "description": "A code or authoring source file referenced by path (and optionally by the\nrepository it lives in). Contents are not embedded; consumers resolve\n`file_name` against the referenced `repository.blob_link` or local\nfilesystem.\n\n`file_name` is a path relative to the project root, matching the\n`InlineSource.file_name` contract.",
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string"
+        },
+        "repository": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "file_name"
+      ]
+    },
+    "Repository": {
+      "type": "object",
+      "properties": {
+        "blob_link": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "blob_link"
+      ]
+    },
+    "RequirementAnnotation": {
+      "type": "object",
+      "properties": {
+        "coverage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/ByteRange"
+            }
+          }
+        },
+        "level": {
+          "$ref": "#/$defs/AnnotationLevel"
+        },
+        "origin": {
+          "description": "Spec byte range(s) this requirement represents. May contain multiple\ndisjoint ranges when the matched quote spans regions the spec parser\nnormalized away (e.g., IETF RFC page breaks).",
+          "$ref": "#/$defs/SourceRanges"
+        },
+        "source": {
+          "description": "Authoring site: where this requirement was declared (TOML file or\ninline `//= type=spec` comment).",
+          "$ref": "#/$defs/SourceLocation"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "origin",
+        "level"
+      ]
+    },
+    "SectionAnnotation": {
+      "type": "object",
+      "properties": {
+        "long_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "short_name": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "short_name"
+      ]
+    },
+    "SourceLocation": {
+      "type": "object",
+      "properties": {
+        "line": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        },
+        "src": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "src"
+      ]
+    },
+    "SourceRanges": {
+      "description": "A reference to one or more (possibly disjoint) byte ranges within an\ninline source file. Used wherever a matched quote can span multiple\nnon-contiguous regions of the spec (e.g., across IETF RFC page breaks).",
+      "type": "object",
+      "properties": {
+        "ranges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ByteRange"
+          }
+        },
+        "src": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "src",
+        "ranges"
+      ]
+    },
+    "SourceRef": {
+      "type": "object",
+      "properties": {
+        "end": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "src": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "src",
+        "start",
+        "end"
+      ]
+    },
+    "SourcesV2": {
+      "description": "Container for source entries keyed by schema URL. Each known bucket\n(`#inline`, `#linked`) is optional, and unknown URL-keyed buckets are\npreserved verbatim in `extensions` so consumers and merge tooling can\nroundtrip new source types added by future schema revisions or\nout-of-band extensions.",
+      "type": "object",
+      "properties": {
+        "https://awslabs.github.io/duvet/v2/sources.json#inline": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/InlineSource"
+          },
+          "default": {}
+        },
+        "https://awslabs.github.io/duvet/v2/sources.json#linked": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/LinkedSource"
+          },
+          "default": {}
+        }
+      },
+      "additionalProperties": true
+    },
+    "SpecificationAnnotation": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceRef"
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "format"
+      ]
+    }
+  }
+}
