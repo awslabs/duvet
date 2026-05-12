@@ -55,40 +55,39 @@
       ]
     },
     "AnnotationsV2": {
+      "description": "Container for annotations keyed by schema URL. Each known bucket\n(`#specification`, `#section`, `#requirement`, `#cite`) is optional, and\nunknown URL-keyed buckets are preserved verbatim in `extensions` so\nconsumers and merge tooling can roundtrip new annotation types added by\nfuture schema revisions or out-of-band extensions.",
       "type": "object",
       "properties": {
         "https://awslabs.github.io/duvet/v2/annotations.json#cite": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/CiteAnnotation"
-          }
+          },
+          "default": {}
         },
         "https://awslabs.github.io/duvet/v2/annotations.json#requirement": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/RequirementAnnotation"
-          }
+          },
+          "default": {}
         },
         "https://awslabs.github.io/duvet/v2/annotations.json#section": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/SectionAnnotation"
-          }
+          },
+          "default": {}
         },
         "https://awslabs.github.io/duvet/v2/annotations.json#specification": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/SpecificationAnnotation"
-          }
+          },
+          "default": {}
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "https://awslabs.github.io/duvet/v2/annotations.json#specification",
-        "https://awslabs.github.io/duvet/v2/annotations.json#section",
-        "https://awslabs.github.io/duvet/v2/annotations.json#requirement",
-        "https://awslabs.github.io/duvet/v2/annotations.json#cite"
-      ]
+      "additionalProperties": true
     },
     "ByteRange": {
       "type": "object",
@@ -325,26 +324,25 @@
       ]
     },
     "SourcesV2": {
+      "description": "Container for source entries keyed by schema URL. Each known bucket\n(`#inline`, `#linked`) is optional, and unknown URL-keyed buckets are\npreserved verbatim in `extensions` so consumers and merge tooling can\nroundtrip new source types added by future schema revisions or\nout-of-band extensions.",
       "type": "object",
       "properties": {
         "https://awslabs.github.io/duvet/v2/sources.json#inline": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/InlineSource"
-          }
+          },
+          "default": {}
         },
         "https://awslabs.github.io/duvet/v2/sources.json#linked": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/LinkedSource"
-          }
+          },
+          "default": {}
         }
       },
-      "additionalProperties": false,
-      "required": [
-        "https://awslabs.github.io/duvet/v2/sources.json#inline",
-        "https://awslabs.github.io/duvet/v2/sources.json#linked"
-      ]
+      "additionalProperties": true
     },
     "SpecificationAnnotation": {
       "type": "object",

@@ -43,14 +43,26 @@ pub struct Repository {
 
 // ── Sources ──────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Container for source entries keyed by schema URL. Each known bucket
+/// (`#inline`, `#linked`) is optional, and unknown URL-keyed buckets are
+/// preserved verbatim in `extensions` so consumers and merge tooling can
+/// roundtrip new source types added by future schema revisions or
+/// out-of-band extensions.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
-#[serde(deny_unknown_fields)]
 pub struct SourcesV2 {
-    #[serde(rename = "https://awslabs.github.io/duvet/v2/sources.json#inline")]
+    #[serde(
+        rename = "https://awslabs.github.io/duvet/v2/sources.json#inline",
+        default
+    )]
     pub inline: BTreeMap<String, InlineSource>,
-    #[serde(rename = "https://awslabs.github.io/duvet/v2/sources.json#linked")]
+    #[serde(
+        rename = "https://awslabs.github.io/duvet/v2/sources.json#linked",
+        default
+    )]
     pub linked: BTreeMap<String, LinkedSource>,
+    #[serde(flatten)]
+    pub extensions: BTreeMap<String, serde_json::Value>,
 }
 
 /// A specification source file whose full contents are embedded in the report.
@@ -84,18 +96,36 @@ pub struct LinkedSource {
 
 // ── Annotations ──────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Container for annotations keyed by schema URL. Each known bucket
+/// (`#specification`, `#section`, `#requirement`, `#cite`) is optional, and
+/// unknown URL-keyed buckets are preserved verbatim in `extensions` so
+/// consumers and merge tooling can roundtrip new annotation types added by
+/// future schema revisions or out-of-band extensions.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
-#[serde(deny_unknown_fields)]
 pub struct AnnotationsV2 {
-    #[serde(rename = "https://awslabs.github.io/duvet/v2/annotations.json#specification")]
+    #[serde(
+        rename = "https://awslabs.github.io/duvet/v2/annotations.json#specification",
+        default
+    )]
     pub specification: BTreeMap<String, SpecificationAnnotation>,
-    #[serde(rename = "https://awslabs.github.io/duvet/v2/annotations.json#section")]
+    #[serde(
+        rename = "https://awslabs.github.io/duvet/v2/annotations.json#section",
+        default
+    )]
     pub section: BTreeMap<String, SectionAnnotation>,
-    #[serde(rename = "https://awslabs.github.io/duvet/v2/annotations.json#requirement")]
+    #[serde(
+        rename = "https://awslabs.github.io/duvet/v2/annotations.json#requirement",
+        default
+    )]
     pub requirement: BTreeMap<String, RequirementAnnotation>,
-    #[serde(rename = "https://awslabs.github.io/duvet/v2/annotations.json#cite")]
+    #[serde(
+        rename = "https://awslabs.github.io/duvet/v2/annotations.json#cite",
+        default
+    )]
     pub cite: BTreeMap<String, CiteAnnotation>,
+    #[serde(flatten)]
+    pub extensions: BTreeMap<String, serde_json::Value>,
 }
 
 // ── Shared types ─────────────────────────────────────────────────────────────
@@ -320,12 +350,14 @@ impl ReportV2 {
             sources: SourcesV2 {
                 inline: inline_sources,
                 linked: linked_sources,
+                extensions: BTreeMap::new(),
             },
             annotations: AnnotationsV2 {
                 specification: spec_annotations,
                 section: section_annotations,
                 requirement: req_annotations,
                 cite: cite_annotations,
+                extensions: BTreeMap::new(),
             },
         }
     }
@@ -856,16 +888,8 @@ mod tests {
             version: "2.0".to_string(),
             issue_links: Vec::new(),
             repositories: BTreeMap::new(),
-            sources: SourcesV2 {
-                inline: BTreeMap::new(),
-                linked: BTreeMap::new(),
-            },
-            annotations: AnnotationsV2 {
-                specification: BTreeMap::new(),
-                section: BTreeMap::new(),
-                requirement: BTreeMap::new(),
-                cite: BTreeMap::new(),
-            },
+            sources: SourcesV2::default(),
+            annotations: AnnotationsV2::default(),
         }
     }
 
@@ -1091,6 +1115,62 @@ mod tests {
                 let rt: ReportV2 = serde_json::from_str(&json).unwrap();
                 assert_eq!(report, rt);
             });
+    }
+
+    /// Unknown URL-keyed buckets in `sources` and `annotations` must
+    /// roundtrip unchanged. The v2 format is designed to be extended by
+    /// future schema revisions and out-of-band tooling, so unknown keys
+    /// must be preserved on read so downstream consumers can opt in to
+    /// schemas this build doesn't recognize.
+    #[test]
+    fn unknown_extension_keys_roundtrip() {
+        let json = r#"{
+            "version": "2.0",
+            "sources": {
+                "https://awslabs.github.io/duvet/v2/sources.json#inline": {},
+                "https://awslabs.github.io/duvet/v2/sources.json#linked": {},
+                "https://example.com/duvet/ext/sources.json#virtual": {
+                    "vsrc-1": { "label": "synthetic" }
+                }
+            },
+            "annotations": {
+                "https://awslabs.github.io/duvet/v2/annotations.json#specification": {},
+                "https://awslabs.github.io/duvet/v2/annotations.json#section": {},
+                "https://awslabs.github.io/duvet/v2/annotations.json#requirement": {},
+                "https://awslabs.github.io/duvet/v2/annotations.json#cite": {},
+                "https://example.com/duvet/ext/annotations.json#review": {
+                    "rev-1": { "reviewer": "alice" }
+                }
+            }
+        }"#;
+
+        let report = read_report_v2_from_reader(json.as_bytes()).unwrap();
+        assert_eq!(report.sources.extensions.len(), 1);
+        assert_eq!(report.annotations.extensions.len(), 1);
+
+        let reserialized = serde_json::to_string(&report).unwrap();
+        let rt = read_report_v2_from_reader(reserialized.as_bytes()).unwrap();
+        assert_eq!(report, rt);
+    }
+
+    /// Known buckets must be optional. A document that omits some or all
+    /// of the named bucket keys should still parse — only `version`,
+    /// `sources`, and `annotations` are structurally required.
+    #[test]
+    fn missing_known_buckets_parse() {
+        let json = r#"{
+            "version": "2.0",
+            "sources": {},
+            "annotations": {}
+        }"#;
+
+        let report = read_report_v2_from_reader(json.as_bytes()).unwrap();
+        assert!(report.sources.inline.is_empty());
+        assert!(report.sources.linked.is_empty());
+        assert!(report.annotations.specification.is_empty());
+        assert!(report.annotations.section.is_empty());
+        assert!(report.annotations.requirement.is_empty());
+        assert!(report.annotations.cite.is_empty());
     }
 
     #[test]
