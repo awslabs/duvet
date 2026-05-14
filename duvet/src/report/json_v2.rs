@@ -852,7 +852,6 @@ pub fn write_report_v2_to_writer<W: std::io::Write>(report: &ReportV2, writer: W
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn read_report_v2(path: &std::path::Path) -> crate::Result<ReportV2> {
     use std::{fs::File, io::BufReader};
 
@@ -863,7 +862,6 @@ pub fn read_report_v2(path: &std::path::Path) -> crate::Result<ReportV2> {
         .map_err(|e| duvet_core::error!("failed to read report from '{}': {}", path.display(), e))
 }
 
-#[allow(dead_code)]
 pub fn read_report_v2_from_reader<R: std::io::Read>(reader: R) -> crate::Result<ReportV2> {
     let report: ReportV2 = serde_json::from_reader(reader)
         .map_err(|e| duvet_core::error!("failed to parse JSON: {}", e))?;

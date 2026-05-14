@@ -17,6 +17,7 @@ mod ci;
 mod html;
 mod json;
 pub(crate) mod json_v2;
+pub(crate) mod json_v2_merge;
 mod lcov;
 mod snapshot;
 mod stats;
