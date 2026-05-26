@@ -164,10 +164,4 @@ pub struct Deprecated {
 
     #[clap(long = "spec-path", hide = true)]
     spec_path: Option<Path>,
-
-    #[clap(long = "require-tests", hide = true)]
-    require_tests: Option<String>,
-
-    #[clap(long = "require-citations", hide = true)]
-    require_citations: Option<String>,
 }
