@@ -1,3 +1,16 @@
+## Unreleased
+
+### Features
+
+* New `duvet query` subcommand for interactive traceability checks during development. Supports five composable checks: `implementation`, `test`, `coverage`, `executed-coverage`, and `duplicates`. Filter results with `--section` and `--quote`; supply coverage data with `--coverage-report` and `--coverage-format`.
+* New `duvet-coverage` internal crate providing a Verus-verified two-phase coverage model. Algorithms for scope tree construction, target resolution, and execution-set propagation are formally proven against the correctness properties in `design/query/coverage-model-spec.md`. Used by `duvet query --check coverage` for languages with a tree-sitter classifier; other languages fall back to the existing forward-walk.
+* Java line classifier built on tree-sitter; extends the coverage check to handle method declarations, interface bodies, fields without initializers, and other constructs that bytecode-based coverage tools (e.g., JaCoCo) do not report.
+* JaCoCo XML coverage report parser.
+
+### Bug Fixes
+
+* Honor `NO_COLOR` and disable ANSI escape codes in diagnostic output when stderr is not a terminal.
+
 ## 0.4.0 (2025-01-22)
 
 ### Features

@@ -38,6 +38,26 @@ Before getting started, Duvet requires a [rust toolchain](https://www.rust-lang.
     $ duvet report
     ```
 
+## Querying traceability state
+
+`duvet query` is a development-time companion to `duvet report`. Where `report` produces the full traceability artifact for CI, `query` answers focused questions during development:
+
+- *Have I annotated the requirements I'm working on?*
+- *Does my implementation have a test?*
+- *Did the test actually execute the implementation?*
+- *Are there duplicate annotations covering the same text?*
+
+Each question is a check (`--check` / `-c`), composable per invocation:
+
+```console
+$ duvet query -c implementation,test --section my-spec.md
+$ duvet query -c coverage -r 'target/jacoco/*.xml' -f jacoco-xml
+```
+
+The coverage check correlates test annotations with executed implementation annotations using a coverage report. For Java sources, duvet uses a verified two-phase coverage model that understands method declarations and other constructs that don't appear in bytecode-based coverage data; for other languages it falls back to a forward-walk over executed lines.
+
+See the [guide](./guide/src/query.md) for the full reference.
+
 ## Development
 
 You must have `git lfs` installed. You can check this by running
