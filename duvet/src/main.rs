@@ -1,10 +1,36 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io::IsTerminal;
+
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() {
+    // Install a miette report handler whose color output reflects the actual
+    // destination, not whatever miette's default lazy autodetection sees.
+    //
+    // Diagnostics in duvet are commonly rendered via `format!("{:?}", error)`
+    // inside Display impls (see duvet/src/query/result.rs). At that point the
+    // formatter is a `core::fmt::Formatter` and miette's default handler has
+    // no way to consult the eventual destination, so it ships ANSI escapes
+    // unconditionally. Captured stdout/stderr in CI then contains color codes
+    // that no one will see and that break snapshot tests.
+    //
+    // Honor `NO_COLOR` (https://no-color.org/) and disable color when stderr
+    // is not a terminal. `set_hook` is fallible only if a hook is already set;
+    // ignore the error so test harnesses that call into the duvet library
+    // multiple times still work.
+    let use_color =
+        std::env::var_os("NO_COLOR").is_none() && std::io::stderr().is_terminal();
+    let _ = miette::set_hook(Box::new(move |_| {
+        Box::new(
+            miette::MietteHandlerOpts::new()
+                .color(use_color)
+                .build(),
+        )
+    }));
+
     let format = tracing_subscriber::fmt::format().compact(); // Use a less verbose output format.
 
     let env_filter = tracing_subscriber::EnvFilter::builder()
