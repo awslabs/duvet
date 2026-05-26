@@ -458,11 +458,10 @@ mod tests {
         let result = classify(source);
         let mut opens = 0;
         let mut closes = 0;
-        for (_i, class) in result.iter().enumerate() {
+        for class in result.iter() {
             if let Some(props) = class {
                 if props.contains(&LineProperty::ScopeOpen) { opens += 1; }
                 if props.contains(&LineProperty::ScopeClose) { closes += 1; }
-                eprintln!("line {:3}: {:?}", _i + 1, props);
             }
         }
         assert_eq!(opens, closes, "ScopeOpen ({opens}) and ScopeClose ({closes}) count must match");
@@ -486,16 +485,12 @@ mod tests {
         let result = classify(source);
         let mut opens = 0;
         let mut closes = 0;
-        for (i, class) in result.iter().enumerate() {
+        for class in result.iter() {
             if let Some(props) = class {
                 if props.contains(&LineProperty::ScopeOpen) { opens += 1; }
                 if props.contains(&LineProperty::ScopeClose) { closes += 1; }
-                if props.contains(&LineProperty::ScopeOpen) || props.contains(&LineProperty::ScopeClose) {
-                    eprintln!("line {:3}: {:?}", i + 1, props);
-                }
             }
         }
-        eprintln!("Opens: {}, Closes: {}", opens, closes);
         assert_eq!(opens, closes, "ScopeOpen ({opens}) and ScopeClose ({closes}) count must match");
     }
 
