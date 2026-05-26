@@ -349,6 +349,36 @@ async fn execute_coverage_check(
     let execution_data_maps: Vec<ExecutionDataMap> = futures::future::try_join_all(build_futures).await?;
     let report_count = execution_data_maps.len();
 
+    if verbose {
+        // Tell the user which coverage path each source file is using, so a
+        // missing classifier (and the resulting fallback to forward-walk)
+        // is visible during development. Aggregate across all reports —
+        // the same file may appear in several with the same path, but the
+        // chosen path is determined by file extension, not coverage report.
+        let mut classified_files: BTreeSet<&std::path::Path> = BTreeSet::new();
+        let mut unclassified_files: BTreeSet<&std::path::Path> = BTreeSet::new();
+        for map in &execution_data_maps {
+            for (path, data) in map {
+                match data {
+                    crate::query::checks::coverage::FileExecutionData::Classified(_) => {
+                        classified_files.insert(path.as_path());
+                    }
+                    crate::query::checks::coverage::FileExecutionData::Unclassified(_) => {
+                        unclassified_files.insert(path.as_path());
+                    }
+                }
+            }
+        }
+        progress!(
+            "Coverage model: {} file(s) using language-aware (verified) path, {} file(s) using forward-walk fallback",
+            classified_files.len(),
+            unclassified_files.len()
+        );
+        for path in &unclassified_files {
+            progress!("  forward-walk fallback: {}", path.display());
+        }
+    }
+
     let mut test_annotations: Vec<_> = Vec::new();
     let mut implementation_annotations: Vec<_> = Vec::new();
 
