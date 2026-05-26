@@ -4,9 +4,16 @@ version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "Coverage model types and algorithms for duvet"
+publish = false
 
 [dependencies]
-vstd = "0.0.0-2026-03-15-0111"
+# vstd ships only as date-pinned pre-release versions on crates.io
+# (e.g. 0.0.0-2026-05-24-0157). Cargo's `*` does not match pre-releases,
+# so the canonical "any pre-release of 0.0.0" expression is used here;
+# Cargo.lock pins the exact version actually used in builds. This crate
+# is internal-only (publish = false), so this dependency is not propagated
+# into the published duvet artifact.
+vstd = "0.0.0-0"
 
 [package.metadata.verus]
 verify = true
