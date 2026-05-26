@@ -618,10 +618,11 @@ fn with_related_not_executed_annotations(
 /// Helper function to get a slice for a specific line
 fn get_line_slice(annotation: &Arc<Annotation>, line_number: u64) -> Option<duvet_core::file::Slice<duvet_core::file::SourceFile>> {
     // Get the source file from the annotation
+    let idx = usize::try_from(line_number).ok()?.checked_sub(1)?;
     annotation
         .original_text
         .file()
         .lines_slices()
         // nth is 0 based, but line numbers in source are 1 based.
-        .nth(<u64 as TryInto<usize>>::try_into(line_number).unwrap() - 1)
+        .nth(idx)
 }
