@@ -9,6 +9,7 @@ mod query;
 mod comment;
 mod config;
 mod extract;
+pub(crate) mod ids;
 mod init;
 mod project;
 mod reference;
