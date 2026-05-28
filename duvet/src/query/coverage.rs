@@ -84,16 +84,15 @@ pub enum ExecutionType {
     Line,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum AnnotationExecutionStatus {
-    Executed,
-    NotExecuted,      // Could be executed but wasn't (has coverage data)
-    Unknown { 
-        line_number: u64  // The problematic line number
-    },
-}
-
 pub type LineMap = BTreeMap<u64, LineInfo>;
+
+/// Re-export of the verified [`duvet_coverage::types::ExecutionStatus`] used
+/// throughout the query subsystem. The `Structural` variant marks targets that
+/// are purely declarative (e.g. interface bodies with no executable code);
+/// reporting code currently treats `Structural` the same as `NotExecuted`, but
+/// the distinction is preserved at the type level so it can surface in future
+/// diagnostics.
+pub use duvet_coverage::types::ExecutionStatus;
 
 /// Trait for parsing coverage reports
 pub trait CoverageParser {

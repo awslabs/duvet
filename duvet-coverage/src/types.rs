@@ -102,7 +102,7 @@ pub struct AnnotationSpan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TargetLine {
+pub(crate) struct TargetLine {
     pub line_number: u64,
     pub properties: Option<LineClass>,
 }
@@ -125,10 +125,18 @@ pub type CoverageReport = BTreeMap<u64, CoverageStatus>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExecutionStatus {
+    /// The annotation's target line is in the execution set.
     Executed,
+    /// The annotation's target line is reachable but was not executed.
     NotExecuted,
+    /// The annotation's target is purely declarative (e.g., interface
+    /// method declaration with no body) and cannot be verified by execution.
     Structural,
-    Unknown,
+    /// Execution status cannot be determined. Either the target line is
+    /// unclassified (`None`), or it is classified `NonLinearControl`.
+    /// `line_number` identifies which line prevented determination, for
+    /// diagnostic reporting.
+    Unknown { line_number: u64 },
 }
 
 pub fn line_class(props: &[LineProperty]) -> (result: LineClass)

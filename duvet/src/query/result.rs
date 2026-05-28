@@ -6,7 +6,7 @@ use std::fmt;
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
     comment::{Pattern},
-    query::coverage::AnnotationExecutionStatus,
+    query::coverage::ExecutionStatus,
 };
 use std::{
     sync::Arc,
@@ -140,7 +140,7 @@ impl AnnotationCoverage {
 #[derive(Debug)]
 pub struct CoveredTestAnnotation {
     pub test: Arc<Annotation>,
-    pub test_execution_status: AnnotationExecutionStatus,
+    pub test_execution_status: ExecutionStatus,
     pub executed_implementations: Vec<Arc<Annotation>>,
     pub not_executed_implementations: Vec<NotExecutedAnnotation>,
 }
@@ -148,7 +148,7 @@ pub struct CoveredTestAnnotation {
 #[derive(Debug)]
 pub struct NotExecutedAnnotation {
     pub annotation: Arc<Annotation>,
-    pub status: AnnotationExecutionStatus
+    pub status: ExecutionStatus
 }
 
 impl fmt::Display for QueryResult {
@@ -412,9 +412,10 @@ impl fmt::Display for CoverageResult {
                 let mut error = error!("Failed correlation");
 
                 let test_annotation_message = match correlation.test_execution_status {
-                    AnnotationExecutionStatus::Executed => "Executed test",
-                    AnnotationExecutionStatus::NotExecuted => "Not executed test",
-                    AnnotationExecutionStatus::Unknown { .. } => "Not executed because of an unknown not executable line.",
+                    ExecutionStatus::Executed => "Executed test",
+                    ExecutionStatus::NotExecuted => "Not executed test",
+                    ExecutionStatus::Structural => "Test target is purely declarative; no executable code to verify",
+                    ExecutionStatus::Unknown { .. } => "Not executed because of an unknown not executable line.",
                 };
 
                 // Add test annotation context
@@ -424,7 +425,7 @@ impl fmt::Display for CoverageResult {
                 );
 
                 // If test execution status is Unknown, add the problematic line
-                if let AnnotationExecutionStatus::Unknown { line_number } = correlation.test_execution_status {
+                if let ExecutionStatus::Unknown { line_number } = correlation.test_execution_status {
                     if let Some(line_slice) = get_line_slice(&correlation.test, line_number) {
                         error = error.with_related_source_slice(
                             line_slice,
@@ -443,9 +444,10 @@ impl fmt::Display for CoverageResult {
                     error,
                     &correlation.not_executed_implementations,
                     |status| match status {
-                        AnnotationExecutionStatus::NotExecuted => "Not executed implementation",
-                        AnnotationExecutionStatus::Unknown { .. } => "Not executed because of an unknown not executable line.",
-                        AnnotationExecutionStatus::Executed => unreachable!("Executed implementation"), // shouldn't happen
+                        ExecutionStatus::NotExecuted => "Not executed implementation",
+                        ExecutionStatus::Structural => "Structural implementation target — no executable code to verify",
+                        ExecutionStatus::Unknown { .. } => "Not executed because of an unknown not executable line.",
+                        ExecutionStatus::Executed => unreachable!("Executed implementation"), // shouldn't happen
                     }
                 );
 
@@ -472,7 +474,7 @@ impl fmt::Display for CoverageResult {
                 );
 
                 // correlation in successful ==>
-                //  correlation.test_execution_status == AnnotationExecutionStatus::Executed ==>
+                //  correlation.test_execution_status == ExecutionStatus::Executed ==>
                 //  correlation.not_executed_implementations.is_empty()
 
                 writeln!(f, "{:?}", info)?;
@@ -593,7 +595,7 @@ fn with_related_annotations(
 fn with_related_not_executed_annotations(
     mut error: duvet_core::diagnostic::Error,
     annotations: &[NotExecutedAnnotation],
-    message: fn(AnnotationExecutionStatus) -> &'static str,
+    message: fn(ExecutionStatus) -> &'static str,
 ) -> duvet_core::diagnostic::Error {
     for annotation in annotations {
         // Always show the annotation context first
@@ -603,7 +605,7 @@ fn with_related_not_executed_annotations(
         );
 
         // If we have line number information for Unknown status, add specific line context
-        if let AnnotationExecutionStatus::Unknown { line_number } = annotation.status {
+        if let ExecutionStatus::Unknown { line_number } = annotation.status {
             if let Some(line_slice) = get_line_slice(&annotation.annotation, line_number) {
                 error = error.with_related_source_slice(
                     line_slice,

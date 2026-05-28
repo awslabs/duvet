@@ -37,9 +37,9 @@ pub fn is_annotation_executed(
         None => ExecutionStatus::Structural,
         Some(target_line) => {
             match &target_line.properties {
-                None => ExecutionStatus::Unknown,
+                None => ExecutionStatus::Unknown { line_number: target_line.line_number },
                 Some(props) => {
-                    if props.contains(&LineProperty::NonLinearControl) { return ExecutionStatus::Unknown; }
+                    if props.contains(&LineProperty::NonLinearControl) { return ExecutionStatus::Unknown { line_number: target_line.line_number }; }
                     let exec_set = execution_set(classifications, scopes, coverage);
                     if exec_set.contains(&target_line.line_number) { return ExecutionStatus::Executed; }
                     if props.contains(&LineProperty::Statement) { return ExecutionStatus::NotExecuted; }
@@ -132,7 +132,8 @@ mod tests {
     }
     #[test] fn example_6_7_unknown_blocks_target() {
         let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), None, s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 2, end_line: 3 }, &c, &[Scope { open_line: 1, close_line: 6, parent: None, children: vec![] }], &cov_hit(&[5]), 6), ExecutionStatus::Unknown);
+        // Target resolution lands on line 4 (the unknown line); Unknown carries that line number.
+        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 2, end_line: 3 }, &c, &[Scope { open_line: 1, close_line: 6, parent: None, children: vec![] }], &cov_hit(&[5]), 6), ExecutionStatus::Unknown { line_number: 4 });
     }
     #[test] fn dangling_annotation_is_structural() {
         assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 1, end_line: 1 }, &vec![s(&[LineProperty::Annotation]), s(&[LineProperty::ScopeClose])], &[], &CoverageReport::new(), 2), ExecutionStatus::Structural);

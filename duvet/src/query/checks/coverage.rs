@@ -5,7 +5,7 @@ use crate::{
     annotation::{Annotation, AnnotationType, AnnotationSet},
     source::SourceFile,
     query::{
-        coverage::{CoverageData, CoverageParser, LineMap, FileCoverage, LineInfo, ExecutionType, AnnotationExecutionStatus},
+        coverage::{CoverageData, CoverageParser, LineMap, FileCoverage, LineInfo, ExecutionType},
         classify::classifier_for_path,
         parsers::JacocoParser,
     },
@@ -265,9 +265,9 @@ pub async fn parse_coverage_data(
 pub fn is_annotation_executed(
     annotation: &Arc<Annotation>,
     execution_data_map: &ExecutionDataMap,
-) -> AnnotationExecutionStatus {
+) -> ExecutionStatus {
     if matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo) {
-        return AnnotationExecutionStatus::NotExecuted;
+        return ExecutionStatus::NotExecuted;
     }
 
     let file_path = annotation.source.to_path_buf();
@@ -277,33 +277,18 @@ pub fn is_annotation_executed(
             let (start_line, end_line) = annotation.line_range();
             let ann_span = AnnotationSpan { start_line, end_line };
 
-            let status = classified_is_annotation_executed(
+            classified_is_annotation_executed(
                 &ann_span,
                 &data.classifications,
                 &data.scopes,
                 &data.coverage,
                 data.file_length,
-            );
-
-            match status {
-                ExecutionStatus::Executed => AnnotationExecutionStatus::Executed,
-                ExecutionStatus::NotExecuted => AnnotationExecutionStatus::NotExecuted,
-                ExecutionStatus::Structural => AnnotationExecutionStatus::NotExecuted,
-                ExecutionStatus::Unknown => {
-                    let target = duvet_coverage::target_resolution::annotation_target(
-                        &ann_span,
-                        &data.classifications,
-                        data.file_length,
-                    );
-                    let line_number = target.map_or(end_line + 1, |t| t.line_number);
-                    AnnotationExecutionStatus::Unknown { line_number }
-                }
-            }
+            )
         }
         Some(FileExecutionData::Unclassified(line_map)) => {
             is_annotation_executed_fallback(annotation, line_map)
         }
-        None => AnnotationExecutionStatus::NotExecuted,
+        None => ExecutionStatus::NotExecuted,
     }
 }
 
@@ -313,17 +298,17 @@ pub fn is_annotation_executed(
 fn is_annotation_executed_fallback(
     annotation: &Arc<Annotation>,
     line_map: &LineMap,
-) -> AnnotationExecutionStatus {
+) -> ExecutionStatus {
     let (start_line, end_line) = annotation.line_range();
 
     // Confirm this is the same annotation in the line map
     for line_num in start_line..=end_line {
         if let Some(LineInfo::Annotation(stored_annotation)) = line_map.get(&line_num) {
             if stored_annotation != annotation {
-                return AnnotationExecutionStatus::Unknown { line_number: line_num };
+                return ExecutionStatus::Unknown { line_number: line_num };
             }
         } else {
-            return AnnotationExecutionStatus::Unknown { line_number: line_num };
+            return ExecutionStatus::Unknown { line_number: line_num };
         }
     }
 
@@ -340,16 +325,16 @@ fn is_annotation_executed_fallback(
                 return is_annotation_executed_fallback(next_annotation, line_map);
             }
             Some(LineInfo::Executed(_)) => {
-                return AnnotationExecutionStatus::Executed;
+                return ExecutionStatus::Executed;
             }
             Some(LineInfo::NotExecuted(_)) => {
-                return AnnotationExecutionStatus::NotExecuted;
+                return ExecutionStatus::NotExecuted;
             }
             Some(LineInfo::Unknown) => {
-                return AnnotationExecutionStatus::Unknown { line_number: current_line };
+                return ExecutionStatus::Unknown { line_number: current_line };
             }
             None => {
-                return AnnotationExecutionStatus::NotExecuted;
+                return ExecutionStatus::NotExecuted;
             }
         }
     }
