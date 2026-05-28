@@ -43,7 +43,7 @@ fn collect_hit_lines(coverage: &CoverageReport) -> (result: BTreeSet<u64>)
     s
 }
 
-pub fn execution_set(
+pub(crate) fn execution_set(
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
     coverage: &CoverageReport,

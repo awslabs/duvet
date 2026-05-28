@@ -40,7 +40,7 @@ verus! {
 /// every line in the result satisfies `validly_in_exec_set`, which
 /// requires `has_valid_path` (defined in `predicates.rs`).
 /// This function exercises the property at runtime.
-pub fn property_no_false_positives(
+pub(crate) fn property_no_false_positives(
     annotation: &AnnotationSpan, classifications: &[Option<LineClass>],
     scopes: &[Scope], coverage: &CoverageReport, file_length: u64,
 ) requires
@@ -423,7 +423,7 @@ proof fn lemma_unknown_safety(
 
 /// Property 9: Execution Set Containment — execution_set ⊇ directly_hit.
 /// This is proven by the ensures clause on execution_set itself.
-pub fn property_execution_set_containment(
+pub(crate) fn property_execution_set_containment(
     classifications: &[Option<LineClass>], scopes: &[Scope], coverage: &CoverageReport,
 )
     requires
