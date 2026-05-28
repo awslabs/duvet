@@ -45,6 +45,25 @@ pub struct Query {
 }
 
 #[derive(Clone, Debug, PartialEq, clap::ValueEnum)]
+// NOTE: The `#[value(help = "...")]` strings below contain example duvet
+// annotations like `//= https://www.rfc-editor.org/rfc/rfc2324...` and the
+// matching `//#` quote lines, on purpose — they show users what real
+// annotations look like.
+//
+// These string literals are scanned by duvet's own annotation parser when
+// it runs on this repository, because the parser does not currently
+// distinguish source comments from string literal contents. The result is
+// that RFC 2324 (HTCPCP) is recorded as a tracked specification in
+// `.duvet/snapshot.txt`, and its text is cached in
+// `.duvet/specifications/www.rfc-editor.org/rfc/rfc2324.txt` so that
+// builds remain reproducible without a network fetch.
+//
+// This is a known leak — the help text accidentally creates real
+// traceability state. See <TODO: file issue link> for the planned fix
+// (either escape the `//=` patterns here or teach the annotation parser
+// to skip Rust string literals). Until that lands, do not delete the
+// cached RFC file or remove the example annotations from these help
+// strings without coordinating both changes.
 pub enum CheckType {
     #[value(alias = "implementations")]
     #[value(help = "Verifies that requirements from specifications have corresponding implementation annotations in source code.

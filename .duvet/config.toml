@@ -1,5 +1,16 @@
 '$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
 
+# NOTE: this project tracks an extra (unintentional) specification —
+# RFC 2324 (HTCPCP) — because example duvet annotations appear inside
+# clap `#[value(help = "...")]` strings in `duvet/src/query.rs`. duvet's
+# annotation parser scans string literals as well as comments, so those
+# examples become real annotations and force RFC 2324 to be tracked.
+# The cached spec text lives at
+# `.duvet/specifications/www.rfc-editor.org/rfc/rfc2324.txt`. Do not
+# delete it without first removing or escaping the example annotations
+# in `duvet/src/query.rs`. See the comment above `CheckType` there and
+# the open issue tracking the parser fix.
+
 [[source]]
 pattern = "duvet/**/*.rs"
 
