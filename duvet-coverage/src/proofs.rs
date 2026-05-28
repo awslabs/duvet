@@ -440,6 +440,20 @@ pub(crate) fn property_execution_set_containment(
 } // verus!
 
 #[cfg(test)]
+// These tests are concrete-input smoke tests for the correctness properties
+// already proven by Verus in the surrounding module. They are not redundant
+// with the proofs:
+//
+// - The Verus proofs establish that the property holds for *all* inputs
+//   satisfying the `requires` clause.
+// - These tests demonstrate the property on specific concrete inputs that a
+//   reviewer can read top-to-bottom: the classifications, the scopes, the
+//   coverage report, and the expected `ExecutionStatus`.
+//
+// They serve as runnable documentation of the algorithm's behavior, catch
+// regressions in the non-Verus code paths (constant folding, panics on
+// degenerate input, public API changes), and give a reviewer who is not yet
+// fluent in Verus a way to engage with the model.
 mod tests {
     use super::*;
     use crate::types::*;
