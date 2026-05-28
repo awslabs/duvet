@@ -16,7 +16,7 @@ use duvet_coverage::types::{
     CoverageReport as CoverageReportMap, Scope, ExecutionStatus,
 };
 use duvet_coverage::scopes::build_scope_tree;
-use duvet_coverage::annotation_execution::is_annotation_executed as classified_is_annotation_executed;
+use duvet_coverage::annotation_execution::is_annotation_executed;
 use rustc_hash::FxHashMap;
 use std::{
     collections::HashSet,
@@ -258,11 +258,17 @@ pub async fn parse_coverage_data(
 
 /// Check if an annotation is executed according to coverage data.
 ///
-/// When classified data (tree-sitter) is available for the file, uses the
-/// two-phase coverage model (target resolution + execution propagation)
-/// from the verified duvet-coverage crate. Otherwise falls back to the
-/// basic forward-walk for unclassified languages.
-pub fn is_annotation_executed(
+/// Decide the [`ExecutionStatus`] of an annotation given the execution data
+/// for its source file.
+///
+/// When classified data (tree-sitter) is available for the file, delegates to
+/// the verified two-phase coverage model in `duvet_coverage`. Otherwise falls
+/// back to [`executed_status_for_unclassified`], which performs a forward
+/// walk over a `LineMap`. The unclassified fallback exists for languages
+/// without a tree-sitter classifier; with the current set of supported
+/// coverage formats (jacoco-xml only) it is not actually reachable from any
+/// integration test, but it remains the contract for future formats.
+pub fn executed_status_for(
     annotation: &Arc<Annotation>,
     execution_data_map: &ExecutionDataMap,
 ) -> ExecutionStatus {
@@ -277,7 +283,7 @@ pub fn is_annotation_executed(
             let (start_line, end_line) = annotation.line_range();
             let ann_span = AnnotationSpan { start_line, end_line };
 
-            classified_is_annotation_executed(
+            is_annotation_executed(
                 &ann_span,
                 &data.classifications,
                 &data.scopes,
@@ -286,16 +292,17 @@ pub fn is_annotation_executed(
             )
         }
         Some(FileExecutionData::Unclassified(line_map)) => {
-            is_annotation_executed_fallback(annotation, line_map)
+            executed_status_for_unclassified(annotation, line_map)
         }
         None => ExecutionStatus::NotExecuted,
     }
 }
 
-/// Basic forward-walk execution detection for unclassified languages.
-/// Walks forward from the annotation, skipping whitespace and stacked annotations,
-/// until reaching a line that coverage data has an opinion about.
-fn is_annotation_executed_fallback(
+/// Forward-walk execution detection for files without a tree-sitter
+/// classifier. Walks forward from the annotation, skipping whitespace and
+/// stacked annotations, until reaching a line that coverage data has an
+/// opinion about.
+fn executed_status_for_unclassified(
     annotation: &Arc<Annotation>,
     line_map: &LineMap,
 ) -> ExecutionStatus {
@@ -322,7 +329,7 @@ fn is_annotation_executed_fallback(
             }
             Some(LineInfo::Annotation(next_annotation)) => {
                 // Stacked annotation — execution is transitive
-                return is_annotation_executed_fallback(next_annotation, line_map);
+                return executed_status_for_unclassified(next_annotation, line_map);
             }
             Some(LineInfo::Executed(_)) => {
                 return ExecutionStatus::Executed;

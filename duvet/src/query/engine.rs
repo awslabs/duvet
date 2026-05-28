@@ -8,7 +8,7 @@ use super::{
             CoverageFormat,
             parse_coverage_data,
             build_execution_data,
-            is_annotation_executed,
+            executed_status_for,
             ExecutionDataMap,
         },
         classify_annotation_coverage,
@@ -413,7 +413,7 @@ async fn execute_coverage_check(
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
         let mut test_executed = ExecutionStatus::NotExecuted;
         for exec_data in &execution_data_maps {
-            let executed_status = is_annotation_executed(&test.target, exec_data);
+            let executed_status = executed_status_for(&test.target, exec_data);
             if matches!(executed_status, ExecutionStatus::Executed) {
                 test_executed = executed_status;
 
@@ -421,7 +421,7 @@ async fn execute_coverage_check(
                 let mut not_executed_implementations = Vec::new();
 
                 for annotation in &test.covering_annotations {
-                    let status = is_annotation_executed(annotation, exec_data);
+                    let status = executed_status_for(annotation, exec_data);
                     if matches!(status, ExecutionStatus::Executed) {
                         executed_implementations.push(annotation.clone());
                     } else {
@@ -490,7 +490,7 @@ async fn execute_coverage_check(
             } else {
                 execution_data_maps
                     .iter()
-                    .any(|exec_data| matches!(is_annotation_executed(annotation, exec_data), ExecutionStatus::Executed))
+                    .any(|exec_data| matches!(executed_status_for(annotation, exec_data), ExecutionStatus::Executed))
             }
         })
         .cloned()
