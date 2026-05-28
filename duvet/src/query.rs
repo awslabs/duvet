@@ -1,44 +1,44 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::Parser;
 use crate::Result;
-use duvet_core::{progress};
+use clap::Parser;
+use duvet_core::progress;
 
-pub mod coverage;
-pub mod result;
-pub mod parsers;
 pub mod classify;
+pub mod coverage;
+pub mod parsers;
+pub mod result;
 
-mod requirements;
 mod checks;
 mod engine;
+mod requirements;
 
-use requirements::RequirementMode;
 use checks::coverage::CoverageFormat;
+use requirements::RequirementMode;
 
 #[derive(Debug, Parser)]
 pub struct Query {
     /// Types of checks to run (comma-separated)
     #[clap(short = 'c', long, value_delimiter = ',')]
     pub check: Option<Vec<CheckType>>,
-    
+
     /// Specific sections to validate (comma-separated)
     #[clap(short = 's', long, value_delimiter = ',')]
     pub section: Option<Vec<String>>,
-    
+
     /// Filter by quoted requirement text (case-insensitive substring match, repeatable)
     #[clap(short = 'q', long)]
     pub quote: Option<Vec<String>>,
-    
+
     /// Coverage report path(s), supports globs (required for coverage checks)
     #[clap(short = 'r', long, required_if_eq_any([("check", "coverage"), ("check", "executed-coverage")]))]
     pub coverage_report: Option<Vec<String>>,
-    
+
     /// Coverage format (required for coverage checks)
     #[clap(short = 'f', long, required_if_eq_any([("check", "coverage"), ("check", "executed-coverage")]))]
-    pub coverage_format: Option<CoverageFormat>, 
-    
+    pub coverage_format: Option<CoverageFormat>,
+
     /// Enable verbose output
     #[clap(short = 'v', long)]
     pub verbose: bool,
@@ -67,7 +67,8 @@ pub struct Query {
 // strings without coordinating both changes.
 pub enum CheckType {
     #[value(alias = "implementations")]
-    #[value(help = "Verifies that requirements from specifications have corresponding implementation annotations in source code.
+    #[value(
+        help = "Verifies that requirements from specifications have corresponding implementation annotations in source code.
 
 The check PASSES when:
 - Annotations accurately quote the specification requirements
@@ -85,10 +86,12 @@ Example implementation annotation:
     //= https://www.rfc-editor.org/rfc/rfc2324#section-2.1.1
     //# A coffee pot server MUST accept both the BREW and POST method
     //# equivalently.
-    pub fn handle_brew_request() { ... }")]
+    pub fn handle_brew_request() { ... }"
+    )]
     Implementation,
     #[value(alias = "tests")]
-    #[value(help = "Verifies that all implementation annotations have a corresponding test.
+    #[value(
+        help = "Verifies that all implementation annotations have a corresponding test.
 
 The check PASSES when:
 - Annotations accurately quote the specification requirements
@@ -112,9 +115,11 @@ Example test annotation:
         //= type=test
         //# A coffee pot server MUST accept both the BREW and POST method
         //# equivalently.
-    }")]
+    }"
+    )]
     Test,
-    #[value(help = "Uses code coverage to verify that all test annotations are executed
+    #[value(
+        help = "Uses code coverage to verify that all test annotations are executed
 and that each test annotation executes it corresponding implementation annotation(s).
 
 The check PASSES when:
@@ -145,26 +150,25 @@ Example implementation annotation:
         //= type=test
         //# A coffee pot server MUST accept both the BREW and POST method
         //# equivalently.
-    }")]
+    }"
+    )]
     Coverage,
-    #[value(help = "The same as `coverage` expect it only operates on executed test annotations.
+    #[value(
+        help = "The same as `coverage` expect it only operates on executed test annotations.
 This is helpful for quick on-off checking of a single test.
-")]
+"
+    )]
     ExecutedCoverage,
     Duplicates,
 }
 
 impl Query {
-    pub async fn exec(&self) -> Result {        
+    pub async fn exec(&self) -> Result {
         let progress = progress!("Starting duvet in query mode...");
 
-        let sections = self.section.as_ref()
-            .map(|v| v.clone())
-            .unwrap_or_else(|| vec![]);
+        let sections = self.section.clone().unwrap_or_default();
 
-        let quotes = self.quote.as_ref()
-            .map(|v| v.clone())
-            .unwrap_or_else(|| vec![]);
+        let quotes = self.quote.clone().unwrap_or_default();
 
         // Convert sections and quotes to RequirementMode
         let requirement_mode = RequirementMode::from_options(&sections, &quotes);
@@ -182,8 +186,9 @@ impl Query {
                     self.coverage_report.as_ref(),
                     self.coverage_format.as_ref(),
                     self.verbose,
-                ).await
-            },
+                )
+                .await
+            }
             _ => {
                 // No check types specified — show help
                 use clap::CommandFactory;
@@ -206,5 +211,4 @@ impl Query {
             std::process::exit(1);
         }
     }
-
 }

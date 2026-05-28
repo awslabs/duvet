@@ -8,10 +8,10 @@
 //! `scope_contains`, `scopes_match_classifications`) are defined in
 //! [`crate::predicates`] for reviewer accessibility.
 
-use vstd::prelude::*;
-use crate::types::*;
 #[cfg(verus_keep_ghost)]
-pub use crate::predicates::{scope_contains, scopes_well_formed, scopes_match_classifications};
+pub use crate::predicates::{scope_contains, scopes_match_classifications, scopes_well_formed};
+use crate::types::*;
+use vstd::prelude::*;
 
 verus! {
 
@@ -285,14 +285,23 @@ fn fallback_scope(file_length: u64) -> (scopes: Vec<Scope>)
 mod tests {
     use super::*;
     use crate::types::*;
-    fn s(props: &[LineProperty]) -> Option<LineClass> { Some(line_class(props)) }
+    fn s(props: &[LineProperty]) -> Option<LineClass> {
+        Some(line_class(props))
+    }
 
     //= design/query/coverage-model-spec.md#scopes
     //= type=test
     //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
     //# `ScopeClose` properties. Scopes nest.
-    #[test] fn simple_method_in_class() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::ScopeClose])];
+    #[test]
+    fn simple_method_in_class() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::ScopeClose]),
+        ];
         let sc = build_scope_tree(&c, 5);
         assert_eq!(sc.len(), 2);
         // Find the outer and inner scopes by open_line
@@ -301,33 +310,77 @@ mod tests {
         assert_eq!(outer.close_line, 5);
         assert_eq!(inner.close_line, 4);
     }
-    #[test] fn sibling_methods() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::ScopeClose])];
+    #[test]
+    fn sibling_methods() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::ScopeClose]),
+        ];
         let sc = build_scope_tree(&c, 6);
         assert_eq!(sc.len(), 3);
     }
-    #[test] fn unbalanced_fallback() {
-        let sc = build_scope_tree(&vec![s(&[LineProperty::ScopeOpen]), s(&[LineProperty::Statement])], 2);
+    #[test]
+    fn unbalanced_fallback() {
+        let sc = build_scope_tree(
+            &vec![s(&[LineProperty::ScopeOpen]), s(&[LineProperty::Statement])],
+            2,
+        );
         // Unbalanced: pairs returns empty, so we get file-level scope
         assert!(sc.len() >= 1);
         assert_eq!(sc[0].open_line, 1);
         assert_eq!(sc[0].close_line, 2);
     }
-    #[test] fn empty_file() { assert_eq!(build_scope_tree(&vec![], 0).len(), 0); }
-    #[test] fn unknown_lines_ignored() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), None, s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
+    #[test]
+    fn empty_file() {
+        assert_eq!(build_scope_tree(&vec![], 0).len(), 0);
+    }
+    #[test]
+    fn unknown_lines_ignored() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            None,
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
         let sc = build_scope_tree(&c, 4);
         assert_eq!(sc.len(), 1);
         assert_eq!(sc[0].open_line, 1);
         assert_eq!(sc[0].close_line, 4);
     }
-    #[test] fn four_level_nesting() {
-        let c = vec![s(&[LineProperty::ScopeOpen]), s(&[LineProperty::ScopeOpen]), s(&[LineProperty::ScopeOpen]), s(&[LineProperty::ScopeOpen]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::ScopeClose])];
+    #[test]
+    fn four_level_nesting() {
+        let c = vec![
+            s(&[LineProperty::ScopeOpen]),
+            s(&[LineProperty::ScopeOpen]),
+            s(&[LineProperty::ScopeOpen]),
+            s(&[LineProperty::ScopeOpen]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::ScopeClose]),
+        ];
         let sc = build_scope_tree(&c, 8);
         assert_eq!(sc.len(), 4);
     }
-    #[test] fn catch_creates_sibling_scopes() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen, LineProperty::ScopeClose]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::ScopeClose])];
+    #[test]
+    fn catch_creates_sibling_scopes() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[
+                LineProperty::Declaration,
+                LineProperty::ScopeOpen,
+                LineProperty::ScopeClose,
+            ]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::ScopeClose]),
+        ];
         let sc = build_scope_tree(&c, 7);
         assert_eq!(sc.len(), 3);
     }

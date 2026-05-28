@@ -1,15 +1,19 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::BTreeMap;
-use std::io::{BufRead, Cursor};
-use std::path::Path;
-use quick_xml::events::{BytesStart, Event};
-use quick_xml::Reader;
+use quick_xml::{
+    events::{BytesStart, Event},
+    Reader,
+};
 use rustc_hash::FxHashMap;
+use std::{
+    collections::BTreeMap,
+    io::{BufRead, Cursor},
+    path::Path,
+};
 
 use super::super::coverage::{
-    CoverageData, CoverageParser, CoverageError, FileCoverage, GenericCoverageData,
+    CoverageData, CoverageError, CoverageParser, FileCoverage, GenericCoverageData,
 };
 use crate::Result;
 
@@ -21,7 +25,7 @@ impl CoverageParser for JacocoParser {
         // Use duvet's VFS system for consistent async file reading
         let source_file = duvet_core::vfs::read_string(file_path).await?;
         let file_contents = source_file.to_string();
-        
+
         // Run CPU-intensive XML parsing in a thread pool to avoid blocking the async runtime
         let coverage_data = tokio::task::spawn_blocking(move || {
             let cursor = Cursor::new(file_contents);
@@ -29,7 +33,7 @@ impl CoverageParser for JacocoParser {
         })
         .await
         .map_err(|e| duvet_core::error!("Task join error: {}", e))??;
-        
+
         Ok(CoverageData::Generic(coverage_data))
     }
 }
@@ -51,7 +55,7 @@ pub fn parse_jacoco_xml_report<T: BufRead>(
             Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"package" => {
                 let package = get_xml_attribute(&parser, e, "name")?;
                 let package_results = parse_jacoco_report_package(&mut parser, &mut buf, &package)?;
-                
+
                 // Merge package results into coverage data
                 for (file_path, file_coverage) in package_results {
                     coverage_data.files.insert(file_path, file_coverage);
@@ -81,20 +85,18 @@ fn parse_jacoco_report_package<T: BufRead>(
                     b"class" => {
                         let fq_class = get_xml_attribute(parser, e, "name")?;
                         // Class name: "Person$Age"
-                        let class = fq_class
-                            .split('/')
-                            .next_back()
-                            .ok_or_else(|| CoverageError::InvalidData("Failed to parse class name".to_string()))?;
+                        let class = fq_class.split('/').next_back().ok_or_else(|| {
+                            CoverageError::InvalidData("Failed to parse class name".to_string())
+                        })?;
                         // Class name "Person"
-                        let top_class = class
-                            .split('$')
-                            .next()
-                            .ok_or_else(|| CoverageError::InvalidData("Failed to parse top class name".to_string()))?;
+                        let top_class = class.split('$').next().ok_or_else(|| {
+                            CoverageError::InvalidData("Failed to parse top class name".to_string())
+                        })?;
                         // Fully qualified class name: "org/example/Person$Age"
                         // Generally, we will use the filename if its present,
                         // but if it isn't, fallback to the top level class name
                         let file = get_xml_attribute(parser, e, "sourcefilename")
-                            .unwrap_or_else(|_| format!("{}.java", top_class));
+                            .unwrap_or_else(|_| format!("{top_class}.java"));
 
                         // Process all <method /> and <counter /> for this class
                         let functions = parse_jacoco_report_class(parser, buf, class)?;
@@ -104,11 +106,14 @@ fn parse_jacoco_report_package<T: BufRead>(
                                 file_coverage.functions.extend(functions);
                             }
                             None => {
-                                results_map.insert(file.clone(), FileCoverage {
-                                    functions,
-                                    lines: BTreeMap::new(),
-                                    branches: BTreeMap::new(),
-                                });
+                                results_map.insert(
+                                    file.clone(),
+                                    FileCoverage {
+                                        functions,
+                                        lines: BTreeMap::new(),
+                                        branches: BTreeMap::new(),
+                                    },
+                                );
                             }
                         }
                     }
@@ -122,11 +127,14 @@ fn parse_jacoco_report_package<T: BufRead>(
                                 file_coverage.branches = source_file_data.branches;
                             }
                             None => {
-                                results_map.insert(file.clone(), FileCoverage {
-                                    functions: FxHashMap::default(),
-                                    lines: source_file_data.lines,
-                                    branches: source_file_data.branches,
-                                });
+                                results_map.insert(
+                                    file.clone(),
+                                    FileCoverage {
+                                        functions: FxHashMap::default(),
+                                        lines: source_file_data.lines,
+                                        branches: source_file_data.branches,
+                                    },
+                                );
                             }
                         }
                     }
@@ -147,7 +155,7 @@ fn parse_jacoco_report_package<T: BufRead>(
         .into_iter()
         .map(|(class, result)| {
             (
-                format!("{}/{}", package, class)
+                format!("{package}/{class}")
                     .trim_start_matches('/')
                     .to_string(),
                 result,
@@ -167,9 +175,10 @@ fn parse_jacoco_report_class<T: BufRead>(
         match parser.read_event_into(buf) {
             Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"method" => {
                 let name = get_xml_attribute(parser, e, "name")?;
-                let full_name = format!("{}#{}", class_name, name);
+                let full_name = format!("{class_name}#{name}");
 
-                let start_line = get_xml_attribute(parser, e, "line")?.parse::<u32>()
+                let start_line = get_xml_attribute(parser, e, "line")?
+                    .parse::<u32>()
                     .map_err(|_| CoverageError::InvalidData("Invalid line number".to_string()))?;
                 let function_info = parse_jacoco_report_method(parser, buf, start_line)?;
                 functions.insert(full_name, function_info);
@@ -198,7 +207,7 @@ fn parse_jacoco_report_method<T: BufRead>(
         buf.clear();
     }
 
-    Ok(format!("method_at_line_{}", start))
+    Ok(format!("method_at_line_{start}"))
 }
 
 struct JacocoSourceFileData {
@@ -220,22 +229,42 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
                 for a in e.attributes() {
                     let a = a.map_err(|e| CoverageError::Xml(e.into()))?;
                     match a.key.into_inner() {
-                        b"ci" => ci = Some(String::from_utf8_lossy(&a.value).parse::<u64>()
-                            .map_err(|_| CoverageError::InvalidData("Invalid ci value".to_string()))?),
-                        b"cb" => cb = Some(String::from_utf8_lossy(&a.value).parse::<u64>()
-                            .map_err(|_| CoverageError::InvalidData("Invalid cb value".to_string()))?),
-                        b"mb" => mb = Some(String::from_utf8_lossy(&a.value).parse::<u64>()
-                            .map_err(|_| CoverageError::InvalidData("Invalid mb value".to_string()))?),
-                        b"nr" => nr = Some(String::from_utf8_lossy(&a.value).parse::<u32>()
-                            .map_err(|_| CoverageError::InvalidData("Invalid nr value".to_string()))?),
+                        b"ci" => {
+                            ci = Some(String::from_utf8_lossy(&a.value).parse::<u64>().map_err(
+                                |_| CoverageError::InvalidData("Invalid ci value".to_string()),
+                            )?)
+                        }
+                        b"cb" => {
+                            cb = Some(String::from_utf8_lossy(&a.value).parse::<u64>().map_err(
+                                |_| CoverageError::InvalidData("Invalid cb value".to_string()),
+                            )?)
+                        }
+                        b"mb" => {
+                            mb = Some(String::from_utf8_lossy(&a.value).parse::<u64>().map_err(
+                                |_| CoverageError::InvalidData("Invalid mb value".to_string()),
+                            )?)
+                        }
+                        b"nr" => {
+                            nr = Some(String::from_utf8_lossy(&a.value).parse::<u32>().map_err(
+                                |_| CoverageError::InvalidData("Invalid nr value".to_string()),
+                            )?)
+                        }
                         _ => {}
                     }
                 }
 
-                let ci = ci.ok_or_else(|| CoverageError::InvalidData("Missing ci attribute".to_string()))?;
-                let cb = cb.ok_or_else(|| CoverageError::InvalidData("Missing cb attribute".to_string()))?;
-                let mb = mb.ok_or_else(|| CoverageError::InvalidData("Missing mb attribute".to_string()))?;
-                let nr = nr.ok_or_else(|| CoverageError::InvalidData("Missing nr attribute".to_string()))?;
+                let ci = ci.ok_or_else(|| {
+                    CoverageError::InvalidData("Missing ci attribute".to_string())
+                })?;
+                let cb = cb.ok_or_else(|| {
+                    CoverageError::InvalidData("Missing cb attribute".to_string())
+                })?;
+                let mb = mb.ok_or_else(|| {
+                    CoverageError::InvalidData("Missing mb attribute".to_string())
+                })?;
+                let nr = nr.ok_or_else(|| {
+                    CoverageError::InvalidData("Missing nr attribute".to_string())
+                })?;
 
                 if mb > 0 || cb > 0 {
                     // This line is a branch.
@@ -268,14 +297,17 @@ fn get_xml_attribute<R: BufRead>(
     name: &str,
 ) -> Result<String, CoverageError> {
     for a in event.attributes() {
-        let a = a.map_err(|e| CoverageError::InvalidData(format!("Attribute error: {}", e)))?;
+        let a = a.map_err(|e| CoverageError::InvalidData(format!("Attribute error: {e}")))?;
         if a.key.into_inner() == name.as_bytes() {
-            return Ok(a.decode_and_unescape_value(reader.decoder())
+            return Ok(a
+                .decode_and_unescape_value(reader.decoder())
                 .map_err(CoverageError::Xml)?
                 .into_owned());
         }
     }
-    Err(CoverageError::InvalidData(format!("Attribute {} not found", name)))
+    Err(CoverageError::InvalidData(format!(
+        "Attribute {name} not found"
+    )))
 }
 
 #[cfg(test)]
@@ -306,14 +338,14 @@ mod tests {
 
         let cursor = Cursor::new(xml);
         let result = parse_jacoco_xml_report(cursor).unwrap();
-        
+
         assert_eq!(result.files.len(), 1);
         let file_coverage = result.files.get("com/example/Hello.java").unwrap();
-        
+
         // Check lines
         assert_eq!(file_coverage.lines.get(&1), Some(&1));
         assert_eq!(file_coverage.lines.get(&4), Some(&1));
-        
+
         // Check functions
         assert_eq!(file_coverage.functions.len(), 1);
         let function_info = file_coverage.functions.get("Hello#<init>").unwrap();

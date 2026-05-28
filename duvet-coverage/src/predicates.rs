@@ -13,8 +13,8 @@
 //! predicates in their `ensures` clauses. The proof functions in [`proofs`]
 //! compose them into property statements.
 
-use vstd::prelude::*;
 use crate::types::*;
+use vstd::prelude::*;
 
 verus! {
 

@@ -21,14 +21,9 @@ fn main() {
     // is not a terminal. `set_hook` is fallible only if a hook is already set;
     // ignore the error so test harnesses that call into the duvet library
     // multiple times still work.
-    let use_color =
-        std::env::var_os("NO_COLOR").is_none() && std::io::stderr().is_terminal();
+    let use_color = std::env::var_os("NO_COLOR").is_none() && std::io::stderr().is_terminal();
     let _ = miette::set_hook(Box::new(move |_| {
-        Box::new(
-            miette::MietteHandlerOpts::new()
-                .color(use_color)
-                .build(),
-        )
+        Box::new(miette::MietteHandlerOpts::new().color(use_color).build())
     }));
 
     let format = tracing_subscriber::fmt::format().compact(); // Use a less verbose output format.

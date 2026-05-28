@@ -2,45 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
-    requirements::RequirementMode,
     checks::{
+        classify_annotation_coverage,
         coverage::{
-            CoverageFormat,
-            parse_coverage_data,
-            build_execution_data,
-            executed_status_for,
+            build_execution_data, executed_status_for, parse_coverage_data, CoverageFormat,
             ExecutionDataMap,
         },
-        classify_annotation_coverage,
         ClassifiedCoverage,
     },
-    result::{
-        QueryResult,
-        CheckResult,
-        ImplementationResult,
-        TestResult,
-        CoverageResult,
-        CoveredTestAnnotation,
-        QueryStatus,
-        DuplicatesResult,
-        Duplicates,
-        AnnotationCoverage,
-        NotExecutedAnnotation,
-    },
     coverage::ExecutionStatus,
+    requirements::RequirementMode,
+    result::{
+        AnnotationCoverage, CheckResult, CoverageResult, CoveredTestAnnotation, Duplicates,
+        DuplicatesResult, ImplementationResult, NotExecutedAnnotation, QueryResult, QueryStatus,
+        TestResult,
+    },
     CheckType,
 };
 use crate::{
-    annotation::{self, AnnotationSet, AnnotationType, Annotation},
+    annotation::{self, Annotation, AnnotationSet, AnnotationType},
     project::Project,
     reference::{self},
     source::SourceFile,
     Result,
 };
 
-use duvet_core::{progress, diagnostic::IntoDiagnostic};
+use duvet_core::{diagnostic::IntoDiagnostic, progress};
 use glob::glob;
-use std::{collections::{HashMap, HashSet, BTreeSet}, sync::Arc};
+use std::{
+    collections::{BTreeSet, HashMap, HashSet},
+    sync::Arc,
+};
 
 pub async fn execute_checks(
     checks: &[(CheckType, &RequirementMode)],
@@ -50,10 +42,10 @@ pub async fn execute_checks(
 ) -> Result<QueryResult> {
     // Load project data
     let project_data = load_project_data(verbose).await?;
-    
+
     // Execute each check type
     let mut results = Vec::new();
-    
+
     for (check_type, mode) in checks {
         match check_type {
             CheckType::Implementation => {
@@ -69,26 +61,25 @@ pub async fn execute_checks(
                 results.push(result);
             }
             CheckType::Coverage | CheckType::ExecutedCoverage => {
-
                 // Determine coverage report path
-                let report_globs = coverage_reports
-                    .ok_or_else(|| duvet_core::error!(
-                        "Coverage report path is required. Use --coverage-report"
-                    ))?;
+                let report_globs = coverage_reports.ok_or_else(|| {
+                    duvet_core::error!("Coverage report path is required. Use --coverage-report")
+                })?;
                 let report_paths = expand_coverage_globs(report_globs)?;
 
                 // Determine coverage format
-                let format = coverage_format
-                    .ok_or_else(|| duvet_core::error!(
-                        "Coverage format is required. Use --coverage-format"
-                    ))?;
+                let format = coverage_format.ok_or_else(|| {
+                    duvet_core::error!("Coverage format is required. Use --coverage-format")
+                })?;
 
-                let coverage_check_executed_tests_only = matches!(check_type, CheckType::ExecutedCoverage);
+                let coverage_check_executed_tests_only =
+                    matches!(check_type, CheckType::ExecutedCoverage);
 
                 // Parse coverage data in parallel using async
-                let parse_futures: Vec<_> = report_paths.iter().map(|path| {
-                    parse_coverage_data(path, format)
-                }).collect();
+                let parse_futures: Vec<_> = report_paths
+                    .iter()
+                    .map(|path| parse_coverage_data(path, format))
+                    .collect();
 
                 let coverage_data = futures::future::try_join_all(parse_futures).await?;
 
@@ -97,21 +88,22 @@ pub async fn execute_checks(
                     mode,
                     &coverage_data,
                     coverage_check_executed_tests_only,
-                    verbose
-                ).await?;
+                    verbose,
+                )
+                .await?;
 
                 results.push(result);
             }
         };
     }
-    
+
     // Calculate overall status
     let overall_status = if results.iter().all(|r| *r.status() == QueryStatus::Pass) {
         QueryStatus::Pass
     } else {
         QueryStatus::Fail
     };
-    
+
     // Create and return QueryResult
     Ok(QueryResult {
         overall_status,
@@ -121,14 +113,19 @@ pub async fn execute_checks(
 
 #[derive(Debug)]
 pub struct ProjectData {
-    pub specifications: Arc<std::collections::HashMap<Arc<crate::target::Target>, Arc<crate::specification::Specification>>>,
+    pub specifications: Arc<
+        std::collections::HashMap<
+            Arc<crate::target::Target>,
+            Arc<crate::specification::Specification>,
+        >,
+    >,
     pub project_sources: Arc<HashSet<SourceFile>>,
     pub annotations: AnnotationSet,
 }
 
 async fn load_project_data(verbose: bool) -> Result<ProjectData> {
     let project = Project::new();
-    
+
     let config = project.config().await?;
     let config = config.as_ref();
 
@@ -136,7 +133,10 @@ async fn load_project_data(verbose: bool) -> Result<ProjectData> {
         let progress = progress!("Extracting requirements");
         let count = config.load_specifications().await?;
         if count > 0 && verbose {
-            progress!(progress, "Extracted requirements from {count} specifications");
+            progress!(
+                progress,
+                "Extracted requirements from {count} specifications"
+            );
         }
     }
 
@@ -145,14 +145,14 @@ async fn load_project_data(verbose: bool) -> Result<ProjectData> {
     let project_sources = Arc::new(project_sources);
     progress!(progress, "Scanned {} sources", project_sources.len());
 
-
     let progress = progress!("Parsing annotations");
     let annotations = annotation::query(project_sources.clone()).await?;
     progress!(progress, "Parsed {} annotations", annotations.len());
 
     let progress = progress!("Loading specifications");
     let download_path = project.download_path().await?;
-    let specifications = annotation::specifications(annotations.clone(), download_path.clone()).await?;
+    let specifications =
+        annotation::specifications(annotations.clone(), download_path.clone()).await?;
     progress!(progress, "Loaded {} specifications", specifications.len());
 
     let progress = progress!("Mapping sections");
@@ -179,11 +179,7 @@ async fn execute_implementation_check(
         progress!("Running implementation annotation coverage check...");
     }
 
-    let (
-        spec_annotations,
-        implemented_annotations,
-        todo_annotations,
-    ) = project_data
+    let (spec_annotations, implemented_annotations, todo_annotations) = project_data
         .annotations
         .iter()
         .filter(|annotation| mode.in_scope(annotation))
@@ -191,23 +187,24 @@ async fn execute_implementation_check(
         .fold(
             (Vec::new(), Vec::new(), Vec::new()),
             |(mut specs, mut impls, mut todos), annotation| {
-
                 match &annotation.anno {
                     AnnotationType::Spec => {
                         specs.push(annotation.clone());
                     }
-                    AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => {
+                    AnnotationType::Citation
+                    | AnnotationType::Implication
+                    | AnnotationType::Exception => {
                         impls.push(annotation.clone());
                     }
                     AnnotationType::Todo => {
                         todos.push(annotation.clone());
                     }
                     // Shouldn't happen due to filter, but good to be explicit
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
 
                 (specs, impls, todos)
-            }
+            },
         );
 
     // 4. Classify each spec annotation
@@ -222,26 +219,28 @@ async fn execute_implementation_check(
         &spec_annotations,
         &implemented_annotations,
         &todo_annotations,
-    ).await?;
-    
-    let status = if mixed_implementation.len() == 0
-        && incomplete_implementation.len() == 0
-        && todo.len() == 0
-        && not_implemented.len() == 0 {
-            QueryStatus::Pass
-        } else {
-            QueryStatus::Fail
-        };
+    )
+    .await?;
+
+    let status = if mixed_implementation.is_empty()
+        && incomplete_implementation.is_empty()
+        && todo.is_empty()
+        && not_implemented.is_empty()
+    {
+        QueryStatus::Pass
+    } else {
+        QueryStatus::Fail
+    };
 
     Ok(CheckResult::Implementation(ImplementationResult {
-        status: status,
+        status,
         in_scope_requirements: spec_annotations,
-        fully_implemented: fully_implemented,
-        mixed_implementation: mixed_implementation,
-        incomplete_implementation: incomplete_implementation,
-        todo: todo,
-        not_implemented: not_implemented,
-        verbose: verbose,
+        fully_implemented,
+        mixed_implementation,
+        incomplete_implementation,
+        todo,
+        not_implemented,
+        verbose,
     }))
 }
 
@@ -250,40 +249,38 @@ async fn execute_test_check(
     mode: &RequirementMode,
     verbose: bool,
 ) -> Result<CheckResult> {
-
     if verbose {
         progress!("Running test annotation coverage check...");
     }
 
-    let (
-        implementation_annotations,
-        test_annotations,
-    ) = project_data
+    let (implementation_annotations, test_annotations) = project_data
         .annotations
         .iter()
         // 1. Gather annotations that need testing
         // We are interested in testing things that are implemented
         // Making sure you have implemented everything is a job for the implementation check.
-        .filter(|annotation| !matches!(annotation.anno,
-            // A requirement. i.e. something that needs to be implemented
-            AnnotationType::Spec
+        .filter(|annotation| {
+            !matches!(
+                annotation.anno,
+                // A requirement. i.e. something that needs to be implemented
+                AnnotationType::Spec
             // Not yet been implemented. Test driven development?
             | AnnotationType::Todo
             // Fundamentally true or not testable. No test required.
             | AnnotationType::Implication
             // You don't do it. not test required.
             | AnnotationType::Exception
-        ))
+            )
+        })
         // 2. Only annotations that are in scope
         .filter(|annotation| mode.in_scope(annotation))
         // 3. Organize the annotations into implementations (things needing tests) and tests
         .fold(
             (Vec::new(), Vec::new()),
             |(mut impls, mut tests), annotation| {
-
                 match &annotation.anno {
                     // An implementation, it needs a test
-                    AnnotationType::Citation  => {
+                    AnnotationType::Citation => {
                         impls.push(annotation.clone());
                     }
                     // A test!
@@ -291,13 +288,13 @@ async fn execute_test_check(
                         tests.push(annotation.clone());
                     }
                     // Shouldn't happen due to filter, but good to be explicit
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
 
                 (impls, tests)
-            }
+            },
         );
-    
+
     // 4. Classify each annotation
     let ClassifiedCoverage {
         complete_coverage: fully_tested,
@@ -309,17 +306,17 @@ async fn execute_test_check(
         &implementation_annotations,
         &test_annotations,
         &Vec::new(),
-    ).await?;
+    )
+    .await?;
 
-    let status = if incomplete_tests.len() == 0
-        && not_tested.len() == 0 {
-            QueryStatus::Pass
-        } else {
-            QueryStatus::Fail
-        };
+    let status = if incomplete_tests.is_empty() && not_tested.is_empty() {
+        QueryStatus::Pass
+    } else {
+        QueryStatus::Fail
+    };
 
     Ok(CheckResult::Tests(TestResult {
-        status: status,
+        status,
         in_scope_requirements: implementation_annotations,
         fully_tested,
         incomplete_tests,
@@ -331,22 +328,29 @@ async fn execute_test_check(
 async fn execute_coverage_check(
     project_data: &ProjectData,
     mode: &RequirementMode,
-    coverage_data: &Vec<crate::query::coverage::CoverageData>,
+    coverage_data: &[crate::query::coverage::CoverageData],
     coverage_check_executed_tests_only: bool,
     verbose: bool,
 ) -> Result<CheckResult> {
-
     if verbose {
         progress!("Running test execution correlation check...");
     }
 
     // Build execution data for each coverage report in parallel.
     // Each report produces an ExecutionDataMap (one entry per source file with coverage).
-    let build_futures: Vec<_> = coverage_data.iter().map(|cover| {
-        build_execution_data(&project_data.annotations, cover, &project_data.project_sources)
-    }).collect();
+    let build_futures: Vec<_> = coverage_data
+        .iter()
+        .map(|cover| {
+            build_execution_data(
+                &project_data.annotations,
+                cover,
+                &project_data.project_sources,
+            )
+        })
+        .collect();
 
-    let execution_data_maps: Vec<ExecutionDataMap> = futures::future::try_join_all(build_futures).await?;
+    let execution_data_maps: Vec<ExecutionDataMap> =
+        futures::future::try_join_all(build_futures).await?;
     let report_count = execution_data_maps.len();
 
     if verbose {
@@ -385,14 +389,17 @@ async fn execute_coverage_check(
     for annotation in project_data
         .annotations
         .iter()
-        .filter(|annotation| !matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo))
+        .filter(|annotation| {
+            !matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo)
+        })
         .filter(|annotation| mode.in_scope(annotation))
     {
         match &annotation.anno {
             AnnotationType::Test => test_annotations.push(annotation.clone()),
-            AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => 
-                implementation_annotations.push(annotation.clone()),
-            _ => unreachable!()
+            AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => {
+                implementation_annotations.push(annotation.clone())
+            }
+            _ => unreachable!(),
         }
     }
 
@@ -405,7 +412,8 @@ async fn execute_coverage_check(
         &test_annotations,
         &implementation_annotations,
         &Vec::new(),
-    ).await?;
+    )
+    .await?;
 
     let mut successful: Vec<CoveredTestAnnotation> = Vec::new();
     let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
@@ -425,7 +433,7 @@ async fn execute_coverage_check(
                     if matches!(status, ExecutionStatus::Executed) {
                         executed_implementations.push(annotation.clone());
                     } else {
-                        not_executed_implementations.push(NotExecutedAnnotation{
+                        not_executed_implementations.push(NotExecutedAnnotation {
                             annotation: annotation.clone(),
                             status,
                         });
@@ -442,7 +450,10 @@ async fn execute_coverage_check(
                 } else {
                     failed.push(result);
                 }
-            } else if !matches!(test_executed, ExecutionStatus::Executed | ExecutionStatus::Unknown{..}) {
+            } else if !matches!(
+                test_executed,
+                ExecutionStatus::Executed | ExecutionStatus::Unknown { .. }
+            ) {
                 // Prefer Unknown over NotExecuted — Unknown carries more diagnostic info.
                 test_executed = executed_status;
             }
@@ -451,7 +462,9 @@ async fn execute_coverage_check(
             // Unknown tests are NOT skipped in executed-coverage mode: they represent
             // annotation placement errors that must be fixed regardless of which test
             // you're working on. Only NotExecuted tests are skipped.
-            if coverage_check_executed_tests_only && matches!(test_executed, ExecutionStatus::NotExecuted) {
+            if coverage_check_executed_tests_only
+                && matches!(test_executed, ExecutionStatus::NotExecuted)
+            {
                 continue;
             }
 
@@ -479,8 +492,7 @@ async fn execute_coverage_check(
         .iter()
         .chain(&failed)
         .flat_map(|result| &result.executed_implementations)
-        .collect::<BTreeSet<_>>()
-        .into();
+        .collect::<BTreeSet<_>>();
 
     let executed_implementations = implementation_annotations
         .iter()
@@ -488,9 +500,12 @@ async fn execute_coverage_check(
             if executed_from_tests.contains(annotation) {
                 true
             } else {
-                execution_data_maps
-                    .iter()
-                    .any(|exec_data| matches!(executed_status_for(annotation, exec_data), ExecutionStatus::Executed))
+                execution_data_maps.iter().any(|exec_data| {
+                    matches!(
+                        executed_status_for(annotation, exec_data),
+                        ExecutionStatus::Executed
+                    )
+                })
             }
         })
         .cloned()
@@ -519,40 +534,50 @@ async fn execute_duplicates(
     mode: &RequirementMode,
     verbose: bool,
 ) -> Result<CheckResult> {
-
     let annotations_by_type: HashMap<AnnotationType, Vec<Arc<Annotation>>> = project_data
         .annotations
         .iter()
         .filter(|annotation| mode.in_scope(annotation))
-        .fold(HashMap::new(), |mut acc: HashMap<AnnotationType, Vec<Arc<Annotation>>>, annotation| {
-            acc.entry(annotation.anno).or_default().push(annotation.clone());
-            acc
-        });
+        .fold(
+            HashMap::new(),
+            |mut acc: HashMap<AnnotationType, Vec<Arc<Annotation>>>, annotation| {
+                acc.entry(annotation.anno)
+                    .or_default()
+                    .push(annotation.clone());
+                acc
+            },
+        );
 
     // Create futures for concurrent classification by annotation type
-    let classification_futures: Vec<_> = annotations_by_type.iter().map(|(annotation_type, annotations)| {
-        let annotation_type = *annotation_type;
-        let annotations = annotations.clone();
-        async move {
-            let classified_coverage = classify_annotation_coverage(
-                project_data,
-                &annotations,
-                &annotations,
-                &Vec::new(),
-            ).await?;
-            Ok::<_, crate::Error>((annotation_type, classified_coverage))
-        }
-    }).collect();
+    let classification_futures: Vec<_> = annotations_by_type
+        .iter()
+        .map(|(annotation_type, annotations)| {
+            let annotation_type = *annotation_type;
+            let annotations = annotations.clone();
+            async move {
+                let classified_coverage = classify_annotation_coverage(
+                    project_data,
+                    &annotations,
+                    &annotations,
+                    &Vec::new(),
+                )
+                .await?;
+                Ok::<_, crate::Error>((annotation_type, classified_coverage))
+            }
+        })
+        .collect();
 
     let classification_results = futures::future::try_join_all(classification_futures).await?;
-    let classified_annotations_by_type: HashMap<AnnotationType, ClassifiedCoverage> = classification_results.into_iter().collect();
-    
-    let mut duplicates_by_type: HashMap<AnnotationType, Duplicates>  = classified_annotations_by_type
-        .into_iter()
-        .map(|(annotation_type, classified)| 
-            (annotation_type, convert_to_duplicates(classified))
-        )
-        .collect();
+    let classified_annotations_by_type: HashMap<AnnotationType, ClassifiedCoverage> =
+        classification_results.into_iter().collect();
+
+    let mut duplicates_by_type: HashMap<AnnotationType, Duplicates> =
+        classified_annotations_by_type
+            .into_iter()
+            .map(|(annotation_type, classified)| {
+                (annotation_type, convert_to_duplicates(classified))
+            })
+            .collect();
 
     let has_duplicates = duplicates_by_type
         .iter()
@@ -576,16 +601,20 @@ async fn execute_duplicates(
     let categories: Vec<(&'static str, Duplicates)> = category_order
         .iter()
         .map(|(name, anno_type)| {
-            (*name, duplicates_by_type.remove(anno_type).unwrap_or_else(empty_duplicates))
+            (
+                *name,
+                duplicates_by_type
+                    .remove(anno_type)
+                    .unwrap_or_else(empty_duplicates),
+            )
         })
         .collect();
 
-    Ok(CheckResult::Duplicates(DuplicatesResult{
+    Ok(CheckResult::Duplicates(DuplicatesResult {
         status,
         categories,
         verbose,
     }))
-
 }
 
 fn convert_to_duplicates(classified: ClassifiedCoverage) -> Duplicates {
@@ -609,32 +638,33 @@ fn empty_duplicates() -> Duplicates {
     }
 }
 
-fn deduplicate_annotation_coverage(coverage_list: Vec<AnnotationCoverage>) -> Vec<AnnotationCoverage> {
+fn deduplicate_annotation_coverage(
+    coverage_list: Vec<AnnotationCoverage>,
+) -> Vec<AnnotationCoverage> {
     let mut seen_annotations = HashSet::new();
     let mut result = Vec::new();
-    
+
     for coverage in coverage_list {
         if !seen_annotations.contains(&coverage.target) {
             // This target hasn't been seen yet, so keep this coverage
             seen_annotations.insert(coverage.target.clone());
-            
+
             // Add all covering annotations to the seen set too
             for annotation in &coverage.covering_annotations {
                 seen_annotations.insert(annotation.clone());
             }
-            
+
             result.push(coverage);
         }
         // else: target already seen, skip this duplicate coverage
     }
-    
+
     result
 }
 
-
 fn expand_coverage_globs(reports: &[String]) -> Result<Vec<String>> {
     let mut expanded_paths = Vec::new();
-    
+
     for pattern in reports {
         // TODO, same as project.js:
         // switch from `glob` to `duvet_core::glob` once the implementation
@@ -645,6 +675,6 @@ fn expand_coverage_globs(reports: &[String]) -> Result<Vec<String>> {
             expanded_paths.push(path.to_string_lossy().to_string());
         }
     }
-    
+
     Ok(expanded_paths)
 }

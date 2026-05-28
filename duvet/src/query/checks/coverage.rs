@@ -2,21 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    annotation::{Annotation, AnnotationType, AnnotationSet},
-    source::SourceFile,
+    annotation::{Annotation, AnnotationSet, AnnotationType},
     query::{
-        coverage::{CoverageData, CoverageParser, LineMap, FileCoverage, LineInfo, ExecutionType},
         classify::classifier_for_path,
+        coverage::{CoverageData, CoverageParser, ExecutionType, FileCoverage, LineInfo, LineMap},
         parsers::JacocoParser,
     },
+    source::SourceFile,
     Result,
 };
-use duvet_coverage::types::{
-    LineClass, LineProperty, AnnotationSpan,
-    CoverageReport as CoverageReportMap, Scope, ExecutionStatus,
+use duvet_coverage::{
+    annotation_execution::is_annotation_executed,
+    scopes::build_scope_tree,
+    types::{
+        AnnotationSpan, CoverageReport as CoverageReportMap, ExecutionStatus, LineClass,
+        LineProperty, Scope,
+    },
 };
-use duvet_coverage::scopes::build_scope_tree;
-use duvet_coverage::annotation_execution::is_annotation_executed;
 use rustc_hash::FxHashMap;
 use std::{
     collections::HashSet,
@@ -61,7 +63,7 @@ pub type ExecutionDataMap = FxHashMap<PathBuf, FileExecutionData>;
 pub async fn build_execution_data(
     annotations: &AnnotationSet,
     coverage_data: &CoverageData,
-    project_sources: &HashSet<SourceFile>
+    project_sources: &HashSet<SourceFile>,
 ) -> Result<ExecutionDataMap> {
     let mut file_futures = Vec::new();
 
@@ -71,7 +73,10 @@ pub async fn build_execution_data(
             SourceFile::Toml(_) => continue,
         };
 
-        let coverage_option = coverage_data.as_generic().files.iter()
+        let coverage_option = coverage_data
+            .as_generic()
+            .files
+            .iter()
             .find(|(coverage_path, _)| paths_match(duvet_path, coverage_path))
             .map(|(_, file_coverage)| file_coverage);
 
@@ -81,7 +86,8 @@ pub async fn build_execution_data(
             let file_coverage = file_coverage.clone();
 
             let future = async move {
-                let data = build_file_execution_data(&duvet_path, &annotations, &file_coverage).await?;
+                let data =
+                    build_file_execution_data(&duvet_path, &annotations, &file_coverage).await?;
                 Result::<_, crate::Error>::Ok((duvet_path.to_path_buf(), data))
             };
 
@@ -118,7 +124,9 @@ async fn build_file_execution_data(
                 for line_num in start_line..=end_line {
                     let idx = (line_num - 1) as usize;
                     if idx < classifications.len() {
-                        classifications[idx] = Some(duvet_coverage::types::line_class(&[LineProperty::Annotation]));
+                        classifications[idx] = Some(duvet_coverage::types::line_class(&[
+                            LineProperty::Annotation,
+                        ]));
                     }
                 }
             }
@@ -143,7 +151,7 @@ async fn build_file_execution_data(
 async fn build_line_map_for_file(
     duvet_path: &Path,
     annotations: &AnnotationSet,
-    file_coverage: &FileCoverage
+    file_coverage: &FileCoverage,
 ) -> Result<LineMap> {
     let source_file = duvet_core::vfs::read_string(duvet_path).await?;
     let file_content = source_file.to_string();
@@ -281,7 +289,10 @@ pub fn executed_status_for(
     match execution_data_map.get(&file_path) {
         Some(FileExecutionData::Classified(data)) => {
             let (start_line, end_line) = annotation.line_range();
-            let ann_span = AnnotationSpan { start_line, end_line };
+            let ann_span = AnnotationSpan {
+                start_line,
+                end_line,
+            };
 
             is_annotation_executed(
                 &ann_span,
@@ -312,10 +323,14 @@ fn executed_status_for_unclassified(
     for line_num in start_line..=end_line {
         if let Some(LineInfo::Annotation(stored_annotation)) = line_map.get(&line_num) {
             if stored_annotation != annotation {
-                return ExecutionStatus::Unknown { line_number: line_num };
+                return ExecutionStatus::Unknown {
+                    line_number: line_num,
+                };
             }
         } else {
-            return ExecutionStatus::Unknown { line_number: line_num };
+            return ExecutionStatus::Unknown {
+                line_number: line_num,
+            };
         }
     }
 
@@ -338,7 +353,9 @@ fn executed_status_for_unclassified(
                 return ExecutionStatus::NotExecuted;
             }
             Some(LineInfo::Unknown) => {
-                return ExecutionStatus::Unknown { line_number: current_line };
+                return ExecutionStatus::Unknown {
+                    line_number: current_line,
+                };
             }
             None => {
                 return ExecutionStatus::NotExecuted;

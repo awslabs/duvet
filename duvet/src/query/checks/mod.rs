@@ -2,22 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    annotation::{Annotation, },
+    annotation::Annotation,
+    query::{engine::ProjectData, result::AnnotationCoverage},
+    specification::Specification,
     target::Target,
-    specification::{Specification},
     text::whitespace,
     Result,
-    query::{
-        engine::ProjectData,
-        result::{
-            AnnotationCoverage,
-        }
-    }
 };
-use std::{
-    collections::{ HashMap, },
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 pub mod coverage;
 
@@ -43,12 +35,25 @@ pub async fn is_annotation_covered(
 
     // Get the target and find the specification
     let target = target_annotation.target()?;
-    let specification = specifications.get(&target)
-        .ok_or_else(|| duvet_core::error!("Specification not found for target: {}", target_annotation.target))?;
-    let target_section = target_annotation.target_section()
-        .ok_or_else(|| duvet_core::error!("No section in annotation target: {}", target_annotation.target))?;
-    let section = specification.section(&target_section)
-        .ok_or_else(|| duvet_core::error!("Section '{}' not found in specification: {}", target_section, target_annotation.target))?;
+    let specification = specifications.get(&target).ok_or_else(|| {
+        duvet_core::error!(
+            "Specification not found for target: {}",
+            target_annotation.target
+        )
+    })?;
+    let target_section = target_annotation.target_section().ok_or_else(|| {
+        duvet_core::error!(
+            "No section in annotation target: {}",
+            target_annotation.target
+        )
+    })?;
+    let section = specification.section(&target_section).ok_or_else(|| {
+        duvet_core::error!(
+            "Section '{}' not found in specification: {}",
+            target_section,
+            target_annotation.target
+        )
+    })?;
     let section_contents = section.view();
 
     // Normalize the sections for our matching
@@ -76,19 +81,15 @@ pub async fn is_annotation_covered(
 
     let mut covered = vec![false; normalized_target_quote.len()];
     let mut covering_annotations: Vec<Arc<Annotation>> = Vec::new();
-    
+
     for annotation in annotations
         .iter()
         // An annotation can not be covered by itself
         .filter(|annotation| *annotation != target_annotation)
         // An annotation can only be covered by annotations in the same target (section)
-        .filter(|annotation| {
-            target_annotation.target == annotation.target
-        })
+        .filter(|annotation| target_annotation.target == annotation.target)
         // Trying to match empty annotations is silly
-        .filter(|annotation| {
-            !annotation.quote.is_empty()
-        })
+        .filter(|annotation| !annotation.quote.is_empty())
     {
         let normalized_quote = whitespace::normalize(&annotation.quote);
 
@@ -104,10 +105,10 @@ pub async fn is_annotation_covered(
         };
         let annotation_end = annotation_start + normalized_quote.len();
 
-            // Find overlap between the target range and this annotation range
+        // Find overlap between the target range and this annotation range
         let overlap_start = std::cmp::max(target_start, annotation_start);
         let overlap_end = std::cmp::min(target_end, annotation_end);
-        
+
         // If there's an overlap, mark those positions as covered
         if overlap_start < overlap_end {
             for pos in overlap_start..overlap_end {
@@ -128,7 +129,6 @@ pub async fn is_annotation_covered(
     })
 }
 
-
 #[derive(Debug)]
 pub struct ClassifiedCoverage {
     pub complete_coverage: Vec<AnnotationCoverage>,
@@ -140,9 +140,9 @@ pub struct ClassifiedCoverage {
 
 pub async fn classify_annotation_coverage(
     project_data: &ProjectData,
-    annotations: &Vec<Arc<Annotation>>,
-    maybe_primary_covering_annotations: &Vec<Arc<Annotation>>,
-    maybe_secondary_covering_annotations: &Vec<Arc<Annotation>>,
+    annotations: &[Arc<Annotation>],
+    maybe_primary_covering_annotations: &[Arc<Annotation>],
+    maybe_secondary_covering_annotations: &[Arc<Annotation>],
 ) -> Result<ClassifiedCoverage> {
     let mut complete_coverage: Vec<AnnotationCoverage> = Vec::new();
     let mut incomplete_coverage: Vec<AnnotationCoverage> = Vec::new();
@@ -152,25 +152,29 @@ pub async fn classify_annotation_coverage(
 
     // Wrap in Arc to share across futures without cloning the entire Vec per annotation
     let specifications = project_data.specifications.clone();
-    let primary_annotations = Arc::new(maybe_primary_covering_annotations.clone());
-    let secondary_annotations = Arc::new(maybe_secondary_covering_annotations.clone());
+    let primary_annotations = Arc::new(maybe_primary_covering_annotations.to_vec());
+    let secondary_annotations = Arc::new(maybe_secondary_covering_annotations.to_vec());
 
     // Create futures for concurrent coverage calculation
-    let coverage_futures: Vec<_> = annotations.iter().map(|annotation| {
-        let annotation = annotation.clone();
-        let specifications = specifications.clone();
-        let primary_annotations = primary_annotations.clone();
-        let secondary_annotations = secondary_annotations.clone();
-        
-        async move {
-            let (primary_coverage, secondary_coverage) = futures::future::try_join(
-                is_annotation_covered(&annotation, &specifications, &primary_annotations),
-                is_annotation_covered(&annotation, &specifications, &secondary_annotations)
-            ).await?;
-            
-            Ok::<_, crate::Error>((annotation, primary_coverage, secondary_coverage))
-        }
-    }).collect();
+    let coverage_futures: Vec<_> = annotations
+        .iter()
+        .map(|annotation| {
+            let annotation = annotation.clone();
+            let specifications = specifications.clone();
+            let primary_annotations = primary_annotations.clone();
+            let secondary_annotations = secondary_annotations.clone();
+
+            async move {
+                let (primary_coverage, secondary_coverage) = futures::future::try_join(
+                    is_annotation_covered(&annotation, &specifications, &primary_annotations),
+                    is_annotation_covered(&annotation, &specifications, &secondary_annotations),
+                )
+                .await?;
+
+                Ok::<_, crate::Error>((annotation, primary_coverage, secondary_coverage))
+            }
+        })
+        .collect();
 
     // Execute all coverage calculations concurrently
     let coverage_results = futures::future::try_join_all(coverage_futures).await?;
@@ -182,13 +186,15 @@ pub async fn classify_annotation_coverage(
 
         match (primary_coverage.fully_covered, primary_len, secondary_len) {
             // Complete primary coverage
-            (true, _, s) if 0 == s => complete_coverage.push(primary_coverage),
+            (true, _, 0) => complete_coverage.push(primary_coverage),
             // Complete primary but there is secondary coverage. duplicates?
             (true, _, s) if 0 < s => mixed_coverage.push(primary_coverage.merge(secondary)),
             // Primary is missing something
             (false, p, s) if 0 < p && 0 == s => incomplete_coverage.push(primary_coverage),
             // Mixed primary and secondary. duplicates?
-            (false, p, s) if 0 < p && 0 < s => mixed_coverage.push(primary_coverage.merge(secondary)),
+            (false, p, s) if 0 < p && 0 < s => {
+                mixed_coverage.push(primary_coverage.merge(secondary))
+            }
             // Only secondary
             (false, p, s) if 0 == p && 0 < s => secondary_coverage.push(secondary),
             // Zero coverage
@@ -203,5 +209,4 @@ pub async fn classify_annotation_coverage(
         mixed_coverage,
         secondary_coverage,
     })
-
 }

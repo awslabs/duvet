@@ -1,20 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Serialize};
-use std::fmt;
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
-    comment::{Pattern},
+    comment::Pattern,
     query::coverage::ExecutionStatus,
 };
-use std::{
-    sync::Arc,
-};
-use duvet_core::{
-    error,
-    info,
-};
+use duvet_core::{error, info};
+use serde::{Deserialize, Serialize};
+use std::{fmt, sync::Arc};
 
 /// Overall query result
 #[derive(Debug)]
@@ -117,8 +111,10 @@ impl AnnotationCoverage {
         // Uses pointer identity rather than value equality. This is correct because
         // all AnnotationCoverage instances for the same annotation share the same
         // Arc clone from the AnnotationSet — they always point to the same allocation.
-        assert!(Arc::ptr_eq(&self.target, &other.target),
-            "Cannot merge AnnotationCoverage with different targets");
+        assert!(
+            Arc::ptr_eq(&self.target, &other.target),
+            "Cannot merge AnnotationCoverage with different targets"
+        );
 
         // Extend covering_annotations
         self.covering_annotations.extend(other.covering_annotations);
@@ -148,14 +144,14 @@ pub struct CoveredTestAnnotation {
 #[derive(Debug)]
 pub struct NotExecutedAnnotation {
     pub annotation: Arc<Annotation>,
-    pub status: ExecutionStatus
+    pub status: ExecutionStatus,
 }
 
 impl fmt::Display for QueryResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Display each check result
         for check in &self.checks {
-            write!(f, "{}", check)?;
+            write!(f, "{check}")?;
         }
         writeln!(f)?;
         // Overall status
@@ -168,17 +164,18 @@ impl fmt::Display for QueryResult {
 impl fmt::Display for CheckResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CheckResult::Implementation(implementation_result) => write!(f, "{}", implementation_result),
-            CheckResult::Tests(test_result) => write!(f, "{}", test_result),
-            CheckResult::Coverage(coverage_result) => write!(f, "{}", coverage_result),
-            CheckResult::Duplicates(duplicates_result) => write!(f, "{}", duplicates_result),
+            CheckResult::Implementation(implementation_result) => {
+                write!(f, "{implementation_result}")
+            }
+            CheckResult::Tests(test_result) => write!(f, "{test_result}"),
+            CheckResult::Coverage(coverage_result) => write!(f, "{coverage_result}"),
+            CheckResult::Duplicates(duplicates_result) => write!(f, "{duplicates_result}"),
         }
     }
 }
 
 impl fmt::Display for ImplementationResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
         writeln!(f)?;
         writeln!(f, "Implementation: {}", self.status)?;
         writeln!(f)?;
@@ -191,49 +188,48 @@ impl fmt::Display for ImplementationResult {
         let mixed = self.mixed_implementation.len();
         let todo = self.todo.len();
 
-        writeln!(f, "  Total requirements: {}", total)?;
-        writeln!(f, "  Fully implemented: {}", fully_implemented)?;
-        writeln!(f, "  Incomplete implementation: {}", incomplete)?;
-        writeln!(f, "  Mixed implementation: {}", mixed)?;
-        writeln!(f, "  TODO: {}", todo)?;
-        writeln!(f, "  Not implemented: {}", not_implemented)?;
+        writeln!(f, "  Total requirements: {total}")?;
+        writeln!(f, "  Fully implemented: {fully_implemented}")?;
+        writeln!(f, "  Incomplete implementation: {incomplete}")?;
+        writeln!(f, "  Mixed implementation: {mixed}")?;
+        writeln!(f, "  TODO: {todo}")?;
+        writeln!(f, "  Not implemented: {not_implemented}")?;
         if not_implemented > 0 {
             writeln!(f)?;
             let pattern = Pattern::default();
             for annotation in &self.not_implemented {
-                let missing_annotation_comment= format!(
+                let missing_annotation_comment = format!(
                     "\n{} {}\n{} {}\n{} {}\n",
-                    pattern.meta, annotation.target,
-                    pattern.meta, "type=implementation",
-                    pattern.content, annotation.quote,
+                    pattern.meta,
+                    annotation.target,
+                    pattern.meta,
+                    "type=implementation",
+                    pattern.content,
+                    annotation.quote,
                 );
-                let missing = error!("Missing annotation")
-                    .with_help(missing_annotation_comment);
-                writeln!(f, "{:?}", missing)?;
+                let missing = error!("Missing annotation").with_help(missing_annotation_comment);
+                writeln!(f, "{missing:?}")?;
             }
         }
         if incomplete > 0 {
             writeln!(f)?;
             for coverage in &self.incomplete_implementation {
-                let (first, rest) = coverage.covering_annotations
+                let (first, rest) = coverage
+                    .covering_annotations
                     .split_first()
                     .expect("covering_annotations should not be empty");
 
                 let mut incomplete = error!("Incomplete annotation:\n {}", coverage.target.quote);
                 incomplete = with_annotation(incomplete, first, "Incomplete");
-                incomplete = with_related_annotations(
-                    incomplete,
-                    &rest,
-                    "Incomplete"
-                );
-                writeln!(f, "{:?}", incomplete)?;
+                incomplete = with_related_annotations(incomplete, rest, "Incomplete");
+                writeln!(f, "{incomplete:?}")?;
             }
         }
         if mixed > 0 {
             writeln!(f)?;
             for coverage in &self.mixed_implementation {
-
-                let (first, rest) = coverage.covering_annotations
+                let (first, rest) = coverage
+                    .covering_annotations
                     .split_first()
                     .expect("covering_annotations should not be empty");
 
@@ -244,41 +240,31 @@ impl fmt::Display for ImplementationResult {
 
                 // The first message will always be an implementation
                 let (implementation_message, todo_message) = if coverage.fully_covered {
-                        ("Implemented", "Duplicate todo?")
-                    } else {
-                        ("Incomplete", "Implement this")
-                    };
+                    ("Implemented", "Duplicate todo?")
+                } else {
+                    ("Incomplete", "Implement this")
+                };
 
-                let mut mixed = error!("Mixed implementation and TODO:\n {}", coverage.target.quote);
+                let mut mixed =
+                    error!("Mixed implementation and TODO:\n {}", coverage.target.quote);
                 mixed = with_annotation(mixed, first, implementation_message);
-                mixed = with_related_annotations(
-                    mixed,
-                    &impls,
-                    implementation_message
-                );
-                mixed = with_related_annotations(
-                    mixed,
-                    &todo,
-                    todo_message
-                );
-                writeln!(f, "{:?}", mixed)?;
+                mixed = with_related_annotations(mixed, &impls, implementation_message);
+                mixed = with_related_annotations(mixed, &todo, todo_message);
+                writeln!(f, "{mixed:?}")?;
             }
         }
         if todo > 0 {
             writeln!(f)?;
             for coverage in &self.todo {
-                let (first, rest) = coverage.covering_annotations
+                let (first, rest) = coverage
+                    .covering_annotations
                     .split_first()
                     .expect("covering_annotations should not be empty");
 
                 let mut todo = error!("Todo annotations");
                 todo = with_annotation(todo, first, "Implement this");
-                todo = with_related_annotations(
-                    todo,
-                    &rest,
-                    "Implement this"
-                );
-                writeln!(f, "{:?}", todo)?;
+                todo = with_related_annotations(todo, rest, "Implement this");
+                writeln!(f, "{todo:?}")?;
             }
         }
 
@@ -287,7 +273,8 @@ impl fmt::Display for ImplementationResult {
             if !self.fully_implemented.is_empty() {
                 writeln!(f)?;
                 for coverage in &self.fully_implemented {
-                    let (first, rest) = coverage.covering_annotations
+                    let (first, rest) = coverage
+                        .covering_annotations
                         .split_first()
                         .expect("covering_annotations should not be empty");
 
@@ -295,13 +282,9 @@ impl fmt::Display for ImplementationResult {
                     // the label should reflect the actual type, but for now we use "Implemented".
                     let mut complete = info!("Fully Implemented");
                     complete = with_annotation(complete, first, "Implemented");
-                    complete = with_related_annotations(
-                        complete,
-                        &rest,
-                        "Implemented"
-                    );
+                    complete = with_related_annotations(complete, rest, "Implemented");
 
-                    writeln!(f, "{:?}", complete)?;
+                    writeln!(f, "{complete:?}")?;
                 }
             }
         }
@@ -322,26 +305,28 @@ impl fmt::Display for TestResult {
         let not_tested = self.not_tested.len();
         let incomplete_tests = self.incomplete_tests.len();
 
-        writeln!(f, "  Total requirements: {}", total)?;
-        writeln!(f, "  Fully tested: {}", fully_tested)?;
-        writeln!(f, "  Incomplete tests: {}", incomplete_tests)?;
-        writeln!(f, "  Not tested: {}", not_tested)?;
+        writeln!(f, "  Total requirements: {total}")?;
+        writeln!(f, "  Fully tested: {fully_tested}")?;
+        writeln!(f, "  Incomplete tests: {incomplete_tests}")?;
+        writeln!(f, "  Not tested: {not_tested}")?;
         writeln!(f)?;
 
         if not_tested > 0 {
             let pattern = Pattern::default();
             for annotation in &self.not_tested {
-                let missing_annotation_comment= format!(
+                let missing_annotation_comment = format!(
                     "\n{} {}\n{} {}\n{} {}\n",
-                    pattern.meta, annotation.target,
-                    pattern.meta, "type=test",
-                    pattern.content, annotation.quote,
+                    pattern.meta,
+                    annotation.target,
+                    pattern.meta,
+                    "type=test",
+                    pattern.content,
+                    annotation.quote,
                 );
                 let mut missing = error!("Missing test");
                 missing = with_annotation(missing, annotation, "Implementation")
                     .with_help(missing_annotation_comment);
-                writeln!(f, "{:?}", missing)?;
-
+                writeln!(f, "{missing:?}")?;
             }
             writeln!(f)?;
         }
@@ -353,9 +338,9 @@ impl fmt::Display for TestResult {
                 incomplete = with_related_annotations(
                     incomplete,
                     &coverage.covering_annotations,
-                    "Incomplete test"
+                    "Incomplete test",
                 );
-                writeln!(f, "{:?}", incomplete)?;
+                writeln!(f, "{incomplete:?}")?;
             }
             writeln!(f)?;
         }
@@ -364,19 +349,16 @@ impl fmt::Display for TestResult {
             // Verbose mode: show detailed annotations
             if !self.fully_tested.is_empty() {
                 for coverage in &self.fully_tested {
-                    let (first, rest) = coverage.covering_annotations
+                    let (first, rest) = coverage
+                        .covering_annotations
                         .split_first()
                         .expect("covering_annotations should not be empty");
 
                     let mut complete = info!("Fully tested");
                     complete = with_annotation(complete, first, "Test");
-                    complete = with_related_annotations(
-                        complete,
-                        &rest,
-                        "Test"
-                    );
+                    complete = with_related_annotations(complete, rest, "Test");
 
-                    writeln!(f, "{:?}", complete)?;
+                    writeln!(f, "{complete:?}")?;
                 }
                 writeln!(f)?;
             }
@@ -399,11 +381,11 @@ impl fmt::Display for CoverageResult {
         let successful = self.successful.len();
         let failed = self.failed.len();
 
-        writeln!(f, "  Coverage reports checked: {}", reports_count)?;
-        writeln!(f, "  Executed tests: {}", executed_tests)?;
-        writeln!(f, "  Executed implementations: {}", executed_implementations)?;
-        writeln!(f, "  Successful correlations: {}", successful)?;
-        writeln!(f, "  Failed correlations: {}", failed)?;
+        writeln!(f, "  Coverage reports checked: {reports_count}")?;
+        writeln!(f, "  Executed tests: {executed_tests}")?;
+        writeln!(f, "  Executed implementations: {executed_implementations}")?;
+        writeln!(f, "  Successful correlations: {successful}")?;
+        writeln!(f, "  Failed correlations: {failed}")?;
         writeln!(f)?;
 
         // Show failed correlations with detailed diagnostics
@@ -414,30 +396,32 @@ impl fmt::Display for CoverageResult {
                 let test_annotation_message = match correlation.test_execution_status {
                     ExecutionStatus::Executed => "Executed test",
                     ExecutionStatus::NotExecuted => "Not executed test",
-                    ExecutionStatus::Structural => "Test target is purely declarative; no executable code to verify",
-                    ExecutionStatus::Unknown { .. } => "Not executed because of an unknown not executable line.",
+                    ExecutionStatus::Structural => {
+                        "Test target is purely declarative; no executable code to verify"
+                    }
+                    ExecutionStatus::Unknown { .. } => {
+                        "Not executed because of an unknown not executable line."
+                    }
                 };
 
                 // Add test annotation context
                 error = error.with_source_slice(
                     correlation.test.original_text.clone(),
-                    test_annotation_message
+                    test_annotation_message,
                 );
 
                 // If test execution status is Unknown, add the problematic line
-                if let ExecutionStatus::Unknown { line_number } = correlation.test_execution_status {
+                if let ExecutionStatus::Unknown { line_number } = correlation.test_execution_status
+                {
                     if let Some(line_slice) = get_line_slice(&correlation.test, line_number) {
-                        error = error.with_related_source_slice(
-                            line_slice,
-                            "Problematic line"
-                        );
+                        error = error.with_related_source_slice(line_slice, "Problematic line");
                     }
                 }
 
                 error = with_related_annotations(
                     error,
                     &correlation.executed_implementations,
-                    "Executed implementation"
+                    "Executed implementation",
                 );
 
                 error = with_related_not_executed_annotations(
@@ -445,13 +429,17 @@ impl fmt::Display for CoverageResult {
                     &correlation.not_executed_implementations,
                     |status| match status {
                         ExecutionStatus::NotExecuted => "Not executed implementation",
-                        ExecutionStatus::Structural => "Structural implementation target — no executable code to verify",
-                        ExecutionStatus::Unknown { .. } => "Not executed because of an unknown not executable line.",
+                        ExecutionStatus::Structural => {
+                            "Structural implementation target — no executable code to verify"
+                        }
+                        ExecutionStatus::Unknown { .. } => {
+                            "Not executed because of an unknown not executable line."
+                        }
                         ExecutionStatus::Executed => unreachable!("Executed implementation"), // shouldn't happen
-                    }
+                    },
                 );
 
-                writeln!(f, "{:?}", error)?;
+                writeln!(f, "{error:?}")?;
             }
             writeln!(f)?;
         }
@@ -462,36 +450,38 @@ impl fmt::Display for CoverageResult {
                 let mut info = info!("Successful correlation");
 
                 // Add test annotation context
-                info = info.with_source_slice(
-                    correlation.test.original_text.clone(),
-                    "Test annotation"
-                );
+                info = info
+                    .with_source_slice(correlation.test.original_text.clone(), "Test annotation");
 
                 info = with_related_annotations(
                     info,
                     &correlation.executed_implementations,
-                    "Executed implementation"
+                    "Executed implementation",
                 );
 
                 // correlation in successful ==>
                 //  correlation.test_execution_status == ExecutionStatus::Executed ==>
                 //  correlation.not_executed_implementations.is_empty()
 
-                writeln!(f, "{:?}", info)?;
+                writeln!(f, "{info:?}")?;
             }
 
             let mut executed_annotation = info!("Executed annotations");
             executed_annotation = with_related_annotations(
                 executed_annotation,
                 &self.executed_tests.iter().cloned().collect::<Vec<_>>(),
-                "Executed test"
+                "Executed test",
             );
             executed_annotation = with_related_annotations(
                 executed_annotation,
-                &self.executed_implementations.iter().cloned().collect::<Vec<_>>(),
-                "Executed implementation"
+                &self
+                    .executed_implementations
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<_>>(),
+                "Executed implementation",
             );
-            writeln!(f, "{:?}", executed_annotation)?;
+            writeln!(f, "{executed_annotation:?}")?;
 
             writeln!(f)?;
         }
@@ -515,7 +505,7 @@ impl fmt::Display for DuplicatesResult {
                         "Duplicate".to_string(),
                         "Duplicate".to_string(),
                     );
-                    writeln!(f, "{:?}", duplicate_error)?;
+                    writeln!(f, "{duplicate_error:?}")?;
                 }
             }
         }
@@ -524,29 +514,25 @@ impl fmt::Display for DuplicatesResult {
             for (category_name, duplicates) in &self.categories {
                 if !duplicates.some_overlap.is_empty() {
                     for coverage in &duplicates.some_overlap {
-                        let (first, rest) = coverage.covering_annotations
+                        let (first, rest) = coverage
+                            .covering_annotations
                             .split_first()
                             .expect("covering_annotations should not be empty");
 
-                        let mut overlap_info = info!("{} annotations with some overlap", category_name);
+                        let mut overlap_info =
+                            info!("{} annotations with some overlap", category_name);
                         overlap_info = with_annotation(overlap_info, first, "Some overlap");
-                        overlap_info = with_related_annotations(
-                            overlap_info,
-                            &rest,
-                            "Some overlap"
-                        );
-                        writeln!(f, "{:?}", overlap_info)?;
+                        overlap_info = with_related_annotations(overlap_info, rest, "Some overlap");
+                        writeln!(f, "{overlap_info:?}")?;
                     }
                 }
 
                 if !duplicates.unique.is_empty() {
-                    let mut unique_info = info!("Unique {} annotations", category_name.to_lowercase());
-                    unique_info = with_related_annotations(
-                        unique_info,
-                        &duplicates.unique,
-                        "Unique"
-                    );
-                    writeln!(f, "{:?}", unique_info)?;
+                    let mut unique_info =
+                        info!("Unique {} annotations", category_name.to_lowercase());
+                    unique_info =
+                        with_related_annotations(unique_info, &duplicates.unique, "Unique");
+                    writeln!(f, "{unique_info:?}")?;
                 }
             }
         }
@@ -601,16 +587,13 @@ fn with_related_not_executed_annotations(
         // Always show the annotation context first
         error = error.with_related_source_slice(
             annotation.annotation.original_text.clone(),
-            message(annotation.status)
+            message(annotation.status),
         );
 
         // If we have line number information for Unknown status, add specific line context
         if let ExecutionStatus::Unknown { line_number } = annotation.status {
             if let Some(line_slice) = get_line_slice(&annotation.annotation, line_number) {
-                error = error.with_related_source_slice(
-                    line_slice,
-                    "Problematic line"
-                );
+                error = error.with_related_source_slice(line_slice, "Problematic line");
             }
         }
     }
@@ -618,7 +601,10 @@ fn with_related_not_executed_annotations(
 }
 
 /// Helper function to get a slice for a specific line
-fn get_line_slice(annotation: &Arc<Annotation>, line_number: u64) -> Option<duvet_core::file::Slice<duvet_core::file::SourceFile>> {
+fn get_line_slice(
+    annotation: &Arc<Annotation>,
+    line_number: u64,
+) -> Option<duvet_core::file::Slice<duvet_core::file::SourceFile>> {
     // Get the source file from the annotation
     let idx = usize::try_from(line_number).ok()?.checked_sub(1)?;
     annotation

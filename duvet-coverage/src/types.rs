@@ -3,8 +3,8 @@
 
 //! Core types for the coverage model.
 
-use vstd::prelude::*;
 use std::collections::{BTreeMap, BTreeSet};
+use vstd::prelude::*;
 
 verus! {
 

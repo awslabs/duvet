@@ -54,16 +54,16 @@ impl LineClassifier for JavaClassifier {
         // Statement or Declaration properties. This prevents contamination
         // from multi-line AST nodes (e.g., fluent builder chains) that
         // span annotation/comment lines.
-        for line_num in 1..=line_count {
-            if line_props[line_num].contains(&LineProperty::Annotation)
-                || line_props[line_num].contains(&LineProperty::Comment)
-                || line_props[line_num].contains(&LineProperty::Whitespace)
+        for props in line_props.iter_mut().take(line_count + 1).skip(1) {
+            if props.contains(&LineProperty::Annotation)
+                || props.contains(&LineProperty::Comment)
+                || props.contains(&LineProperty::Whitespace)
             {
-                line_props[line_num].remove(&LineProperty::Statement);
-                line_props[line_num].remove(&LineProperty::Declaration);
-                line_props[line_num].remove(&LineProperty::ScopeOpen);
-                line_props[line_num].remove(&LineProperty::ScopeClose);
-                line_props[line_num].remove(&LineProperty::NonLinearControl);
+                props.remove(&LineProperty::Statement);
+                props.remove(&LineProperty::Declaration);
+                props.remove(&LineProperty::ScopeOpen);
+                props.remove(&LineProperty::ScopeClose);
+                props.remove(&LineProperty::NonLinearControl);
             }
         }
 
@@ -101,48 +101,116 @@ fn walk_node(
         }
 
         // Statements
-        "expression_statement" | "return_statement" | "throw_statement"
-        | "assert_statement" | "break_statement" | "continue_statement"
+        "expression_statement"
+        | "return_statement"
+        | "throw_statement"
+        | "assert_statement"
+        | "break_statement"
+        | "continue_statement"
         | "yield_statement" => {
-            mark_lines(start_line, end_line, LineProperty::Statement, line_props, visited);
+            mark_lines(
+                start_line,
+                end_line,
+                LineProperty::Statement,
+                line_props,
+                visited,
+            );
         }
 
         // Control flow statements that open scopes
-        "if_statement" | "for_statement" | "enhanced_for_statement"
-        | "while_statement" | "do_statement" | "switch_expression" => {
-            mark_lines(start_line, start_line, LineProperty::Statement, line_props, visited);
+        "if_statement"
+        | "for_statement"
+        | "enhanced_for_statement"
+        | "while_statement"
+        | "do_statement"
+        | "switch_expression" => {
+            mark_lines(
+                start_line,
+                start_line,
+                LineProperty::Statement,
+                line_props,
+                visited,
+            );
             // The block child handles ScopeOpen/ScopeClose
         }
         "try_statement" => {
             // try itself is structural, block child handles scope
-            mark_lines(start_line, start_line, LineProperty::Declaration, line_props, visited);
+            mark_lines(
+                start_line,
+                start_line,
+                LineProperty::Declaration,
+                line_props,
+                visited,
+            );
         }
         "catch_clause" => {
-            mark_lines(start_line, start_line, LineProperty::Declaration, line_props, visited);
+            mark_lines(
+                start_line,
+                start_line,
+                LineProperty::Declaration,
+                line_props,
+                visited,
+            );
         }
         "finally_clause" => {
-            mark_lines(start_line, start_line, LineProperty::Declaration, line_props, visited);
+            mark_lines(
+                start_line,
+                start_line,
+                LineProperty::Declaration,
+                line_props,
+                visited,
+            );
         }
 
         // Variable declarations
         "local_variable_declaration" | "field_declaration" => {
-            let has_init = has_child_kind(node, "variable_declarator")
-                && node_has_initializer(node);
-            mark_lines(start_line, end_line, LineProperty::Declaration, line_props, visited);
+            let has_init =
+                has_child_kind(node, "variable_declarator") && node_has_initializer(node);
+            mark_lines(
+                start_line,
+                end_line,
+                LineProperty::Declaration,
+                line_props,
+                visited,
+            );
             if has_init {
-                mark_lines(start_line, end_line, LineProperty::Statement, line_props, visited);
+                mark_lines(
+                    start_line,
+                    end_line,
+                    LineProperty::Statement,
+                    line_props,
+                    visited,
+                );
             }
         }
 
         // Blocks → ScopeOpen on first line, ScopeClose on last line
-        "block" | "class_body" | "interface_body" | "enum_body"
-        | "switch_block" | "constructor_body" => {
-            mark_lines(start_line, start_line, LineProperty::ScopeOpen, line_props, visited);
+        "block" | "class_body" | "interface_body" | "enum_body" | "switch_block"
+        | "constructor_body" => {
+            mark_lines(
+                start_line,
+                start_line,
+                LineProperty::ScopeOpen,
+                line_props,
+                visited,
+            );
             if end_line != start_line {
-                mark_lines(end_line, end_line, LineProperty::ScopeClose, line_props, visited);
+                mark_lines(
+                    end_line,
+                    end_line,
+                    LineProperty::ScopeClose,
+                    line_props,
+                    visited,
+                );
             } else {
                 // Single-line block: both open and close on same line
-                mark_lines(start_line, start_line, LineProperty::ScopeClose, line_props, visited);
+                mark_lines(
+                    start_line,
+                    start_line,
+                    LineProperty::ScopeClose,
+                    line_props,
+                    visited,
+                );
             }
         }
 
@@ -150,34 +218,76 @@ fn walk_node(
         "line_comment" => {
             // Check if it's a duvet annotation (already handled above)
             if !visited[start_line] || !line_props[start_line].contains(&LineProperty::Annotation) {
-                mark_lines(start_line, end_line, LineProperty::Comment, line_props, visited);
+                mark_lines(
+                    start_line,
+                    end_line,
+                    LineProperty::Comment,
+                    line_props,
+                    visited,
+                );
             }
         }
         "block_comment" => {
-            mark_lines(start_line, end_line, LineProperty::Comment, line_props, visited);
+            mark_lines(
+                start_line,
+                end_line,
+                LineProperty::Comment,
+                line_props,
+                visited,
+            );
         }
 
         // Import and package declarations
         "import_declaration" | "package_declaration" => {
-            mark_lines(start_line, end_line, LineProperty::Declaration, line_props, visited);
+            mark_lines(
+                start_line,
+                end_line,
+                LineProperty::Declaration,
+                line_props,
+                visited,
+            );
         }
 
         // Annotations like @Override
         "marker_annotation" | "annotation" => {
-            mark_lines(start_line, end_line, LineProperty::Declaration, line_props, visited);
+            mark_lines(
+                start_line,
+                end_line,
+                LineProperty::Declaration,
+                line_props,
+                visited,
+            );
         }
 
         // Enum constants
         "enum_constant" => {
-            mark_lines(start_line, end_line, LineProperty::Declaration, line_props, visited);
+            mark_lines(
+                start_line,
+                end_line,
+                LineProperty::Declaration,
+                line_props,
+                visited,
+            );
             if has_child_kind(node, "argument_list") {
-                mark_lines(start_line, end_line, LineProperty::Statement, line_props, visited);
+                mark_lines(
+                    start_line,
+                    end_line,
+                    LineProperty::Statement,
+                    line_props,
+                    visited,
+                );
             }
         }
 
         // Labels (non-linear control)
         "labeled_statement" => {
-            mark_lines(start_line, start_line, LineProperty::NonLinearControl, line_props, visited);
+            mark_lines(
+                start_line,
+                start_line,
+                LineProperty::NonLinearControl,
+                line_props,
+                visited,
+            );
         }
 
         _ => {}
@@ -219,11 +329,23 @@ fn mark_declaration_with_scope(
         }
         // The body start line has both Declaration and ScopeOpen if it's the same as decl
         if body_start == start_line {
-            mark_lines(start_line, start_line, LineProperty::Declaration, line_props, visited);
+            mark_lines(
+                start_line,
+                start_line,
+                LineProperty::Declaration,
+                line_props,
+                visited,
+            );
         }
     } else {
         // No body (e.g., abstract method) — pure declaration
-        mark_lines(start_line, end_line, LineProperty::Declaration, line_props, visited);
+        mark_lines(
+            start_line,
+            end_line,
+            LineProperty::Declaration,
+            line_props,
+            visited,
+        );
     }
 }
 
@@ -256,13 +378,15 @@ fn node_has_initializer(node: &tree_sitter::Node) -> bool {
             let mut inner = child.walk();
             let grandchildren: Vec<_> = child.children(&mut inner).collect();
             for grandchild in grandchildren {
-                if grandchild.kind() == "=" || grandchild.kind() == "object_creation_expression"
+                if grandchild.kind() == "="
+                    || grandchild.kind() == "object_creation_expression"
                     || grandchild.kind() == "method_invocation"
                     || grandchild.kind() == "array_creation_expression"
                 {
                     return true;
                 }
-                if grandchild.is_named() && grandchild.kind() != "identifier"
+                if grandchild.is_named()
+                    && grandchild.kind() != "identifier"
                     && grandchild.kind() != "dimensions"
                     && grandchild.kind() != "type_identifier"
                     && grandchild.kind() != "integral_type"
@@ -290,7 +414,7 @@ mod tests {
     }
 
     fn has_prop(class: &Option<LineClass>, prop: LineProperty) -> bool {
-        class.as_ref().map_or(false, |c| c.contains(&prop))
+        class.as_ref().is_some_and(|c| c.contains(&prop))
     }
 
     fn is_exactly(class: &Option<LineClass>, props: &[LineProperty]) -> bool {
@@ -401,7 +525,8 @@ mod tests {
 
     #[test]
     fn throw_statement() {
-        let source = "public class Foo {\n    void bar() {\n        throw new RuntimeException();\n    }\n}";
+        let source =
+            "public class Foo {\n    void bar() {\n        throw new RuntimeException();\n    }\n}";
         let result = classify(source);
         assert!(has_prop(&result[2], LineProperty::Statement));
     }
@@ -458,13 +583,18 @@ mod tests {
         let result = classify(source);
         let mut opens = 0;
         let mut closes = 0;
-        for class in result.iter() {
-            if let Some(props) = class {
-                if props.contains(&LineProperty::ScopeOpen) { opens += 1; }
-                if props.contains(&LineProperty::ScopeClose) { closes += 1; }
+        for props in result.iter().flatten() {
+            if props.contains(&LineProperty::ScopeOpen) {
+                opens += 1;
+            }
+            if props.contains(&LineProperty::ScopeClose) {
+                closes += 1;
             }
         }
-        assert_eq!(opens, closes, "ScopeOpen ({opens}) and ScopeClose ({closes}) count must match");
+        assert_eq!(
+            opens, closes,
+            "ScopeOpen ({opens}) and ScopeClose ({closes}) count must match"
+        );
     }
 
     #[test]
@@ -485,13 +615,18 @@ mod tests {
         let result = classify(source);
         let mut opens = 0;
         let mut closes = 0;
-        for class in result.iter() {
-            if let Some(props) = class {
-                if props.contains(&LineProperty::ScopeOpen) { opens += 1; }
-                if props.contains(&LineProperty::ScopeClose) { closes += 1; }
+        for props in result.iter().flatten() {
+            if props.contains(&LineProperty::ScopeOpen) {
+                opens += 1;
+            }
+            if props.contains(&LineProperty::ScopeClose) {
+                closes += 1;
             }
         }
-        assert_eq!(opens, closes, "ScopeOpen ({opens}) and ScopeClose ({closes}) count must match");
+        assert_eq!(
+            opens, closes,
+            "ScopeOpen ({opens}) and ScopeClose ({closes}) count must match"
+        );
     }
 
     #[test]

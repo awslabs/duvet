@@ -3,10 +3,8 @@
 
 //! Phase 3: Annotation Execution Check (spec Section 4).
 
+use crate::{execution_propagation::execution_set, target_resolution::annotation_target, types::*};
 use vstd::prelude::*;
-use crate::execution_propagation::execution_set;
-use crate::target_resolution::annotation_target;
-use crate::types::*;
 
 verus! {
 
@@ -99,47 +97,297 @@ fn find_scope_containing<'a>(line: u64, scopes: &'a [Scope]) -> (result: Option<
 mod tests {
     use super::*;
     use crate::types::*;
-    fn s(props: &[LineProperty]) -> Option<LineClass> { Some(line_class(props)) }
-    fn cov_hit(lines: &[u64]) -> CoverageReport { lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect() }
-    fn cov_miss(lines: &[u64]) -> CoverageReport { lines.iter().map(|&l| (l, CoverageStatus::Miss)).collect() }
+    fn s(props: &[LineProperty]) -> Option<LineClass> {
+        Some(line_class(props))
+    }
+    fn cov_hit(lines: &[u64]) -> CoverageReport {
+        lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
+    }
+    fn cov_miss(lines: &[u64]) -> CoverageReport {
+        lines.iter().map(|&l| (l, CoverageStatus::Miss)).collect()
+    }
 
-    #[test] fn example_6_1_method_signature() {
-        let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 1, end_line: 2 }, &c, &[Scope { open_line: 3, close_line: 6, parent: None, children: vec![] }], &cov_hit(&[5]), 6), ExecutionStatus::Executed);
+    #[test]
+    fn example_6_1_method_signature() {
+        let c = vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 2
+                },
+                &c,
+                &[Scope {
+                    open_line: 3,
+                    close_line: 6,
+                    parent: None,
+                    children: vec![]
+                }],
+                &cov_hit(&[5]),
+                6
+            ),
+            ExecutionStatus::Executed
+        );
     }
-    #[test] fn example_6_2_interface() {
-        let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Declaration]), s(&[LineProperty::Declaration]), s(&[LineProperty::ScopeClose])];
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 1, end_line: 2 }, &c, &[Scope { open_line: 3, close_line: 7, parent: None, children: vec![] }], &CoverageReport::new(), 7), ExecutionStatus::Structural);
+    #[test]
+    fn example_6_2_interface() {
+        let c = vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 2
+                },
+                &c,
+                &[Scope {
+                    open_line: 3,
+                    close_line: 7,
+                    parent: None,
+                    children: vec![]
+                }],
+                &CoverageReport::new(),
+                7
+            ),
+            ExecutionStatus::Structural
+        );
     }
-    #[test] fn example_6_3_cross_method() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::Whitespace]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 2, end_line: 3 }, &c, &[Scope { open_line: 1, close_line: 5, parent: None, children: vec![] }, Scope { open_line: 7, close_line: 9, parent: None, children: vec![] }], &cov_hit(&[4, 8]), 9), ExecutionStatus::Executed);
+    #[test]
+    fn example_6_3_cross_method() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::Whitespace]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 2,
+                    end_line: 3
+                },
+                &c,
+                &[
+                    Scope {
+                        open_line: 1,
+                        close_line: 5,
+                        parent: None,
+                        children: vec![]
+                    },
+                    Scope {
+                        open_line: 7,
+                        close_line: 9,
+                        parent: None,
+                        children: vec![]
+                    }
+                ],
+                &cov_hit(&[4, 8]),
+                9
+            ),
+            ExecutionStatus::Executed
+        );
     }
-    #[test] fn example_6_4_var_decl_no_init() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 2, end_line: 3 }, &c, &[Scope { open_line: 1, close_line: 6, parent: None, children: vec![] }], &cov_hit(&[5]), 6), ExecutionStatus::Executed);
+    #[test]
+    fn example_6_4_var_decl_no_init() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 2,
+                    end_line: 3
+                },
+                &c,
+                &[Scope {
+                    open_line: 1,
+                    close_line: 6,
+                    parent: None,
+                    children: vec![]
+                }],
+                &cov_hit(&[5]),
+                6
+            ),
+            ExecutionStatus::Executed
+        );
     }
-    #[test] fn example_6_5_stacked() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let sc = &[Scope { open_line: 1, close_line: 7, parent: None, children: vec![] }]; let cov = cov_hit(&[6]);
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 2, end_line: 3 }, &c, sc, &cov, 7), ExecutionStatus::Executed);
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 4, end_line: 5 }, &c, sc, &cov, 7), ExecutionStatus::Executed);
+    #[test]
+    fn example_6_5_stacked() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let sc = &[Scope {
+            open_line: 1,
+            close_line: 7,
+            parent: None,
+            children: vec![],
+        }];
+        let cov = cov_hit(&[6]);
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 2,
+                    end_line: 3
+                },
+                &c,
+                sc,
+                &cov,
+                7
+            ),
+            ExecutionStatus::Executed
+        );
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 4,
+                    end_line: 5
+                },
+                &c,
+                sc,
+                &cov,
+                7
+            ),
+            ExecutionStatus::Executed
+        );
     }
-    #[test] fn example_6_6_goto() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration]), s(&[LineProperty::NonLinearControl, LineProperty::Statement]), s(&[LineProperty::Statement]), s(&[LineProperty::NonLinearControl]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let mut cov = cov_hit(&[5, 8]); cov.insert(6, CoverageStatus::Miss);
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 2, end_line: 3 }, &c, &[Scope { open_line: 1, close_line: 9, parent: None, children: vec![] }], &cov, 9), ExecutionStatus::NotExecuted);
+    #[test]
+    fn example_6_6_goto() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::NonLinearControl, LineProperty::Statement]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::NonLinearControl]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let mut cov = cov_hit(&[5, 8]);
+        cov.insert(6, CoverageStatus::Miss);
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 2,
+                    end_line: 3
+                },
+                &c,
+                &[Scope {
+                    open_line: 1,
+                    close_line: 9,
+                    parent: None,
+                    children: vec![]
+                }],
+                &cov,
+                9
+            ),
+            ExecutionStatus::NotExecuted
+        );
     }
-    #[test] fn example_6_7_unknown_blocks_target() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), None, s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
+    #[test]
+    fn example_6_7_unknown_blocks_target() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            None,
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
         // Target resolution lands on line 4 (the unknown line); Unknown carries that line number.
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 2, end_line: 3 }, &c, &[Scope { open_line: 1, close_line: 6, parent: None, children: vec![] }], &cov_hit(&[5]), 6), ExecutionStatus::Unknown { line_number: 4 });
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 2,
+                    end_line: 3
+                },
+                &c,
+                &[Scope {
+                    open_line: 1,
+                    close_line: 6,
+                    parent: None,
+                    children: vec![]
+                }],
+                &cov_hit(&[5]),
+                6
+            ),
+            ExecutionStatus::Unknown { line_number: 4 }
+        );
     }
-    #[test] fn dangling_annotation_is_structural() {
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 1, end_line: 1 }, &vec![s(&[LineProperty::Annotation]), s(&[LineProperty::ScopeClose])], &[], &CoverageReport::new(), 2), ExecutionStatus::Structural);
+    #[test]
+    fn dangling_annotation_is_structural() {
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 1
+                },
+                &vec![
+                    s(&[LineProperty::Annotation]),
+                    s(&[LineProperty::ScopeClose])
+                ],
+                &[],
+                &CoverageReport::new(),
+                2
+            ),
+            ExecutionStatus::Structural
+        );
     }
-    #[test] fn not_executed_statement() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        assert_eq!(is_annotation_executed(&AnnotationSpan { start_line: 2, end_line: 2 }, &c, &[Scope { open_line: 1, close_line: 4, parent: None, children: vec![] }], &cov_miss(&[3]), 4), ExecutionStatus::NotExecuted);
+    #[test]
+    fn not_executed_statement() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        assert_eq!(
+            is_annotation_executed(
+                &AnnotationSpan {
+                    start_line: 2,
+                    end_line: 2
+                },
+                &c,
+                &[Scope {
+                    open_line: 1,
+                    close_line: 4,
+                    parent: None,
+                    children: vec![]
+                }],
+                &cov_miss(&[3]),
+                4
+            ),
+            ExecutionStatus::NotExecuted
+        );
     }
 }

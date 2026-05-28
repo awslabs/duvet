@@ -12,15 +12,21 @@
 //# duvet annotations linking each `proof fn` back to the corresponding property
 //# section in this document.
 
+#[cfg(verus_keep_ghost)]
+use crate::predicates::{
+    all_lines_skippable, line_is_skippable, scope_contains, scopes_match_classifications,
+    scopes_well_formed,
+};
+#[cfg(verus_keep_ghost)]
+use crate::predicates::{
+    clear_path, has_valid_path, in_scope, propagated_within_scope, scope_has_non_linear_control,
+    validly_in_exec_set,
+};
+use crate::{
+    annotation_execution::is_annotation_executed, execution_propagation::execution_set,
+    target_resolution::annotation_target, types::*,
+};
 use vstd::prelude::*;
-use crate::annotation_execution::is_annotation_executed;
-use crate::target_resolution::annotation_target;
-use crate::execution_propagation::execution_set;
-#[cfg(verus_keep_ghost)]
-use crate::predicates::{validly_in_exec_set, has_valid_path, propagated_within_scope, in_scope, clear_path, scope_has_non_linear_control};
-#[cfg(verus_keep_ghost)]
-use crate::predicates::{scopes_well_formed, scope_contains, scopes_match_classifications, all_lines_skippable, line_is_skippable};
-use crate::types::*;
 
 verus! {
 
@@ -457,8 +463,12 @@ pub(crate) fn property_execution_set_containment(
 mod tests {
     use super::*;
     use crate::types::*;
-    fn s(props: &[LineProperty]) -> Option<LineClass> { Some(line_class(props)) }
-    fn cov_hit(lines: &[u64]) -> CoverageReport { lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect() }
+    fn s(props: &[LineProperty]) -> Option<LineClass> {
+        Some(line_class(props))
+    }
+    fn cov_hit(lines: &[u64]) -> CoverageReport {
+        lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
+    }
 
     //= design/query/coverage-model-spec.md#correctness-properties
     //= type=test
@@ -468,20 +478,68 @@ mod tests {
     //# The implementation MUST prove that if
     //# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
     //# line L such that:
-    #[test] fn test_property_1_method_signature() {
-        let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        property_no_false_positives(&AnnotationSpan { start_line: 1, end_line: 2 }, &c, &[Scope { open_line: 3, close_line: 6, parent: None, children: vec![] }], &cov_hit(&[5]), 6);
+    #[test]
+    fn test_property_1_method_signature() {
+        let c = vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        property_no_false_positives(
+            &AnnotationSpan {
+                start_line: 1,
+                end_line: 2,
+            },
+            &c,
+            &[Scope {
+                open_line: 3,
+                close_line: 6,
+                parent: None,
+                children: vec![],
+            }],
+            &cov_hit(&[5]),
+            6,
+        );
     }
     //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
     //= type=test
     //# The implementation MUST prove that for any two lines A and B where A is in
     //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
     //# S2 is not a parent of S1:
-    #[test] fn test_property_2_sibling_scopes() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::Whitespace]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::ScopeClose])];
+    #[test]
+    fn test_property_2_sibling_scopes() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::Whitespace]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::ScopeClose]),
+        ];
         // Property 2 is proven as a Verus proof fn (lemma_no_cross_scope_leakage).
         // This test verifies the runtime behavior.
-        let exec_set = execution_set(&c, &[Scope { open_line: 1, close_line: 3, parent: None, children: vec![] }, Scope { open_line: 5, close_line: 7, parent: None, children: vec![] }], &cov_hit(&[2]));
+        let exec_set = execution_set(
+            &c,
+            &[
+                Scope {
+                    open_line: 1,
+                    close_line: 3,
+                    parent: None,
+                    children: vec![],
+                },
+                Scope {
+                    open_line: 5,
+                    close_line: 7,
+                    parent: None,
+                    children: vec![],
+                },
+            ],
+            &cov_hit(&[2]),
+        );
         assert!(!exec_set.contains(&5));
         assert!(!exec_set.contains(&6));
     }
@@ -489,25 +547,58 @@ mod tests {
     //= type=test
     //# The implementation MUST prove that no backward propagation occurs WITHIN a
     //# scope that contains a `NonLinearControl` line.
-    #[test] fn test_property_3_goto_scope() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::NonLinearControl, LineProperty::Statement]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
+    #[test]
+    fn test_property_3_goto_scope() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::NonLinearControl, LineProperty::Statement]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
         // Property 3 is proven as a Verus proof fn (lemma_conservative_fallback).
         // This test verifies runtime behavior: in NonLinearControl scopes, only directly-hit lines.
-        let r = execution_set(&c, &[Scope { open_line: 1, close_line: 5, parent: None, children: vec![] }], &cov_hit(&[3, 4]));
-        assert!(r.contains(&3)); assert!(r.contains(&4)); assert!(!r.contains(&1)); assert!(!r.contains(&2));
+        let r = execution_set(
+            &c,
+            &[Scope {
+                open_line: 1,
+                close_line: 5,
+                parent: None,
+                children: vec![],
+            }],
+            &cov_hit(&[3, 4]),
+        );
+        assert!(r.contains(&3));
+        assert!(r.contains(&4));
+        assert!(!r.contains(&1));
+        assert!(!r.contains(&2));
     }
     //= design/query/coverage-model-spec.md#property-4-monotonicity
     //= type=test
     //# The implementation MUST prove that given two coverage reports E1 and E2 where
     //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
-    #[test] fn test_property_4_monotonicity() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let sc = &[Scope { open_line: 1, close_line: 5, parent: None, children: vec![] }];
+    #[test]
+    fn test_property_4_monotonicity() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let sc = &[Scope {
+            open_line: 1,
+            close_line: 5,
+            parent: None,
+            children: vec![],
+        }];
         // Property 4 is proven as a Verus proof fn (lemma_monotonicity).
         // This test verifies runtime behavior: E1 ⊆ E2 implies exec_set(E1) ⊆ exec_set(E2).
         let e1 = execution_set(&c, sc, &cov_hit(&[3]));
         let e2 = execution_set(&c, sc, &cov_hit(&[3, 4]));
-        for line in e1.iter() { assert!(e2.contains(line)); }
+        for line in e1.iter() {
+            assert!(e2.contains(line));
+        }
     }
     //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
     //= type=test
@@ -516,15 +607,47 @@ mod tests {
     //# comments, or other annotations between
     //# them, and `is_annotation_executed(B, ...) = Executed`, then
     //# `is_annotation_executed(A, ...) = Executed`.
-    #[test] fn test_property_5_stacking() {
+    #[test]
+    fn test_property_5_stacking() {
         use crate::annotation_execution::is_annotation_executed;
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let sc = &[Scope { open_line: 1, close_line: 7, parent: None, children: vec![] }];
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let sc = &[Scope {
+            open_line: 1,
+            close_line: 7,
+            parent: None,
+            children: vec![],
+        }];
         let cov = cov_hit(&[6]);
         // Property 5 is proven as a Verus proof fn (lemma_stacking_transitivity).
         // This test verifies runtime behavior: stacked annotations both return Executed.
-        let status_a = is_annotation_executed(&AnnotationSpan { start_line: 2, end_line: 3 }, &c, sc, &cov, 7);
-        let status_b = is_annotation_executed(&AnnotationSpan { start_line: 4, end_line: 5 }, &c, sc, &cov, 7);
+        let status_a = is_annotation_executed(
+            &AnnotationSpan {
+                start_line: 2,
+                end_line: 3,
+            },
+            &c,
+            sc,
+            &cov,
+            7,
+        );
+        let status_b = is_annotation_executed(
+            &AnnotationSpan {
+                start_line: 4,
+                end_line: 5,
+            },
+            &c,
+            sc,
+            &cov,
+            7,
+        );
         assert_eq!(status_a, ExecutionStatus::Executed);
         assert_eq!(status_b, ExecutionStatus::Executed);
     }
@@ -532,23 +655,66 @@ mod tests {
     //= type=test
     //# The implementation MUST prove that unknown lines cannot produce false
     //# positives.
-    #[test] fn test_property_6_unknown_safety() {
-        use crate::annotation_execution::is_annotation_executed;
-        use crate::target_resolution::annotation_target;
+    #[test]
+    fn test_property_6_unknown_safety() {
+        use crate::{
+            annotation_execution::is_annotation_executed, target_resolution::annotation_target,
+        };
         // Property 6 is proven by the ensures clause on is_annotation_executed
         // and the proof fn lemma_unknown_safety.
         // This test verifies runtime behavior: Executed implies classified target.
-        let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let sc = &[Scope { open_line: 2, close_line: 4, parent: None, children: vec![] }];
+        let c = vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let sc = &[Scope {
+            open_line: 2,
+            close_line: 4,
+            parent: None,
+            children: vec![],
+        }];
         let cov = cov_hit(&[3]);
-        let status = is_annotation_executed(&AnnotationSpan { start_line: 1, end_line: 1 }, &c, sc, &cov, 4);
+        let status = is_annotation_executed(
+            &AnnotationSpan {
+                start_line: 1,
+                end_line: 1,
+            },
+            &c,
+            sc,
+            &cov,
+            4,
+        );
         assert_eq!(status, ExecutionStatus::Executed);
-        let target = annotation_target(&AnnotationSpan { start_line: 1, end_line: 1 }, &c, 4);
+        let target = annotation_target(
+            &AnnotationSpan {
+                start_line: 1,
+                end_line: 1,
+            },
+            &c,
+            4,
+        );
         assert!(target.is_some());
         assert!(target.unwrap().properties.is_some());
     }
-    #[test] fn test_property_9_execution_set_containment() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        property_execution_set_containment(&c, &[Scope { open_line: 1, close_line: 4, parent: None, children: vec![] }], &cov_hit(&[2, 3]));
+    #[test]
+    fn test_property_9_execution_set_containment() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        property_execution_set_containment(
+            &c,
+            &[Scope {
+                open_line: 1,
+                close_line: 4,
+                parent: None,
+                children: vec![],
+            }],
+            &cov_hit(&[2, 3]),
+        );
     }
 }

@@ -3,10 +3,10 @@
 
 //! Phase 1: Annotation Target Resolution (spec Section 2).
 
-use vstd::prelude::*;
-use crate::types::*;
 #[cfg(verus_keep_ghost)]
 pub use crate::predicates::line_is_skippable;
+use crate::types::*;
+use vstd::prelude::*;
 
 verus! {
 
@@ -104,32 +104,168 @@ pub(crate) fn annotation_target(
 mod tests {
     use super::*;
     use crate::types::*;
-    fn s(props: &[LineProperty]) -> Option<LineClass> { Some(line_class(props)) }
+    fn s(props: &[LineProperty]) -> Option<LineClass> {
+        Some(line_class(props))
+    }
 
-    #[test] fn annotation_before_method_sig() {
-        let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen])];
-        assert_eq!(annotation_target(&AnnotationSpan { start_line: 1, end_line: 2 }, &c, 3).unwrap().line_number, 3);
+    #[test]
+    fn annotation_before_method_sig() {
+        let c = vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+        ];
+        assert_eq!(
+            annotation_target(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 2
+                },
+                &c,
+                3
+            )
+            .unwrap()
+            .line_number,
+            3
+        );
     }
-    #[test] fn annotation_before_statement() {
-        assert_eq!(annotation_target(&AnnotationSpan { start_line: 1, end_line: 1 }, &vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Statement])], 2).unwrap().line_number, 2);
+    #[test]
+    fn annotation_before_statement() {
+        assert_eq!(
+            annotation_target(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 1
+                },
+                &vec![
+                    s(&[LineProperty::Annotation]),
+                    s(&[LineProperty::Statement])
+                ],
+                2
+            )
+            .unwrap()
+            .line_number,
+            2
+        );
     }
-    #[test] fn annotation_before_closing_brace() {
-        assert_eq!(annotation_target(&AnnotationSpan { start_line: 1, end_line: 1 }, &vec![s(&[LineProperty::Annotation]), s(&[LineProperty::ScopeClose])], 2), None);
+    #[test]
+    fn annotation_before_closing_brace() {
+        assert_eq!(
+            annotation_target(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 1
+                },
+                &vec![
+                    s(&[LineProperty::Annotation]),
+                    s(&[LineProperty::ScopeClose])
+                ],
+                2
+            ),
+            None
+        );
     }
-    #[test] fn annotation_at_eof() {
-        assert_eq!(annotation_target(&AnnotationSpan { start_line: 1, end_line: 1 }, &vec![s(&[LineProperty::Annotation])], 1), None);
+    #[test]
+    fn annotation_at_eof() {
+        assert_eq!(
+            annotation_target(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 1
+                },
+                &vec![s(&[LineProperty::Annotation])],
+                1
+            ),
+            None
+        );
     }
-    #[test] fn stacked_annotations_same_target() {
-        let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Statement])];
-        assert_eq!(annotation_target(&AnnotationSpan { start_line: 1, end_line: 2 }, &c, 5), annotation_target(&AnnotationSpan { start_line: 3, end_line: 4 }, &c, 5));
+    #[test]
+    fn stacked_annotations_same_target() {
+        let c = vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Statement]),
+        ];
+        assert_eq!(
+            annotation_target(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 2
+                },
+                &c,
+                5
+            ),
+            annotation_target(
+                &AnnotationSpan {
+                    start_line: 3,
+                    end_line: 4
+                },
+                &c,
+                5
+            )
+        );
     }
-    #[test] fn annotation_before_unknown_line() {
-        assert_eq!(annotation_target(&AnnotationSpan { start_line: 1, end_line: 1 }, &vec![s(&[LineProperty::Annotation]), None, s(&[LineProperty::Statement])], 3), Some(TargetLine { line_number: 2, properties: None }));
+    #[test]
+    fn annotation_before_unknown_line() {
+        assert_eq!(
+            annotation_target(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 1
+                },
+                &vec![
+                    s(&[LineProperty::Annotation]),
+                    None,
+                    s(&[LineProperty::Statement])
+                ],
+                3
+            ),
+            Some(TargetLine {
+                line_number: 2,
+                properties: None
+            })
+        );
     }
-    #[test] fn skips_whitespace_and_comments() {
-        assert_eq!(annotation_target(&AnnotationSpan { start_line: 1, end_line: 1 }, &vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Whitespace]), s(&[LineProperty::Comment]), s(&[LineProperty::Declaration])], 4).unwrap().line_number, 4);
+    #[test]
+    fn skips_whitespace_and_comments() {
+        assert_eq!(
+            annotation_target(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 1
+                },
+                &vec![
+                    s(&[LineProperty::Annotation]),
+                    s(&[LineProperty::Whitespace]),
+                    s(&[LineProperty::Comment]),
+                    s(&[LineProperty::Declaration])
+                ],
+                4
+            )
+            .unwrap()
+            .line_number,
+            4
+        );
     }
-    #[test] fn annotation_before_declaration() {
-        assert_eq!(annotation_target(&AnnotationSpan { start_line: 1, end_line: 1 }, &vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration])], 2).unwrap().line_number, 2);
+    #[test]
+    fn annotation_before_declaration() {
+        assert_eq!(
+            annotation_target(
+                &AnnotationSpan {
+                    start_line: 1,
+                    end_line: 1
+                },
+                &vec![
+                    s(&[LineProperty::Annotation]),
+                    s(&[LineProperty::Declaration])
+                ],
+                2
+            )
+            .unwrap()
+            .line_number,
+            2
+        );
     }
 }

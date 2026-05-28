@@ -72,7 +72,7 @@ impl Error {
         label: impl AsRef<str>,
     ) -> Self {
         let main_error_message = self.to_string();
-        
+
         // Check if we already have a WithRelatedSources
         if let Some(existing) = self.0.downcast_ref::<WithRelatedSources>() {
             // Add to existing related diagnostics
@@ -82,11 +82,12 @@ impl Error {
                 label: label.as_ref().to_string(),
                 main_error_message,
             });
-            
+
             Report::new(WithRelatedSources {
                 main: existing.main.clone(),
                 related_diagnostics: new_diagnostics,
-            }).into()
+            })
+            .into()
         } else {
             // First related slice - create new WithRelatedSources
             Report::new(WithRelatedSources {
@@ -96,7 +97,8 @@ impl Error {
                     label: label.as_ref().to_string(),
                     main_error_message,
                 }],
-            }).into()
+            })
+            .into()
         }
     }
 
@@ -415,7 +417,10 @@ impl Diagnostic for WithRelatedSources {
         }
 
         // Create related diagnostics for each slice
-        let related_diagnostics = self.related_diagnostics.iter().map(|d| d as &dyn Diagnostic);
+        let related_diagnostics = self
+            .related_diagnostics
+            .iter()
+            .map(|d| d as &dyn Diagnostic);
 
         // Chain with any existing related diagnostics from main
         let main_related = self.main.related();

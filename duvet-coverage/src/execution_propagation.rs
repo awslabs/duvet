@@ -8,14 +8,14 @@
 //! (`in_scope`, `clear_path`, `has_valid_path`, etc.) are defined in
 //! [`crate::predicates`] for reviewer accessibility.
 
-use vstd::prelude::*;
-use std::collections::BTreeSet;
-use crate::types::*;
 #[cfg(verus_keep_ghost)]
 pub use crate::predicates::{
-    in_scope, propagated_within_scope, clear_path,
-    scope_has_non_linear_control, has_valid_path, validly_in_exec_set,
+    clear_path, has_valid_path, in_scope, propagated_within_scope, scope_has_non_linear_control,
+    validly_in_exec_set,
 };
+use crate::types::*;
+use std::collections::BTreeSet;
+use vstd::prelude::*;
 
 verus! {
 
@@ -518,47 +518,187 @@ pub(crate) fn execution_set(
 mod tests {
     use super::*;
     use crate::types::*;
-    fn s(props: &[LineProperty]) -> Option<LineClass> { Some(line_class(props)) }
-    fn cov_hit(lines: &[u64]) -> CoverageReport { lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect() }
+    fn s(props: &[LineProperty]) -> Option<LineClass> {
+        Some(line_class(props))
+    }
+    fn cov_hit(lines: &[u64]) -> CoverageReport {
+        lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
+    }
 
-    #[test] fn propagates_backward_through_declaration() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let r = execution_set(&c, &[Scope { open_line: 1, close_line: 4, parent: None, children: vec![] }], &cov_hit(&[3]));
-        assert!(r.contains(&1)); assert!(r.contains(&2)); assert!(r.contains(&3)); assert!(!r.contains(&4));
+    #[test]
+    fn propagates_backward_through_declaration() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let r = execution_set(
+            &c,
+            &[Scope {
+                open_line: 1,
+                close_line: 4,
+                parent: None,
+                children: vec![],
+            }],
+            &cov_hit(&[3]),
+        );
+        assert!(r.contains(&1));
+        assert!(r.contains(&2));
+        assert!(r.contains(&3));
+        assert!(!r.contains(&4));
     }
-    #[test] fn stops_at_statement() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let r = execution_set(&c, &[Scope { open_line: 1, close_line: 5, parent: None, children: vec![] }], &cov_hit(&[4]));
-        assert!(r.contains(&3)); assert!(!r.contains(&2));
+    #[test]
+    fn stops_at_statement() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let r = execution_set(
+            &c,
+            &[Scope {
+                open_line: 1,
+                close_line: 5,
+                parent: None,
+                children: vec![],
+            }],
+            &cov_hit(&[4]),
+        );
+        assert!(r.contains(&3));
+        assert!(!r.contains(&2));
     }
-    #[test] fn stops_at_scope_close() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::Whitespace]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let r = execution_set(&c, &[Scope { open_line: 1, close_line: 3, parent: None, children: vec![] }, Scope { open_line: 5, close_line: 7, parent: None, children: vec![] }], &cov_hit(&[6]));
-        assert!(r.contains(&5)); assert!(!r.contains(&4)); assert!(!r.contains(&1));
+    #[test]
+    fn stops_at_scope_close() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::Whitespace]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let r = execution_set(
+            &c,
+            &[
+                Scope {
+                    open_line: 1,
+                    close_line: 3,
+                    parent: None,
+                    children: vec![],
+                },
+                Scope {
+                    open_line: 5,
+                    close_line: 7,
+                    parent: None,
+                    children: vec![],
+                },
+            ],
+            &cov_hit(&[6]),
+        );
+        assert!(r.contains(&5));
+        assert!(!r.contains(&4));
+        assert!(!r.contains(&1));
     }
-    #[test] fn stops_at_unknown() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Statement, LineProperty::Declaration]), None, s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let r = execution_set(&c, &[Scope { open_line: 1, close_line: 7, parent: None, children: vec![] }], &cov_hit(&[4, 6]));
-        assert!(!r.contains(&5)); assert!(r.contains(&3)); assert!(r.contains(&1));
+    #[test]
+    fn stops_at_unknown() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Statement, LineProperty::Declaration]),
+            None,
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let r = execution_set(
+            &c,
+            &[Scope {
+                open_line: 1,
+                close_line: 7,
+                parent: None,
+                children: vec![],
+            }],
+            &cov_hit(&[4, 6]),
+        );
+        assert!(!r.contains(&5));
+        assert!(r.contains(&3));
+        assert!(r.contains(&1));
     }
-    #[test] fn no_propagation_with_non_linear_control() {
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), s(&[LineProperty::Declaration]), s(&[LineProperty::NonLinearControl, LineProperty::Statement]), s(&[LineProperty::Statement]), s(&[LineProperty::NonLinearControl]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let r = execution_set(&c, &[Scope { open_line: 1, close_line: 9, parent: None, children: vec![] }], &cov_hit(&[5, 8]));
+    #[test]
+    fn no_propagation_with_non_linear_control() {
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::NonLinearControl, LineProperty::Statement]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::NonLinearControl]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let r = execution_set(
+            &c,
+            &[Scope {
+                open_line: 1,
+                close_line: 9,
+                parent: None,
+                children: vec![],
+            }],
+            &cov_hit(&[5, 8]),
+        );
         assert_eq!(r, BTreeSet::from([5, 8]));
     }
-    #[test] fn scope_open_included_then_stop() {
-        let c = vec![s(&[LineProperty::Whitespace]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose])];
-        let r = execution_set(&c, &[Scope { open_line: 2, close_line: 5, parent: None, children: vec![] }], &cov_hit(&[4]));
-        assert!(r.contains(&2)); assert!(r.contains(&3)); assert!(!r.contains(&1));
+    #[test]
+    fn scope_open_included_then_stop() {
+        let c = vec![
+            s(&[LineProperty::Whitespace]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let r = execution_set(
+            &c,
+            &[Scope {
+                open_line: 2,
+                close_line: 5,
+                parent: None,
+                children: vec![],
+            }],
+            &cov_hit(&[4]),
+        );
+        assert!(r.contains(&2));
+        assert!(r.contains(&3));
+        assert!(!r.contains(&1));
     }
     //= design/query/coverage-model-spec.md#property-3-conservative-fallback
     //= type=test
     //# If an ancestor scope S contains `NonLinearControl` but a child
     //# scope S' does not, propagation MAY occur through S'.
-    #[test] fn try_block_propagation_into_parent_scope() {
+    #[test]
+    fn try_block_propagation_into_parent_scope() {
         use crate::scopes::build_scope_tree;
-        let c = vec![s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Declaration]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), s(&[LineProperty::Statement]), s(&[LineProperty::Declaration, LineProperty::ScopeOpen, LineProperty::ScopeClose]), s(&[LineProperty::Statement]), s(&[LineProperty::ScopeClose]), s(&[LineProperty::ScopeClose])];
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[
+                LineProperty::Declaration,
+                LineProperty::ScopeOpen,
+                LineProperty::ScopeClose,
+            ]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::ScopeClose]),
+        ];
         let r = execution_set(&c, &build_scope_tree(&c, 8), &cov_hit(&[4]));
-        assert!(r.contains(&4)); assert!(r.contains(&3));
+        assert!(r.contains(&4));
+        assert!(r.contains(&3));
     }
 }

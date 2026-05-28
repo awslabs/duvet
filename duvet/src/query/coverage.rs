@@ -1,15 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::BTreeMap;
+use crate::{annotation::Annotation, Result};
 use rustc_hash::FxHashMap;
-use crate::Result;
-use crate::annotation::{Annotation};
-use std::{
-    path::Path,
-    sync::Arc,
-};
-
+use std::{collections::BTreeMap, path::Path, sync::Arc};
 
 /// Coverage data abstraction
 #[derive(Clone, Debug)]
@@ -42,9 +36,9 @@ impl GenericCoverageData {
 /// Coverage data for a single file
 #[derive(Clone, Debug)]
 pub struct FileCoverage {
-    pub lines: BTreeMap<u32, u64>,  // line_number -> hit_count
-    pub branches: BTreeMap<u32, Vec<bool>>,  // line_number -> [taken, not_taken, ...]
-    pub functions: FxHashMap<String, String>,  // function_name -> function_info
+    pub lines: BTreeMap<u32, u64>,            // line_number -> hit_count
+    pub branches: BTreeMap<u32, Vec<bool>>,   // line_number -> [taken, not_taken, ...]
+    pub functions: FxHashMap<String, String>, // function_name -> function_info
 }
 
 impl FileCoverage {
@@ -53,22 +47,29 @@ impl FileCoverage {
         use duvet_coverage::types::CoverageStatus;
         let mut report = BTreeMap::new();
         for (&line_num, &hit_count) in &self.lines {
-            let status = if hit_count > 0 { CoverageStatus::Hit } else { CoverageStatus::Miss };
+            let status = if hit_count > 0 {
+                CoverageStatus::Hit
+            } else {
+                CoverageStatus::Miss
+            };
             report.insert(line_num as u64, status);
         }
         for (&line_num, branches) in &self.branches {
-            let status = if branches.iter().any(|&taken| taken) { CoverageStatus::Hit } else { CoverageStatus::Miss };
+            let status = if branches.iter().any(|&taken| taken) {
+                CoverageStatus::Hit
+            } else {
+                CoverageStatus::Miss
+            };
             report.insert(line_num as u64, status);
         }
         report
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum LineInfo {
     Executed(ExecutionType),
-    NotExecuted(ExecutionType), 
+    NotExecuted(ExecutionType),
     Annotation(Arc<Annotation>), // Use Arc<Annotation> from AnnotationSet
     Whitespace,
     Unknown,
@@ -104,13 +105,13 @@ pub trait CoverageParser {
 pub enum CoverageError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("XML parsing error: {0}")]
     Xml(#[from] quick_xml::Error),
-    
+
     #[error("Invalid coverage data: {0}")]
     InvalidData(String),
-    
+
     #[error("Unsupported coverage format")]
     UnsupportedFormat,
 }

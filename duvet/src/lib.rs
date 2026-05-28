@@ -5,13 +5,13 @@ use clap::Parser;
 use std::sync::Arc;
 
 mod annotation;
-mod query;
 mod comment;
 mod config;
 mod extract;
 pub(crate) mod ids;
 mod init;
 mod project;
+mod query;
 mod reference;
 mod report;
 mod source;

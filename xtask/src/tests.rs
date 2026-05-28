@@ -227,7 +227,13 @@ impl IntegrationTest {
     }
 
     fn run(&self, target: &Path, sh: &Shell) -> Result {
-        let Self { name, cmd, cwd, report_output, .. } = self;
+        let Self {
+            name,
+            cmd,
+            cwd,
+            report_output,
+            ..
+        } = self;
 
         let (stdout, stderr, json_report, json_v2_report, snapshot_report) = {
             let target_dir = if let Some(cwd) = cwd {
