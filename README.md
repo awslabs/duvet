@@ -77,6 +77,65 @@ $ cargo xtask build
 $ cargo xtask test
 ```
 
+### Verifying the coverage model
+
+The two-phase coverage model in `duvet-coverage` is formally verified
+with [Verus](https://verus-lang.github.io/verus/guide/). CI runs the
+verifier on every push and PR. To verify locally:
+
+1. **Download the pinned Verus release.** The version that matches
+   `vstd` in `Cargo.lock` is in `.github/workflows/ci.yml` as
+   `VERUS_VERSION`. Verus ships pre-built binaries for x86_64 Linux,
+   x86_64 macOS, arm64 macOS, and x86_64 Windows; pick the one for
+   your host:
+
+   ```console
+   $ VERUS_VERSION="0.2026.05.24.ecee80a"
+   $ curl -L -o verus.zip \
+       "https://github.com/verus-lang/verus/releases/download/release%2F${VERUS_VERSION}/verus-${VERUS_VERSION}-x86-linux.zip"
+   $ unzip -q verus.zip
+   ```
+
+   The archive extracts to `verus-x86-linux/` (or `-x86-macos`, etc.)
+   and contains the `verus` and `cargo-verus` binaries, the bundled
+   `z3` solver, and the `vstd` standard library.
+
+2. **Add the directory to `PATH`.**
+
+   ```console
+   $ export PATH="$PWD/verus-x86-linux:$PATH"
+   ```
+
+3. **Install the Rust toolchain Verus needs.** The first time `verus`
+   runs, it prints the exact `rustup install` command for the
+   toolchain it pins. Run that command:
+
+   ```console
+   $ verus
+   verus: required rust toolchain X.Y.Z-x86_64-unknown-linux-gnu not found
+   run the following command (in a bash-compatible shell) to install the necessary toolchain:
+     rustup install X.Y.Z-x86_64-unknown-linux-gnu
+   ...
+   $ rustup install X.Y.Z-x86_64-unknown-linux-gnu
+   ```
+
+   On macOS, you may also need to clear the Gatekeeper quarantine on
+   the binaries; the archive includes `macos_allow_gatekeeper.sh`.
+
+4. **Verify the proofs.**
+
+   ```console
+   $ cargo verus build -p duvet-coverage
+   ```
+
+   Expected output: `verified N functions, 0 errors`. A non-zero error
+   count indicates a regression in the proofs.
+
+The Verus prebuilt binary is built against glibc 2.34+, so older
+distributions (Amazon Linux 2, Ubuntu 20.04, CentOS 7) cannot run it.
+On those hosts you can either upgrade the runtime, run inside a
+container, or rely on CI for verification.
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.

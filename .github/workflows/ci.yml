@@ -167,16 +167,24 @@ jobs:
         run: |
           # Verus pins a specific Rust toolchain per release. The first time
           # `verus` is invoked it prints the exact rustup command needed.
-          # Parse and execute that command rather than pinning the toolchain
-          # version separately (which would have to be kept in sync with
-          # VERUS_VERSION above).
-          INSTALL_CMD=$(verus 2>&1 || true | grep -E 'rustup install' | head -1 | xargs)
-          if [ -z "$INSTALL_CMD" ]; then
-            echo "Could not parse rustup install command from verus output." >&2
-            echo "Proceeding — the toolchain may already be installed." >&2
-          else
+          # Capture verus output to a variable, then parse — the previous
+          # `verus 2>&1 || true | grep ...` was incorrect bash precedence:
+          # `|` binds tighter than `||`, so the grep was attached to the
+          # `true` branch and never saw verus's output.
+          verus_output=$(verus 2>&1 || true)
+          INSTALL_CMD=$(echo "$verus_output" \
+            | grep -E '^\s*rustup install ' \
+            | head -1 \
+            | xargs)
+          if [ -n "$INSTALL_CMD" ]; then
             echo "Running: $INSTALL_CMD"
             eval "$INSTALL_CMD"
+          else
+            echo "No rustup install hint from verus output;" >&2
+            echo "the required toolchain may already be installed." >&2
+            echo "----- verus output -----"
+            echo "$verus_output"
+            echo "------------------------"
           fi
 
       - name: Verify duvet-coverage proofs
