@@ -27,7 +27,7 @@ use super::{
         AnnotationCoverage,
         NotExecutedAnnotation,
     },
-    coverage::AnnotationExecutionStatus,
+    coverage::ExecutionStatus,
     CheckType,
 };
 use crate::{
@@ -399,7 +399,6 @@ async fn execute_coverage_check(
     let ClassifiedCoverage {
         complete_coverage,
         incomplete_coverage,
-        no_coverage: _no_coverage,
         ..
     } = classify_annotation_coverage(
         project_data,
@@ -412,10 +411,10 @@ async fn execute_coverage_check(
     let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
-        let mut test_executed = AnnotationExecutionStatus::NotExecuted;
+        let mut test_executed = ExecutionStatus::NotExecuted;
         for exec_data in &execution_data_maps {
             let executed_status = is_annotation_executed(&test.target, exec_data);
-            if matches!(executed_status, AnnotationExecutionStatus::Executed) {
+            if matches!(executed_status, ExecutionStatus::Executed) {
                 test_executed = executed_status;
 
                 let mut executed_implementations = Vec::new();
@@ -423,7 +422,7 @@ async fn execute_coverage_check(
 
                 for annotation in &test.covering_annotations {
                     let status = is_annotation_executed(annotation, exec_data);
-                    if matches!(status, AnnotationExecutionStatus::Executed) {
+                    if matches!(status, ExecutionStatus::Executed) {
                         executed_implementations.push(annotation.clone());
                     } else {
                         not_executed_implementations.push(NotExecutedAnnotation{
@@ -434,7 +433,7 @@ async fn execute_coverage_check(
                 }
                 let result = CoveredTestAnnotation {
                     test: test.target.clone(),
-                    test_execution_status: AnnotationExecutionStatus::Executed,
+                    test_execution_status: ExecutionStatus::Executed,
                     executed_implementations,
                     not_executed_implementations,
                 };
@@ -443,16 +442,16 @@ async fn execute_coverage_check(
                 } else {
                     failed.push(result);
                 }
-            } else if !matches!(test_executed, AnnotationExecutionStatus::Executed | AnnotationExecutionStatus::Unknown{..}) {
+            } else if !matches!(test_executed, ExecutionStatus::Executed | ExecutionStatus::Unknown{..}) {
                 // Prefer Unknown over NotExecuted — Unknown carries more diagnostic info.
                 test_executed = executed_status;
             }
         }
-        if !matches!(test_executed, AnnotationExecutionStatus::Executed) {
+        if !matches!(test_executed, ExecutionStatus::Executed) {
             // Unknown tests are NOT skipped in executed-coverage mode: they represent
             // annotation placement errors that must be fixed regardless of which test
             // you're working on. Only NotExecuted tests are skipped.
-            if coverage_check_executed_tests_only && matches!(test_executed, AnnotationExecutionStatus::NotExecuted) {
+            if coverage_check_executed_tests_only && matches!(test_executed, ExecutionStatus::NotExecuted) {
                 continue;
             }
 
@@ -472,7 +471,7 @@ async fn execute_coverage_check(
     let executed_tests: AnnotationSet = successful
         .iter()
         .chain(&failed)
-        .filter(|result| matches!(result.test_execution_status, AnnotationExecutionStatus::Executed))
+        .filter(|result| matches!(result.test_execution_status, ExecutionStatus::Executed))
         .map(|result| result.test.clone())
         .collect::<BTreeSet<_>>()
         .into();
@@ -491,7 +490,7 @@ async fn execute_coverage_check(
             } else {
                 execution_data_maps
                     .iter()
-                    .any(|exec_data| matches!(is_annotation_executed(annotation, exec_data), AnnotationExecutionStatus::Executed))
+                    .any(|exec_data| matches!(is_annotation_executed(annotation, exec_data), ExecutionStatus::Executed))
             }
         })
         .cloned()
