@@ -9,7 +9,8 @@
 # `.duvet/specifications/www.rfc-editor.org/rfc/rfc2324.txt`. Do not
 # delete it without first removing or escaping the example annotations
 # in `duvet/src/query.rs`. See the comment above `CheckType` there and
-# the open issue tracking the parser fix.
+# the open issue tracking the parser fix:
+# https://github.com/awslabs/duvet/issues/226
 
 [[source]]
 pattern = "duvet/**/*.rs"

@@ -59,7 +59,8 @@ pub struct Query {
 // builds remain reproducible without a network fetch.
 //
 // This is a known leak — the help text accidentally creates real
-// traceability state. See <TODO: file issue link> for the planned fix
+// traceability state. See https://github.com/awslabs/duvet/issues/226
+// for the planned fix
 // (either escape the `//=` patterns here or teach the annotation parser
 // to skip Rust string literals). Until that lands, do not delete the
 // cached RFC file or remove the example annotations from these help
