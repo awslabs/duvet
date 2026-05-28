@@ -166,7 +166,7 @@ fn merge_repositories(
                 // no safe way to pick between the two.
                 if existing.blob_link != repo.blob_link {
                     return Err(duvet_core::error!(
-                        "internal invariant violation: repository '{}' has different blob_link across inputs ('{}' vs '{}'); likely hash collision or producer bug",
+                        "internal invariant violation: repository '{}' has different blob_link across inputs ('{}' vs '{}'); likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
                         id,
                         existing.blob_link,
                         repo.blob_link
@@ -193,7 +193,7 @@ fn merge_sources(out: &mut SourcesV2, incoming: SourcesV2) -> crate::Result {
             Some(existing) => {
                 if existing.contents != src.contents {
                     return Err(duvet_core::error!(
-                        "internal invariant violation: inline source '{}' has different contents across inputs; likely hash collision or producer bug",
+                        "internal invariant violation: inline source '{}' has different contents across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
                         id
                     ));
                 }
@@ -220,7 +220,7 @@ fn merge_sources(out: &mut SourcesV2, incoming: SourcesV2) -> crate::Result {
             Some(existing) => {
                 if existing != &src {
                     return Err(duvet_core::error!(
-                        "internal invariant violation: linked source '{}' differs across inputs; likely hash collision or producer bug",
+                        "internal invariant violation: linked source '{}' differs across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
                         id
                     ));
                 }
@@ -284,7 +284,7 @@ fn merge_specification(
             }
             if existing.source != anno.source {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: specification '{}' has different source across inputs; likely hash collision or producer bug",
+                    "internal invariant violation: specification '{}' has different source across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
                     id
                 ));
             }
@@ -322,7 +322,7 @@ fn merge_section(
             }
             if existing.source != anno.source {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: section '{}' has different source across inputs; likely hash collision or producer bug",
+                    "internal invariant violation: section '{}' has different source across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
                     id
                 ));
             }
@@ -357,13 +357,13 @@ fn merge_requirement(
             }
             if existing.source != anno.source {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: requirement '{}' has different source across inputs; likely hash collision or producer bug",
+                    "internal invariant violation: requirement '{}' has different source across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
                     id
                 ));
             }
             if existing.origin != anno.origin {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: requirement '{}' has different origin across inputs; likely hash collision or producer bug",
+                    "internal invariant violation: requirement '{}' has different origin across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
                     id
                 ));
             }
@@ -422,7 +422,7 @@ fn merge_cite(
             }
             if existing.source != anno.source {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: cite '{}' has different source across inputs; likely hash collision or producer bug",
+                    "internal invariant violation: cite '{}' has different source across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
                     id
                 ));
             }
