@@ -32,7 +32,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 triple_accel = "0.4"
 url = "2"
-v_jsonescape = "0.7"
+v_jsonescape = "0.9"
 
 [dev-dependencies]
 bolero = "0.13"
