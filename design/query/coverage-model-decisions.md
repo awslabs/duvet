@@ -565,7 +565,7 @@ files will carry duvet annotations pointing to these anchors:
 ```rust
 verus! {
 
-//= coverage-model-v2-spec.md#property-1-no-false-positives
+//= coverage-model-spec.md#property-1-no-false-positives
 //# The implementation MUST prove that if is_annotation_executed
 //# returns Executed, then there exists a directly-hit line in the
 //# same scope with a clear path to the target.
