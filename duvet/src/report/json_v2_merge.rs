@@ -66,6 +66,39 @@ pub fn merge_reports(reports: Vec<ReportV2>) -> crate::Result<ReportV2> {
         ));
     }
 
+    // Linked sources without a `repository` collapse to a `lnk-` ID hashed
+    // from `file_name` alone. Within a single report that's fine — paths
+    // are unique by construction. The hazard is across reports: if two
+    // unrelated projects each have a no-repo linked source for the same
+    // path (e.g. `src/lib.rs`), they share a `lnk-` ID and merging them
+    // would silently consolidate annotations from disjoint codebases.
+    //
+    // We can't tell same-project from cross-project at merge time, so we
+    // refuse the merge whenever the same no-repo `lnk-` ID appears in two
+    // or more inputs. Single-input occurrences are safe and remain allowed.
+    {
+        let mut no_repo_seen: BTreeMap<&str, usize> = BTreeMap::new();
+        for (i, report) in reports.iter().enumerate() {
+            for (lnk_id, src) in &report.sources.linked {
+                if src.repository.is_some() {
+                    continue;
+                }
+                if let Some(&prior) = no_repo_seen.get(lnk_id.as_str()) {
+                    return Err(duvet_core::error!(
+                        "linked source '{}' (file '{}') without a repository appears in inputs #{} and #{}; \
+                         merging would silently consolidate it across reports — \
+                         add a blob-link to disambiguate (see [[source]] blob-link in your duvet config)",
+                        lnk_id,
+                        src.file_name,
+                        prior,
+                        i,
+                    ));
+                }
+                no_repo_seen.insert(lnk_id, i);
+            }
+        }
+    }
+
     // Use the first input as the accumulator and fold the rest in. Because
     // every per-bucket merge operation is a BTreeMap union over content-
     // hashed IDs, the choice of seed doesn't affect the final result —
@@ -470,8 +503,8 @@ fn finalize_coverage(requirements: &mut BTreeMap<String, RequirementAnnotation>)
 mod tests {
     use super::*;
     use crate::report::json_v2::{
-        AnnotationLevel, AnnotationType, ByteRange, InlineSource, SourceLocation, SourceRanges,
-        SourceRef,
+        AnnotationLevel, AnnotationType, ByteRange, InlineSource, LinkedSource, SourceLocation,
+        SourceRanges, SourceRef,
     };
 
     fn empty() -> ReportV2 {
@@ -912,6 +945,114 @@ mod tests {
         assert!(format!("{err}").contains("invariant"));
     }
 
+    #[test]
+    fn merge_errors_when_no_repo_linked_source_overlaps_inputs() {
+        // Two inputs both carry a no-repo linked source under the same
+        // lnk-id — the canonical cross-project consolidation hazard.
+        let mut a = empty();
+        a.sources.linked.insert(
+            "lnk-x".to_string(),
+            LinkedSource {
+                file_name: "src/lib.rs".to_string(),
+                repository: None,
+            },
+        );
+        let mut b = empty();
+        b.sources.linked.insert(
+            "lnk-x".to_string(),
+            LinkedSource {
+                file_name: "src/lib.rs".to_string(),
+                repository: None,
+            },
+        );
+        let err = merge_reports(vec![a, b]).unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("inputs #0 and #1"), "msg = {msg}");
+        assert!(msg.contains("lnk-x"), "msg = {msg}");
+        assert!(msg.contains("src/lib.rs"), "msg = {msg}");
+        assert!(msg.contains("blob-link"), "msg = {msg}");
+    }
+
+    #[test]
+    fn merge_errors_when_no_repo_linked_source_overlaps_third_input() {
+        // The collision is across non-adjacent inputs (#0 and #2). The
+        // pre-validation pass needs to catch it independent of fold order.
+        let mut a = empty();
+        a.sources.linked.insert(
+            "lnk-x".to_string(),
+            LinkedSource {
+                file_name: "src/lib.rs".to_string(),
+                repository: None,
+            },
+        );
+        let b = empty();
+        let mut c = empty();
+        c.sources.linked.insert(
+            "lnk-x".to_string(),
+            LinkedSource {
+                file_name: "src/lib.rs".to_string(),
+                repository: None,
+            },
+        );
+        let err = merge_reports(vec![a, b, c]).unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("inputs #0 and #2"), "msg = {msg}");
+    }
+
+    #[test]
+    fn merge_allows_disjoint_no_repo_linked_sources_three_way() {
+        // 3-way happy path: each input has its own no-repo linked source
+        // under a distinct lnk-id, so there's no cross-input collision.
+        let mut a = empty();
+        a.sources.linked.insert(
+            "lnk-x".to_string(),
+            LinkedSource {
+                file_name: "package-a/src/lib.rs".to_string(),
+                repository: None,
+            },
+        );
+        let mut b = empty();
+        b.sources.linked.insert(
+            "lnk-y".to_string(),
+            LinkedSource {
+                file_name: "package-b/src/lib.rs".to_string(),
+                repository: None,
+            },
+        );
+        let mut c = empty();
+        c.sources.linked.insert(
+            "lnk-z".to_string(),
+            LinkedSource {
+                file_name: "package-c/src/lib.rs".to_string(),
+                repository: None,
+            },
+        );
+
+        let merged = merge_reports(vec![a, b, c]).unwrap();
+        assert_eq!(merged.sources.linked.len(), 3);
+        assert!(merged.sources.linked.contains_key("lnk-x"));
+        assert!(merged.sources.linked.contains_key("lnk-y"));
+        assert!(merged.sources.linked.contains_key("lnk-z"));
+    }
+
+    #[test]
+    fn merge_allows_no_repo_linked_source_in_single_input() {
+        // A no-repo linked source that appears in only one input is fine —
+        // there's no cross-input collision possible.
+        let mut a = empty();
+        a.sources.linked.insert(
+            "lnk-x".to_string(),
+            LinkedSource {
+                file_name: "src/lib.rs".to_string(),
+                repository: None,
+            },
+        );
+        let b = empty();
+        let merged = merge_reports(vec![a, b]).unwrap();
+        assert_eq!(merged.sources.linked.len(), 1);
+        assert_eq!(merged.sources.linked["lnk-x"].repository, None);
+    }
+
     // ── Property tests ──
 
     fn fixture_a() -> ReportV2 {
@@ -1024,8 +1165,13 @@ mod tests {
 
     #[test]
     fn merge_real_snapshot_self_idempotent() {
+        // Use the per-source blob-link fixture: every linked source has a
+        // repository, so the no-repo cross-input collision check accepts a
+        // self-merge. The markdown fixture would (correctly) be rejected,
+        // since self-merge of a no-repo lnk-id is indistinguishable from a
+        // cross-project consolidation.
         const SNAPSHOT: &str =
-            include_str!("../../../integration/snapshots/report-markdown_json_v2.snap");
+            include_str!("../../../integration/snapshots/report-source-blob-link_json_v2.snap");
         let json = SNAPSHOT
             .split_once("---\n")
             .and_then(|(_, rest)| rest.split_once("---\n"))
