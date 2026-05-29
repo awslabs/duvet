@@ -14,7 +14,7 @@ verus! {
 //= type=implication
 //# If `annotation_target(annotation, ...) = Some(target)`,
 //# then `target.line_number > annotation.end_line`.
-pub(crate) fn annotation_target(
+pub fn annotation_target(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
     file_length: u64,

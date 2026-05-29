@@ -102,7 +102,7 @@ pub struct AnnotationSpan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TargetLine {
+pub struct TargetLine {
     pub line_number: u64,
     pub properties: Option<LineClass>,
 }

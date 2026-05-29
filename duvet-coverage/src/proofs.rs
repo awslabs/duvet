@@ -339,7 +339,7 @@ proof fn lemma_stacking_transitivity(
         // A is above B: A ends before B starts
         ann_a.end_line < ann_b.start_line,
         // All lines between A's end and B's end are skippable
-        all_lines_skippable(classifications, ann_a.end_line + 1, ann_b.end_line),
+        all_lines_skippable(classifications, (ann_a.end_line + 1) as u64, ann_b.end_line),
         // B is Executed
         is_annotation_executed(ann_b, classifications, scopes, coverage, file_length)
             == ExecutionStatus::Executed,
