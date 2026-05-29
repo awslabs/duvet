@@ -34,9 +34,13 @@
 //!
 //! 3. **Soft drift** — outside the hash and tolerated. Cite metadata
 //!    (`comment`, `feature`, `tracking_issue`, `tags`) often differs across
-//!    branches/checkouts and isn't load-bearing for traceability; we keep
-//!    the value from the first input that defined the ID and warn so the
-//!    drift is observable.
+//!    branches/checkouts and isn't load-bearing for traceability. When two
+//!    inputs disagree we reconcile deterministically: lexicographically
+//!    smaller wins for the `Option<String>` fields, and `tags` is the
+//!    sorted union of both sets. The deterministic tie-break keeps the
+//!    binary merge commutative and associative, so an N-way fold is
+//!    order-independent. Drift is logged as a warning so it stays
+//!    observable.
 //!
 //! Coverage on requirements is a fourth, special case: it's a *set* keyed
 //! by cite ID, so we merge by union and post-process with sort+dedup so the
@@ -389,14 +393,15 @@ fn merge_requirement(
 ///
 /// The "soft" cite metadata (`comment`, `feature`, `tracking_issue`,
 /// `tags`) is not load-bearing for traceability and routinely drifts
-/// across branches; we keep the first value seen and warn — see
-/// [`warn_on_soft_drift`].
+/// across branches. On disagreement we reconcile deterministically: the
+/// lexicographically smaller value wins for `Option<String>` fields, and
+/// `tags` becomes the sorted union of both sets. See [`merge_soft_drift`].
 fn merge_cite(
     out: &mut BTreeMap<String, CiteAnnotation>,
     id: String,
     anno: CiteAnnotation,
 ) -> crate::Result {
-    match out.get(&id) {
+    match out.get_mut(&id) {
         Some(existing) => {
             if existing.anno_type != anno.anno_type {
                 return Err(duvet_core::error!(
@@ -427,7 +432,7 @@ fn merge_cite(
                 ));
             }
 
-            warn_on_soft_drift(&id, existing, &anno);
+            merge_soft_drift(&id, existing, anno);
         }
         None => {
             out.insert(id, anno);
@@ -436,7 +441,15 @@ fn merge_cite(
     Ok(())
 }
 
-fn warn_on_soft_drift(id: &str, existing: &CiteAnnotation, incoming: &CiteAnnotation) {
+/// Reconcile the soft cite metadata fields (`comment`, `feature`,
+/// `tracking_issue`, `tags`) deterministically so the binary merge is
+/// commutative and associative. For `Option<String>` fields, `Some` beats
+/// `None`, and when both sides are `Some` the lexicographically smaller
+/// value wins. `tags` becomes the sorted union of both sets.
+///
+/// Any field that actually differed before reconciliation is reported on
+/// stderr so the drift remains observable.
+fn merge_soft_drift(id: &str, existing: &mut CiteAnnotation, incoming: CiteAnnotation) {
     let mut drifted = Vec::new();
     if existing.comment != incoming.comment {
         drifted.push("comment");
@@ -450,12 +463,35 @@ fn warn_on_soft_drift(id: &str, existing: &CiteAnnotation, incoming: &CiteAnnota
     if existing.tags != incoming.tags {
         drifted.push("tags");
     }
+
+    existing.comment = pick_lex_min(existing.comment.take(), incoming.comment);
+    existing.feature = pick_lex_min(existing.feature.take(), incoming.feature);
+    existing.tracking_issue = pick_lex_min(existing.tracking_issue.take(), incoming.tracking_issue);
+
+    // Sorted union: extend then sort+dedup. The sort gives a canonical
+    // order independent of which side contributed which tag; dedup keeps
+    // the result idempotent under self-merge.
+    existing.tags.extend(incoming.tags);
+    existing.tags.sort();
+    existing.tags.dedup();
+
     if !drifted.is_empty() {
         eprintln!(
-            "warning: cite annotation '{}' has metadata drift across inputs ({}); keeping value from first input",
+            "warning: cite annotation '{}' has metadata drift across inputs ({}); reconciling deterministically (lex-min for strings, sorted union for tags)",
             id,
             drifted.join(", ")
         );
+    }
+}
+
+/// Combine two `Option<String>` values from the two sides of a binary
+/// merge into a single deterministic value. `Some` beats `None`; when both
+/// sides are `Some`, the lexicographically smaller string wins.
+fn pick_lex_min(a: Option<String>, b: Option<String>) -> Option<String> {
+    match (a, b) {
+        (None, None) => None,
+        (Some(x), None) | (None, Some(x)) => Some(x),
+        (Some(x), Some(y)) => Some(if x <= y { x } else { y }),
     }
 }
 
@@ -838,7 +874,9 @@ mod tests {
     }
 
     #[test]
-    fn merge_warns_on_cite_comment_drift_keeps_first() {
+    fn merge_cite_comment_drift_picks_lexicographically_smaller() {
+        // The drift winner is whichever string sorts first, regardless of
+        // input order — that's what makes the merge commutative.
         let mut c1 = cite(1, AnnotationType::Citation, vec![]);
         c1.comment = Some("first".to_string());
         let mut c2 = cite(1, AnnotationType::Citation, vec![]);
@@ -849,11 +887,57 @@ mod tests {
         let mut b = empty();
         b.annotations.cite.insert("cite-1".to_string(), c2);
 
-        let merged = merge_reports(vec![a, b]).unwrap();
+        let forward = merge_reports(vec![a.clone(), b.clone()]).unwrap();
+        let reverse = merge_reports(vec![b, a]).unwrap();
+        // "first" < "second", so it wins regardless of fold order.
         assert_eq!(
-            merged.annotations.cite["cite-1"].comment.as_deref(),
+            forward.annotations.cite["cite-1"].comment.as_deref(),
             Some("first")
         );
+        assert_eq!(forward, reverse);
+    }
+
+    #[test]
+    fn merge_cite_some_beats_none_in_either_direction() {
+        // `Some` should always win over `None` so a sparsely-populated
+        // input doesn't erase metadata recorded by another.
+        let mut c1 = cite(1, AnnotationType::Citation, vec![]);
+        c1.feature = Some("f".to_string());
+        let c2 = cite(1, AnnotationType::Citation, vec![]); // feature: None
+
+        let mut a = empty();
+        a.annotations.cite.insert("cite-1".to_string(), c1);
+        let mut b = empty();
+        b.annotations.cite.insert("cite-1".to_string(), c2);
+
+        let forward = merge_reports(vec![a.clone(), b.clone()]).unwrap();
+        let reverse = merge_reports(vec![b, a]).unwrap();
+        assert_eq!(
+            forward.annotations.cite["cite-1"].feature.as_deref(),
+            Some("f")
+        );
+        assert_eq!(forward, reverse);
+    }
+
+    #[test]
+    fn merge_cite_tags_are_sorted_union() {
+        let mut c1 = cite(1, AnnotationType::Citation, vec![]);
+        c1.tags = vec!["b".to_string(), "a".to_string()];
+        let mut c2 = cite(1, AnnotationType::Citation, vec![]);
+        c2.tags = vec!["c".to_string(), "a".to_string()];
+
+        let mut a = empty();
+        a.annotations.cite.insert("cite-1".to_string(), c1);
+        let mut b = empty();
+        b.annotations.cite.insert("cite-1".to_string(), c2);
+
+        let forward = merge_reports(vec![a.clone(), b.clone()]).unwrap();
+        let reverse = merge_reports(vec![b, a]).unwrap();
+        assert_eq!(
+            forward.annotations.cite["cite-1"].tags,
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
+        assert_eq!(forward, reverse);
     }
 
     #[test]
@@ -1153,6 +1237,63 @@ mod tests {
         let json = serde_json::to_string(&merged).unwrap();
         let back: ReportV2 = serde_json::from_str(&json).unwrap();
         assert_eq!(back, merged);
+    }
+
+    /// Three reports that share a single cite ID but disagree on every
+    /// soft-drift field. Used to exercise the commutative reconciliation.
+    fn drift_fixture(comment: &str, feature: &str, tracking: &str, tag: &str) -> ReportV2 {
+        let mut r = empty();
+        let mut c = cite(1, AnnotationType::Citation, vec![]);
+        c.comment = Some(comment.to_string());
+        c.feature = Some(feature.to_string());
+        c.tracking_issue = Some(tracking.to_string());
+        c.tags = vec![tag.to_string()];
+        r.annotations.cite.insert("cite-shared".to_string(), c);
+        r
+    }
+
+    #[test]
+    fn property_commutativity_with_soft_drift() {
+        let a = drift_fixture("alpha", "f-a", "T-1", "x");
+        let b = drift_fixture("bravo", "f-b", "T-2", "y");
+        let forward = merge_reports(vec![a.clone(), b.clone()]).unwrap();
+        let reverse = merge_reports(vec![b, a]).unwrap();
+        assert_eq!(forward, reverse);
+    }
+
+    #[test]
+    fn property_n_way_order_independence_with_soft_drift() {
+        // Three inputs, all sharing one cite ID with disagreeing soft-drift
+        // values. All 6 permutations of the 3-way fold must produce the
+        // same merged report.
+        let a = drift_fixture("alpha", "f-a", "T-1", "x");
+        let b = drift_fixture("bravo", "f-b", "T-2", "y");
+        let c = drift_fixture("charlie", "f-c", "T-3", "z");
+
+        let perms = [
+            vec![a.clone(), b.clone(), c.clone()],
+            vec![a.clone(), c.clone(), b.clone()],
+            vec![b.clone(), a.clone(), c.clone()],
+            vec![b.clone(), c.clone(), a.clone()],
+            vec![c.clone(), a.clone(), b.clone()],
+            vec![c.clone(), b.clone(), a.clone()],
+        ];
+        let baseline = merge_reports(perms[0].clone()).unwrap();
+        for perm in &perms[1..] {
+            let merged = merge_reports(perm.clone()).unwrap();
+            assert_eq!(merged, baseline);
+        }
+
+        // Sanity-check the reconciled values: lex-min for Option strings,
+        // sorted union for tags.
+        let merged_cite = &baseline.annotations.cite["cite-shared"];
+        assert_eq!(merged_cite.comment.as_deref(), Some("alpha"));
+        assert_eq!(merged_cite.feature.as_deref(), Some("f-a"));
+        assert_eq!(merged_cite.tracking_issue.as_deref(), Some("T-1"));
+        assert_eq!(
+            merged_cite.tags,
+            vec!["x".to_string(), "y".to_string(), "z".to_string()]
+        );
     }
 
     // ── Light snapshot-based smoke test ──
