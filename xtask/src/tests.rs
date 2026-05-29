@@ -57,31 +57,28 @@ impl Tests {
     }
 
     fn download_rfcs(&self, sh: &Shell) -> Result {
-        let url = "https://www.rfc-editor.org/rfc/tar/RFC-all.tar.gz";
-
         let dir = "target/www.rfc-editor.org";
         sh.create_dir(dir)?;
+
+        let src = "rsync.rfc-editor.org::rfcs-text-only/";
+        eprintln!("syncing RFCs from {src}");
+        cmd!(sh, "rsync -az --delete {src} {dir}").run()?;
+
         let _dir = sh.push_dir(dir);
-
-        let tar_gz = Path::new("RFC-all.tar.gz");
-        if !sh.path_exists(tar_gz) {
-            eprintln!("downloading {url}");
-            cmd!(sh, "curl --fail --output {tar_gz} {url}").run()?;
-            cmd!(sh, "tar -xf {tar_gz}").run()?;
-        }
-
         for file in sh.read_dir(".")? {
-            if file.ends_with(tar_gz) {
+            let name = file
+                .file_name()
+                .and_then(|v| v.to_str())
+                .unwrap_or_default();
+            // keep files matching `^rfc[0-9]+\.txt$`; drop indexes, refs, and
+            // non-numeric variants like `rfc17a.txt`
+            let stem = name
+                .strip_prefix("rfc")
+                .and_then(|n| n.strip_suffix(".txt"));
+            if stem.is_some_and(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())) {
                 continue;
             }
-
-            if let Some(ext) = file.extension().and_then(|v| v.to_str()) {
-                if ext != "txt" {
-                    sh.remove_path(file)?;
-                }
-            } else {
-                sh.remove_path(file)?;
-            }
+            sh.remove_path(file)?;
         }
 
         Ok(())
