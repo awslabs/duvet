@@ -80,6 +80,10 @@ pub fn annotation_target(
         // The cached properties are present iff the target line is classified.
         result.is_some() ==> (result.unwrap().properties.is_some()
             <==> classifications@[result.unwrap().line_number as int - 1].is_some()),
+        // When present, the cached properties are exactly the target line's class.
+        result.is_some() && result.unwrap().properties.is_some()
+            ==> result.unwrap().properties.unwrap()@
+                == classifications@[result.unwrap().line_number as int - 1].unwrap()@,
 {
     let mut current: u64 = annotation.end_line + 1;
 
