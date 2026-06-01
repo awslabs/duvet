@@ -165,16 +165,21 @@ jobs:
 
       - name: Install Rust toolchain required by Verus
         run: |
-          # Verus pins a specific Rust toolchain per release and reports it on
-          # the `Toolchain:` line of `verus --version`. Install exactly that
-          # toolchain; otherwise `cargo verus build` only sees the repo's
-          # pinned toolchain and verus aborts with
-          # "required rust toolchain <ver> not found". Parsing --version is
-          # version-agnostic, so bumping VERUS_VERSION needs no change here.
-          TOOLCHAIN=$(verus --version | sed -n 's/.*Toolchain:[[:space:]]*//p' | head -1)
+          # Verus pins a specific Rust toolchain per release; install exactly
+          # that one, otherwise `cargo verus build` only sees the repo's pinned
+          # toolchain and aborts with "required rust toolchain <ver> not found".
+          # `verus --version` reports the toolchain (on its `Toolchain:` line,
+          # or in the not-found error). Capture defensively: under
+          # `bash -eo pipefail`, verus exiting non-zero when its toolchain is
+          # missing would otherwise abort this step. Extract by pattern so it
+          # works regardless of message format and across VERUS_VERSION bumps.
+          ver_out=$(verus --version 2>&1 || true)
+          echo "$ver_out"
+          TOOLCHAIN=$(printf '%s\n' "$ver_out" \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-x86_64-unknown-linux-gnu' \
+            | head -1)
           if [ -z "$TOOLCHAIN" ]; then
-            echo "Could not parse Verus toolchain from 'verus --version':" >&2
-            verus --version >&2
+            echo "Could not determine Verus's required toolchain" >&2
             exit 1
           fi
           echo "Installing Verus-required toolchain: $TOOLCHAIN"
