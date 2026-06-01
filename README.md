@@ -131,10 +131,24 @@ verifier on every push and PR. To verify locally:
    Expected output: `verified N functions, 0 errors`. A non-zero error
    count indicates a regression in the proofs.
 
-The Verus prebuilt binary is built against glibc 2.34+, so older
-distributions (Amazon Linux 2, Ubuntu 20.04, CentOS 7) cannot run it.
-On those hosts you can either upgrade the runtime, run inside a
-container, or rely on CI for verification.
+The Verus prebuilt binary (and the `z3` it bundles) are built against
+glibc 2.34+ / 2.31+, so older distributions (Amazon Linux 2, Ubuntu
+20.04, CentOS 7) cannot run them. On those hosts, build Verus — and, if
+its prebuilt `z3` also won't start, z3 — from source so they link against
+the local glibc (see Verus's `BUILD.md`: `vargo build --release`, then put
+`source/target-verus/release` on `PATH`).
+
+A from-source `z3` reports a build-hash-suffixed SMT version string that
+the verifier rejects by default. It is still the pinned z3 version, so
+results are identical; pass the (supported) flag to skip the cosmetic
+check — `vargo build` accepts `--no-solver-version-check`, and the verify
+step uses the `-V` form:
+
+```console
+$ cargo verus build -p duvet-coverage -- -V no-solver-version-check
+```
+
+Otherwise, rely on CI for verification.
 
 ## Security
 
