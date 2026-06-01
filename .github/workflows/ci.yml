@@ -165,27 +165,20 @@ jobs:
 
       - name: Install Rust toolchain required by Verus
         run: |
-          # Verus pins a specific Rust toolchain per release. The first time
-          # `verus` is invoked it prints the exact rustup command needed.
-          # Capture verus output to a variable, then parse — the previous
-          # `verus 2>&1 || true | grep ...` was incorrect bash precedence:
-          # `|` binds tighter than `||`, so the grep was attached to the
-          # `true` branch and never saw verus's output.
-          verus_output=$(verus 2>&1 || true)
-          INSTALL_CMD=$(echo "$verus_output" \
-            | grep -E '^\s*rustup install ' \
-            | head -1 \
-            | xargs)
-          if [ -n "$INSTALL_CMD" ]; then
-            echo "Running: $INSTALL_CMD"
-            eval "$INSTALL_CMD"
-          else
-            echo "No rustup install hint from verus output;" >&2
-            echo "the required toolchain may already be installed." >&2
-            echo "----- verus output -----"
-            echo "$verus_output"
-            echo "------------------------"
+          # Verus pins a specific Rust toolchain per release and reports it on
+          # the `Toolchain:` line of `verus --version`. Install exactly that
+          # toolchain; otherwise `cargo verus build` only sees the repo's
+          # pinned toolchain and verus aborts with
+          # "required rust toolchain <ver> not found". Parsing --version is
+          # version-agnostic, so bumping VERUS_VERSION needs no change here.
+          TOOLCHAIN=$(verus --version | sed -n 's/.*Toolchain:[[:space:]]*//p' | head -1)
+          if [ -z "$TOOLCHAIN" ]; then
+            echo "Could not parse Verus toolchain from 'verus --version':" >&2
+            verus --version >&2
+            exit 1
           fi
+          echo "Installing Verus-required toolchain: $TOOLCHAIN"
+          rustup toolchain install "$TOOLCHAIN"
 
       - name: Verify duvet-coverage proofs
         run: cargo verus build -p duvet-coverage
