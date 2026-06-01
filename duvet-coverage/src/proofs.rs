@@ -370,9 +370,11 @@ proof fn lemma_stacking_transitivity(
 //# it always returns the same result.
 //# This is free in Verus
 //# (all `fn` in Verus are deterministic by construction).
-// Property 7: Target Determinism — free by construction in Verus.
-// All fn in Verus are deterministic (no interior mutability, no randomness).
-// No proof fn needed.
+// Property 7: Target Determinism. Backed concretely by annotation_target's
+// proven equivalence to the pure spec fn `annotation_target_spec`
+// (target_resolution.rs): the exec result equals a deterministic function of
+// its inputs. (Determinism is also free in Verus — exec fns have no interior
+// mutability or randomness.) No separate proof fn needed.
 
 // Property 9: Execution Set Containment — execution_set ⊇ directly_hit.
 // Proven by the `ensures` clause on `execution_set` (see its citation there).
