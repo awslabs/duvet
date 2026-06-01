@@ -4,13 +4,60 @@
 //! Phase 3: Annotation Execution Check (spec Section 4).
 
 use crate::{execution_propagation::execution_set, target_resolution::annotation_target, types::*};
-// `annotation_target_spec` is a spec fn (ghost-only); it exists only when Verus
-// is processing the crate, and is referenced solely from the ghost `ensures`.
+// `annotation_target_spec` and `validly_in_exec_set` are spec fns (ghost-only);
+// they exist only when Verus is processing the crate, referenced from `ensures`
+// and the `execution_status_of` spec twin.
+#[cfg(verus_keep_ghost)]
+use crate::predicates::validly_in_exec_set;
 #[cfg(verus_keep_ghost)]
 use crate::target_resolution::annotation_target_spec;
 use vstd::prelude::*;
 
 verus! {
+
+// Spec twin of is_annotation_executed's status computation: a pure function of
+// the resolved target line and the (annotation-independent) shared inputs.
+// is_annotation_executed is proven equal to this (see its `ensures`), so the
+// status depends on the annotation only through `annotation_target_spec` — the
+// basis for Property 5 (stacking transitivity).
+pub open spec fn execution_status_of(
+    target: Option<u64>,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    coverage: &CoverageReport,
+) -> ExecutionStatus {
+    match target {
+        None => ExecutionStatus::Structural,
+        Some(line) => {
+            if classifications@[line as int - 1].is_none() {
+                ExecutionStatus::Unknown { line_number: line }
+            } else {
+                let props = classifications@[line as int - 1].unwrap();
+                if props@.contains(LineProperty::NonLinearControl) {
+                    ExecutionStatus::Unknown { line_number: line }
+                } else if validly_in_exec_set(line, classifications, scopes, coverage) {
+                    ExecutionStatus::Executed
+                } else if props@.contains(LineProperty::Statement) {
+                    ExecutionStatus::NotExecuted
+                } else if props@.contains(LineProperty::Declaration) {
+                    match find_scope_containing_spec(line, scopes, 0, None, u64::MAX as int) {
+                        None => ExecutionStatus::NotExecuted,
+                        Some(idx) => if scopes@[idx].open_line >= 1
+                            && scopes@[idx].close_line < u64::MAX
+                            && has_statement_in_range(
+                                classifications, scopes@[idx].open_line, scopes@[idx].close_line) {
+                            ExecutionStatus::NotExecuted
+                        } else {
+                            ExecutionStatus::Structural
+                        },
+                    }
+                } else {
+                    ExecutionStatus::NotExecuted
+                }
+            }
+        }
+    }
+}
 
 pub fn is_annotation_executed(
     annotation: &AnnotationSpan,
@@ -25,6 +72,11 @@ pub fn is_annotation_executed(
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
     ensures
+        // Equivalence with the status spec twin: the status is a pure function of
+        // the resolved target line and the shared inputs (basis for Property 5).
+        status == execution_status_of(
+            annotation_target_spec(annotation, classifications, file_length),
+            classifications, scopes, coverage),
         // Property 6 (Unknown Safety): Executed requires a classified target.
         // If the result is Executed, then the resolved target line exists and
         // is classified (not an unknown line).
@@ -41,6 +93,13 @@ pub fn is_annotation_executed(
             match &target_line.properties {
                 None => ExecutionStatus::Unknown { line_number: target_line.line_number },
                 Some(props) => {
+                    proof {
+                        broadcast use crate::types::lemma_line_property_obeys_cmp_spec;
+                        assert(annotation_target_spec(annotation, classifications, file_length)
+                            == Some(target_line.line_number));
+                        assert(classifications@[target_line.line_number as int - 1].is_some());
+                        assert(props@ == classifications@[target_line.line_number as int - 1].unwrap()@);
+                    }
                     if props.contains(&LineProperty::NonLinearControl) { return ExecutionStatus::Unknown { line_number: target_line.line_number }; }
                     let exec_set = execution_set(classifications, scopes, coverage);
                     if exec_set.contains(&target_line.line_number) { return ExecutionStatus::Executed; }
