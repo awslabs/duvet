@@ -53,9 +53,13 @@ pub(crate) fn execution_set(
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
     ensures
+        //= design/query/coverage-model-spec.md#property-9-execution-set-containment
+        //= type=implication
         // Property 9: every directly-hit line is in the result
         forall|line: u64| coverage@.contains_key(line) && coverage@[line] == CoverageStatus::Hit
             ==> result@.contains(line),
+        //= design/query/coverage-model-spec.md#property-1-no-false-positives
+        //= type=implication
         // Property 1 (No False Positives): every line in the result is validly there
         forall|line: u64| result@.contains(line)
             ==> validly_in_exec_set(line, classifications, scopes, coverage),
