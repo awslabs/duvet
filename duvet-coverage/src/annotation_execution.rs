@@ -78,17 +78,69 @@ pub fn is_annotation_executed(
     }
 }
 
-fn find_scope_containing<'a>(line: u64, scopes: &'a [Scope]) -> (result: Option<&'a Scope>) {
+// Spec twin of `find_scope_containing`: the index of the minimal-size scope
+// containing `line`, with the earliest index winning ties; None if no scope
+// contains `line`. `best`/`best_size` are the running accumulator.
+pub open spec fn find_scope_containing_spec(
+    line: u64,
+    scopes: &[Scope],
+    i: int,
+    best: Option<int>,
+    best_size: int,
+) -> Option<int>
+    decreases scopes@.len() - i,
+{
+    if i >= scopes@.len() {
+        best
+    } else if line >= scopes@[i].open_line && line <= scopes@[i].close_line
+        && (scopes@[i].close_line - scopes@[i].open_line) < best_size {
+        find_scope_containing_spec(
+            line, scopes, i + 1, Some(i),
+            scopes@[i].close_line - scopes@[i].open_line,
+        )
+    } else {
+        find_scope_containing_spec(line, scopes, i + 1, best, best_size)
+    }
+}
+
+fn find_scope_containing<'a>(line: u64, scopes: &'a [Scope]) -> (result: Option<&'a Scope>)
+    ensures
+        result.is_some() <==> find_scope_containing_spec(line, scopes, 0, None, u64::MAX as int).is_some(),
+        result.is_some() ==> {
+            let idx = find_scope_containing_spec(line, scopes, 0, None, u64::MAX as int).unwrap();
+            &&& 0 <= idx < scopes@.len()
+            &&& result.unwrap().open_line == scopes@[idx].open_line
+            &&& result.unwrap().close_line == scopes@[idx].close_line
+        },
+{
     let mut best: Option<&Scope> = None;
     let mut best_size: u64 = u64::MAX;
+    let ghost mut best_idx: Option<int> = None;
     let mut i: usize = 0;
     while i < scopes.len()
+        invariant
+            0 <= i <= scopes@.len(),
+            find_scope_containing_spec(line, scopes, 0, None, u64::MAX as int)
+                == find_scope_containing_spec(line, scopes, i as int, best_idx, best_size as int),
+            best.is_some() <==> best_idx.is_some(),
+            best.is_none() ==> best_size == u64::MAX,
+            best.is_some() ==> {
+                &&& 0 <= best_idx.unwrap() < scopes@.len()
+                &&& best.unwrap().open_line == scopes@[best_idx.unwrap()].open_line
+                &&& best.unwrap().close_line == scopes@[best_idx.unwrap()].close_line
+                &&& best_size as int
+                    == scopes@[best_idx.unwrap()].close_line - scopes@[best_idx.unwrap()].open_line
+            },
         decreases scopes.len() - i,
     {
         let s = &scopes[i];
         if line >= s.open_line && line <= s.close_line {
             let size = s.close_line - s.open_line;
-            if size < best_size { best = Some(s); best_size = size; }
+            if size < best_size {
+                best = Some(s);
+                best_size = size;
+                proof { best_idx = Some(i as int); }
+            }
         }
         i = i + 1;
     }
