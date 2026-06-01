@@ -48,26 +48,11 @@ pub fn is_annotation_executed(
                     if props.contains(&LineProperty::Declaration) && !props.contains(&LineProperty::Statement) {
                         let scope = find_scope_containing(target_line.line_number, scopes);
                         if let Some(s) = scope {
-                            let mut has_any_statements = false;
-                            if s.open_line >= 1 && s.close_line < u64::MAX {
-                                let mut line = s.open_line;
-                                while line <= s.close_line
-                                    invariant
-                                        line >= s.open_line,
-                                    decreases s.close_line - line + 1,
-                                {
-                                    if line >= 1 {
-                                        let idx: usize = ((line - 1) as usize);
-                                        if idx < classifications.len() {
-                                            if let Some(p) = &classifications[idx] {
-                                                if p.contains(&LineProperty::Statement) { has_any_statements = true; break; }
-                                            }
-                                        }
-                                    }
-                                    if line == s.close_line { break; }
-                                    line = line + 1;
-                                }
-                            }
+                            let has_any_statements = if s.open_line >= 1 && s.close_line < u64::MAX {
+                                scope_contains_statement(classifications, s.open_line, s.close_line)
+                            } else {
+                                false
+                            };
                             if !has_any_statements { return ExecutionStatus::Structural; }
                         }
                     }
@@ -145,6 +130,54 @@ fn find_scope_containing<'a>(line: u64, scopes: &'a [Scope]) -> (result: Option<
         i = i + 1;
     }
     best
+}
+
+// Spec: some line in [lo, hi] is a classified line carrying `Statement`.
+pub open spec fn has_statement_in_range(
+    classifications: &[Option<LineClass>],
+    lo: u64,
+    hi: u64,
+) -> bool {
+    exists|l: u64| #![trigger classifications@[l as int - 1]] lo <= l <= hi && l >= 1
+        && (l as int - 1) < classifications@.len()
+        && classifications@[l as int - 1].is_some()
+        && classifications@[l as int - 1].unwrap()@.contains(LineProperty::Statement)
+}
+
+// Whether the scope spanning [lo, hi] contains any executable statement.
+fn scope_contains_statement(classifications: &[Option<LineClass>], lo: u64, hi: u64) -> (result: bool)
+    requires
+        hi < u64::MAX,
+    ensures
+        result <==> has_statement_in_range(classifications, lo, hi),
+{
+    let mut found = false;
+    let mut line = lo;
+    while line <= hi && !found
+        invariant
+            lo <= line,
+            hi < u64::MAX,
+            found <==> exists|l: u64| #![trigger classifications@[l as int - 1]]
+                lo <= l < line && l <= hi && l >= 1 && (l as int - 1) < classifications@.len()
+                && classifications@[l as int - 1].is_some()
+                && classifications@[l as int - 1].unwrap()@.contains(LineProperty::Statement),
+        decreases hi - line + 1,
+    {
+        proof { broadcast use crate::types::lemma_line_property_obeys_cmp_spec; }
+        if line >= 1 {
+            let idx: usize = ((line - 1) as usize);
+            proof { assume(idx as int == line as int - 1); }
+            if idx < classifications.len() {
+                if let Some(p) = &classifications[idx] {
+                    if p.contains(&LineProperty::Statement) {
+                        found = true;
+                    }
+                }
+            }
+        }
+        line = line + 1;
+    }
+    found
 }
 
 } // verus!
