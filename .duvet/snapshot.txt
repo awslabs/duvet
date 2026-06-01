@@ -1,45 +1,92 @@
-SPECIFICATION: https://www.rfc-editor.org/rfc/rfc2324
-  SECTION: [The BREW method, and the use of POST](#section-2.1.1)
-    TEXT[implementation,test]:    A coffee pot server MUST accept both the BREW and POST method
-    TEXT[implementation,test]:    equivalently.
+SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverage-model-spec.md)
+  SECTION: [1.3 Classification Function and Unknown Lines](#classification-function)
+    TEXT[!MUST]: A line classified as `{Annotation}` MUST NOT also have
+    TEXT[!MUST]: `Statement` or `Declaration` in its property set.
+    TEXT[!MUST]: Classifiers MUST apply a post-processing pass
+    TEXT[!MUST]: after AST classification:
+    TEXT[!MUST]: for any line that has `Annotation`, `Comment`, or `Whitespace`,
+    TEXT[!MUST]: remove `Statement` and `Declaration` from its property set.
 
-SPECIFICATION: [Duvet Coverage Model v2: Formal Specification](design/coverage-model-v2-spec.md)
   SECTION: [1.5 Scopes](#scopes)
-    TEXT[implementation,test]: A scope is a contiguous range of lines delimited by `ScopeOpen` and
-    TEXT[implementation,test]: `ScopeClose` properties. Scopes nest.
+    TEXT[test]: A scope is a contiguous range of lines
+    TEXT[test]: delimited by `ScopeOpen` and `ScopeClose` properties.
+    TEXT[test]: Scopes nest.
 
   SECTION: [5. Correctness Properties](#correctness-properties)
     TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus.
-    TEXT[!MUST,implication]: The Verus proof files MUST carry
-    TEXT[!MUST,implication]: duvet annotations linking each `proof fn` back to the corresponding property
-    TEXT[!MUST,implication]: section in this document.
+    TEXT[!MUST,implication]: The Verus proof files MUST carry duvet annotations
+    TEXT[!MUST,implication]: linking each `proof fn` back to the corresponding property section
+    TEXT[!MUST,implication]: in this document.
 
   SECTION: [Property 1: No False Positives](#property-1-no-false-positives)
-    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that if
-    TEXT[!MUST,implementation,implication,test]: `is_annotation_executed(annotation, ...) = Executed`, then there exists a
-    TEXT[!MUST,implementation,implication,test]: line L such that:
+    TEXT[!MUST,implication]: The implementation MUST prove that if
+    TEXT[!MUST,implication]: `is_annotation_executed(annotation, ...) = Executed`,
+    TEXT[!MUST,implication]: then there exists a line L such that:
+    TEXT[implication]: - `coverage[L] == Hit`
+    TEXT[implication]:   (L is directly reported as executed)
+    TEXT[implication]: - L is in the same scope as the annotation's target
+    TEXT[implication]: - Every line between L and the annotation's target (exclusive)
+    TEXT[implication]:   is classified (`Some`)
+    TEXT[implication]:   and has properties that are a subset of
+    TEXT[implication]:   {Whitespace, Comment, Annotation, Declaration, ScopeOpen}
+    TEXT[implication]: - No line between L and the annotation's target
+    TEXT[implication]:   has the `ScopeClose` property
+    TEXT[implication]: - No line between L and the annotation's target
+    TEXT[implication]:   is unknown (`None`)
 
   SECTION: [Property 2: No Cross-Scope Leakage](#property-2-no-cross-scope-leakage)
-    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that for any two lines A and B where A is in
-    TEXT[!MUST,implementation,implication,test]: scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-    TEXT[!MUST,implementation,implication,test]: S2 is not a parent of S1:
+    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that
+    TEXT[!MUST,implementation,implication,test]: for any two lines A and B
+    TEXT[!MUST,implementation,implication,test]: where A is in scope S1 and B is in scope S2
+    TEXT[!MUST,implementation,implication,test]: and S1 ≠ S2
+    TEXT[!MUST,implementation,implication,test]: and S1 is not a parent of S2
+    TEXT[!MUST,implementation,implication,test]: and S2 is not a parent of S1:
 
   SECTION: [Property 3: Conservative Fallback](#property-3-conservative-fallback)
-    TEXT[!MUST,implementation,test]: The implementation MUST prove that no backward propagation occurs WITHIN a
-    TEXT[!MUST,implementation,test]: scope that contains a `NonLinearControl` line.
-    TEXT[!MAY,implementation,test]: If an ancestor scope S contains `NonLinearControl` but a child
-    TEXT[!MAY,implementation,test]: scope S' does not, propagation MAY occur through S'.
+    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that
+    TEXT[!MUST,implementation,implication,test]: no backward propagation occurs WITHIN a scope
+    TEXT[!MUST,implementation,implication,test]: that contains a `NonLinearControl` line.
+    TEXT[!MAY,implication,test]: If an ancestor scope S contains `NonLinearControl`
+    TEXT[!MAY,implication,test]: but a child scope S' does not,
+    TEXT[!MAY,implication,test]: propagation MAY occur through S'.
 
   SECTION: [Property 4: Monotonicity](#property-4-monotonicity)
-    TEXT[!MUST,implementation,test]: The implementation MUST prove that given two coverage reports E1 and E2 where
-    TEXT[!MUST,implementation,test]: E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that
+    TEXT[!MUST,implementation,test]: given two coverage reports E1 and E2
+    TEXT[!MUST,implementation,test]: where E1 ⊆ E2
+    TEXT[!MUST,implementation,test]: (E2 reports all the same hits as E1, plus possibly more):
 
   SECTION: [Property 5: Annotation Stacking Transitivity](#property-5-stacking-transitivity)
-    TEXT[!MUST,implementation,test]: The implementation MUST prove that if annotation A (lines a1..a2) is
-    TEXT[!MUST,implementation,test]: immediately above annotation B (lines b1..b2) with only whitespace between
-    TEXT[!MUST,implementation,test]: them, and `is_annotation_executed(B, ...) = Executed`, then
-    TEXT[!MUST,implementation,test]: `is_annotation_executed(A, ...) = Executed`.
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that
+    TEXT[!MUST,implementation,implication,test]: if annotation A (lines a1..a2) is immediately above
+    TEXT[!MUST,implementation,implication,test]: annotation B (lines b1..b2)
+    TEXT[!MUST,implementation,implication,test]: with only whitespace, comments, or other annotations between them
+    TEXT[!MUST,implementation,test]: ,
+    TEXT[!MUST,implementation,test]: and `is_annotation_executed(B, ...) = Executed`,
+    TEXT[!MUST,implementation,test]: then `is_annotation_executed(A, ...) = Executed`.
 
   SECTION: [Property 6: Unknown Safety](#property-6-unknown-safety)
-    TEXT[!MUST,implementation,test]: The implementation MUST prove that unknown lines cannot produce false
-    TEXT[!MUST,implementation,test]: positives.
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that
+    TEXT[!MUST,implementation,test]: unknown lines cannot produce false positives.
+
+  SECTION: [Property 7: Target Determinism](#property-7-target-determinism)
+    TEXT[implication]: `annotation_target` is a pure function:
+    TEXT[implication]: given the same annotation, classifications, and file length,
+    TEXT[implication]: it always returns the same result.
+    TEXT[implication]: This is free in Verus
+    TEXT[implication]: (all `fn` in Verus are deterministic by construction).
+
+  SECTION: [Property 8: Scope Well-formedness](#property-8-scope-well-formedness)
+    TEXT[implication]: `build_scope_tree` produces a well-formed scope tree:
+    TEXT[implication]: - Every scope has `open_line <= close_line`.
+    TEXT[implication]: - If two scopes overlap,
+    TEXT[implication]:   one strictly contains the other (proper nesting).
+    TEXT[implication]:   No partial overlaps.
+
+  SECTION: [Property 9: Execution Set Containment](#property-9-execution-set-containment)
+    TEXT[implication]: If `coverage[line] == Hit`,
+    TEXT[implication]: then `line ∈ execution_set(classifications, scopes, coverage)`.
+
+  SECTION: [Property 10: Annotation Target Bounds](#property-10-annotation-target-bounds)
+    TEXT[implication]: If `annotation_target(annotation, ...) = Some(target)`,
+    TEXT[implication]: then `target.line_number > annotation.end_line`.
