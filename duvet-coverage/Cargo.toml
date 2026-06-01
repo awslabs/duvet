@@ -7,13 +7,15 @@ description = "Coverage model types and algorithms for duvet"
 publish = false
 
 [dependencies]
-# vstd ships only as date-pinned pre-release versions on crates.io
-# (e.g. 0.0.0-2026-05-24-0157). Cargo's `*` does not match pre-releases,
-# so the canonical "any pre-release of 0.0.0" expression is used here;
-# Cargo.lock pins the exact version actually used in builds. This crate
-# is internal-only (publish = false), so this dependency is not propagated
-# into the published duvet artifact.
-vstd = "0.0.0-0"
+# vstd ships only as date-pinned pre-release versions on crates.io, and the
+# verus binary and vstd are released in lockstep — the version here MUST match
+# the Verus release verified against (VERUS_VERSION in
+# .github/workflows/ci.yml). Cargo.lock is gitignored, so a floating
+# requirement would let CI resolve a newer vstd than the pinned verus and fail
+# spuriously; an exact `=` pin keeps local and CI reproducible. Bump this
+# together with VERUS_VERSION. publish = false, so it is not propagated into
+# the published duvet artifact.
+vstd = "=0.0.0-2026-05-24-0157"
 
 [package.metadata.verus]
 verify = true
