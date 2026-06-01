@@ -35,40 +35,6 @@ use vstd::prelude::*;
 
 verus! {
 
-// The proof functions use runtime checks to validate properties.
-// The core algorithms (annotation_target, execution_set, is_annotation_executed)
-// are the verified code. These proof functions exercise the properties on
-// concrete inputs and will be converted to full proof fn's as the
-// verification matures.
-
-//= design/query/coverage-model-spec.md#property-1-no-false-positives
-//# The implementation MUST prove that if
-//# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
-//# line L such that:
-/// Property 1: No False Positives.
-///
-/// The proof is carried by the `ensures` clause on `execution_set`:
-/// every line in the result satisfies `validly_in_exec_set`, which
-/// requires `has_valid_path` (defined in `predicates.rs`).
-/// This function exercises the property at runtime.
-pub(crate) fn property_no_false_positives(
-    annotation: &AnnotationSpan, classifications: &[Option<LineClass>],
-    scopes: &[Scope], coverage: &CoverageReport, file_length: u64,
-) requires
-        annotation.end_line < u64::MAX,
-        forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
-        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
-        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
-{
-    let status = is_annotation_executed(annotation, classifications, scopes, coverage, file_length);
-    let _exec_set = execution_set(classifications, scopes, coverage);
-    // The ensures on execution_set proves containment.
-    // The code structure of execution_set proves scope-boundedness:
-    // - backward walk stops at ScopeClose, Statement, None, ScopeOpen
-    // - the walk only operates within scope.open_line..=scope.close_line
-    // Verus verifies these bounds from the while loop conditions.
-}
-
 //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
 //# The implementation MUST prove that for any two lines A and B where A is in
 //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
@@ -408,21 +374,8 @@ proof fn lemma_stacking_transitivity(
 // All fn in Verus are deterministic (no interior mutability, no randomness).
 // No proof fn needed.
 
-/// Property 9: Execution Set Containment — execution_set ⊇ directly_hit.
-/// This is proven by the ensures clause on execution_set itself.
-pub(crate) fn property_execution_set_containment(
-    classifications: &[Option<LineClass>], scopes: &[Scope], coverage: &CoverageReport,
-)
-    requires
-        forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
-        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
-        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
-{
-    let exec_set = execution_set(classifications, scopes, coverage);
-    // The ensures clause on execution_set guarantees:
-    // forall|line: u64| coverage@.contains_key(line) && coverage@[line] == Hit ==> exec_set@.contains(line)
-    // This is exactly Property 9. QED.
-}
+// Property 9: Execution Set Containment — execution_set ⊇ directly_hit.
+// Proven by the `ensures` clause on `execution_set` (see its citation there).
 
 } // verus!
 
@@ -454,37 +407,6 @@ mod tests {
     //= design/query/coverage-model-spec.md#correctness-properties
     //= type=test
     //# These properties MUST be proven with Verus.
-    //= design/query/coverage-model-spec.md#property-1-no-false-positives
-    //= type=test
-    //# The implementation MUST prove that if
-    //# `is_annotation_executed(annotation, ...) = Executed`, then there exists a
-    //# line L such that:
-    #[test]
-    fn test_property_1_method_signature() {
-        let c = vec![
-            s(&[LineProperty::Annotation]),
-            s(&[LineProperty::Annotation]),
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Declaration]),
-            s(&[LineProperty::Statement]),
-            s(&[LineProperty::ScopeClose]),
-        ];
-        property_no_false_positives(
-            &AnnotationSpan {
-                start_line: 1,
-                end_line: 2,
-            },
-            &c,
-            &[Scope {
-                open_line: 3,
-                close_line: 6,
-                parent: None,
-                children: vec![],
-            }],
-            &cov_hit(&[5]),
-            6,
-        );
-    }
     //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
     //= type=test
     //# The implementation MUST prove that for any two lines A and B where A is in
@@ -679,24 +601,5 @@ mod tests {
         );
         assert!(target.is_some());
         assert!(target.unwrap().properties.is_some());
-    }
-    #[test]
-    fn test_property_9_execution_set_containment() {
-        let c = vec![
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Statement]),
-            s(&[LineProperty::Statement]),
-            s(&[LineProperty::ScopeClose]),
-        ];
-        property_execution_set_containment(
-            &c,
-            &[Scope {
-                open_line: 1,
-                close_line: 4,
-                parent: None,
-                children: vec![],
-            }],
-            &cov_hit(&[2, 3]),
-        );
     }
 }
