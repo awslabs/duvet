@@ -10,6 +10,55 @@ use vstd::prelude::*;
 
 verus! {
 
+// Spec twin of `annotation_target`. `annotation_target_walk` is a pure,
+// recursive definition of the forward target walk, returning the target's
+// line number (or `None` when there is no target). `annotation_target`
+// (exec) is proven equivalent to it (see its `ensures`), so specifications
+// can refer to the walk's result without calling exec code in a ghost
+// context (e.g. Property 6 in `annotation_execution`). The target's identity
+// is its line number; the `properties` cached on the exec `TargetLine` are an
+// implementation optimization. The skip test is exactly `line_is_skippable`,
+// matching the exec body.
+pub open spec fn annotation_target_walk(
+    classifications: &[Option<LineClass>],
+    current: u64,
+    file_length: u64,
+) -> Option<u64>
+    decreases file_length - current + 1,
+{
+    if current > file_length || current == 0 || (current as int - 1) >= classifications@.len() {
+        None
+    } else if line_is_skippable(classifications, current) {
+        if current < file_length {
+            annotation_target_walk(classifications, (current + 1) as u64, file_length)
+        } else {
+            None
+        }
+    } else {
+        match classifications@[current as int - 1] {
+            // Unclassified line: it is the target (its properties are unknown).
+            None => Some(current),
+            Some(props) => if props@.contains(LineProperty::ScopeClose)
+                && !props@.contains(LineProperty::Statement)
+                && !props@.contains(LineProperty::Declaration)
+                && !props@.contains(LineProperty::ScopeOpen) {
+                // Pure scope-close: no target.
+                None
+            } else {
+                Some(current)
+            },
+        }
+    }
+}
+
+pub open spec fn annotation_target_spec(
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    file_length: u64,
+) -> Option<u64> {
+    annotation_target_walk(classifications, (annotation.end_line + 1) as u64, file_length)
+}
+
 //= design/query/coverage-model-spec.md#property-10-annotation-target-bounds
 //= type=implication
 //# If `annotation_target(annotation, ...) = Some(target)`,
@@ -22,25 +71,15 @@ pub fn annotation_target(
     requires
         annotation.end_line < u64::MAX,
     ensures
+        // Property 10: a resolved target lies below the annotation.
         result.is_some() ==> result.unwrap().line_number > annotation.end_line,
-        // Property 5 support: all lines between the annotation end and the
-        // target (exclusive) are skippable. This enables the stacking proof:
-        // if annotation A is above B with only skippable lines between them,
-        // A's walk skips through to B's end, then continues identically to B's walk.
-        result.is_some() ==> forall|l: u64|
-            annotation.end_line < l && l < result.unwrap().line_number
-            ==> line_is_skippable(classifications, l),
-        // When result is None, all lines from end_line+1 to file_length are
-        // either skippable or past the classifications array.
-        result.is_none() ==> forall|l: u64|
-            annotation.end_line < l && l <= file_length
-            && (l as int - 1) >= 0 && (l as int - 1) < classifications@.len()
-            ==> line_is_skippable(classifications, l)
-                || (classifications@[l as int - 1].is_some()
-                    && classifications@[l as int - 1].unwrap()@.contains(LineProperty::ScopeClose)
-                    && !classifications@[l as int - 1].unwrap()@.contains(LineProperty::Statement)
-                    && !classifications@[l as int - 1].unwrap()@.contains(LineProperty::Declaration)
-                    && !classifications@[l as int - 1].unwrap()@.contains(LineProperty::ScopeOpen)),
+        // Equivalence with the spec twin: same presence and same target line.
+        result.is_some() <==> annotation_target_spec(annotation, classifications, file_length).is_some(),
+        result.is_some() ==> result.unwrap().line_number
+            == annotation_target_spec(annotation, classifications, file_length).unwrap(),
+        // The cached properties are present iff the target line is classified.
+        result.is_some() ==> (result.unwrap().properties.is_some()
+            <==> classifications@[result.unwrap().line_number as int - 1].is_some()),
 {
     let mut current: u64 = annotation.end_line + 1;
 
@@ -49,38 +88,44 @@ pub fn annotation_target(
             current > annotation.end_line,
             current >= 1,
             annotation.end_line < u64::MAX,
-            // All lines from annotation.end_line+1 to current-1 were skippable
-            forall|l: u64| annotation.end_line < l && l < current
-                ==> line_is_skippable(classifications, l),
+            // The remaining walk from `current` equals the whole walk: every
+            // line skipped so far was skippable, so it did not change the target.
+            annotation_target_walk(classifications, current, file_length)
+                == annotation_target_spec(annotation, classifications, file_length),
         decreases file_length - current + 1,
     {
-        if current == 0 { break; }
         let idx: usize = ((current - 1) as usize);
+        proof {
+            // u64->usize cast is lossless on this platform (compile-time assert
+            // in lib.rs that usize >= u64). Connects exec `classifications[idx]`
+            // to spec `classifications@[current as int - 1]`.
+            assume(idx as int == current as int - 1);
+        }
         if idx >= classifications.len() {
+            proof { assert(annotation_target_walk(classifications, current, file_length) == None::<u64>); }
             return None;
         }
 
         match &classifications[idx] {
             None => {
+                proof { assert(annotation_target_walk(classifications, current, file_length) == Some(current)); }
                 return Some(TargetLine { line_number: current, properties: None });
             }
             Some(props) => {
                 proof { broadcast use crate::types::lemma_line_property_obeys_cmp_spec; }
-                if props.len() == 1 && props.contains(&LineProperty::Whitespace) {
+                if (props.len() == 1 && props.contains(&LineProperty::Whitespace))
+                    || (props.len() == 1 && props.contains(&LineProperty::Comment))
+                    || props.contains(&LineProperty::Annotation)
+                {
                     proof { assert(line_is_skippable(classifications, current)); }
-                    if current == file_length { break; }
-                    current = current + 1;
-                    continue;
-                }
-                if props.len() == 1 && props.contains(&LineProperty::Comment) {
-                    proof { assert(line_is_skippable(classifications, current)); }
-                    if current == file_length { break; }
-                    current = current + 1;
-                    continue;
-                }
-                if props.contains(&LineProperty::Annotation) {
-                    proof { assert(line_is_skippable(classifications, current)); }
-                    if current == file_length { break; }
+                    if current == file_length {
+                        proof { assert(annotation_target_walk(classifications, current, file_length) == None::<u64>); }
+                        return None;
+                    }
+                    proof {
+                        assert(annotation_target_walk(classifications, current, file_length)
+                            == annotation_target_walk(classifications, (current + 1) as u64, file_length));
+                    }
                     current = current + 1;
                     continue;
                 }
@@ -89,12 +134,17 @@ pub fn annotation_target(
                     && !props.contains(&LineProperty::Declaration)
                     && !props.contains(&LineProperty::ScopeOpen)
                 {
+                    proof { assert(annotation_target_walk(classifications, current, file_length) == None::<u64>); }
                     return None;
                 }
+                proof { assert(annotation_target_walk(classifications, current, file_length) == Some(current)); }
                 return Some(TargetLine { line_number: current, properties: Some(props.clone()) });
             }
         }
     }
+    // Unreachable in practice (the loop only exits by returning), but the
+    // walk agrees: past EOF there is no target.
+    proof { assert(current > file_length); }
     None
 }
 

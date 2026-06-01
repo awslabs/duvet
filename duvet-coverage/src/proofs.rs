@@ -318,103 +318,18 @@ proof fn lemma_monotonicity(
 //# comments, or other annotations between
 //# them, and `is_annotation_executed(B, ...) = Executed`, then
 //# `is_annotation_executed(A, ...) = Executed`.
-/// Property 5: Stacking Transitivity.
-///
-/// Lemma: if annotations A and B have only skippable lines between them
-/// (whitespace, comments, other annotations), and B is Executed, then A
-/// is also Executed. This follows from annotation_target's ensures:
-/// A's walk skips through all lines up to B's end, then continues from
-/// B's end_line + 1 — the same starting point as B's walk. Since the
-/// walk is deterministic, both reach the same target.
-proof fn lemma_stacking_transitivity(
-    ann_a: &AnnotationSpan, ann_b: &AnnotationSpan,
-    classifications: &[Option<LineClass>], scopes: &[Scope],
-    coverage: &CoverageReport, file_length: u64,
-)
-    requires
-        ann_a.end_line < u64::MAX, ann_b.end_line < u64::MAX,
-        forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
-        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
-        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
-        // A is above B: A ends before B starts
-        ann_a.end_line < ann_b.start_line,
-        // All lines between A's end and B's end are skippable
-        all_lines_skippable(classifications, (ann_a.end_line + 1) as u64, ann_b.end_line),
-        // B is Executed
-        is_annotation_executed(ann_b, classifications, scopes, coverage, file_length)
-            == ExecutionStatus::Executed,
-    ensures
-        // Then A is also Executed
-        is_annotation_executed(ann_a, classifications, scopes, coverage, file_length)
-            == ExecutionStatus::Executed,
-{
-    // annotation_target(B) returns Some(target) with target.properties.is_some()
-    // (from is_annotation_executed's ensures: Executed ==> target is Some with Some props).
-    let target_b = annotation_target(ann_b, classifications, file_length);
-    // target_b.is_some() because B is Executed (from is_annotation_executed's ensures)
-
-    // annotation_target(A) walks forward from ann_a.end_line + 1.
-    let target_a = annotation_target(ann_a, classifications, file_length);
-    // From annotation_target's ensures on A:
-    //   all lines from ann_a.end_line+1 to target_a.line_number-1 are skippable.
-    // From our precondition:
-    //   all lines from ann_a.end_line+1 to ann_b.end_line are skippable.
-    // From annotation_target's ensures on B:
-    //   all lines from ann_b.end_line+1 to target_b.line_number-1 are skippable.
-    //
-    // A's walk starts at ann_a.end_line+1, skips through to ann_b.end_line
-    // (all skippable by precondition), then continues from ann_b.end_line+1
-    // (same as B's starting point), skipping the same lines B skips.
-    // Both walks reach the same first non-skippable line: the target.
-    //
-    // Therefore target_a == target_b, and since B is Executed, A is too.
-    //
-    // The formal argument: target_a must land at or after ann_b.end_line+1
-    // (because all lines before that are skippable, and the walk skips them).
-    // target_b also lands at or after ann_b.end_line+1.
-    // Both walks see the same classifications from ann_b.end_line+1 onward.
-    // The walk is deterministic (same starting conditions, same array).
-    // So they land on the same line.
-
-    // Verus can verify this from the ensures clauses:
-    // - target_a skips all lines in [ann_a.end_line+1, target_a.line_number)
-    // - target_b skips all lines in [ann_b.end_line+1, target_b.line_number)
-    // - All lines in [ann_a.end_line+1, ann_b.end_line] are skippable
-    // - target_a.line_number > ann_b.end_line (because lines up to ann_b.end_line are skippable)
-    // - target_b.line_number > ann_b.end_line (from Property 10)
-    // - Both targets see the same classifications from ann_b.end_line+1 onward
-}
+// TODO(Property 5): Stacking transitivity (cited above) is proven in a
+// follow-up commit over the `is_annotation_executed` spec twin. The previous
+// `lemma_stacking_transitivity` referenced exec functions in spec position and
+// had an empty (comment-only) proof body, so it was never machine-checked; it
+// is removed here rather than left standing as an unverified claim.
 
 //= design/query/coverage-model-spec.md#property-6-unknown-safety
 //# The implementation MUST prove that unknown lines cannot produce false
 //# positives.
-/// Property 6: Unknown Safety.
-///
-/// Lemma: if is_annotation_executed returns Executed, the target line is
-/// classified (not unknown). This is proven by the ensures clause on
-/// is_annotation_executed: Executed ==> target.properties.is_some().
-proof fn lemma_unknown_safety(
-    annotation: &AnnotationSpan, classifications: &[Option<LineClass>],
-    scopes: &[Scope], coverage: &CoverageReport, file_length: u64,
-)
-    requires
-        annotation.end_line < u64::MAX,
-        forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
-        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
-        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
-        is_annotation_executed(annotation, classifications, scopes, coverage, file_length)
-            == ExecutionStatus::Executed,
-    ensures
-        // The target is classified (not unknown)
-        {
-            let target = annotation_target(annotation, classifications, file_length);
-            &&& target.is_some()
-            &&& target.unwrap().properties.is_some()
-        },
-{
-    // Directly from is_annotation_executed's ensures clause:
-    // status == Executed ==> target.is_some() && target.unwrap().properties.is_some()
-}
+// Property 6 (Unknown Safety) is proven inline as a postcondition of
+// `is_annotation_executed`: Executed ==> the resolved target line exists and
+// is classified. No separate lemma is needed.
 
 //= design/query/coverage-model-spec.md#property-7-target-determinism
 //= type=implication
@@ -626,8 +541,9 @@ mod tests {
             children: vec![],
         }];
         let cov = cov_hit(&[6]);
-        // Property 5 is proven as a Verus proof fn (lemma_stacking_transitivity).
-        // This test verifies runtime behavior: stacked annotations both return Executed.
+        // Property 5 (Stacking Transitivity) is proven over the spec twins in a
+        // follow-up commit; this test verifies runtime behavior: stacked
+        // annotations both return Executed.
         let status_a = is_annotation_executed(
             &AnnotationSpan {
                 start_line: 2,
@@ -661,7 +577,7 @@ mod tests {
             annotation_execution::is_annotation_executed, target_resolution::annotation_target,
         };
         // Property 6 is proven by the ensures clause on is_annotation_executed
-        // and the proof fn lemma_unknown_safety.
+        // (Executed ==> the resolved target line exists and is classified).
         // This test verifies runtime behavior: Executed implies classified target.
         let c = vec![
             s(&[LineProperty::Annotation]),

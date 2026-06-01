@@ -4,6 +4,10 @@
 //! Phase 3: Annotation Execution Check (spec Section 4).
 
 use crate::{execution_propagation::execution_set, target_resolution::annotation_target, types::*};
+// `annotation_target_spec` is a spec fn (ghost-only); it exists only when Verus
+// is processing the crate, and is referenced solely from the ghost `ensures`.
+#[cfg(verus_keep_ghost)]
+use crate::target_resolution::annotation_target_spec;
 use vstd::prelude::*;
 
 verus! {
@@ -22,12 +26,12 @@ pub fn is_annotation_executed(
         forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
     ensures
         // Property 6 (Unknown Safety): Executed requires a classified target.
-        // If the result is Executed, then annotation_target returned Some with
-        // properties: Some(_) — the target is not an unknown line.
+        // If the result is Executed, then the resolved target line exists and
+        // is classified (not an unknown line).
         status == ExecutionStatus::Executed ==> {
-            let target = annotation_target(annotation, classifications, file_length);
-            &&& target.is_some()
-            &&& target.unwrap().properties.is_some()
+            let line = annotation_target_spec(annotation, classifications, file_length);
+            &&& line.is_some()
+            &&& classifications@[line.unwrap() as int - 1].is_some()
         },
 {
     let target = annotation_target(annotation, classifications, file_length);
