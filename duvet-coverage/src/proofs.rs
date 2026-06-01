@@ -22,6 +22,11 @@ use crate::predicates::{
     clear_path, has_valid_path, in_scope, propagated_within_scope, scope_has_non_linear_control,
     validly_in_exec_set,
 };
+#[cfg(verus_keep_ghost)]
+use crate::{
+    annotation_execution::execution_status_of,
+    target_resolution::{annotation_target_spec, annotation_target_walk},
+};
 use crate::{
     annotation_execution::is_annotation_executed, execution_propagation::execution_set,
     target_resolution::annotation_target, types::*,
@@ -318,11 +323,72 @@ proof fn lemma_monotonicity(
 //# comments, or other annotations between
 //# them, and `is_annotation_executed(B, ...) = Executed`, then
 //# `is_annotation_executed(A, ...) = Executed`.
-// TODO(Property 5): Stacking transitivity (cited above) is proven in a
-// follow-up commit over the `is_annotation_executed` spec twin. The previous
-// `lemma_stacking_transitivity` referenced exec functions in spec position and
-// had an empty (comment-only) proof body, so it was never machine-checked; it
-// is removed here rather than left standing as an unverified claim.
+/// Helper: skipping a prefix of skippable lines does not change the walk's
+/// target. If every line in `[c, d]` is skippable, the forward walk from `c`
+/// lands on the same target as the walk from `d + 1`.
+proof fn lemma_skippable_prefix_same_walk(
+    classifications: &[Option<LineClass>],
+    c: u64,
+    d: u64,
+    file_length: u64,
+)
+    requires
+        d < u64::MAX,
+        c <= d + 1,
+        all_lines_skippable(classifications, c, d),
+    ensures
+        annotation_target_walk(classifications, c, file_length)
+            == annotation_target_walk(classifications, (d + 1) as u64, file_length),
+    decreases d + 1 - c,
+{
+    if c <= d {
+        // `c` is skippable, so the walk steps over it; recurse on `[c+1, d]`.
+        assert(line_is_skippable(classifications, c));
+        assert(annotation_target_walk(classifications, c, file_length)
+            == annotation_target_walk(classifications, (c + 1) as u64, file_length));
+        lemma_skippable_prefix_same_walk(classifications, (c + 1) as u64, d, file_length);
+    }
+}
+
+/// Property 5: Annotation Stacking Transitivity.
+///
+/// If annotation A ends above annotation B with only skippable lines
+/// (whitespace, comments, other annotations) between them, then A and B
+/// resolve to the same target and therefore share an execution status —
+/// in particular, if B is `Executed`, then so is A.
+proof fn lemma_stacking_transitivity(
+    ann_a: &AnnotationSpan,
+    ann_b: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    coverage: &CoverageReport,
+    file_length: u64,
+)
+    requires
+        ann_a.end_line < u64::MAX,
+        ann_b.end_line < u64::MAX,
+        ann_b.start_line <= ann_b.end_line,
+        // A is immediately above B ...
+        ann_a.end_line < ann_b.start_line,
+        // ... with only skippable lines between A's end and B's end.
+        all_lines_skippable(classifications, (ann_a.end_line + 1) as u64, ann_b.end_line),
+        // B is Executed.
+        execution_status_of(
+            annotation_target_spec(ann_b, classifications, file_length),
+            classifications, scopes, coverage,
+        ) == ExecutionStatus::Executed,
+    ensures
+        // Then A is Executed too.
+        execution_status_of(
+            annotation_target_spec(ann_a, classifications, file_length),
+            classifications, scopes, coverage,
+        ) == ExecutionStatus::Executed,
+{
+    // A's walk skips through to B's end, then continues from B's end + 1 — the
+    // same starting point as B's walk — so the two resolve to the same target.
+    lemma_skippable_prefix_same_walk(
+        classifications, (ann_a.end_line + 1) as u64, ann_b.end_line, file_length);
+}
 
 //= design/query/coverage-model-spec.md#property-6-unknown-safety
 //# The implementation MUST prove that unknown lines cannot produce false
