@@ -145,16 +145,14 @@ fn merge_one(out: &mut ReportV2, incoming: ReportV2) -> crate::Result {
     Ok(())
 }
 
-/// `issue_links` is an order-preserving deduped concatenation. We can't use
-/// a `BTreeMap` here because the schema is a free-form `Vec<String>` with
-/// no ID, but we still want a stable, idempotent result: appending a link
-/// already present is a no-op.
+/// `issue_links` is a sorted, deduped union. The schema is a free-form
+/// `Vec<String>` with no ID, so we can't use a `BTreeMap`; sort+dedup gives
+/// a canonical order that is independent of fold order, which is what keeps
+/// the binary merge commutative (and therefore the N-way fold associative).
 fn merge_issue_links(out: &mut Vec<String>, incoming: Vec<String>) {
-    for link in incoming {
-        if !out.contains(&link) {
-            out.push(link);
-        }
-    }
+    out.extend(incoming);
+    out.sort();
+    out.dedup();
 }
 
 fn merge_repositories(
@@ -1250,6 +1248,22 @@ mod tests {
         c.tags = vec![tag.to_string()];
         r.annotations.cite.insert("cite-shared".to_string(), c);
         r
+    }
+
+    #[test]
+    fn property_commutativity_of_issue_links() {
+        // `issue_links` has no entity ID, so the only thing keeping the merge
+        // commutative is canonical ordering of the unioned list. With
+        // overlapping-but-not-equal inputs, an order-preserving append
+        // would produce different results for `[a, b]` vs `[b, a]`.
+        let mut a = empty();
+        a.issue_links = vec!["x".to_string(), "y".to_string()];
+        let mut b = empty();
+        b.issue_links = vec!["y".to_string(), "z".to_string()];
+
+        let forward = merge_reports(vec![a.clone(), b.clone()]).unwrap();
+        let reverse = merge_reports(vec![b, a]).unwrap();
+        assert_eq!(forward, reverse);
     }
 
     #[test]
