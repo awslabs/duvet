@@ -107,17 +107,17 @@ pub fn merge_reports(reports: Vec<ReportV2>) -> crate::Result<ReportV2> {
     // every per-bucket merge operation is a BTreeMap union over content-
     // hashed IDs, the choice of seed doesn't affect the final result —
     // the merge is order-independent (see `property_commutativity_*`).
-    let mut iter = reports.into_iter();
-    let mut out = iter.next().expect("non-empty");
+    let mut iter = reports.into_iter().enumerate();
+    let (_, mut out) = iter.next().expect("non-empty");
     if out.version != "2.0" {
         return Err(duvet_core::error!(
-            "unsupported report version '{}', expected '2.0'",
+            "input #0: unsupported report version '{}', expected '2.0'",
             out.version
         ));
     }
 
-    for next in iter {
-        merge_one(&mut out, next)?;
+    for (idx, next) in iter {
+        merge_one(&mut out, next, idx)?;
     }
 
     // After all inputs have been folded in, normalize coverage range lists
@@ -127,10 +127,11 @@ pub fn merge_reports(reports: Vec<ReportV2>) -> crate::Result<ReportV2> {
     Ok(out)
 }
 
-fn merge_one(out: &mut ReportV2, incoming: ReportV2) -> crate::Result {
+fn merge_one(out: &mut ReportV2, incoming: ReportV2, idx: usize) -> crate::Result {
     if incoming.version != "2.0" {
         return Err(duvet_core::error!(
-            "unsupported report version '{}', expected '2.0'",
+            "input #{}: unsupported report version '{}', expected '2.0'",
+            idx,
             incoming.version
         ));
     }
@@ -138,9 +139,9 @@ fn merge_one(out: &mut ReportV2, incoming: ReportV2) -> crate::Result {
     // Each top-level bucket is independent: ordering between them doesn't
     // matter, and within a bucket the merge is keyed by deterministic ID.
     merge_issue_links(&mut out.issue_links, incoming.issue_links);
-    merge_repositories(&mut out.repositories, incoming.repositories)?;
-    merge_sources(&mut out.sources, incoming.sources)?;
-    merge_annotations(&mut out.annotations, incoming.annotations)?;
+    merge_repositories(&mut out.repositories, incoming.repositories, idx)?;
+    merge_sources(&mut out.sources, incoming.sources, idx)?;
+    merge_annotations(&mut out.annotations, incoming.annotations, idx)?;
 
     Ok(())
 }
@@ -158,6 +159,7 @@ fn merge_issue_links(out: &mut Vec<String>, incoming: Vec<String>) {
 fn merge_repositories(
     out: &mut BTreeMap<String, Repository>,
     incoming: BTreeMap<String, Repository>,
+    idx: usize,
 ) -> crate::Result {
     for (id, repo) in incoming {
         match out.get(&id) {
@@ -168,10 +170,11 @@ fn merge_repositories(
                 // no safe way to pick between the two.
                 if existing.blob_link != repo.blob_link {
                     return Err(duvet_core::error!(
-                        "internal invariant violation: repository '{}' has different blob_link across inputs ('{}' vs '{}'); likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
+                        "internal invariant violation: input #{} has repository '{}' with blob_link '{}' conflicting with previously seen '{}'; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
+                        idx,
                         id,
+                        repo.blob_link,
                         existing.blob_link,
-                        repo.blob_link
                     ));
                 }
             }
@@ -183,7 +186,7 @@ fn merge_repositories(
     Ok(())
 }
 
-fn merge_sources(out: &mut SourcesV2, incoming: SourcesV2) -> crate::Result {
+fn merge_sources(out: &mut SourcesV2, incoming: SourcesV2, idx: usize) -> crate::Result {
     // Inline sources: `src-` IDs hash the contents only, so contents
     // equality is implied by ID equality. `file_name` is *not* hashed —
     // two reports can legitimately disagree on the path they observed for
@@ -195,16 +198,18 @@ fn merge_sources(out: &mut SourcesV2, incoming: SourcesV2) -> crate::Result {
             Some(existing) => {
                 if existing.contents != src.contents {
                     return Err(duvet_core::error!(
-                        "internal invariant violation: inline source '{}' has different contents across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
-                        id
+                        "internal invariant violation: input #{} has inline source '{}' with contents conflicting with previously seen contents; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
+                        idx,
+                        id,
                     ));
                 }
                 if existing.file_name != src.file_name {
                     return Err(duvet_core::error!(
-                        "inline source '{}' has conflicting file_name across inputs: '{}' vs '{}'",
+                        "input #{} has inline source '{}' with file_name '{}' conflicting with previously seen '{}'",
+                        idx,
                         id,
+                        src.file_name,
                         existing.file_name,
-                        src.file_name
                     ));
                 }
             }
@@ -222,8 +227,9 @@ fn merge_sources(out: &mut SourcesV2, incoming: SourcesV2) -> crate::Result {
             Some(existing) => {
                 if existing != &src {
                     return Err(duvet_core::error!(
-                        "internal invariant violation: linked source '{}' differs across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
-                        id
+                        "internal invariant violation: input #{} has linked source '{}' that differs from previously seen entry under the same id; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
+                        idx,
+                        id,
                     ));
                 }
             }
@@ -235,28 +241,32 @@ fn merge_sources(out: &mut SourcesV2, incoming: SourcesV2) -> crate::Result {
 
     // Unknown URL-keyed source buckets are passed through verbatim under
     // strict equality — see `merge_extensions`.
-    merge_extensions("sources", &mut out.extensions, incoming.extensions)?;
+    merge_extensions("sources", &mut out.extensions, incoming.extensions, idx)?;
 
     Ok(())
 }
 
-fn merge_annotations(out: &mut AnnotationsV2, incoming: AnnotationsV2) -> crate::Result {
+fn merge_annotations(
+    out: &mut AnnotationsV2,
+    incoming: AnnotationsV2,
+    idx: usize,
+) -> crate::Result {
     // Each annotation kind has its own conflict policy; see the per-kind
     // helpers below for the precise rules.
     for (id, anno) in incoming.specification {
-        merge_specification(&mut out.specification, id, anno)?;
+        merge_specification(&mut out.specification, id, anno, idx)?;
     }
     for (id, anno) in incoming.section {
-        merge_section(&mut out.section, id, anno)?;
+        merge_section(&mut out.section, id, anno, idx)?;
     }
     for (id, anno) in incoming.requirement {
-        merge_requirement(&mut out.requirement, id, anno)?;
+        merge_requirement(&mut out.requirement, id, anno, idx)?;
     }
     for (id, anno) in incoming.cite {
-        merge_cite(&mut out.cite, id, anno)?;
+        merge_cite(&mut out.cite, id, anno, idx)?;
     }
 
-    merge_extensions("annotations", &mut out.extensions, incoming.extensions)?;
+    merge_extensions("annotations", &mut out.extensions, incoming.extensions, idx)?;
 
     Ok(())
 }
@@ -269,25 +279,26 @@ fn merge_specification(
     out: &mut BTreeMap<String, SpecificationAnnotation>,
     id: String,
     anno: SpecificationAnnotation,
+    idx: usize,
 ) -> crate::Result {
     match out.get(&id) {
         Some(existing) => {
             if existing.title != anno.title {
                 return Err(duvet_core::error!(
-                    "specification annotation '{}' has conflicting title across inputs: {:?} vs {:?}",
-                    id, existing.title, anno.title
+                    "input #{} has specification annotation '{}' with title {:?} conflicting with previously seen {:?}",
+                    idx, id, anno.title, existing.title
                 ));
             }
             if existing.format != anno.format {
                 return Err(duvet_core::error!(
-                    "specification annotation '{}' has conflicting format across inputs: '{}' vs '{}'",
-                    id, existing.format, anno.format
+                    "input #{} has specification annotation '{}' with format '{}' conflicting with previously seen '{}'",
+                    idx, id, anno.format, existing.format
                 ));
             }
             if existing.source != anno.source {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: specification '{}' has different source across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
-                    id
+                    "internal invariant violation: input #{} has specification '{}' with source differing from previously seen; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
+                    idx, id
                 ));
             }
         }
@@ -305,27 +316,29 @@ fn merge_section(
     out: &mut BTreeMap<String, SectionAnnotation>,
     id: String,
     anno: SectionAnnotation,
+    idx: usize,
 ) -> crate::Result {
     match out.get(&id) {
         Some(existing) => {
             if existing.short_name != anno.short_name {
                 return Err(duvet_core::error!(
-                    "section annotation '{}' has conflicting short_name across inputs: '{}' vs '{}'",
-                    id, existing.short_name, anno.short_name
+                    "input #{} has section annotation '{}' with short_name '{}' conflicting with previously seen '{}'",
+                    idx, id, anno.short_name, existing.short_name
                 ));
             }
             if existing.long_name != anno.long_name {
                 return Err(duvet_core::error!(
-                    "section annotation '{}' has conflicting long_name across inputs: {:?} vs {:?}",
+                    "input #{} has section annotation '{}' with long_name {:?} conflicting with previously seen {:?}",
+                    idx,
                     id,
+                    anno.long_name,
                     existing.long_name,
-                    anno.long_name
                 ));
             }
             if existing.source != anno.source {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: section '{}' has different source across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
-                    id
+                    "internal invariant violation: input #{} has section '{}' with source differing from previously seen; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
+                    idx, id
                 ));
             }
         }
@@ -346,27 +359,29 @@ fn merge_requirement(
     out: &mut BTreeMap<String, RequirementAnnotation>,
     id: String,
     anno: RequirementAnnotation,
+    idx: usize,
 ) -> crate::Result {
     match out.get_mut(&id) {
         Some(existing) => {
             if existing.level != anno.level {
                 return Err(duvet_core::error!(
-                    "requirement annotation '{}' has conflicting level across inputs: {:?} vs {:?}",
+                    "input #{} has requirement annotation '{}' with level {:?} conflicting with previously seen {:?}",
+                    idx,
                     id,
+                    anno.level,
                     existing.level,
-                    anno.level
                 ));
             }
             if existing.source != anno.source {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: requirement '{}' has different source across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
-                    id
+                    "internal invariant violation: input #{} has requirement '{}' with source differing from previously seen; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
+                    idx, id
                 ));
             }
             if existing.origin != anno.origin {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: requirement '{}' has different origin across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
-                    id
+                    "internal invariant violation: input #{} has requirement '{}' with origin differing from previously seen; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
+                    idx, id
                 ));
             }
 
@@ -398,39 +413,42 @@ fn merge_cite(
     out: &mut BTreeMap<String, CiteAnnotation>,
     id: String,
     anno: CiteAnnotation,
+    idx: usize,
 ) -> crate::Result {
     match out.get_mut(&id) {
         Some(existing) => {
             if existing.anno_type != anno.anno_type {
                 return Err(duvet_core::error!(
-                    "cite annotation '{}' has conflicting type across inputs: {:?} vs {:?}",
+                    "input #{} has cite annotation '{}' with type {:?} conflicting with previously seen {:?}",
+                    idx,
                     id,
+                    anno.anno_type,
                     existing.anno_type,
-                    anno.anno_type
                 ));
             }
             if existing.level != anno.level {
                 return Err(duvet_core::error!(
-                    "cite annotation '{}' has conflicting level across inputs: {:?} vs {:?}",
+                    "input #{} has cite annotation '{}' with level {:?} conflicting with previously seen {:?}",
+                    idx,
                     id,
+                    anno.level,
                     existing.level,
-                    anno.level
                 ));
             }
             if existing.target != anno.target {
                 return Err(duvet_core::error!(
-                    "cite annotation '{}' has conflicting target across inputs",
-                    id
+                    "input #{} has cite annotation '{}' with target conflicting with previously seen",
+                    idx, id
                 ));
             }
             if existing.source != anno.source {
                 return Err(duvet_core::error!(
-                    "internal invariant violation: cite '{}' has different source across inputs; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
-                    id
+                    "internal invariant violation: input #{} has cite '{}' with source differing from previously seen; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
+                    idx, id
                 ));
             }
 
-            merge_soft_drift(&id, existing, anno);
+            merge_soft_drift(&id, existing, anno, idx);
         }
         None => {
             out.insert(id, anno);
@@ -447,7 +465,7 @@ fn merge_cite(
 ///
 /// Any field that actually differed before reconciliation is reported on
 /// stderr so the drift remains observable.
-fn merge_soft_drift(id: &str, existing: &mut CiteAnnotation, incoming: CiteAnnotation) {
+fn merge_soft_drift(id: &str, existing: &mut CiteAnnotation, incoming: CiteAnnotation, idx: usize) {
     let mut drifted = Vec::new();
     if existing.comment != incoming.comment {
         drifted.push("comment");
@@ -475,7 +493,8 @@ fn merge_soft_drift(id: &str, existing: &mut CiteAnnotation, incoming: CiteAnnot
 
     if !drifted.is_empty() {
         eprintln!(
-            "warning: cite annotation '{}' has metadata drift across inputs ({}); reconciling deterministically (lex-min for strings, sorted union for tags)",
+            "warning: input #{} has cite annotation '{}' with metadata drift from previously seen ({}); reconciling deterministically (lex-min for strings, sorted union for tags)",
+            idx,
             id,
             drifted.join(", ")
         );
@@ -501,14 +520,16 @@ fn merge_extensions(
     bucket: &str,
     out: &mut BTreeMap<String, serde_json::Value>,
     incoming: BTreeMap<String, serde_json::Value>,
+    idx: usize,
 ) -> crate::Result {
     for (key, value) in incoming {
         match out.get(&key) {
             Some(existing) if existing != &value => {
                 return Err(duvet_core::error!(
-                    "conflicting extension '{}' under {} across inputs",
+                    "input #{} has extension '{}' under {} conflicting with previously seen value",
+                    idx,
                     key,
-                    bucket
+                    bucket,
                 ));
             }
             Some(_) => {}
@@ -713,6 +734,46 @@ mod tests {
             merged.issue_links,
             vec!["x".to_string(), "y".to_string(), "z".to_string()]
         );
+    }
+
+    #[test]
+    fn merge_error_names_offending_input_index_for_non_adjacent_conflict() {
+        // 3-way fold where #0 and #2 conflict on a spec title, with #1
+        // contributing nothing on `spc-1`. The error should name the
+        // incoming input (#2), not just print "A vs B" without a pointer.
+        let mut a = empty();
+        a.annotations.specification.insert(
+            "spc-1".to_string(),
+            SpecificationAnnotation {
+                source: SourceRef {
+                    src: "src-x".to_string(),
+                    start: 0,
+                    end: 1,
+                },
+                title: Some("A".to_string()),
+                format: "markdown".to_string(),
+            },
+        );
+        let b = empty();
+        let mut c = empty();
+        c.annotations.specification.insert(
+            "spc-1".to_string(),
+            SpecificationAnnotation {
+                source: SourceRef {
+                    src: "src-x".to_string(),
+                    start: 0,
+                    end: 1,
+                },
+                title: Some("C".to_string()),
+                format: "markdown".to_string(),
+            },
+        );
+
+        let err = merge_reports(vec![a, b, c]).unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("input #2"), "msg = {msg}");
+        assert!(msg.contains("spc-1"), "msg = {msg}");
+        assert!(msg.contains("title"), "msg = {msg}");
     }
 
     #[test]
