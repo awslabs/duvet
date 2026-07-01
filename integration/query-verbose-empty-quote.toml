@@ -1,0 +1,37 @@
+source = { local = true }
+cmd = ["duvet query --check implementation --verbose"]
+report_output = false
+
+# Regression test: a whitespace-only quote annotation is trivially "covered"
+# with no covering annotations, landing it in `fully_implemented`. The verbose
+# renderer used to `split_first().expect(...)` on the empty covering set and
+# panic. It must now render the target itself instead.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=spec
+//#
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST be a requirement
+"""

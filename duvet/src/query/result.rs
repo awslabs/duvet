@@ -273,16 +273,21 @@ impl fmt::Display for ImplementationResult {
             if !self.fully_implemented.is_empty() {
                 writeln!(f)?;
                 for coverage in &self.fully_implemented {
-                    let (first, rest) = coverage
-                        .covering_annotations
-                        .split_first()
-                        .expect("covering_annotations should not be empty");
-
                     // Covering annotations may be citations, exceptions, or implications —
                     // the label should reflect the actual type, but for now we use "Implemented".
                     let mut complete = info!("Fully Implemented");
-                    complete = with_annotation(complete, first, "Implemented");
-                    complete = with_related_annotations(complete, rest, "Implemented");
+                    match coverage.covering_annotations.split_first() {
+                        Some((first, rest)) => {
+                            complete = with_annotation(complete, first, "Implemented");
+                            complete = with_related_annotations(complete, rest, "Implemented");
+                        }
+                        // A target with a whitespace-only quote is trivially "covered"
+                        // with no covering annotations (see is_annotation_covered). Render
+                        // the target itself rather than panicking on an empty slice.
+                        None => {
+                            complete = with_annotation(complete, &coverage.target, "Implemented");
+                        }
+                    }
 
                     writeln!(f, "{complete:?}")?;
                 }
@@ -349,14 +354,18 @@ impl fmt::Display for TestResult {
             // Verbose mode: show detailed annotations
             if !self.fully_tested.is_empty() {
                 for coverage in &self.fully_tested {
-                    let (first, rest) = coverage
-                        .covering_annotations
-                        .split_first()
-                        .expect("covering_annotations should not be empty");
-
                     let mut complete = info!("Fully tested");
-                    complete = with_annotation(complete, first, "Test");
-                    complete = with_related_annotations(complete, rest, "Test");
+                    match coverage.covering_annotations.split_first() {
+                        Some((first, rest)) => {
+                            complete = with_annotation(complete, first, "Test");
+                            complete = with_related_annotations(complete, rest, "Test");
+                        }
+                        // Whitespace-only quote: trivially covered, no coverers. Render
+                        // the target rather than panicking on an empty slice.
+                        None => {
+                            complete = with_annotation(complete, &coverage.target, "Test");
+                        }
+                    }
 
                     writeln!(f, "{complete:?}")?;
                 }
@@ -514,15 +523,24 @@ impl fmt::Display for DuplicatesResult {
             for (category_name, duplicates) in &self.categories {
                 if !duplicates.some_overlap.is_empty() {
                     for coverage in &duplicates.some_overlap {
-                        let (first, rest) = coverage
-                            .covering_annotations
-                            .split_first()
-                            .expect("covering_annotations should not be empty");
-
                         let mut overlap_info =
                             info!("{} annotations with some overlap", category_name);
-                        overlap_info = with_annotation(overlap_info, first, "Some overlap");
-                        overlap_info = with_related_annotations(overlap_info, rest, "Some overlap");
+                        match coverage.covering_annotations.split_first() {
+                            Some((first, rest)) => {
+                                overlap_info = with_annotation(overlap_info, first, "Some overlap");
+                                overlap_info =
+                                    with_related_annotations(overlap_info, rest, "Some overlap");
+                            }
+                            // Whitespace-only quote: trivially covered, no coverers. Render
+                            // the target rather than panicking on an empty slice.
+                            None => {
+                                overlap_info = with_annotation(
+                                    overlap_info,
+                                    &coverage.target,
+                                    "Some overlap",
+                                );
+                            }
+                        }
                         writeln!(f, "{overlap_info:?}")?;
                     }
                 }
