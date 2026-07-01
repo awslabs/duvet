@@ -406,6 +406,7 @@ async fn execute_coverage_check(
     let ClassifiedCoverage {
         complete_coverage,
         incomplete_coverage,
+        no_coverage,
         ..
     } = classify_annotation_coverage(
         project_data,
@@ -417,6 +418,25 @@ async fn execute_coverage_check(
 
     let mut successful: Vec<CoveredTestAnnotation> = Vec::new();
     let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
+
+    // Tests whose covered spec text has no correlated implementation annotation
+    // anywhere. Per design §2.4 the coverage check must surface these — the test
+    // points at behavior nobody implements — rather than silently dropping them
+    // (which reported ✓ PASS with zero correlations and hid the gap until the
+    // `duvet report` CI gate). In executed-coverage mode a NotExecuted such test
+    // is skipped, consistent with that mode ignoring tests that did not run.
+    let mut missing_implementation: Vec<Arc<Annotation>> = Vec::new();
+    for test in &no_coverage {
+        if coverage_check_executed_tests_only
+            && matches!(
+                fold_execution_status(test, &execution_data_maps),
+                ExecutionStatus::NotExecuted
+            )
+        {
+            continue;
+        }
+        missing_implementation.push(test.clone());
+    }
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
         // Fold the test's own execution status across ALL reports first, with
@@ -513,7 +533,7 @@ async fn execute_coverage_check(
         .collect::<BTreeSet<_>>()
         .into();
 
-    let status = if failed.is_empty() {
+    let status = if failed.is_empty() && missing_implementation.is_empty() {
         QueryStatus::Pass
     } else {
         QueryStatus::Fail
@@ -526,6 +546,7 @@ async fn execute_coverage_check(
         executed_implementations,
         successful,
         failed,
+        missing_implementation,
         verbose,
     }))
 }

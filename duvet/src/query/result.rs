@@ -66,6 +66,10 @@ pub struct CoverageResult {
     pub executed_implementations: AnnotationSet,
     pub successful: Vec<CoveredTestAnnotation>,
     pub failed: Vec<CoveredTestAnnotation>,
+    /// Tests whose covered spec text has no correlated implementation
+    /// annotation anywhere (design §2.4). Reported as failures distinct from
+    /// "test ran, implementation did not".
+    pub missing_implementation: Vec<Arc<Annotation>>,
     pub verbose: bool,
 }
 
@@ -389,13 +393,31 @@ impl fmt::Display for CoverageResult {
         let executed_implementations = self.executed_implementations.len();
         let successful = self.successful.len();
         let failed = self.failed.len();
+        let missing_implementation = self.missing_implementation.len();
 
         writeln!(f, "  Coverage reports checked: {reports_count}")?;
         writeln!(f, "  Executed tests: {executed_tests}")?;
         writeln!(f, "  Executed implementations: {executed_implementations}")?;
         writeln!(f, "  Successful correlations: {successful}")?;
         writeln!(f, "  Failed correlations: {failed}")?;
+        writeln!(f, "  Tests with no implementation: {missing_implementation}")?;
         writeln!(f)?;
+
+        // Tests that cite a spec section nobody implements (design §2.4).
+        if missing_implementation > 0 {
+            for test in &self.missing_implementation {
+                let error = error!("Test has no correlated implementation")
+                    .with_source_slice(test.original_text.clone(), "Test annotation")
+                    .with_help(
+                        "This test cites a specification section that no \
+                         implementation/citation annotation references. Add an \
+                         implementation annotation for the same section, or fix \
+                         the test's target.",
+                    );
+                writeln!(f, "{error:?}")?;
+            }
+            writeln!(f)?;
+        }
 
         // Show failed correlations with detailed diagnostics
         if failed > 0 {

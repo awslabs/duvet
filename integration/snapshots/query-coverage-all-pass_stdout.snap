@@ -26,6 +26,7 @@ Coverage: ✓ PASS
   Executed implementations: 3
   Successful correlations: 2
   Failed correlations: 0
+  Tests with no implementation: 0
 
   ☞ Successful correlation
     ╭─[src/test/java/com/example/StackingTestTest.java:14:13]
