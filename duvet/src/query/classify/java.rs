@@ -21,6 +21,11 @@ impl LineClassifier for JavaClassifier {
         // Track which properties apply to each line (1-indexed, index 0 unused)
         let mut line_props: Vec<BTreeSet<LineProperty>> = vec![BTreeSet::new(); line_count + 1];
         let mut visited: Vec<bool> = vec![false; line_count + 1];
+        // Track lines on which a real code/structural node *starts*. Used by the
+        // mutual-exclusivity post-pass to tell a code line carrying a trailing
+        // comment (`doX(); // note`) apart from an annotation/comment line merely
+        // contaminated by a multi-line node that spans it.
+        let mut code_start: Vec<bool> = vec![false; line_count + 1];
 
         // Mark blank lines and annotation lines first
         for (i, line) in lines.iter().enumerate() {
@@ -47,23 +52,49 @@ impl LineClassifier for JavaClassifier {
         };
 
         // Walk the CST
-        walk_node(&tree.root_node(), &lines, &mut line_props, &mut visited);
+        walk_node(
+            &tree.root_node(),
+            &lines,
+            &mut line_props,
+            &mut visited,
+            &mut code_start,
+        );
 
         // Post-processing: enforce mutual exclusivity contract (spec §1.3).
-        // Annotation, Comment, and Whitespace lines must not carry
-        // Statement or Declaration properties. This prevents contamination
-        // from multi-line AST nodes (e.g., fluent builder chains) that
-        // span annotation/comment lines.
-        for props in line_props.iter_mut().take(line_count + 1).skip(1) {
-            if props.contains(&LineProperty::Annotation)
-                || props.contains(&LineProperty::Comment)
-                || props.contains(&LineProperty::Whitespace)
-            {
+        // A line must be classified as *either* code (Statement/Declaration/
+        // scope) *or* Annotation/Comment/Whitespace, never both. The ambiguous
+        // lines are those carrying both a code property and a comment-ish one;
+        // we resolve them by which is authoritative for that line:
+        //
+        //   * Annotation / Whitespace lines, and comment lines with no code
+        //     node *starting* on them, are genuine non-code lines that a
+        //     multi-line AST node (e.g. a fluent builder chain) merely spanned.
+        //     Strip the spurious code properties.
+        //
+        //   * A line where real code starts but that also carries a trailing
+        //     `//` comment (`doX(); // note`) is a code line. Strip the
+        //     incidental Comment instead, so the verified model still sees the
+        //     executable statement.
+        for line_num in 1..=line_count {
+            let props = &mut line_props[line_num];
+            let has_annotation = props.contains(&LineProperty::Annotation);
+            let has_whitespace = props.contains(&LineProperty::Whitespace);
+            let has_comment = props.contains(&LineProperty::Comment);
+
+            if has_annotation || has_whitespace || (has_comment && !code_start[line_num]) {
+                // Non-code line (possibly spanned by a multi-line node): strip
+                // the spurious code properties. Annotation/Whitespace/Comment
+                // are left intact — they are the authoritative classification.
                 props.remove(&LineProperty::Statement);
                 props.remove(&LineProperty::Declaration);
                 props.remove(&LineProperty::ScopeOpen);
                 props.remove(&LineProperty::ScopeClose);
                 props.remove(&LineProperty::NonLinearControl);
+            } else if has_comment {
+                // Trailing comment on a real code line (`doX(); // note`) —
+                // code wins; drop the incidental Comment so the verified model
+                // still sees the executable statement.
+                props.remove(&LineProperty::Comment);
             }
         }
 
@@ -86,10 +117,18 @@ fn walk_node(
     lines: &[&str],
     line_props: &mut [BTreeSet<LineProperty>],
     visited: &mut [bool],
+    code_start: &mut [bool],
 ) {
     let kind = node.kind();
     let start_line = node.start_position().row + 1; // tree-sitter is 0-indexed
     let end_line = node.end_position().row + 1;
+
+    // Record that a real code/structural construct begins on `start_line`.
+    // The mutual-exclusivity post-pass uses this to distinguish a code line
+    // with a trailing comment from a comment line spanned by a multi-line node.
+    if is_code_kind(kind) && start_line < code_start.len() {
+        code_start[start_line] = true;
+    }
 
     match kind {
         // Declarations that open scopes
@@ -297,8 +336,52 @@ fn walk_node(
     let mut cursor = node.walk();
     let children: Vec<_> = node.children(&mut cursor).collect();
     for child in children {
-        walk_node(&child, lines, line_props, visited);
+        walk_node(&child, lines, line_props, visited, code_start);
     }
+}
+
+/// Node kinds that represent real code or structure (as opposed to comments,
+/// whitespace, or non-marking syntax). A line on which one of these *starts*
+/// is treated as a code line even if it also carries a trailing comment.
+fn is_code_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "class_declaration"
+            | "interface_declaration"
+            | "enum_declaration"
+            | "method_declaration"
+            | "constructor_declaration"
+            | "expression_statement"
+            | "return_statement"
+            | "throw_statement"
+            | "assert_statement"
+            | "break_statement"
+            | "continue_statement"
+            | "yield_statement"
+            | "if_statement"
+            | "for_statement"
+            | "enhanced_for_statement"
+            | "while_statement"
+            | "do_statement"
+            | "switch_expression"
+            | "try_statement"
+            | "catch_clause"
+            | "finally_clause"
+            | "local_variable_declaration"
+            | "field_declaration"
+            | "block"
+            | "class_body"
+            | "interface_body"
+            | "enum_body"
+            | "switch_block"
+            | "constructor_body"
+            | "import_declaration"
+            | "package_declaration"
+            | "marker_annotation"
+            | "annotation"
+            | "enum_constant"
+            | "labeled_statement"
+    )
 }
 
 /// Marks a declaration node that may contain a block (scope).
@@ -661,5 +744,32 @@ mod tests {
         assert!(!has_prop(&result[3], LineProperty::Declaration));
         assert!(!has_prop(&result[4], LineProperty::Statement));
         assert!(!has_prop(&result[4], LineProperty::Declaration));
+    }
+
+    /// A statement carrying a trailing `//` comment is a code line: the
+    /// mutual-exclusivity post-pass must drop the incidental Comment, not the
+    /// Statement. Otherwise the verified model sees a non-executable line where
+    /// real, coverage-hit code lives and reports a false "not executed".
+    #[test]
+    fn trailing_comment_on_statement_keeps_statement() {
+        let source = "public class Foo {\n    void bar() {\n        doX(); // x\n    }\n}";
+        let result = classify(source);
+        // line 3: `doX(); // x` — Statement must survive; Comment is incidental.
+        assert!(
+            has_prop(&result[2], LineProperty::Statement),
+            "trailing comment stripped the Statement: {:?}",
+            result[2]
+        );
+        assert!(!has_prop(&result[2], LineProperty::Comment));
+    }
+
+    /// A comment on its own line remains a pure Comment line (regression guard
+    /// so the trailing-comment fix does not over-broaden and start treating
+    /// stand-alone comments as code).
+    #[test]
+    fn standalone_comment_stays_comment() {
+        let source = "public class Foo {\n    // just a note\n    void bar() {}\n}";
+        let result = classify(source);
+        assert!(is_exactly(&result[1], &[LineProperty::Comment]));
     }
 }
