@@ -115,24 +115,23 @@ async fn build_file_execution_data(
 
         let mut classifications = classifier.classify(&file_content);
 
+        // Build the scope tree from the *pristine* classifier output, before the
+        // annotation override below. A duvet annotation trailing a structural
+        // line (e.g. `//= spec.md#x` on a method's closing `}`) would otherwise
+        // overwrite that line's ScopeClose with {Annotation}, unbalancing the
+        // ScopeOpen/ScopeClose stream. build_scope_tree would then fall back to a
+        // single whole-file scope and every annotation in the file would resolve
+        // against it. The scope tree depends only on structure, not on which
+        // lines carry annotations, so building it first is correct.
+        let scopes = build_scope_tree(&classifications, line_count);
+
         // Override annotation lines using duvet's authoritative parsed annotation data.
         // The classifier's heuristic prefix detection (e.g., `//=` for Java) serves as
         // a first pass; this override ensures correctness across all comment styles.
-        for annotation in annotations.iter() {
-            if annotation.source == *duvet_path {
-                let (start_line, end_line) = annotation.line_range();
-                for line_num in start_line..=end_line {
-                    let idx = (line_num - 1) as usize;
-                    if idx < classifications.len() {
-                        classifications[idx] = Some(duvet_coverage::types::line_class(&[
-                            LineProperty::Annotation,
-                        ]));
-                    }
-                }
-            }
-        }
+        // Only target resolution and execution propagation read the overridden
+        // classifications; scope construction (above) intentionally does not.
+        apply_annotation_override(&mut classifications, annotations, duvet_path);
 
-        let scopes = build_scope_tree(&classifications, line_count);
         let coverage = file_coverage.to_coverage_report();
 
         Ok(FileExecutionData::Classified(ClassifiedFileData {
@@ -145,6 +144,36 @@ async fn build_file_execution_data(
         // Fallback path: basic forward-walk over LineMap
         let line_map = build_line_map_for_file(duvet_path, annotations, file_coverage).await?;
         Ok(FileExecutionData::Unclassified(line_map))
+    }
+}
+
+/// Stamp `{Annotation}` over every line covered by a duvet annotation in this
+/// file, using duvet's authoritative parsed annotation ranges.
+///
+/// This MUST run *after* `build_scope_tree`: an annotation trailing a structural
+/// line would otherwise clobber that line's `ScopeOpen`/`ScopeClose`, unbalance
+/// the scope stream, and collapse the tree to a single whole-file scope.
+fn apply_annotation_override(
+    classifications: &mut [Option<LineClass>],
+    annotations: &AnnotationSet,
+    duvet_path: &Path,
+) {
+    for annotation in annotations.iter() {
+        if annotation.source == *duvet_path {
+            stamp_annotation_range(classifications, annotation.line_range());
+        }
+    }
+}
+
+/// Stamp `{Annotation}` over an inclusive 1-based `(start, end)` line range.
+fn stamp_annotation_range(classifications: &mut [Option<LineClass>], range: (u64, u64)) {
+    let (start_line, end_line) = range;
+    for line_num in start_line..=end_line {
+        let idx = (line_num - 1) as usize;
+        if idx < classifications.len() {
+            classifications[idx] =
+                Some(duvet_coverage::types::line_class(&[LineProperty::Annotation]));
+        }
     }
 }
 
@@ -361,5 +390,77 @@ fn executed_status_for_unclassified(
                 return ExecutionStatus::NotExecuted;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::classify::java::JavaClassifier;
+    use crate::query::classify::LineClassifier;
+    use duvet_coverage::types::LineProperty;
+
+    fn count_scope_opens(classifications: &[Option<LineClass>]) -> usize {
+        classifications
+            .iter()
+            .flatten()
+            .filter(|c| c.contains(&LineProperty::ScopeOpen))
+            .count()
+    }
+
+    /// Regression: the scope tree must be built from the pristine classifier
+    /// output, before the annotation override. An annotation trailing a method's
+    /// closing brace would otherwise clobber the `ScopeClose`, unbalance the
+    /// stream, and collapse the file to a single whole-file scope.
+    #[test]
+    fn scope_tree_survives_annotation_on_closing_brace() {
+        // A two-method class. An annotation ends on `bar`'s closing brace
+        // (line 8): the annotation spans lines 6-8 and its last line is the `}`.
+        let source = "\
+public class Two {
+    public void foo() {
+        doFoo();
+    }
+    public void bar() {
+        //= spec.md#section-1
+        //= type=implementation
+    }
+}";
+        let classifications = JavaClassifier.classify(source);
+        let line_count = classifications.len() as u64;
+
+        // Two method bodies + the class body ⇒ three scope opens from the
+        // pristine classification.
+        let pristine_opens = count_scope_opens(&classifications);
+        assert!(
+            pristine_opens >= 3,
+            "expected the class body plus two method bodies, got {pristine_opens} scope opens"
+        );
+
+        // Correct order (what production now does): build the tree from the
+        // pristine classification, before the override.
+        let scopes = build_scope_tree(&classifications, line_count);
+        assert!(
+            scopes.len() >= 3,
+            "scope tree collapsed even before the override: {} scopes",
+            scopes.len()
+        );
+
+        // Simulate an annotation spanning lines 6-8, whose last line is the `}`.
+        // Stamping it collapses the ScopeClose on line 8.
+        let mut overridden = classifications.clone();
+        stamp_annotation_range(&mut overridden, (6, 8));
+
+        // Building the tree from the *overridden* classification (the old,
+        // buggy order) collapses it — this asserts the hazard the reorder
+        // avoids. Production builds `scopes` (above) from pristine data instead.
+        let scopes_after_wrong_order = build_scope_tree(&overridden, line_count);
+        assert!(
+            scopes_after_wrong_order.len() < scopes.len(),
+            "sanity: overriding the brace before build_scope_tree should collapse \
+             the tree (the bug the reorder avoids); got {} vs {}",
+            scopes_after_wrong_order.len(),
+            scopes.len()
+        );
     }
 }
