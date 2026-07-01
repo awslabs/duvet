@@ -10,6 +10,12 @@
 ### Bug Fixes
 
 * Honor `NO_COLOR` and disable ANSI escape codes in diagnostic output when stderr is not a terminal.
+* `duvet query --verbose` no longer panics on annotations with a whitespace-only quote.
+* Java classifier keeps `Statement` on code lines that carry a trailing `//` comment (e.g. `doX(); // note`), so the coverage check no longer reports such lines as not executed.
+* `duvet query --check coverage` builds the scope tree from the pristine classifier output before applying the annotation override, so an annotation trailing a closing brace no longer collapses the file to a single scope.
+* The `duplicates` check reports every duplicate relationship instead of hiding exact-duplicate pairs behind a partial-quote coverer.
+* The `coverage` check ORs execution status across multiple coverage reports before deciding a correlation, so a test passes when any report proves full coverage (design §5.2).
+* The `coverage` check reports tests whose cited specification has no correlated implementation annotation rather than silently passing (design §2.4).
 
 ## 0.4.0 (2025-01-22)
 
