@@ -419,49 +419,50 @@ async fn execute_coverage_check(
     let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
-        let mut test_executed = ExecutionStatus::NotExecuted;
-        for exec_data in &execution_data_maps {
-            let executed_status = executed_status_for(&test.target, exec_data);
-            if matches!(executed_status, ExecutionStatus::Executed) {
-                test_executed = executed_status;
+        // Fold the test's own execution status across ALL reports first, with
+        // OR semantics: a test that ran in any report is executed (design
+        // §5.2). Emitting a verdict per report instead pushed a test into both
+        // `successful` (a report where its impl ran) and `failed` (a report
+        // where the impl was missed), double-counting it and failing the check
+        // even when one report proves full coverage.
+        let test_executed = fold_execution_status(&test.target, &execution_data_maps);
 
-                let mut executed_implementations = Vec::new();
-                let mut not_executed_implementations = Vec::new();
+        if matches!(test_executed, ExecutionStatus::Executed) {
+            // Fold each covering implementation across reports the same way, so
+            // an implementation executed in any report counts as executed. This
+            // matches the summary reduction used for `executed_implementations`
+            // below.
+            let mut executed_implementations = Vec::new();
+            let mut not_executed_implementations = Vec::new();
 
-                for annotation in &test.covering_annotations {
-                    let status = executed_status_for(annotation, exec_data);
-                    if matches!(status, ExecutionStatus::Executed) {
-                        executed_implementations.push(annotation.clone());
-                    } else {
-                        not_executed_implementations.push(NotExecutedAnnotation {
-                            annotation: annotation.clone(),
-                            status,
-                        });
-                    }
-                }
-                let result = CoveredTestAnnotation {
-                    test: test.target.clone(),
-                    test_execution_status: ExecutionStatus::Executed,
-                    executed_implementations,
-                    not_executed_implementations,
-                };
-                if result.not_executed_implementations.is_empty() {
-                    successful.push(result);
+            for annotation in &test.covering_annotations {
+                let status = fold_execution_status(annotation, &execution_data_maps);
+                if matches!(status, ExecutionStatus::Executed) {
+                    executed_implementations.push(annotation.clone());
                 } else {
-                    failed.push(result);
+                    not_executed_implementations.push(NotExecutedAnnotation {
+                        annotation: annotation.clone(),
+                        status,
+                    });
                 }
-            } else if !matches!(
-                test_executed,
-                ExecutionStatus::Executed | ExecutionStatus::Unknown { .. }
-            ) {
-                // Prefer Unknown over NotExecuted — Unknown carries more diagnostic info.
-                test_executed = executed_status;
             }
-        }
-        if !matches!(test_executed, ExecutionStatus::Executed) {
-            // Unknown tests are NOT skipped in executed-coverage mode: they represent
-            // annotation placement errors that must be fixed regardless of which test
-            // you're working on. Only NotExecuted tests are skipped.
+
+            let result = CoveredTestAnnotation {
+                test: test.target.clone(),
+                test_execution_status: ExecutionStatus::Executed,
+                executed_implementations,
+                not_executed_implementations,
+            };
+            if result.not_executed_implementations.is_empty() {
+                successful.push(result);
+            } else {
+                failed.push(result);
+            }
+        } else {
+            // Unknown tests are NOT skipped in executed-coverage mode: they
+            // represent annotation placement errors that must be fixed
+            // regardless of which test you're working on. Only NotExecuted
+            // tests are skipped.
             if coverage_check_executed_tests_only
                 && matches!(test_executed, ExecutionStatus::NotExecuted)
             {
@@ -636,6 +637,35 @@ fn empty_duplicates() -> Duplicates {
         some_overlap: Vec::new(),
         unique: Vec::new(),
     }
+}
+
+/// Fold an annotation's execution status across every coverage report with OR
+/// semantics: if any report shows it `Executed`, the result is `Executed`
+/// (design §5.2 — executed if ANY report shows it executed). Among the
+/// remaining statuses, `Unknown` is preferred over `Structural`/`NotExecuted`
+/// because it carries diagnostic line information; `NotExecuted` is the base
+/// case when there are no reports.
+fn fold_execution_status(
+    annotation: &Arc<Annotation>,
+    execution_data_maps: &[ExecutionDataMap],
+) -> ExecutionStatus {
+    let mut folded = ExecutionStatus::NotExecuted;
+    for exec_data in execution_data_maps {
+        let status = executed_status_for(annotation, exec_data);
+        match status {
+            // Executed wins outright — no later report can override it.
+            ExecutionStatus::Executed => return ExecutionStatus::Executed,
+            // Prefer Unknown over any previously-seen non-executed status.
+            ExecutionStatus::Unknown { .. } => folded = status,
+            // Structural / NotExecuted: only take it if we have nothing better.
+            _ => {
+                if matches!(folded, ExecutionStatus::NotExecuted) {
+                    folded = status;
+                }
+            }
+        }
+    }
+    folded
 }
 
 fn deduplicate_annotation_coverage(
