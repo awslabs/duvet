@@ -646,13 +646,15 @@ fn deduplicate_annotation_coverage(
 
     for coverage in coverage_list {
         if !seen_annotations.contains(&coverage.target) {
-            // This target hasn't been seen yet, so keep this coverage
+            // This target hasn't been seen yet, so keep this coverage.
+            //
+            // Only the *target* is marked seen — not its covering annotations.
+            // A covering annotation can independently be the target of another
+            // duplicate relationship (e.g. two identical annotations both cover
+            // a third with a partial quote, but are also exact duplicates of
+            // each other). Marking coverers seen dropped that second
+            // relationship, hiding real duplicate pairs from the report.
             seen_annotations.insert(coverage.target.clone());
-
-            // Add all covering annotations to the seen set too
-            for annotation in &coverage.covering_annotations {
-                seen_annotations.insert(annotation.clone());
-            }
 
             result.push(coverage);
         }

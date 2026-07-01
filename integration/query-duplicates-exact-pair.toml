@@ -1,0 +1,48 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates --verbose"]
+report_output = false
+
+# Regression test for deduplicate_annotation_coverage over-suppression.
+#
+# Three type=test annotations on one section: T1 quotes a partial substring
+# ("aaa") while T2 and T3 are identical full-range duplicates ("aaa bbb ccc").
+# The old dedup marked *covering* annotations as seen, so once T1 (covered by
+# T2 and T3) was emitted, the genuine exact-duplicate pair T2 == T3 was hidden.
+# All three duplicate relationships must now be reported.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# aaa
+
+//= spec.md#section-1
+//= type=test
+//# aaa bbb ccc
+
+//= spec.md#section-1
+//= type=test
+//# aaa bbb ccc
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""
