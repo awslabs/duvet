@@ -16,24 +16,16 @@ use duvet_core::{
     file::Slice,
     path::Path,
 };
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::{BufWriter, Write},
-};
+use std::{collections::HashMap, io::Write};
 
 pub fn report(report: &ReportResult, file: &Path) -> Result {
-    if let Some(parent) = file.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let mut file = BufWriter::new(File::create(file)?);
-
-    report_writer(report, &mut file)
+    let mut out = vec![];
+    report_writer(report, &mut out)?;
+    duvet_core::vfs::write(file, out)
 }
 
 pub fn report_ci(report: &ReportResult, file: &Path) -> Result {
-    let actual = match std::fs::read_to_string(file) {
+    let actual = match duvet_core::vfs::read_sync(file) {
         Ok(actual) => actual,
         Err(_err) => {
             return Err(error!(
@@ -43,6 +35,7 @@ pub fn report_ci(report: &ReportResult, file: &Path) -> Result {
             .map_err(Into::into);
         }
     };
+    let actual = core::str::from_utf8(actual.data()).into_diagnostic()?;
 
     let mut expected = vec![];
     report_writer(report, &mut expected)?;
@@ -62,7 +55,15 @@ pub fn report_ci(report: &ReportResult, file: &Path) -> Result {
     );
     eprintln!();
 
-    duvet_core::diff::dump(std::io::stderr(), &actual, &expected)?;
+    #[cfg(feature = "diff")]
+    duvet_core::diff::dump(std::io::stderr(), actual, &expected)?;
+    #[cfg(not(feature = "diff"))]
+    {
+        // Without the terminal-diff renderer (wasm), emit the raw values so the
+        // caller can still see the mismatch.
+        let _ = &actual;
+        let _ = &expected;
+    }
 
     Err(error!(
         "Report snapshot does not match with CI mode enabled."

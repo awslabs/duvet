@@ -4,10 +4,7 @@
 use super::ReportResult;
 use crate::Result;
 use duvet_core::path::Path;
-use std::{
-    fs::File,
-    io::{BufWriter, Write},
-};
+use std::io::Write;
 
 #[rustfmt::skip] // it gets really confused with macros that generate macros
 macro_rules! writer {
@@ -22,13 +19,9 @@ macro_rules! writer {
 }
 
 pub fn report(report: &ReportResult, file: &Path) -> Result {
-    if let Some(parent) = file.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let mut file = BufWriter::new(File::create(file)?);
-
-    report_writer(report, &mut file)
+    let mut out = vec![];
+    report_writer(report, &mut out)?;
+    duvet_core::vfs::write(file, out)
 }
 
 pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) -> Result {

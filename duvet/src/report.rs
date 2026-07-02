@@ -13,7 +13,7 @@ use clap::Parser;
 use duvet_core::{path::Path, progress};
 use std::{collections::BTreeMap, sync::Arc};
 
-mod ci;
+pub(crate) mod ci;
 mod html;
 mod json;
 pub(crate) mod json_v2;
@@ -58,90 +58,117 @@ pub struct Report {
     issue_link: Option<String>,
 }
 
+/// Runs the full coverage-analysis pipeline: extract requirements, scan
+/// sources, parse annotations, load specifications, and match references,
+/// returning the sorted [`ReportResult`].
+///
+/// This is the shared core behind `duvet report` and the library API (see
+/// [`crate::api`]). It reads and writes exclusively through the
+/// [`duvet_core::vfs`] seam, so it runs unchanged against the real filesystem
+/// or an in-memory one.
+pub async fn analyze(
+    project: &Project,
+    require_citations: bool,
+    require_tests: bool,
+    blob_link: Option<String>,
+    issue_link: Option<String>,
+) -> Result<ReportResult> {
+    let config = project.config().await?;
+    let config = config.as_ref();
+
+    if let Some(config) = config {
+        let progress = progress!("Extracting requirements");
+        let count = config.load_specifications().await?;
+        if count > 0 {
+            progress!(
+                progress,
+                "Extracted requirements from {count} specifications"
+            );
+        } else {
+            progress!(
+                progress,
+                "Extracted no requirements - config does not include any specifications"
+            )
+        }
+    }
+
+    let progress = progress!("Scanning sources");
+    let project_sources = project.sources().await?;
+    let project_sources = Arc::new(project_sources);
+    progress!(progress, "Scanned {} sources", project_sources.len());
+
+    let progress = progress!("Parsing annotations");
+    let annotations = crate::annotation::query(project_sources.clone()).await?;
+    progress!(progress, "Parsed {} annotations", annotations.len());
+
+    let progress = progress!("Loading specifications");
+    let download_path = project.download_path().await?;
+    let specifications =
+        annotation::specifications(annotations.clone(), download_path.clone()).await?;
+    progress!(progress, "Loaded {} specifications", specifications.len());
+
+    let progress = progress!("Mapping sections");
+    let reference_map = annotation::reference_map(annotations.clone()).await?;
+    progress!(progress, "Mapped {} sections", reference_map.len());
+
+    let progress = progress!("Matching references");
+    let blob_link = blob_link
+        .or_else(|| config.and_then(|config| config.report.html.blob_link.as_deref().map(String::from)));
+    let issue_link = issue_link
+        .or_else(|| config.and_then(|config| config.report.html.issue_link.as_deref().map(String::from)));
+    let mut targets: BTreeMap<Arc<Target>, TargetReport> = Default::default();
+    let references = reference::query(reference_map.clone(), specifications.clone()).await?;
+    progress!(progress, "Matched {} references", references.len());
+
+    let progress = progress!("Sorting references");
+    for reference in references.iter() {
+        targets
+            .entry(reference.target.clone())
+            .or_insert_with(|| {
+                let specification = specifications.get(&reference.target).unwrap().clone();
+                TargetReport {
+                    references: vec![],
+                    specification,
+                    require_citations,
+                    require_tests,
+                    statuses: Default::default(),
+                }
+            })
+            .references
+            .push(reference.clone());
+    }
+
+    targets.iter_mut().for_each(|(_, target)| {
+        target.references.sort();
+        target.statuses.populate(&target.references)
+    });
+
+    progress!(progress, "Sorted {} references", references.len());
+
+    Ok(ReportResult {
+        targets,
+        annotations,
+        blob_link,
+        issue_link,
+        download_path,
+    })
+}
+
 impl Report {
     pub async fn exec(&self) -> Result {
         let config = self.project.config().await?;
         let config = config.as_ref();
 
-        if let Some(config) = config {
-            let progress = progress!("Extracting requirements");
-            let count = config.load_specifications().await?;
-            if count > 0 {
-                progress!(
-                    progress,
-                    "Extracted requirements from {count} specifications"
-                );
-            } else {
-                progress!(
-                    progress,
-                    "Extracted no requirements - config does not include any specifications"
-                )
-            }
-        }
+        let analysis = analyze(
+            &self.project,
+            self.require_citations(),
+            self.require_tests(),
+            self.blob_link.clone(),
+            self.issue_link.clone(),
+        )
+        .await?;
 
-        let progress = progress!("Scanning sources");
-        let project_sources = self.project.sources().await?;
-        let project_sources = Arc::new(project_sources);
-        progress!(progress, "Scanned {} sources", project_sources.len());
-
-        let progress = progress!("Parsing annotations");
-        let annotations = crate::annotation::query(project_sources.clone()).await?;
-        progress!(progress, "Parsed {} annotations", annotations.len());
-
-        let progress = progress!("Loading specifications");
-        let download_path = self.project.download_path().await?;
-        let specifications =
-            annotation::specifications(annotations.clone(), download_path.clone()).await?;
-        progress!(progress, "Loaded {} specifications", specifications.len());
-
-        let progress = progress!("Mapping sections");
-        let reference_map = annotation::reference_map(annotations.clone()).await?;
-        progress!(progress, "Mapped {} sections", reference_map.len());
-
-        let progress = progress!("Matching references");
-        let blob_link = self
-            .blob_link
-            .as_deref()
-            .or_else(|| config.and_then(|config| config.report.html.blob_link.as_deref()));
-        let issue_link = self
-            .issue_link
-            .as_deref()
-            .or_else(|| config.and_then(|config| config.report.html.issue_link.as_deref()));
-        let mut report = ReportResult {
-            targets: Default::default(),
-            annotations,
-            blob_link,
-            issue_link,
-            download_path: &download_path,
-        };
-        let references = reference::query(reference_map.clone(), specifications.clone()).await?;
-        progress!(progress, "Matched {} references", references.len());
-
-        let progress = progress!("Sorting references");
-        for reference in references.iter() {
-            report
-                .targets
-                .entry(reference.target.clone())
-                .or_insert_with(|| {
-                    let specification = specifications.get(&reference.target).unwrap().clone();
-                    TargetReport {
-                        references: vec![],
-                        specification,
-                        require_citations: self.require_citations(),
-                        require_tests: self.require_tests(),
-                        statuses: Default::default(),
-                    }
-                })
-                .references
-                .push(reference.clone());
-        }
-
-        report.targets.iter_mut().for_each(|(_, target)| {
-            target.references.sort();
-            target.statuses.populate(&target.references)
-        });
-
-        progress!(progress, "Sorted {} references", references.len());
+        let report = analysis;
 
         type ReportFn = fn(&ReportResult, &Path) -> crate::Result<()>;
 
@@ -237,12 +264,12 @@ impl Report {
 }
 
 #[derive(Debug)]
-pub struct ReportResult<'a> {
+pub struct ReportResult {
     pub targets: BTreeMap<Arc<Target>, TargetReport>,
     pub annotations: AnnotationSet,
-    pub blob_link: Option<&'a str>,
-    pub issue_link: Option<&'a str>,
-    pub download_path: &'a Path,
+    pub blob_link: Option<String>,
+    pub issue_link: Option<String>,
+    pub download_path: Path,
 }
 
 #[derive(Debug)]

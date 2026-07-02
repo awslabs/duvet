@@ -4,7 +4,7 @@
 use crate::Result;
 use clap::Parser;
 use duvet_core::{progress, vfs as fs};
-use std::{fs::File, io::Write, path::Path};
+use std::{io::Write, path::Path};
 
 static GITIGNORE: &str = r#"
 reports/
@@ -30,27 +30,26 @@ impl Init {
 
         let dir = Path::new(".duvet");
 
-        std::fs::create_dir_all(dir)?;
+        fs::create_dir_all(dir)?;
 
         macro_rules! put {
             ($path:expr, $writer:expr) => {{
                 let path = dir.join($path);
                 let progress = progress!("Writing {}", path.display());
-                if path.exists() {
+                if fs::exists(&path) {
                     progress!(progress, "Skipping {} - already exists", path.display());
                 } else {
-                    let mut out = File::create_new(&path)?;
+                    let mut out = Vec::<u8>::new();
                     let result: Result = ($writer)(&mut out);
                     result?;
-                    out.flush()?;
-                    drop(out);
+                    fs::write(&path, out)?;
 
                     progress!(progress, "Wrote {}", path.display());
                 }
             }};
         }
 
-        put!("config.toml", |out: &mut File| {
+        put!("config.toml", |out: &mut Vec<u8>| {
             writeln!(out, "'$schema' = {:?}", crate::config::schema::DEFAULT)?;
             writeln!(out)?;
 
@@ -86,7 +85,7 @@ impl Init {
             Ok(())
         });
 
-        put!(".gitignore", |out: &mut File| {
+        put!(".gitignore", |out: &mut Vec<u8>| {
             write!(out, "{}", GITIGNORE.trim_start())?;
             Ok(())
         });

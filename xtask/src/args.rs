@@ -13,6 +13,7 @@ pub enum Args {
     Checks(crate::checks::Checks),
     Publish(crate::publish::Publish),
     Test(crate::tests::Tests),
+    Wasm(crate::wasm::Wasm),
 }
 
 impl Args {
@@ -24,6 +25,7 @@ impl Args {
             Args::Checks(args) => args.run(sh),
             Args::Publish(args) => args.run(sh),
             Args::Test(args) => args.run(sh),
+            Args::Wasm(args) => args.run(sh),
         }
     }
 }

@@ -5,6 +5,7 @@ use clap::Parser;
 use std::sync::Arc;
 
 mod annotation;
+pub mod api;
 mod comment;
 mod config;
 mod extract;

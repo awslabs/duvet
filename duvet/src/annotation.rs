@@ -164,15 +164,18 @@ impl Annotation {
     }
 
     pub fn resolve_file(&self, file: &std::path::Path) -> Result<PathBuf> {
-        // If we have the right path, just return it
-        if file.is_file() {
+        // If we have the right path, just return it. Route existence checks
+        // through the vfs seam so this works against both the real filesystem
+        // and an in-memory one (e.g. the wasm component).
+        if duvet_core::vfs::is_file(file) {
             return Ok(file.to_path_buf());
         }
 
         let mut manifest_dir = self.manifest_dir.clone();
         loop {
-            if manifest_dir.join(file).is_file() {
-                return Ok(manifest_dir.join(file).into());
+            let candidate = manifest_dir.join(file);
+            if duvet_core::vfs::is_file(&candidate) {
+                return Ok(candidate.into());
             }
 
             if !manifest_dir.pop() {

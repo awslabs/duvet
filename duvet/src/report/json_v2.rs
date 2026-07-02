@@ -324,6 +324,7 @@ impl ReportV2 {
 
         let issue_links = report
             .issue_link
+            .as_deref()
             .map(|s| vec![s.to_string()])
             .unwrap_or_default();
 
@@ -377,7 +378,12 @@ fn resolve_repo_id(
 ) -> String {
     annotation_blob_link
         .and_then(|bl| blob_link_to_repo_id.get(bl))
-        .or_else(|| report.blob_link.and_then(|bl| blob_link_to_repo_id.get(bl)))
+        .or_else(|| {
+            report
+                .blob_link
+                .as_deref()
+                .and_then(|bl| blob_link_to_repo_id.get(bl))
+        })
         .cloned()
         .unwrap_or_default()
 }
@@ -405,7 +411,7 @@ fn build_repositories(
             insert(bl.to_string());
         }
     }
-    if let Some(bl) = report.blob_link {
+    if let Some(bl) = report.blob_link.as_deref() {
         insert(bl.to_string());
     }
 
@@ -844,16 +850,9 @@ pub fn report(
 // ── JSON I/O ─────────────────────────────────────────────────────────────────
 
 pub fn write_report_v2(report: &ReportV2, path: &std::path::Path) -> crate::Result {
-    use std::{fs::File, io::BufWriter};
-
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let file = File::create(path)
-        .map_err(|e| duvet_core::error!("failed to create file '{}': {}", path.display(), e))?;
-    let writer = BufWriter::new(file);
-    write_report_v2_to_writer(report, writer)
+    let mut out = vec![];
+    write_report_v2_to_writer(report, &mut out)?;
+    duvet_core::vfs::write(duvet_core::path::Path::from(path), out)
 }
 
 pub fn write_report_v2_to_writer<W: std::io::Write>(report: &ReportV2, writer: W) -> crate::Result {
@@ -863,12 +862,9 @@ pub fn write_report_v2_to_writer<W: std::io::Write>(report: &ReportV2, writer: W
 }
 
 pub fn read_report_v2(path: &std::path::Path) -> crate::Result<ReportV2> {
-    use std::{fs::File, io::BufReader};
-
-    let file = File::open(path)
+    let contents = duvet_core::vfs::read_sync(duvet_core::path::Path::from(path))
         .map_err(|e| duvet_core::error!("failed to open file '{}': {}", path.display(), e))?;
-    let reader = BufReader::new(file);
-    read_report_v2_from_reader(reader)
+    read_report_v2_from_reader(contents.data())
         .map_err(|e| duvet_core::error!("failed to read report from '{}': {}", path.display(), e))
 }
 

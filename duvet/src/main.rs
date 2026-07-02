@@ -1,9 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(not(target_family = "wasm"))]
 #[global_allocator]
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
+// The native command-line binary. The wasm build ships as the `duvet-wasm`
+// component crate instead, so the `duvet` binary is only built for native
+// targets.
+#[cfg(not(target_family = "wasm"))]
 fn main() {
     let format = tracing_subscriber::fmt::format().compact(); // Use a less verbose output format.
 
@@ -43,4 +48,11 @@ fn main() {
             std::process::exit(1);
         }
     });
+}
+
+// The native filesystem/multi-thread runtime is unavailable on wasm; the
+// checks run through the `duvet-wasm` component instead of this binary.
+#[cfg(target_family = "wasm")]
+fn main() {
+    panic!("the `duvet` binary is not supported on wasm; use the `duvet-wasm` component");
 }

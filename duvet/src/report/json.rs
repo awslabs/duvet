@@ -10,8 +10,7 @@ use crate::{
 use duvet_core::{file::Slice, path::Path};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
-    fs::File,
-    io::{BufWriter, Cursor, Write},
+    io::{Cursor, Write},
 };
 
 macro_rules! writer {
@@ -80,13 +79,9 @@ macro_rules! item {
 }
 
 pub fn report(report: &ReportResult, file: &Path) -> Result {
-    if let Some(parent) = file.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-
-    let mut file = BufWriter::new(File::create(file)?);
-
-    report_writer(report, &mut file)
+    let mut out = vec![];
+    report_writer(report, &mut out)?;
+    duvet_core::vfs::write(file, out)
 }
 
 pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) -> Result {
@@ -102,10 +97,10 @@ pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) 
     writer!(output);
 
     obj!(|obj| {
-        if let Some(link) = report.blob_link {
+        if let Some(link) = report.blob_link.as_deref() {
             kv!(obj, s!("blob_link"), s!(link));
         }
-        if let Some(link) = report.issue_link {
+        if let Some(link) = report.issue_link.as_deref() {
             kv!(obj, s!("issue_link"), s!(link));
         }
 

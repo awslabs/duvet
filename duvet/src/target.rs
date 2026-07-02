@@ -7,7 +7,9 @@ use crate::{
     Error, Result,
 };
 use core::{fmt, str::FromStr};
-use duvet_core::{diagnostic::IntoDiagnostic, file::SourceFile, path::Path, progress, query};
+use duvet_core::{diagnostic::IntoDiagnostic, file::SourceFile, path::Path, query};
+#[cfg(feature = "http")]
+use duvet_core::progress;
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -126,11 +128,12 @@ impl TargetPath {
 
     pub async fn load(&self, spec_download_path: &Path) -> Result<SourceFile> {
         match self {
+            #[cfg(feature = "http")]
             Self::Url(url) => {
                 let canonical_url = Self::canonical_url(url.as_str()).to_string();
                 let path = self.local(spec_download_path);
 
-                let progress = if !path.exists() {
+                let progress = if !duvet_core::vfs::exists(&path) {
                     Some(progress!("Downloading {url}"))
                 } else {
                     None
@@ -143,6 +146,20 @@ impl TargetPath {
                 }
 
                 Ok(out)
+            }
+            // Without the `http` feature (e.g. the hermetic wasm build), remote
+            // specs can't be fetched — they must be pre-provisioned into the
+            // download path (as a local file) by the host.
+            #[cfg(not(feature = "http"))]
+            Self::Url(url) => {
+                let path = self.local(spec_download_path);
+                if duvet_core::vfs::exists(&path) {
+                    duvet_core::vfs::read_string(&path).await
+                } else {
+                    Err(duvet_core::error!(
+                        "network is disabled: the specification {url} must be pre-downloaded to {path}"
+                    ))
+                }
             }
             Self::Path(path) => duvet_core::vfs::read_string(path).await,
         }
