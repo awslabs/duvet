@@ -23,19 +23,27 @@ futures = { version = "0.3", default-features = false }
 rustc-hash = "2.1"
 globset = "0.4"
 http = { version = "1", optional = true }
-miette = { version = "7", features = ["fancy"] }
+miette = { version = "7" }
 once_cell = "1"
 reqwest = { version = "0.12", optional = true, features = ["native-tls"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 similar = { version = "3.1", features = ["inline"], optional = true }
-tokio = { version = "1", features = ["fs", "sync"] }
+tokio = { version = "1", features = ["rt", "sync"] }
 tokio-util = "0.7"
 toml_edit = { version = "0.25", features = ["parse", "serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = [
     "env-filter",
 ], optional = true }
+
+# Native-only dependencies. These pull in capabilities (OS threads, terminal
+# detection, backtraces) that are unavailable or undesirable in a wasm
+# component. Cargo merges features additively, so the base `tokio`/`miette`
+# above gain `fs`/`fancy` on native targets only.
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+tokio = { version = "1", features = ["fs"] }
+miette = { version = "7", features = ["fancy"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }

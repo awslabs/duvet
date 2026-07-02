@@ -1,0 +1,76 @@
+package awslabs:duvet@0.1.0;
+
+/// A hermetic, in-memory duvet coverage-checks component.
+///
+/// The host has full control over what the component can see: it stages the
+/// entire project in through `run`'s input and receives an inspectable report
+/// back. The component needs no filesystem or network capability of its own.
+world duvet {
+    /// A single file, identified by a path relative to the project `root`.
+    record file {
+        path: string,
+        contents: list<u8>,
+    }
+
+    /// Everything the host provides for a run.
+    ///
+    /// The component has no ambient filesystem: the host stages the entire
+    /// project (the `.duvet/config.toml`, source files, and any pre-downloaded
+    /// specification files) in through `files`.
+    record run-input {
+        /// The project files, keyed by path relative to `root`.
+        files: list<file>,
+        /// The virtual project root / working directory (e.g. "/project").
+        root: string,
+        /// Whether every significant requirement must have a citation.
+        require-citations: bool,
+        /// Whether every citation must have a test.
+        require-tests: bool,
+    }
+
+    /// The kind of coverage requirement a `violation` failed.
+    enum violation-kind {
+        /// A significant spec line has no citation.
+        missing-citation,
+        /// A citation points at a line that isn't a significant requirement.
+        citation-without-spec,
+        /// A cited line has no corresponding test.
+        missing-test,
+        /// A tested line has no corresponding citation.
+        test-without-citation,
+    }
+
+    /// A single coverage violation, located at a spec line within a target.
+    record violation {
+        /// The specification target (e.g. the spec path or URL).
+        target: string,
+        /// The 1-based line in the specification where coverage is missing.
+        line: u32,
+        /// What kind of coverage was missing.
+        kind: violation-kind,
+        /// A human-readable description of the violation.
+        message: string,
+    }
+
+    /// The inspectable result of a run.
+    record check-report {
+        /// The derived pass/fail verdict (what `duvet report --ci` enforces).
+        /// Equivalent to `violations` being empty.
+        ok: bool,
+        /// The full v2 JSON report — the record of every requirement,
+        /// citation, test, and status that produced `ok`.
+        report-json: string,
+        /// Every coverage violation found across all targets — not just the
+        /// first. Empty when `ok` is true.
+        violations: list<violation>,
+        /// Any files the run produced (reports, extracted requirements, cached
+        /// specs), keyed by path relative to `root`.
+        outputs: list<file>,
+    }
+
+    /// Runs the duvet coverage checks over the staged project and returns an
+    /// inspectable report. The `string` error is a fatal analysis error (bad
+    /// config, unreadable spec, etc.) — a *failing* check is reported via
+    /// `check-report.ok`, not this error.
+    export run: func(input: run-input) -> result<check-report, string>;
+}

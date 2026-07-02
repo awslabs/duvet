@@ -2,13 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use core::{cmp::Ordering, fmt};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::{ffi::OsStr, ops::Deref, path::PathBuf, sync::Arc};
 
-#[derive(Clone, Deserialize)]
-#[serde(transparent)]
+#[derive(Clone)]
 pub struct Path {
     path: Arc<OsStr>,
+}
+
+impl<'de> Deserialize<'de> for Path {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Deserialize through `String` rather than `OsStr`: serde only
+        // implements `OsStr: Deserialize` on unix/windows, and duvet's config
+        // paths are always UTF-8 strings anyway. This keeps `Path`
+        // deserializable on wasm targets.
+        let path = String::deserialize(deserializer)?;
+        Ok(Path::from(path))
+    }
 }
 
 impl Path {

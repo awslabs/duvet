@@ -45,7 +45,7 @@ impl Vfs for Fs {
                     Err(e) => return Query::from(Err(e.clone())),
                 };
 
-                let modified_time = metadata.modified_time.as_ref().ok().copied();
+                let modified_time = metadata.modified_time().as_ref().ok().copied();
 
                 cache.get_or_init((path.clone(), modified_time), || {
                     Query::new(async move {
@@ -80,7 +80,7 @@ impl Vfs for Fs {
                     Err(e) => return Query::from(Err(e.clone())),
                 };
 
-                let modified_time = metadata.modified_time.as_ref().ok().copied();
+                let modified_time = metadata.modified_time().as_ref().ok().copied();
 
                 cache.get_or_init((path.clone(), modified_time), || {
                     Query::spawn(async move {
@@ -136,6 +136,42 @@ impl Vfs for Fs {
         })
     }
 
+    fn read_sync(&self, path: Path) -> Result<Contents> {
+        let data = std::fs::read(&path)
+            .into_diagnostic()
+            .wrap_err_with(|| path.clone())?;
+        Ok(Contents::from(data))
+    }
+
+    fn write_file(&self, path: Path, contents: Contents) -> Result {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .into_diagnostic()
+                .wrap_err_with(|| path.clone())?;
+        }
+
+        std::fs::write(&path, contents.data())
+            .into_diagnostic()
+            .wrap_err_with(|| path.clone())?;
+
+        Ok(())
+    }
+
+    fn create_dir_all(&self, path: Path) -> Result {
+        std::fs::create_dir_all(&path)
+            .into_diagnostic()
+            .wrap_err_with(|| path.clone())?;
+        Ok(())
+    }
+
+    fn exists(&self, path: Path) -> bool {
+        path.exists()
+    }
+
+    fn is_file(&self, path: Path) -> bool {
+        path.is_file()
+    }
+
     fn read_metadata(&self, path: Path, or_create: Option<OrCreate>) -> Query<Result<Metadata>> {
         Cache::current().get_or_init_tmp(path.clone(), || {
             Query::new(async move {
@@ -168,10 +204,12 @@ impl Vfs for Fs {
 
                 let meta = meta.into_diagnostic().wrap_err_with(|| path.clone())?;
 
-                Ok(Metadata {
-                    modified_time: meta.modified().into_diagnostic(),
-                    file_type: meta.file_type(),
-                })
+                let file_type = meta.file_type();
+                Ok(Metadata::new(
+                    file_type.is_dir(),
+                    file_type.is_file(),
+                    meta.modified().into_diagnostic(),
+                ))
             })
         })
     }

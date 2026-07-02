@@ -3,11 +3,16 @@
 
 use crate::{comment, config, source::SourceFile, Result};
 use clap::Parser;
-use duvet_core::{diagnostic::IntoDiagnostic, path::Path};
-use glob::glob;
+use duvet_core::{diagnostic::IntoDiagnostic, glob::Glob, path::Path};
+use futures::StreamExt;
 use std::{collections::HashSet, sync::Arc};
 
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
+/// A [`Glob`] that never matches, used when a walk needs no ignore filter.
+fn empty_glob() -> Glob {
+    Glob::try_from_iter(core::iter::empty::<&str>()).expect("empty glob set is always valid")
+}
+
+#[derive(Debug, Default, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
 pub struct Project {
     #[clap(flatten)]
     deprecated: Deprecated,
@@ -47,33 +52,33 @@ impl Project {
     pub async fn sources(&self) -> Result<HashSet<SourceFile>> {
         let mut sources = HashSet::new();
 
+        let cwd = duvet_core::env::current_dir()?;
+
         for pattern in &self.deprecated.source_patterns {
-            self.source_file(pattern, &mut sources)?;
+            self.source_file(pattern, &cwd, &mut sources).await?;
         }
 
         for pattern in &self.deprecated.spec_patterns {
-            self.toml_file(pattern, &mut sources)?;
+            self.toml_file(pattern, &cwd, &mut sources).await?;
         }
 
         if let Some(config) = self.config().await? {
             for source in &config.sources {
-                // TODO switch from `glob` to `duvet_core::glob`
-                let _ = &source.root;
-                for entry in glob(&source.pattern).into_diagnostic()? {
+                let paths = glob_files(&source.root, &source.pattern).await?;
+                for path in paths {
                     sources.insert(SourceFile::Text {
                         pattern: source.comment_style.clone(),
                         default_type: source.default_type,
-                        path: entry.into_diagnostic()?.into(),
+                        path,
                         blob_link: source.blob_link.clone(),
                     });
                 }
             }
 
             for requirement in &config.requirements {
-                // TODO switch from `glob` to `duvet_core::glob`
-                let _ = &requirement.root;
-                for entry in glob(&requirement.pattern).into_diagnostic()? {
-                    sources.insert(SourceFile::Toml(entry.into_diagnostic()?.into()));
+                let paths = glob_files(&requirement.root, &requirement.pattern).await?;
+                for path in paths {
+                    sources.insert(SourceFile::Toml(path));
                 }
             }
         }
@@ -81,7 +86,12 @@ impl Project {
         Ok(sources)
     }
 
-    fn source_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result {
+    async fn source_file(
+        &self,
+        pattern: &str,
+        root: &Path,
+        files: &mut HashSet<SourceFile>,
+    ) -> Result {
         let (compliance_pattern, file_pattern) = if let Some(pattern) = pattern.strip_prefix('(') {
             let mut parts = pattern.splitn(2, ')');
             let pattern = parts.next().expect("invalid pattern");
@@ -94,11 +104,11 @@ impl Project {
             (comment::Pattern::default(), pattern)
         };
 
-        for entry in glob(file_pattern).into_diagnostic()? {
+        for path in glob_files(root, file_pattern).await? {
             files.insert(SourceFile::Text {
                 pattern: compliance_pattern.clone(),
                 default_type: Default::default(),
-                path: entry.into_diagnostic()?.into(),
+                path,
                 blob_link: None,
             });
         }
@@ -106,18 +116,54 @@ impl Project {
         Ok(())
     }
 
-    fn toml_file(&self, pattern: &str, files: &mut HashSet<SourceFile>) -> Result {
-        for entry in glob(pattern).into_diagnostic()? {
-            files.insert(SourceFile::Toml(entry.into_diagnostic()?.into()));
+    async fn toml_file(&self, pattern: &str, root: &Path, files: &mut HashSet<SourceFile>) -> Result {
+        for path in glob_files(root, pattern).await? {
+            files.insert(SourceFile::Toml(path));
         }
 
         Ok(())
     }
 }
 
+/// Walks `root` through the [`duvet_core::vfs`] seam, returning every file whose
+/// path matches `pattern`.
+///
+/// `pattern` is resolved relative to `root` and matched with the glob
+/// *anchored* at `root` — mirroring the historical `glob` crate behavior, where
+/// patterns were resolved against (and anchored at) the current directory.
+/// This is important because [`duvet_core::glob::Glob`] otherwise implicitly
+/// prepends `**/` to relative patterns, which would match files anywhere in the
+/// tree rather than at the configured location.
+///
+/// Returned paths are relative to `root`. Downstream consumers embed
+/// `SourceFile` paths verbatim (e.g. the `source` field of report
+/// annotations), so keeping them relative preserves report output.
+async fn glob_files(root: &Path, pattern: &str) -> Result<Vec<Path>> {
+    // Anchor the pattern at the absolute root so it matches the walked
+    // (absolute) paths exactly. A leading path separator keeps `Glob` from
+    // prepending `**/`.
+    let anchored = root.join(pattern);
+    let anchored = anchored
+        .to_str()
+        .ok_or_else(|| duvet_core::error!("glob pattern is not valid UTF-8: {pattern:?}"))?;
+    let include: Glob = anchored.parse().into_diagnostic()?;
+
+    let stream = duvet_core::dir::walk::glob(root.clone(), include, empty_glob());
+    futures::pin_mut!(stream);
+    let mut paths = vec![];
+    while let Some(path) = stream.next().await {
+        let relative = path
+            .strip_prefix(root)
+            .map(Path::from)
+            .unwrap_or_else(|_| path.clone());
+        paths.push(relative);
+    }
+    Ok(paths)
+}
+
 // Set of options that are preserved for backwards compatibility but either
 // don't do anything or are undocumented
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
+#[derive(Debug, Default, PartialEq, PartialOrd, Eq, Ord, Hash, Parser)]
 struct Deprecated {
     #[clap(long, short = 'p', hide = true)]
     package: Option<String>,

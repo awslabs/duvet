@@ -1,0 +1,31 @@
+[package]
+name = "duvet-wasm"
+version = "0.4.2"
+description = "A WebAssembly component that runs duvet's coverage checks hermetically"
+authors = ["Cameron Bytheway <bythewc@amazon.com>"]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/awslabs/duvet"
+rust-version = "1.88"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# The duvet analysis core, built without the native network/diff/allocator
+# stacks (see duvet's per-target feature gating). Spec fetching is hermetic:
+# specs must be staged into the in-memory filesystem by the host.
+duvet = { version = "0.4", path = "../duvet", default-features = false }
+duvet-core = { version = "0.4", path = "../duvet-core", default-features = false }
+# The duvet pipeline spawns tasks via `tokio::spawn` / `JoinSet`, so it needs a
+# tokio runtime in scope. On wasm the single-threaded `rt` runtime is used.
+tokio = { version = "1", default-features = false, features = ["rt"] }
+wit-bindgen = "0.58"
+
+# The embedder test builds the component and drives it with wasmtime. These are
+# host-side (native) dependencies used only by `tests/embedder.rs`.
+[dev-dependencies]
+wasmtime = "46"
+wasmtime-wasi = "46"
+serde_json = "1"

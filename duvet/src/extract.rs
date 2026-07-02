@@ -18,7 +18,6 @@ use lazy_static::lazy_static;
 use regex::{Regex, RegexSet};
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fs::OpenOptions,
     io::BufWriter,
     path::{Component, PathBuf},
     sync::Arc,
@@ -158,15 +157,9 @@ impl Extraction<'_> {
             let mut out = out.to_path_buf();
 
             out.set_extension("");
-            let _ = std::fs::create_dir_all(&out);
             out.push(format!("{}.{}", section.id, self.extension));
 
-            let file = OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(out)?;
-            let mut file = BufWriter::new(file);
+            let mut file = BufWriter::new(vec![]);
 
             let target = &self.target.path;
 
@@ -175,6 +168,9 @@ impl Extraction<'_> {
                 "toml" => write_toml(&mut file, target, section, features)?,
                 ext => return Err(error!("unsupported extraction type: {ext:?}")),
             }
+
+            let contents = file.into_inner().into_diagnostic()?;
+            duvet_core::vfs::write(out, contents)?;
         }
 
         if let Some(progress) = progress {

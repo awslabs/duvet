@@ -4,10 +4,7 @@
 use super::{ReportResult, TargetReport};
 use crate::{annotation::AnnotationType, target::Target, Result};
 use duvet_core::path::Path;
-use std::{
-    collections::HashSet,
-    io::{BufWriter, Write},
-};
+use std::{collections::HashSet, io::Write};
 
 const IMPL_BLOCK: &str = "0,0";
 const TEST_BLOCK: &str = "1,0";
@@ -37,17 +34,16 @@ macro_rules! record {
 }
 
 pub fn report(report: &ReportResult, dir: &Path) -> Result {
-    std::fs::create_dir_all(dir)?;
-    let lcov_dir = dir.canonicalize()?;
     let download_path = &report.download_path;
     report
         .targets
         .iter()
         .enumerate()
         .try_for_each(|(id, (source, report))| {
-            let path = lcov_dir.join(format!("compliance.{id}.lcov"));
-            let mut output = BufWriter::new(std::fs::File::create(path)?);
+            let path = dir.join(format!("compliance.{id}.lcov"));
+            let mut output = vec![];
             report_source(source, report, download_path, &mut output)?;
+            duvet_core::vfs::write(path, output)?;
             <Result>::Ok(())
         })?;
     Ok(())

@@ -13,13 +13,24 @@ include = ["/src/**/*.rs", "/www/public"]
 default-run = "duvet"
 rust-version = "1.88"
 
+[features]
+# These mirror the same-named `duvet-core` features and gate the code paths
+# that use them. They're enabled for native targets (below) and left off for
+# wasm, where the network (`http`) and terminal-diff (`diff`) stacks don't
+# build. Kept out of `default` so a bare `--no-default-features` wasm build is
+# hermetic.
+default = ["diff", "http"]
+diff = []
+http = []
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-duvet-core = { version = "0.4", path = "../duvet-core" }
+# `http` (reqwest/native-tls) and `diff` are enabled per-target below: they're
+# on for native builds but dropped on wasm, where the network/TLS stack can't
+# compile. Spec fetching is therefore hermetic on wasm (pre-provisioned specs).
+duvet-core = { version = "0.4", path = "../duvet-core", default-features = false }
 futures = { version = "0.3" }
-glob = "0.3"
 lazy_static = "1"
-mimalloc = { version = "0.1", default-features = false }
 once_cell = "1"
 pulldown-cmark = { version = "0.13", default-features = false }
 regex = "1"
@@ -27,12 +38,28 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_spanned = "1.0"
 slug = { version = "0.1" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 triple_accel = "0.4"
 url = "2"
 v_jsonescape = "0.7"
+
+# Native-only: the multi-threaded runtime and the mimalloc global allocator
+# both require OS threads / C code and cannot target a wasm component. The
+# native build also gets duvet-core's default features (`diff` + `http`).
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+mimalloc = { version = "0.1", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+duvet-core = { version = "0.4", path = "../duvet-core", features = [
+    "diff",
+    "http",
+] }
+
+# On wasm there are no OS threads: use the single-threaded current-thread
+# runtime.
+[target.'cfg(target_family = "wasm")'.dependencies]
+tokio = { version = "1", features = ["rt"] }
 
 [dev-dependencies]
 bolero = "0.13"

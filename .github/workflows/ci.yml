@@ -130,6 +130,26 @@ jobs:
         run: |
           cargo xtask test
 
+  wasm: # build the duvet component and run the wasmtime embedder test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install toolchains
+        run: |
+          # The pinned toolchain builds the component; stable builds the
+          # host-only wasmtime embedder test (its MSRV is newer).
+          rustup target add wasm32-wasip2
+          rustup toolchain install stable --profile minimal
+
+      - uses: camshaft/rust-cache@v1
+        with:
+          key: wasm
+
+      - name: Build component and run embedder test
+        run: |
+          cargo xtask wasm
+
   action: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:
