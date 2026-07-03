@@ -121,6 +121,10 @@ pub open spec fn clear_path(
     &&& (hit_line as int - 1) < classifications@.len()
     &&& forall|l: int| (line as int) < l < (hit_line as int) ==> {
         &&& 0 <= l - 1 < classifications@.len()
+        //= design/query/coverage-model-spec.md#property-1-no-false-positives
+        //= type=implication
+        //# - No line between L and the annotation's target
+        //#   is unknown (`None`)
         &&& #[trigger] classifications@[l - 1].is_some()
         //= design/query/coverage-model-spec.md#property-1-no-false-positives
         //= type=implication
@@ -128,10 +132,13 @@ pub open spec fn clear_path(
         //#   has the `ScopeClose` property
         &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::ScopeClose)
         &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::Statement)
-        //= design/query/coverage-model-spec.md#property-1-no-false-positives
-        //= type=implication
-        //# - No line between L and the annotation's target
-        //#   is unknown (`None`)
+        // NOTE: intentionally uncited. This conjunct forbids `ScopeOpen`
+        // mid-path, but the spec's Property-1 subset
+        // ({Whitespace, Comment, Annotation, Declaration, ScopeOpen}) *permits*
+        // it. The predicate is stricter than the stated spec; that divergence
+        // is a separate open question (do not attach a spec trace here until it
+        // is resolved, or the trace would claim the spec requires what it
+        // actually allows).
         &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::ScopeOpen)
     }
 }
