@@ -123,20 +123,20 @@ fn walk_node(
     let start_line = node.start_position().row + 1; // tree-sitter is 0-indexed
     let end_line = node.end_position().row + 1;
 
-    // Record that a real code/structural construct begins on `start_line`.
-    // The mutual-exclusivity post-pass uses this to distinguish a code line
-    // with a trailing comment from a comment line spanned by a multi-line node.
-    if is_code_kind(kind) && start_line < code_start.len() {
-        code_start[start_line] = true;
-    }
-
-    match kind {
+    // Each arm evaluates to `true` iff it stamped a real code/structural
+    // property on this node's lines. That boolean — not a separate,
+    // hand-maintained list of code kinds — drives `code_start` below, so the two
+    // can never fall out of sync: the arm that marks a code property is the same
+    // arm that reports that code starts here.
+    let marks_code = match kind {
         // Declarations that open scopes
         "class_declaration" | "interface_declaration" | "enum_declaration" => {
             mark_declaration_with_scope(node, lines, line_props, visited);
+            true
         }
         "method_declaration" | "constructor_declaration" => {
             mark_declaration_with_scope(node, lines, line_props, visited);
+            true
         }
 
         // Statements
@@ -154,6 +154,7 @@ fn walk_node(
                 line_props,
                 visited,
             );
+            true
         }
 
         // Control flow statements that open scopes
@@ -171,6 +172,7 @@ fn walk_node(
                 visited,
             );
             // The block child handles ScopeOpen/ScopeClose
+            true
         }
         "try_statement" => {
             // try itself is structural, block child handles scope
@@ -181,6 +183,7 @@ fn walk_node(
                 line_props,
                 visited,
             );
+            true
         }
         "catch_clause" => {
             mark_lines(
@@ -190,6 +193,7 @@ fn walk_node(
                 line_props,
                 visited,
             );
+            true
         }
         "finally_clause" => {
             mark_lines(
@@ -199,6 +203,7 @@ fn walk_node(
                 line_props,
                 visited,
             );
+            true
         }
 
         // Variable declarations
@@ -221,6 +226,7 @@ fn walk_node(
                     visited,
                 );
             }
+            true
         }
 
         // Blocks → ScopeOpen on first line, ScopeClose on last line
@@ -251,6 +257,7 @@ fn walk_node(
                     visited,
                 );
             }
+            true
         }
 
         // Comments
@@ -265,6 +272,7 @@ fn walk_node(
                     visited,
                 );
             }
+            false
         }
         "block_comment" => {
             mark_lines(
@@ -274,6 +282,7 @@ fn walk_node(
                 line_props,
                 visited,
             );
+            false
         }
 
         // Import and package declarations
@@ -285,6 +294,7 @@ fn walk_node(
                 line_props,
                 visited,
             );
+            true
         }
 
         // Annotations like @Override
@@ -296,6 +306,7 @@ fn walk_node(
                 line_props,
                 visited,
             );
+            true
         }
 
         // Enum constants
@@ -316,6 +327,7 @@ fn walk_node(
                     visited,
                 );
             }
+            true
         }
 
         // Labels (non-linear control)
@@ -327,9 +339,21 @@ fn walk_node(
                 line_props,
                 visited,
             );
+            true
         }
 
-        _ => {}
+        // Any construct the classifier does not model contributes no property;
+        // the line stays `None`/whatever a parent stamped, which the verified
+        // model treats conservatively (Unknown-safety). It is *not* code-start.
+        _ => false,
+    };
+
+    // The mutual-exclusivity post-pass uses `code_start` to tell a code line
+    // carrying a trailing comment (`doX(); // note`) apart from a comment line
+    // that a multi-line node merely spanned. Key it on where code *starts*, not
+    // on every spanned line, so a comment on a continuation line stays a comment.
+    if marks_code && start_line < code_start.len() {
+        code_start[start_line] = true;
     }
 
     // Recurse into children
@@ -338,50 +362,6 @@ fn walk_node(
     for child in children {
         walk_node(&child, lines, line_props, visited, code_start);
     }
-}
-
-/// Node kinds that represent real code or structure (as opposed to comments,
-/// whitespace, or non-marking syntax). A line on which one of these *starts*
-/// is treated as a code line even if it also carries a trailing comment.
-fn is_code_kind(kind: &str) -> bool {
-    matches!(
-        kind,
-        "class_declaration"
-            | "interface_declaration"
-            | "enum_declaration"
-            | "method_declaration"
-            | "constructor_declaration"
-            | "expression_statement"
-            | "return_statement"
-            | "throw_statement"
-            | "assert_statement"
-            | "break_statement"
-            | "continue_statement"
-            | "yield_statement"
-            | "if_statement"
-            | "for_statement"
-            | "enhanced_for_statement"
-            | "while_statement"
-            | "do_statement"
-            | "switch_expression"
-            | "try_statement"
-            | "catch_clause"
-            | "finally_clause"
-            | "local_variable_declaration"
-            | "field_declaration"
-            | "block"
-            | "class_body"
-            | "interface_body"
-            | "enum_body"
-            | "switch_block"
-            | "constructor_body"
-            | "import_declaration"
-            | "package_declaration"
-            | "marker_annotation"
-            | "annotation"
-            | "enum_constant"
-            | "labeled_statement"
-    )
 }
 
 /// Marks a declaration node that may contain a block (scope).
