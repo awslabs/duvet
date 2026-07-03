@@ -77,13 +77,30 @@ pub fn is_annotation_executed(
         status == execution_status_of(
             annotation_target_spec(annotation, classifications, file_length),
             classifications, scopes, coverage),
-        // Property 6 (Unknown Safety): Executed requires a classified target.
-        // If the result is Executed, then the resolved target line exists and
+        // Property 6 (Unknown Safety), bullet (a): Executed requires a classified
+        // target. If the result is Executed, the resolved target line exists and
         // is classified (not an unknown line).
         status == ExecutionStatus::Executed ==> {
             let line = annotation_target_spec(annotation, classifications, file_length);
             &&& line.is_some()
             &&& classifications@[line.unwrap() as int - 1].is_some()
+        },
+        // Property 6, bullet (b): no unknown line lies on the propagation path.
+        // The spec (design §property-6-unknown-safety) requires that every line
+        // between the directly-hit line L and the target is classified `Some(_)`.
+        // Rather than leave that implicit in the four-predicate chain
+        // (Executed => target in exec_set => validly_in_exec_set => has_valid_path
+        // => clear_path => every intervening line is_some), state it directly:
+        // an Executed target is validly in the execution set, i.e. either it is
+        // itself directly hit (L == target, no lines between) or there is a hit
+        // line with a clear path to it — and `clear_path` forbids `None` on that
+        // path. This is exactly `execution_set`'s Property-1 postcondition
+        // instantiated at the target, so it discharges from the exec-set
+        // membership that produced the `Executed` verdict.
+        status == ExecutionStatus::Executed ==> {
+            let line = annotation_target_spec(annotation, classifications, file_length);
+            &&& line.is_some()
+            &&& validly_in_exec_set(line.unwrap(), classifications, scopes, coverage)
         },
 {
     let target = annotation_target(annotation, classifications, file_length);

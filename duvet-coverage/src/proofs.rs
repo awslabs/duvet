@@ -359,9 +359,12 @@ proof fn lemma_stacking_transitivity(
 //= design/query/coverage-model-spec.md#property-6-unknown-safety
 //# The implementation MUST prove that unknown lines cannot produce false
 //# positives.
-// Property 6 (Unknown Safety) is proven inline as a postcondition of
-// `is_annotation_executed`: Executed ==> the resolved target line exists and
-// is classified. No separate lemma is needed.
+// Property 6 (Unknown Safety) is proven inline as two postconditions of
+// `is_annotation_executed`, matching the spec's two bullets: (a) Executed ==>
+// the resolved target line exists and is classified, and (b) Executed ==> the
+// target is validly in the execution set, which forbids `None` on the
+// propagation path between the hit line and the target. No separate lemma is
+// needed.
 
 //= design/query/coverage-model-spec.md#property-7-target-determinism
 //= type=implication
