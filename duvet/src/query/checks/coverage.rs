@@ -125,11 +125,6 @@ async fn build_file_execution_data(
         // lines carry annotations, so building it first is correct.
         let scopes = build_scope_tree(&classifications, line_count);
 
-        // Override annotation lines using duvet's authoritative parsed annotation data.
-        // The classifier's heuristic prefix detection (e.g., `//=` for Java) serves as
-        // a first pass; this override ensures correctness across all comment styles.
-        // Only target resolution and execution propagation read the overridden
-        // classifications; scope construction (above) intentionally does not.
         apply_annotation_override(&mut classifications, annotations, duvet_path);
 
         let coverage = file_coverage.to_coverage_report();
@@ -147,8 +142,11 @@ async fn build_file_execution_data(
     }
 }
 
-/// Stamp `{Annotation}` over every line covered by a duvet annotation in this
-/// file, using duvet's authoritative parsed annotation ranges.
+/// Override annotation lines using duvet's authoritative parsed annotation data.
+/// The classifier's heuristic prefix detection (e.g., `//=` for Java) serves as a
+/// first pass; this override ensures correctness across all comment styles. Only
+/// target resolution and execution propagation read the overridden classifications;
+/// scope construction intentionally does not.
 ///
 /// This MUST run *after* `build_scope_tree`: an annotation trailing a structural
 /// line would otherwise clobber that line's `ScopeOpen`/`ScopeClose`, unbalance
