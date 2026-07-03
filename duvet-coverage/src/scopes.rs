@@ -263,20 +263,13 @@ fn build_from_pairs(pairs: &[(u64, u64)]) -> (scopes: Vec<Scope>)
         assert(scopes@[j].close_line == pairs@[j].1);
     }
 
-    // Parent/children are cosmetic for the well-formedness proof.
-    // We skip setting them here for the verified version.
-    // The parent/children fields are used by downstream code but
-    // scopes_well_formed only depends on open_line/close_line.
+    // `parent`/`children` are left `None`/`vec![]`. Nothing reads them: the
+    // model navigates scopes purely by `open_line`/`close_line` containment
+    // (see `scope_contains` in predicates.rs), and `scopes_well_formed` depends
+    // only on those two fields. The fields are reserved for a future
+    // tree-shaped API; until something consumes them, leaving them empty is
+    // correct and the proofs are indifferent to their values.
     scopes
-}
-
-fn fallback_scope(file_length: u64) -> (scopes: Vec<Scope>)
-    requires file_length >= 1,
-    ensures scopes_well_formed(scopes@),
-{
-    let s = vec![Scope { open_line: 1, close_line: file_length, parent: None, children: vec![] }];
-    assert(s@.len() == 1);
-    s
 }
 
 } // verus!
