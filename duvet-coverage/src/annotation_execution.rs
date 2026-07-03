@@ -225,7 +225,8 @@ fn scope_contains_statement(classifications: &[Option<LineClass>], lo: u64, hi: 
         proof { broadcast use crate::types::lemma_line_property_obeys_cmp_spec; }
         if line >= 1 {
             let idx: usize = ((line - 1) as usize);
-            proof { assume(idx as int == line as int - 1); }
+            // Lossless u64->usize cast given `global size_of usize == 8` (lib.rs).
+            proof { assert(idx as int == line as int - 1); }
             if idx < classifications.len() {
                 if let Some(p) = &classifications[idx] {
                     if p.contains(&LineProperty::Statement) {

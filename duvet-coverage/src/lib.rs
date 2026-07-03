@@ -10,7 +10,9 @@
 // Verus generates code patterns that trigger these warnings under normal rustc.
 // The verus_keep_ghost cfg, unused proof variables, double-paren casts, and
 // vstd imports are all required for `cargo verus build` verification.
-#![allow(unused_imports, unused_variables, unused_parens, dead_code)]
+// `unused_braces`: the `global size_of usize == 8;` directive (below) expands
+// to braces that plain rustc flags but Verus needs.
+#![allow(unused_imports, unused_variables, unused_parens, unused_braces, dead_code)]
 // Verus also requires source patterns that clippy flags as anti-patterns:
 //   - `i = i + 1` rather than `i += 1` (assign_op_pattern)
 //   - `vec.len() == 0` rather than `vec.is_empty()` (len_zero)
@@ -38,6 +40,14 @@ const _: () = assert!(
 );
 
 use vstd::prelude::*;
+
+verus! {
+    // Fix the platform pointer width for verification so that u64 <-> usize
+    // index casts are provably lossless instead of `assume`d. Matches the
+    // runtime `const _` assertion above (usize >= u64); this crate is only
+    // built/verified on 64-bit targets.
+    global size_of usize == 8;
+}
 
 pub mod annotation_execution;
 pub mod execution_propagation;

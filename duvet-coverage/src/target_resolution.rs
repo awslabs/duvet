@@ -100,10 +100,10 @@ pub fn annotation_target(
     {
         let idx: usize = ((current - 1) as usize);
         proof {
-            // u64->usize cast is lossless on this platform (compile-time assert
-            // in lib.rs that usize >= u64). Connects exec `classifications[idx]`
-            // to spec `classifications@[current as int - 1]`.
-            assume(idx as int == current as int - 1);
+            // u64->usize cast is lossless given `global size_of usize == 8`
+            // (lib.rs). Connects exec `classifications[idx]` to spec
+            // `classifications@[current as int - 1]`.
+            assert(idx as int == current as int - 1);
         }
         if idx >= classifications.len() {
             proof { assert(annotation_target_walk(classifications, current, file_length) == None::<u64>); }
