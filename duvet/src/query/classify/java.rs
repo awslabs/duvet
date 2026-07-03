@@ -21,10 +21,13 @@ impl LineClassifier for JavaClassifier {
         // Track which properties apply to each line (1-indexed, index 0 unused)
         let mut line_props: Vec<BTreeSet<LineProperty>> = vec![BTreeSet::new(); line_count + 1];
         let mut visited: Vec<bool> = vec![false; line_count + 1];
-        // Track lines on which a real code/structural node *starts*. Used by the
-        // mutual-exclusivity post-pass to tell a code line carrying a trailing
-        // comment (`doX(); // note`) apart from an annotation/comment line merely
-        // contaminated by a multi-line node that spans it.
+        // Track lines on which a real code/structural node *starts*. The
+        // post-pass below uses this to disambiguate the two ways a line ends up
+        // as `{code, Comment}`: a real code line with a trailing comment
+        // (`doX(); // note`, code starts here → keep the code) versus a comment
+        // line a multi-line node merely spanned (no code starts here → the code
+        // is a span artifact, strip it). See the post-pass for why only the
+        // latter direction is load-bearing.
         let mut code_start: Vec<bool> = vec![false; line_count + 1];
 
         // Mark blank lines and annotation lines first
@@ -60,21 +63,34 @@ impl LineClassifier for JavaClassifier {
             &mut code_start,
         );
 
-        // Post-processing: enforce mutual exclusivity contract (spec §1.3).
-        // A line must be classified as *either* code (Statement/Declaration/
-        // scope) *or* Annotation/Comment/Whitespace, never both. The ambiguous
-        // lines are those carrying both a code property and a comment-ish one;
-        // we resolve them by which is authoritative for that line:
+        // Post-processing: enforce the mutual-exclusivity contract (spec §1.3) —
+        // no line may carry both a code property (Statement/Declaration/scope)
+        // and a non-code one (Annotation/Comment/Whitespace). The two strips
+        // below are NOT symmetric in importance:
         //
-        //   * Annotation / Whitespace lines, and comment lines with no code
-        //     node *starting* on them, are genuine non-code lines that a
-        //     multi-line AST node (e.g. a fluent builder chain) merely spanned.
-        //     Strip the spurious code properties.
+        //   * Stripping spurious code off a non-code line is LOAD-BEARING.
+        //     A multi-line AST node (e.g. a fluent builder chain parsed as one
+        //     `local_variable_declaration`) stamps Statement/Declaration on
+        //     every line it spans, including an annotation or comment line in
+        //     its interior — yielding e.g. `{Annotation, Statement}`. That
+        //     `Statement` is a lie the verified model would act on: Phase 2
+        //     backward propagation stops at any `Statement` line, so a
+        //     contaminated annotation line between a covered line and its target
+        //     blocks the path and turns a genuinely-Executed target into a false
+        //     NotExecuted. (An `{Annotation, Statement}` line never arises
+        //     honestly — Annotation requires `//=`/`//#` at line start, which
+        //     leaves no room for a statement; it is always a span artifact.)
+        //     So on Annotation/Whitespace lines, and on comment lines with no
+        //     code node *starting* on them, drop the spurious code properties.
         //
-        //   * A line where real code starts but that also carries a trailing
-        //     `//` comment (`doX(); // note`) is a code line. Strip the
-        //     incidental Comment instead, so the verified model still sees the
-        //     executable statement.
+        //   * Stripping Comment off a real code line is CANONICALIZATION, not
+        //     correctness. `doX(); // note` is honestly `{Statement, Comment}`.
+        //     The model only ever reads Comment behind a `len == 1` guard (a
+        //     line counts as skippable only if it is *pure* `{Comment}`), so a
+        //     Comment riding alongside a Statement is already ignored and the
+        //     verdict is identical with or without this strip. We drop it anyway
+        //     to keep the "exactly one authoritative class per line" invariant
+        //     and stable snapshots.
         for line_num in 1..=line_count {
             let props = &mut line_props[line_num];
             let has_annotation = props.contains(&LineProperty::Annotation);
@@ -91,9 +107,8 @@ impl LineClassifier for JavaClassifier {
                 props.remove(&LineProperty::ScopeClose);
                 props.remove(&LineProperty::NonLinearControl);
             } else if has_comment {
-                // Trailing comment on a real code line (`doX(); // note`) —
-                // code wins; drop the incidental Comment so the verified model
-                // still sees the executable statement.
+                // Trailing comment on a real code line (`doX(); // note`):
+                // canonicalize to pure code (see contract note above).
                 props.remove(&LineProperty::Comment);
             }
         }
@@ -348,10 +363,11 @@ fn walk_node(
         _ => false,
     };
 
-    // The mutual-exclusivity post-pass uses `code_start` to tell a code line
-    // carrying a trailing comment (`doX(); // note`) apart from a comment line
-    // that a multi-line node merely spanned. Key it on where code *starts*, not
-    // on every spanned line, so a comment on a continuation line stays a comment.
+    // Feed `code_start` for the post-pass's `{code, Comment}` disambiguation
+    // (see its note). Key it on where code *starts*, not on every spanned line:
+    // a multi-line node marks all its lines with a code property, but only its
+    // first line is genuinely code — a comment on a continuation line must stay
+    // a comment, not be rescued as a trailing-comment code line.
     if marks_code && start_line < code_start.len() {
         code_start[start_line] = true;
     }
