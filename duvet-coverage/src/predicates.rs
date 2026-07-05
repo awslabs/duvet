@@ -115,7 +115,7 @@ pub open spec fn clear_path(
     //# - Every line between L and the annotation's target (exclusive)
     //#   is classified (`Some`)
     //#   and has properties that are a subset of
-    //#   {Whitespace, Comment, Annotation, Declaration, ScopeOpen}
+    //#   {Whitespace, Comment, Annotation, Declaration}
     &&& hit_line > line
     &&& (line as int - 1) >= 0
     &&& (hit_line as int - 1) < classifications@.len()
@@ -132,13 +132,15 @@ pub open spec fn clear_path(
         //#   has the `ScopeClose` property
         &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::ScopeClose)
         &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::Statement)
-        // NOTE: intentionally uncited. This conjunct forbids `ScopeOpen`
-        // mid-path, but the spec's Property-1 subset
-        // ({Whitespace, Comment, Annotation, Declaration, ScopeOpen}) *permits*
-        // it. The predicate is stricter than the stated spec; that divergence
-        // is a separate open question (do not attach a spec trace here until it
-        // is resolved, or the trace would claim the spec requires what it
-        // actually allows).
+        //= design/query/coverage-model-spec.md#property-1-no-false-positives
+        //= type=implication
+        //# - No line between L and the annotation's target
+        //#   has the `ScopeOpen` property
+        // The backward walk includes a `ScopeOpen` line and then stops, so a
+        // `ScopeOpen` can only be the terminal line of a path, never strictly
+        // between L and the target. Forbidding it here is what keeps `clear_path`
+        // an exact characterization of the walk's reachability — required for
+        // `execution_set`'s completeness ensures to hold.
         &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::ScopeOpen)
     }
 }

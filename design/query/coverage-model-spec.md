@@ -504,11 +504,25 @@ then there exists a line L such that:
 - Every line between L and the annotation's target (exclusive)
   is classified (`Some`)
   and has properties that are a subset of
-  {Whitespace, Comment, Annotation, Declaration, ScopeOpen}
+  {Whitespace, Comment, Annotation, Declaration}
 - No line between L and the annotation's target
   has the `ScopeClose` property
 - No line between L and the annotation's target
+  has the `ScopeOpen` property
+- No line between L and the annotation's target
   is unknown (`None`)
+
+Note that `ScopeOpen` is excluded from the between-lines subset even though a
+`ScopeOpen` line can itself be propagated to. The backward walk (§3.3) *includes*
+a `ScopeOpen` line and then stops — "reached the opening of this scope; include
+it but do not propagate further." A `ScopeOpen` is a scope-entry boundary:
+reaching a hit inside the block proves the opener ran, so it is included, but the
+walk deliberately refuses to reason backward *past* the entry from a hit inside
+the block. Anything above the opener belongs to the enclosing scope's own
+propagation. Stopping is the conservative choice — it can only drop lines from the
+result (a completeness cost), never add a false positive. Consequently a
+`ScopeOpen` line may only ever be the *terminal* (topmost) line of a propagation
+path, never one strictly between L and the target.
 
 ### Property 2: No Cross-Scope Leakage {#property-2-no-cross-scope-leakage}
 
