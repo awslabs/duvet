@@ -251,7 +251,28 @@ pub open spec fn line_is_skippable(
         // Pure Comment (len == 1 && contains Comment)
         || (classifications@[line as int - 1].unwrap()@.len() == 1
             && classifications@[line as int - 1].unwrap()@.contains(LineProperty::Comment))
-        // Contains Annotation
+        // Contains Annotation.
+        //
+        // Note the asymmetry: Whitespace and Comment are skippable only when
+        // *pure* (`len == 1`), but Annotation is skippable on a mere `contains`.
+        // This is deliberate and sound, not an oversight. It would be unsound if
+        // a line could carry both `Annotation` and a scope property — e.g.
+        // `{Annotation, ScopeClose}` — because the walk would then step past a
+        // closing brace and could resolve a target into the *next* scope,
+        // yielding a false `Executed` (a Property-1 violation).
+        //
+        // That input cannot arise. An `Annotation` line is guaranteed pure with
+        // respect to scope/statement properties by the classifier that produces
+        // these classifications: `//=` / `//#` is detected only at the (trimmed)
+        // start of a line, so nothing but comment text follows it; and the
+        // classifier's mutual-exclusivity post-pass strips Statement,
+        // Declaration, ScopeOpen, ScopeClose, and NonLinearControl off any line
+        // carrying Annotation — even when a multi-line AST node (a fluent
+        // builder chain, say) paints those properties across it. So on every
+        // real input the extra properties a `contains(Annotation)` line might
+        // carry are non-scope, and skipping it can never cross a scope boundary.
+        // Pinned by `annotation_line_is_pure_even_across_multiline_span` in
+        // duvet/src/query/classify/java.rs.
         || classifications@[line as int - 1].unwrap()@.contains(LineProperty::Annotation)
     )
 }
