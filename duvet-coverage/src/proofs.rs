@@ -356,6 +356,66 @@ proof fn lemma_stacking_transitivity(
         classifications, (ann_a.end_line + 1) as u64, ann_b.end_line, file_length);
 }
 
+/// Property 5, composed end-to-end over the *public* `is_annotation_executed`.
+///
+/// `lemma_stacking_transitivity` (above) proves the property over the spec twin
+/// `execution_status_of`. That twin is only meaningful because
+/// `is_annotation_executed` is proven equal to it (its first `ensures`). This
+/// harness closes that gap explicitly: it *calls the real public function* on
+/// both annotations and proves the transitivity over the two concrete
+/// `ExecutionStatus` values it actually returns — so the guarantee holds for
+/// the API a caller invokes, not just for a ghost function a caller never sees.
+///
+/// The chain is: A's/B's `ensures` pin each concrete status to
+/// `execution_status_of(annotation_target_spec(..), ..)`; the lemma discharges
+/// the transitivity over those twins; equality carries it back to the concrete
+/// statuses. Verified by construction — if the equivalence `ensures` on
+/// `is_annotation_executed` ever weakened, this harness would stop verifying.
+///
+/// Returns `(status_a, status_b)` so the `ensures` can relate the two real
+/// return values (Verus cannot reference an exec fn's call inside `ensures`).
+fn stacked_annotations_share_executed(
+    ann_a: &AnnotationSpan,
+    ann_b: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    coverage: &CoverageReport,
+    file_length: u64,
+) -> (result: (ExecutionStatus, ExecutionStatus))
+    requires
+        // Shared preconditions of `is_annotation_executed` (for both A and B).
+        ann_a.end_line < u64::MAX,
+        ann_b.end_line < u64::MAX,
+        forall|line: u64| coverage@.contains_key(line)
+            ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
+        // Stacking hypothesis: A ends immediately above B with only skippable
+        // lines (whitespace / comments / other annotations) between them.
+        ann_b.start_line <= ann_b.end_line,
+        ann_a.end_line < ann_b.start_line,
+        all_lines_skippable(classifications, (ann_a.end_line + 1) as u64, ann_b.end_line),
+    ensures
+        // End-to-end Property 5 over the concrete public results: if the lower
+        // annotation B is Executed, so is the upper annotation A.
+        result.1 == ExecutionStatus::Executed ==> result.0 == ExecutionStatus::Executed,
+{
+    let status_a = is_annotation_executed(ann_a, classifications, scopes, coverage, file_length);
+    let status_b = is_annotation_executed(ann_b, classifications, scopes, coverage, file_length);
+    proof {
+        // Each call's equivalence `ensures` is now in scope:
+        //   status_a == execution_status_of(annotation_target_spec(A,..),..)
+        //   status_b == execution_status_of(annotation_target_spec(B,..),..)
+        // When B is Executed, its twin is Executed; the lemma then forces A's
+        // twin to Executed, and equality carries that back to status_a.
+        if status_b == ExecutionStatus::Executed {
+            lemma_stacking_transitivity(
+                ann_a, ann_b, classifications, scopes, coverage, file_length);
+        }
+    }
+    (status_a, status_b)
+}
+
 //= design/query/coverage-model-spec.md#property-6-unknown-safety
 //# The implementation MUST prove that unknown lines cannot produce false
 //# positives.
