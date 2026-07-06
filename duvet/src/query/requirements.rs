@@ -22,6 +22,33 @@ pub struct TargetedRequirement {
     pub section: Option<String>, // Some("section") for "path#section", None for "path"
 }
 
+impl TargetedRequirement {
+    /// Whether an annotation `target` (of the form `path` or `path#section`)
+    /// matches this filter.
+    ///
+    /// The path component is compared *exactly*: the target is split on its
+    /// first `#` and the path part must equal `self.path`. This avoids the raw
+    /// `starts_with` over-match where `-s spec.md` would also match
+    /// `spec.md.bak` (or `-s rfc2` match both `rfc2324` and `rfc200`). A filter
+    /// that also carries a section (`path#section`) additionally requires the
+    /// annotation's section to match exactly; a path-only filter matches any
+    /// section under that path.
+    fn matches(&self, target: &str) -> bool {
+        let (path, section) = target
+            .split_once('#')
+            .map_or((target, None), |(p, s)| (p, Some(s)));
+
+        if path != self.path {
+            return false;
+        }
+
+        match &self.section {
+            Some(want) => section == Some(want.as_str()),
+            None => true,
+        }
+    }
+}
+
 impl RequirementMode {
     /// Build a RequirementMode from optional section and quote filter values
     pub fn from_options(sections: &[String], quotes: &[String]) -> RequirementMode {
@@ -73,10 +100,9 @@ impl RequirementMode {
     }
 
     fn matches_target(targeted: &[TargetedRequirement], annotation: &Arc<Annotation>) -> bool {
-        targeted.iter().any(|target| match &target.section {
-            Some(section) => annotation.target == format!("{}#{}", target.path, section),
-            None => annotation.target.starts_with(&target.path),
-        })
+        targeted
+            .iter()
+            .any(|target| target.matches(&annotation.target))
     }
 
     fn matches_quote(quote_filters: &[String], annotation: &Arc<Annotation>) -> bool {
@@ -98,5 +124,51 @@ impl RequirementMode {
                 section: None,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn target(value: &str) -> TargetedRequirement {
+        RequirementMode::parse_targeted_requirement(value)
+    }
+
+    #[test]
+    fn path_only_filter_matches_exact_path_any_section() {
+        let t = target("spec.md");
+        assert!(t.matches("spec.md"));
+        assert!(t.matches("spec.md#section-1"));
+        assert!(t.matches("spec.md#other"));
+    }
+
+    #[test]
+    fn path_only_filter_does_not_over_match_prefix() {
+        // idx38: `-s spec.md` must not match a different file that merely shares
+        // the prefix as a byte string.
+        let t = target("spec.md");
+        assert!(!t.matches("spec.md.bak"));
+        assert!(!t.matches("spec.markdown"));
+        assert!(!t.matches("spec.md.bak#section-1"));
+
+        // idx38: numeric RFC ids are a real instance of the same hazard.
+        let rfc = target("rfc2");
+        assert!(!rfc.matches("rfc2324"));
+        assert!(!rfc.matches("rfc200"));
+        assert!(rfc.matches("rfc2"));
+        assert!(rfc.matches("rfc2#s1"));
+    }
+
+    #[test]
+    fn sectioned_filter_requires_exact_path_and_section() {
+        let t = target("spec.md#section-1");
+        assert!(t.matches("spec.md#section-1"));
+        // Same path, wrong section.
+        assert!(!t.matches("spec.md#section-2"));
+        // Same path, no section.
+        assert!(!t.matches("spec.md"));
+        // Prefix-matching path must not slip through.
+        assert!(!t.matches("spec.md.bak#section-1"));
     }
 }
