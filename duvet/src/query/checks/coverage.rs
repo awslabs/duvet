@@ -369,6 +369,7 @@ pub fn executed_status_for(
 ///   - `annotation.end_line < u64::MAX`
 ///   - every coverage key `K` maps to a valid 0-based index: `1 <= K` and
 ///     `K - 1 < classifications_len`
+///
 /// (The scope invariants in the third/fourth `requires` are guaranteed by
 /// `build_scope_tree`'s postcondition and need no runtime check here.)
 fn classified_preconditions_hold(

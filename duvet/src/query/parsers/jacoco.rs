@@ -225,13 +225,18 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
     loop {
         match parser.read_event_into(buf) {
             Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"line" => {
-                let (mut ci, mut cb, mut mb, mut nr) = (None, None, None, None);
+                let (mut ci, mut mi, mut cb, mut mb, mut nr) = (None, None, None, None, None);
                 for a in e.attributes() {
                     let a = a.map_err(|e| CoverageError::Xml(e.into()))?;
                     match a.key.into_inner() {
                         b"ci" => {
                             ci = Some(String::from_utf8_lossy(&a.value).parse::<u64>().map_err(
                                 |_| CoverageError::InvalidData("Invalid ci value".to_string()),
+                            )?)
+                        }
+                        b"mi" => {
+                            mi = Some(String::from_utf8_lossy(&a.value).parse::<u64>().map_err(
+                                |_| CoverageError::InvalidData("Invalid mi value".to_string()),
                             )?)
                         }
                         b"cb" => {
@@ -256,6 +261,9 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
                 let ci = ci.ok_or_else(|| {
                     CoverageError::InvalidData("Missing ci attribute".to_string())
                 })?;
+                let mi = mi.ok_or_else(|| {
+                    CoverageError::InvalidData("Missing mi attribute".to_string())
+                })?;
                 let cb = cb.ok_or_else(|| {
                     CoverageError::InvalidData("Missing cb attribute".to_string())
                 })?;
@@ -271,13 +279,23 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
                     let mut v = vec![true; cb as usize];
                     v.extend(vec![false; mb as usize]);
                     branches.insert(nr, v);
-                } else {
-                    // This line is a statement.
-                    // JaCoCo does not feature execution counts, so we set the
-                    // count to 0 or 1.
+                } else if ci > 0 || mi > 0 {
+                    // This line is a statement with executable bytecode.
+                    // Per JaCoCo's report.dtd, `ci`/`mi` count covered/missed
+                    // *instructions*; a line is executed when at least one of its
+                    // instructions ran. JaCoCo does not report execution counts,
+                    // so we collapse to 0 or 1.
                     let hit = if ci > 0 { 1 } else { 0 };
                     lines.insert(nr, hit);
                 }
+                // else: ci == 0 && mi == 0 -> the line has no bytecode
+                // instructions at all (blank line, comment, or a pure
+                // declaration). It is not executable code, so we leave it
+                // *absent* from the map rather than recording it as a Miss.
+                // The verified model distinguishes "absent/unknown" from "Miss",
+                // and that distinction drives Structural vs. NotExecuted; marking
+                // a non-executable line as Miss would manufacture a false
+                // "not executed" verdict for an annotation resolving to it.
             }
             Ok(Event::End(ref e)) if e.local_name().into_inner() == b"sourcefile" => {
                 break;
@@ -350,5 +368,121 @@ mod tests {
         assert_eq!(file_coverage.functions.len(), 1);
         let function_info = file_coverage.functions.get("Hello#<init>").unwrap();
         assert_eq!(function_info, "method_at_line_1");
+    }
+
+    /// idx35: `ci`/`mi` decide statement status per JaCoCo's report.dtd
+    /// (covered/missed *instructions*). The three cases:
+    ///   - ci>0            -> executed        -> hit=1
+    ///   - ci=0 && mi>0    -> uncovered code  -> hit=0 (Miss)
+    ///   - ci=0 && mi=0    -> no bytecode      -> line absent (not executable)
+    #[test]
+    fn statement_status_from_ci_and_mi() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<report name="test">
+    <package name="com/example">
+        <sourcefile name="Foo.java">
+            <line nr="10" mi="0" ci="4" mb="0" cb="0"/>
+            <line nr="11" mi="3" ci="0" mb="0" cb="0"/>
+            <line nr="12" mi="0" ci="0" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>"#;
+
+        let result = parse_jacoco_xml_report(Cursor::new(xml)).unwrap();
+        let file_coverage = result.files.get("com/example/Foo.java").unwrap();
+
+        // ci>0 -> executed statement.
+        assert_eq!(file_coverage.lines.get(&10), Some(&1));
+        // ci=0, mi>0 -> uncovered statement (Miss).
+        assert_eq!(file_coverage.lines.get(&11), Some(&0));
+        // ci=0, mi=0 -> no bytecode: absent from the map, NOT recorded as Miss.
+        assert_eq!(file_coverage.lines.get(&12), None);
+        assert!(!file_coverage.branches.contains_key(&12));
+    }
+
+    /// idx35: a non-executable line (ci=0, mi=0) must not surface as a `Miss`
+    /// in the verified-model report — it should be absent entirely.
+    #[test]
+    fn non_executable_line_is_absent_from_coverage_report() {
+        use duvet_coverage::types::CoverageStatus;
+
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<report name="test">
+    <package name="com/example">
+        <sourcefile name="Foo.java">
+            <line nr="10" mi="0" ci="4" mb="0" cb="0"/>
+            <line nr="12" mi="0" ci="0" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>"#;
+
+        let result = parse_jacoco_xml_report(Cursor::new(xml)).unwrap();
+        let report = result
+            .files
+            .get("com/example/Foo.java")
+            .unwrap()
+            .to_coverage_report();
+
+        assert_eq!(report.get(&10), Some(&CoverageStatus::Hit));
+        assert_eq!(report.get(&12), None);
+    }
+
+    /// idx36: branch lines (mb>0 || cb>0) build the `branches` map, and
+    /// `to_coverage_report` collapses them with a branch-OR: any taken branch
+    /// makes the line a Hit, otherwise Miss.
+    #[test]
+    fn branch_lines_parse_and_collapse_with_or() {
+        use duvet_coverage::types::CoverageStatus;
+
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<report name="test">
+    <package name="com/example">
+        <sourcefile name="Branchy.java">
+            <line nr="5" mi="0" ci="2" mb="1" cb="1"/>
+            <line nr="6" mi="0" ci="2" mb="2" cb="0"/>
+        </sourcefile>
+    </package>
+</report>"#;
+
+        let result = parse_jacoco_xml_report(Cursor::new(xml)).unwrap();
+        let file_coverage = result.files.get("com/example/Branchy.java").unwrap();
+
+        // Branch lines land in `branches`, not `lines`.
+        assert!(file_coverage.lines.is_empty());
+        // cb=1 -> one taken; mb=1 -> one not taken.
+        assert_eq!(file_coverage.branches.get(&5), Some(&vec![true, false]));
+        // cb=0, mb=2 -> both not taken.
+        assert_eq!(file_coverage.branches.get(&6), Some(&vec![false, false]));
+
+        let report = file_coverage.to_coverage_report();
+        // At least one branch taken -> Hit.
+        assert_eq!(report.get(&5), Some(&CoverageStatus::Hit));
+        // No branch taken -> Miss.
+        assert_eq!(report.get(&6), Some(&CoverageStatus::Miss));
+    }
+
+    /// idx25 (belt-and-suspenders): `to_coverage_report` is Hit-priority, so a
+    /// `Miss` never overwrites a `Hit` for the same line even if the two source
+    /// maps were to overlap.
+    #[test]
+    fn coverage_report_merge_is_hit_priority() {
+        use crate::query::coverage::FileCoverage;
+        use duvet_coverage::types::CoverageStatus;
+
+        // Construct an (artificial) overlap the parser wouldn't currently emit:
+        // line 7 is a missed statement AND a taken branch.
+        let mut lines = BTreeMap::new();
+        lines.insert(7u32, 0u64); // Miss
+        let mut branches = BTreeMap::new();
+        branches.insert(7u32, vec![true]); // Hit
+
+        let fc = FileCoverage {
+            lines,
+            branches,
+            functions: FxHashMap::default(),
+        };
+
+        // Regardless of insertion order, Hit wins.
+        assert_eq!(fc.to_coverage_report().get(&7), Some(&CoverageStatus::Hit));
     }
 }

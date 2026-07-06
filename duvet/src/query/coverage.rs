@@ -43,16 +43,36 @@ pub struct FileCoverage {
 
 impl FileCoverage {
     /// Convert to the coverage report format used by the verified duvet-coverage crate.
+    ///
+    /// `lines` and `branches` are disjoint by construction in the JaCoCo parser
+    /// (a `<line>` is filed as either a statement or a branch, never both). This
+    /// merge does not rely on that: it is Hit-priority, so even if a line number
+    /// ever appeared in both maps — or a future parser produced overlaps — a
+    /// `Hit` is never overwritten by a `Miss`. Recording a covered line as
+    /// missed would be strictly worse than the reverse, so we bias toward Hit.
     pub fn to_coverage_report(&self) -> duvet_coverage::types::CoverageReport {
         use duvet_coverage::types::CoverageStatus;
-        let mut report = BTreeMap::new();
+        let mut report: BTreeMap<u64, CoverageStatus> = BTreeMap::new();
+
+        let mut record = |line_num: u64, status: CoverageStatus| {
+            report
+                .entry(line_num)
+                .and_modify(|existing| {
+                    // Hit wins: only upgrade Miss -> Hit, never downgrade.
+                    if status == CoverageStatus::Hit {
+                        *existing = CoverageStatus::Hit;
+                    }
+                })
+                .or_insert(status);
+        };
+
         for (&line_num, &hit_count) in &self.lines {
             let status = if hit_count > 0 {
                 CoverageStatus::Hit
             } else {
                 CoverageStatus::Miss
             };
-            report.insert(line_num as u64, status);
+            record(line_num as u64, status);
         }
         for (&line_num, branches) in &self.branches {
             let status = if branches.iter().any(|&taken| taken) {
@@ -60,7 +80,7 @@ impl FileCoverage {
             } else {
                 CoverageStatus::Miss
             };
-            report.insert(line_num as u64, status);
+            record(line_num as u64, status);
         }
         report
     }
