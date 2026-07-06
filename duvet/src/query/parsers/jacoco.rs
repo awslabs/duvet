@@ -148,14 +148,16 @@ fn parse_jacoco_report_package<T: BufRead>(
         buf.clear();
     }
 
-    // Change all keys from the class name to the file name and turn the result into a Vec.
-    // If package is the empty string, we have to trim the leading '/' in order to obtain a
-    // relative path.
+    // The `results_map` keys are filenames by this point (set from
+    // `sourcefilename` / `<sourcefile name>` above), so prefix each with the
+    // package to form the report path (e.g. `com/example/Hello.java`).
+    // If package is the empty string, we have to trim the leading '/' in order to
+    // obtain a relative path.
     Ok(results_map
         .into_iter()
-        .map(|(class, result)| {
+        .map(|(filename, result)| {
             (
-                format!("{package}/{class}")
+                format!("{package}/{filename}")
                     .trim_start_matches('/')
                     .to_string(),
                 result,
