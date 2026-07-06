@@ -144,3 +144,47 @@ snapshot!(
     //@= https://example.com/spec.txt
     //@# Here is my citation"#
 );
+
+/// idx33: `Annotation::line_range()` must span only annotation-comment lines,
+/// never real code. The coverage override stamps `{Annotation}` over that exact
+/// range (`query/checks/coverage.rs`); if the range could extend onto a
+/// `Statement`/`ScopeClose` line it would unbalance the scope tree. This pins
+/// the parser-side guarantee: a block is a *contiguous* run of meta/content
+/// lines (the tokenizer emits tokens only for `//@=` / `//@#` lines and the
+/// parser flushes on any line gap), so `line_range()` never reaches the code
+/// that follows. Twin of `annotation_line_is_pure_even_across_multiline_span`.
+#[test]
+fn annotation_line_range_covers_only_comment_lines() {
+    // A multi-line annotation embedded in code: a blank line and a real
+    // statement follow immediately, with no gap before the statement.
+    let source = "\
+public class Foo {
+    void bar() {
+        //@= https://example.com/spec.txt
+        //@= type=implication
+        //@# This spans several lines
+        doWork();
+    }
+}";
+    let (annotations, errors) = parse("//@=,//@#", source);
+    assert!(errors.is_empty(), "unexpected parse errors: {errors:?}");
+    assert_eq!(annotations.len(), 1, "expected exactly one annotation");
+
+    let lines: Vec<&str> = source.lines().collect();
+    let annotation = annotations.iter().next().unwrap();
+    let (start, end) = annotation.line_range();
+
+    // Every line in the (1-based, inclusive) range is a comment line.
+    for line_num in start..=end {
+        let content = lines[(line_num - 1) as usize].trim_start();
+        assert!(
+            content.starts_with("//@=") || content.starts_with("//@#"),
+            "line {line_num} in line_range() is not an annotation comment: {content:?}"
+        );
+    }
+
+    // The line immediately after the range is the real statement — proving the
+    // range stops before code rather than swallowing it.
+    let after = lines[end as usize].trim_start();
+    assert_eq!(after, "doWork();");
+}

@@ -151,6 +151,19 @@ async fn build_file_execution_data(
 /// This MUST run *after* `build_scope_tree`: an annotation trailing a structural
 /// line would otherwise clobber that line's `ScopeOpen`/`ScopeClose`, unbalance
 /// the scope stream, and collapse the tree to a single whole-file scope.
+///
+/// The stamped range (`annotation.line_range()`) is guaranteed to cover only
+/// annotation-comment lines, never real code, so stamping `{Annotation}` cannot
+/// erase a `Statement`/`ScopeClose` mid-scope. `line_range()` is derived from
+/// `original_text`, which the comment parser builds as the `min..max` span over a
+/// *contiguous* run of `//=` / `//#` lines: `on_token` flushes the block on any
+/// line-number gap (`comment/parser.rs`), and the tokenizer only emits a token for
+/// a line whose trimmed start matches the meta/content prefix (`comment/tokenizer.rs`).
+/// So the last line of the range is always a comment line. This is the parser-side
+/// twin of the classifier-purity guarantee pinned by
+/// `annotation_line_is_pure_even_across_multiline_span` (duvet/src/query/classify/java.rs)
+/// and relied on by `duvet_coverage`'s `line_is_skippable`. Pinned here by
+/// `annotation_line_range_covers_only_comment_lines`.
 fn apply_annotation_override(
     classifications: &mut [Option<LineClass>],
     annotations: &AnnotationSet,
