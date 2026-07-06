@@ -7,6 +7,23 @@
 //! engineering. The spec predicates it references (`scopes_well_formed`,
 //! `scope_contains`, `scopes_match_classifications`) are defined in
 //! [`crate::predicates`] for reviewer accessibility.
+//!
+//! # What a scope is (spec §1.5, inlined for the reader)
+//!
+//! A *scope* is a contiguous range of lines delimited by a `ScopeOpen` line and
+//! a `ScopeClose` line; scopes nest. For brace languages these are literally the
+//! `{` and `}` lines (`public void foo() {` → `{Declaration, ScopeOpen}`, a bare
+//! `}` → `{ScopeClose}`); for indentation languages the AST parser marks the
+//! first and last line of each block. The tree is recovered by matching opens to
+//! closes as *balanced parentheses* — this module's whole job.
+//!
+//! Two spec rules drive the corner cases below:
+//!   - Unknown (`None`) lines do not contribute: an unknown line cannot be a
+//!     `ScopeOpen`/`ScopeClose`, so it is simply skipped (spec §1.5).
+//!   - A line may carry `ScopeClose` *and* `ScopeOpen` at once — e.g.
+//!     `} catch (e) {` → `{ScopeClose, ScopeOpen, Declaration}`. Closes are
+//!     therefore processed before opens on the same line, so the two siblings
+//!     match correctly.
 
 #[cfg(verus_keep_ghost)]
 pub use crate::predicates::{scope_contains, scopes_match_classifications, scopes_well_formed};
@@ -15,13 +32,21 @@ use vstd::prelude::*;
 
 verus! {
 
-/// Two-pass scope tree construction.
+/// Two-pass scope tree construction (spec §1.5).
 ///
-/// Pass 1: Match ScopeOpen/ScopeClose pairs using a stack.
-///         Produces a Vec of (open_line, close_line) pairs.
-/// Pass 2: Build parent/children from containment relationships.
+/// Pass 1 (`match_scope_pairs`): walk the classified lines with a stack, pushing
+///         on `ScopeOpen` and popping on `ScopeClose`, to recover the balanced
+///         `(open_line, close_line)` pairs. Any imbalance discards the pairs.
+/// Pass 2 (`build_from_pairs`): turn each pair into a `Scope`. Containment is
+///         expressed purely through `open_line`/`close_line` (see `scope_contains`
+///         in predicates.rs), so no parent/children wiring is needed here.
 ///
 /// No mutation of existing elements — each scope is created once with final values.
+///
+/// Lines the classifier left `None` are skipped (spec §1.5: an unknown line
+/// cannot be a scope delimiter). On unbalanced input the tree collapses to a
+/// single file-level scope spanning the whole file — see the trust-boundary note
+/// at the fallback below for why that is a deliberate, if lossy, choice.
 pub fn build_scope_tree(classifications: &[Option<LineClass>], file_length: u64) -> (scopes: Vec<Scope>)
     requires file_length < u64::MAX,
     ensures scopes_well_formed(scopes@),
@@ -57,6 +82,12 @@ pub fn build_scope_tree(classifications: &[Option<LineClass>], file_length: u64)
 /// Pass 1: Match balanced ScopeOpen/ScopeClose using a stack.
 /// Returns Vec of (open_line, close_line) pairs.
 /// Returns empty Vec on unbalanced input (fallback to file-level scope).
+///
+/// On each classified line, `ScopeClose` is handled *before* `ScopeOpen` so that
+/// a line carrying both — e.g. `} catch (e) {` or `} else {` — first closes the
+/// scope it ends and then opens the sibling it begins (spec §1.5). A `ScopeClose`
+/// with an empty stack, or a leftover open on the stack at EOF, is an imbalance:
+/// the pairs are discarded and the caller falls back to a file-level scope.
 fn match_scope_pairs(classifications: &[Option<LineClass>], file_length: u64) -> (pairs: Vec<(u64, u64)>)
     requires file_length < u64::MAX,
     ensures
