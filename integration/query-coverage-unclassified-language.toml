@@ -1,0 +1,55 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r cov.xml -f jacoco-xml"]
+report_output = false
+
+# idx57: JaCoCo is a JVM-wide format, so a report can name non-Java sources
+# (Kotlin/Scala/Groovy). Those have no tree-sitter classifier, and the coverage
+# model must *refuse* to score them rather than silently falling back to the
+# unverified forward-walk — otherwise the user gets verified-looking output that
+# never touched the verified model. Here the report's `Other.rs` matches the
+# project source `src/Other.rs`, so the classifier lookup fails and the run
+# errors instead of falling back.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/Other.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST do X
+fn work() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do X
+"""
+
+[[file]]
+path = "cov.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="X">
+    <package name="src">
+        <sourcefile name="Other.rs">
+            <line nr="4" mi="0" ci="1" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""

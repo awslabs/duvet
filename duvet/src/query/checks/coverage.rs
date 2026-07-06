@@ -81,6 +81,26 @@ pub async fn build_execution_data(
             .map(|(_, file_coverage)| file_coverage);
 
         if let Some(file_coverage) = coverage_option {
+            // Refuse to score a covered file we cannot classify rather than
+            // silently falling back to the unverified forward-walk. JaCoCo is a
+            // JVM-wide format, so a report routinely names Kotlin/Scala/Groovy
+            // sources; those have no tree-sitter classifier today and would
+            // otherwise bypass the verified model, handing the user
+            // verified-looking output that never touched it. Erroring keeps the
+            // "Verus-verified" guarantee honest and surfaces the limitation.
+            // (The forward-walk in `executed_status_for_unclassified` remains the
+            // documented contract for a future non-Java coverage format that
+            // ships without a classifier.)
+            if classifier_for_path(duvet_path).is_none() {
+                return Err(duvet_core::error!(
+                    "no language classifier for {}; the coverage model only \
+                     supports sources it can classify (currently .java). Remove \
+                     this file from the coverage report or add a classifier for \
+                     its language.",
+                    duvet_path.display()
+                ));
+            }
+
             let duvet_path = duvet_path.clone();
             let annotations = annotations.clone();
             let file_coverage = file_coverage.clone();
