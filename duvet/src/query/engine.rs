@@ -179,6 +179,22 @@ async fn execute_implementation_check(
         progress!("Running implementation annotation coverage check...");
     }
 
+    // `mode.in_scope` is a *spec-slice filter*, applied uniformly to every
+    // annotation — requirement targets (`Spec`) and their coverers (`Citation`/
+    // `Implication`/`Exception`/`Test`) alike — before the fold below splits
+    // them. Each annotation is judged by its own `target`/`quote` (see
+    // `RequirementMode::in_scope`), so `-s`/`-q` narrow the view to the part of
+    // the spec the user asked about. This is deliberate: it is an interactive
+    // "I only want to look at this slice" filter, not a CI compliance gate.
+    //
+    // A consequence is that a narrow filter can produce partial coverage numbers
+    // — e.g. one `Test` annotation whose quote covers 30 requirements, but the
+    // filter only pulls in 3 of them, so the other 27 coverings are absent from
+    // this run. That is expected under a filter, not a bug: pointing a slice
+    // filter at the tool and reading its output as a pass/fail verdict is
+    // garbage-in-garbage-out. (Keeping the full covering pool while filtering
+    // only the targets would *manufacture* that many-to-one inconsistency and
+    // presumes a compliance-gate purpose this command does not have.)
     let (spec_annotations, implemented_annotations, todo_annotations) = project_data
         .annotations
         .iter()
