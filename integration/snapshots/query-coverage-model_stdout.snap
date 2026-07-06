@@ -26,6 +26,7 @@ Coverage: ✓ PASS
   Executed implementations: 4
   Successful correlations: 4
   Failed correlations: 0
+  Tests with no implementation: 0
 
   ☞ Successful correlation
    ╭─[src/test/java/com/example/CommentTestTest.java:5:9]
