@@ -321,19 +321,65 @@ pub fn executed_status_for(
                 end_line,
             };
 
-            is_annotation_executed(
-                &ann_span,
-                &data.classifications,
-                &data.scopes,
+            // Enforce `is_annotation_executed`'s `requires` at this trust
+            // boundary. Verus checks those clauses statically against the
+            // *proof*, but they compile away in release builds, so nothing stops
+            // ill-formed runtime inputs from reaching the verified algorithm and
+            // making its guarantees vacuous. The inputs here are not proof-clean:
+            // `file_length`/`classifications` come from the tree-sitter
+            // classifier while `coverage` keys are JaCoCo `<line nr=...>` values
+            // from a separately-produced XML, so source/coverage drift, a
+            // trailing newline, or `nr` past EOF can violate the preconditions.
+            // When that happens we cannot soundly trust the model's verdict, so
+            // fall back to `Unknown` (the conservative status) instead of calling
+            // the verified fn on inputs it never reasoned about.
+            //
+            // requires: annotation.end_line < u64::MAX
+            // requires: every coverage key K has (K - 1) < classifications.len()
+            let precondition_holds = classified_preconditions_hold(
+                end_line,
                 &data.coverage,
-                data.file_length,
-            )
+                data.classifications.len(),
+            );
+
+            if !precondition_holds {
+                ExecutionStatus::Unknown {
+                    line_number: start_line,
+                }
+            } else {
+                is_annotation_executed(
+                    &ann_span,
+                    &data.classifications,
+                    &data.scopes,
+                    &data.coverage,
+                    data.file_length,
+                )
+            }
         }
         Some(FileExecutionData::Unclassified(line_map)) => {
             executed_status_for_unclassified(annotation, line_map)
         }
         None => ExecutionStatus::NotExecuted,
     }
+}
+
+/// Whether the classified inputs satisfy `is_annotation_executed`'s `requires`
+/// clauses. Pure so it can be tested without constructing a full `Annotation`.
+/// Mirrors, exactly, the two runtime-checkable preconditions:
+///   - `annotation.end_line < u64::MAX`
+///   - every coverage key `K` maps to a valid 0-based index: `1 <= K` and
+///     `K - 1 < classifications_len`
+/// (The scope invariants in the third/fourth `requires` are guaranteed by
+/// `build_scope_tree`'s postcondition and need no runtime check here.)
+fn classified_preconditions_hold(
+    end_line: u64,
+    coverage: &CoverageReportMap,
+    classifications_len: usize,
+) -> bool {
+    end_line < u64::MAX
+        && coverage
+            .keys()
+            .all(|&k| k >= 1 && (k as usize - 1) < classifications_len)
 }
 
 /// Forward-walk execution detection for files without a tree-sitter
@@ -396,7 +442,11 @@ mod tests {
     use super::*;
     use crate::query::classify::java::JavaClassifier;
     use crate::query::classify::LineClassifier;
-    use duvet_coverage::types::LineProperty;
+    use duvet_coverage::types::{CoverageStatus, LineProperty};
+
+    fn coverage_with_keys(keys: &[u64]) -> CoverageReportMap {
+        keys.iter().map(|&k| (k, CoverageStatus::Hit)).collect()
+    }
 
     fn count_scope_opens(classifications: &[Option<LineClass>]) -> usize {
         classifications
@@ -460,5 +510,41 @@ public class Two {
             scopes_after_wrong_order.len(),
             scopes.len()
         );
+    }
+
+    #[test]
+    fn preconditions_hold_for_in_bounds_coverage() {
+        // 5 classified lines; coverage keys 1..=5 all map to valid indices.
+        let coverage = coverage_with_keys(&[1, 3, 5]);
+        assert!(classified_preconditions_hold(4, &coverage, 5));
+    }
+
+    #[test]
+    fn coverage_key_past_eof_violates_precondition() {
+        // Key 6 -> index 5, out of range for 5 classified lines. This is the
+        // JaCoCo-nr-past-EOF / source-coverage-drift case that would otherwise
+        // reach the verified fn with an input it never reasoned about.
+        let coverage = coverage_with_keys(&[1, 6]);
+        assert!(!classified_preconditions_hold(4, &coverage, 5));
+    }
+
+    #[test]
+    fn zero_coverage_key_violates_precondition() {
+        // Line numbers are 1-based; key 0 has no valid 0-based index.
+        let coverage = coverage_with_keys(&[0, 1]);
+        assert!(!classified_preconditions_hold(4, &coverage, 5));
+    }
+
+    #[test]
+    fn end_line_at_u64_max_violates_precondition() {
+        let coverage = coverage_with_keys(&[1]);
+        assert!(!classified_preconditions_hold(u64::MAX, &coverage, 5));
+    }
+
+    #[test]
+    fn empty_coverage_holds() {
+        // No keys -> the forall is vacuously satisfied.
+        let coverage = coverage_with_keys(&[]);
+        assert!(classified_preconditions_hold(4, &coverage, 5));
     }
 }

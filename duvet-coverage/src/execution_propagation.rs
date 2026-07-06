@@ -19,6 +19,14 @@ use vstd::prelude::*;
 
 verus! {
 
+// TRUST BASE (unverified leaf). Verus cannot reason over `BTreeSet::iter`, so
+// this body is trusted and only its `ensures` is checked downstream. The spec is
+// *membership-only* (both directions) and deliberately says nothing about the
+// result's length or element uniqueness. That is sufficient today: the sole
+// caller (the `di` loop in `execution_set`) reads only membership. The omission
+// is called out here because a partial spec on an `external_body` fn is exactly
+// where a future refactor can silently weaken guarantees -- if a caller ever
+// depends on length/uniqueness, strengthen this spec rather than assuming it.
 #[verifier::external_body]
 fn vec_from_btreeset(s: &BTreeSet<u64>) -> (result: Vec<u64>)
     ensures
@@ -28,6 +36,14 @@ fn vec_from_btreeset(s: &BTreeSet<u64>) -> (result: Vec<u64>)
     s.iter().copied().collect()
 }
 
+// TRUST BASE (unverified leaf). This function *semantically defines* "directly
+// executed" for the entire propagation: its `ensures` (the two-way iff with
+// `CoverageStatus::Hit`) is the axiom that all of `execution_set`'s reachability
+// flows from. Verus can't see through `BTreeMap::iter`, so the body is trusted --
+// but that means a change to the body (e.g. filtering on `Miss`, or an off-by-one)
+// would keep every proof green while silently changing what the model treats as
+// executed. This is the one `external_body` whose correctness actually drives the
+// result; keep body and `ensures` in exact correspondence.
 #[verifier::external_body]
 fn collect_hit_lines(coverage: &CoverageReport) -> (result: BTreeSet<u64>)
     ensures
@@ -137,11 +153,10 @@ pub(crate) fn execution_set(
                         if props.contains(&LineProperty::NonLinearControl) {
                             proof {
                                 broadcast use crate::types::lemma_line_property_obeys_cmp_spec;
-                                // Narrow assume: the u64-to-usize cast is lossless.
-                                // Justified by compile-time assert in lib.rs that
-                                // usize >= u64 on this platform. This value is safe
-                                // because it is a valid index into an in-memory slice.
-                                assume(idx as int == check_line as int - 1);
+                                // Lossless u64->usize cast, now *proven* from
+                                // `global size_of usize == 8` (lib.rs) rather than
+                                // assumed.
+                                assert(idx as int == check_line as int - 1);
                                 // Now Verus can connect exec-level classifications[idx]
                                 // to spec-level classifications@[check_line as int - 1]
                                 // and derive scope_has_non_linear_control.

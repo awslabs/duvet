@@ -595,6 +595,28 @@ mod tests {
         assert!(has_prop(&result[2], LineProperty::Annotation));
     }
 
+    // An `Annotation` line carries *only* `Annotation`, never a code property —
+    // even when a multi-line AST node paints over it. `//=`/`//#` is detected at
+    // the (trimmed) line start, so everything after is comment text; and the
+    // mutual-exclusivity post-pass strips Statement/Declaration/ScopeOpen/
+    // ScopeClose/NonLinearControl off any annotation line. This is what makes
+    // `line_is_skippable`'s `contains(Annotation)` rule sound in the coverage
+    // model (duvet-coverage predicates.rs): the walk can skip an annotation line
+    // without ever stepping past a scope boundary, because a line like
+    // `{Annotation, ScopeClose}` cannot leave this classifier.
+    #[test]
+    fn annotation_line_is_pure_even_across_multiline_span() {
+        // A fluent builder chain whose `.build();` (with the closing `}` and
+        // `;`) is interrupted by a duvet annotation. The chain is one CST node
+        // spanning lines 3–5, so tree-sitter paints Statement/ScopeClose onto
+        // the annotation line before the post-pass runs.
+        let source = "public class Foo {\n  void bar() {\n    thing\n      //= spec.md#s\n      .build();\n  }\n}";
+        let result = classify(source);
+        // Line 4 (index 3) is the annotation line: it must be exactly Annotation,
+        // with no Statement/ScopeClose leaking in from the surrounding chain.
+        assert!(is_exactly(&result[3], &[LineProperty::Annotation]));
+    }
+
     #[test]
     fn return_statement() {
         let source = "public class Foo {\n    int bar() {\n        return 42;\n    }\n}";

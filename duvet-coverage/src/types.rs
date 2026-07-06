@@ -8,6 +8,16 @@ use vstd::prelude::*;
 
 verus! {
 
+// TRUST BASE: the *declaration order* of these variants is load-bearing for the
+// proofs. `LineClass = BTreeSet<LineProperty>`, so BTreeSet ordering depends on
+// the derived `Ord`, which Verus cannot reason about; `line_property_discriminant`
+// (below, ghost-only) re-specifies that order by hand as 0..=7 and the proofs
+// reason against *that*. Nothing machine-checks that the hand-written discriminant
+// still equals `derive(Ord)`. Reorder, insert, or remove a variant here and the
+// two silently diverge — the proofs would then verify against a stale order while
+// the runtime BTreeSet uses the new one. `tests::discriminant_matches_derived_ord`
+// is the runtime guard that keeps them honest; update it in lockstep with any
+// change to this order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum LineProperty {
     Statement,
@@ -153,3 +163,41 @@ pub fn line_class(props: &[LineProperty]) -> (result: LineClass)
 }
 
 } // verus!
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Guard for the trust base noted at the `LineProperty` declaration: the
+    /// ghost `line_property_discriminant` hand-mirrors `derive(Ord)`, and the
+    /// proofs reason against the discriminant. This test independently pins the
+    /// expected 0..=7 order and asserts the *derived* `Ord` (the one the runtime
+    /// BTreeSet actually uses) agrees for every ordered pair. If someone reorders
+    /// the enum without updating `line_property_discriminant`, the discriminant
+    /// spec and this list diverge and one of them fails to match `derive(Ord)`.
+    #[test]
+    fn discriminant_matches_derived_ord() {
+        use LineProperty::*;
+        // MUST match `line_property_discriminant`'s arm order exactly.
+        let order = [
+            Statement,        // 0
+            Declaration,      // 1
+            ScopeOpen,        // 2
+            ScopeClose,       // 3
+            Comment,          // 4
+            Annotation,       // 5
+            Whitespace,       // 6
+            NonLinearControl, // 7
+        ];
+        for (i, a) in order.iter().enumerate() {
+            for (j, b) in order.iter().enumerate() {
+                assert_eq!(
+                    a.cmp(b),
+                    i.cmp(&j),
+                    "derive(Ord) disagrees with discriminant order for {a:?} vs {b:?}: \
+                     enum declaration order and line_property_discriminant have drifted"
+                );
+            }
+        }
+    }
+}

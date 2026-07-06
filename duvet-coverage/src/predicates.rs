@@ -115,12 +115,16 @@ pub open spec fn clear_path(
     //# - Every line between L and the annotation's target (exclusive)
     //#   is classified (`Some`)
     //#   and has properties that are a subset of
-    //#   {Whitespace, Comment, Annotation, Declaration, ScopeOpen}
+    //#   {Whitespace, Comment, Annotation, Declaration}
     &&& hit_line > line
     &&& (line as int - 1) >= 0
     &&& (hit_line as int - 1) < classifications@.len()
     &&& forall|l: int| (line as int) < l < (hit_line as int) ==> {
         &&& 0 <= l - 1 < classifications@.len()
+        //= design/query/coverage-model-spec.md#property-1-no-false-positives
+        //= type=implication
+        //# - No line between L and the annotation's target
+        //#   is unknown (`None`)
         &&& #[trigger] classifications@[l - 1].is_some()
         //= design/query/coverage-model-spec.md#property-1-no-false-positives
         //= type=implication
@@ -131,7 +135,12 @@ pub open spec fn clear_path(
         //= design/query/coverage-model-spec.md#property-1-no-false-positives
         //= type=implication
         //# - No line between L and the annotation's target
-        //#   is unknown (`None`)
+        //#   has the `ScopeOpen` property
+        // The backward walk includes a `ScopeOpen` line and then stops, so a
+        // `ScopeOpen` can only be the terminal line of a path, never strictly
+        // between L and the target. Forbidding it here is what keeps `clear_path`
+        // an exact characterization of the walk's reachability — required for
+        // `execution_set`'s completeness ensures to hold.
         &&& !classifications@[l - 1].unwrap()@.contains(LineProperty::ScopeOpen)
     }
 }
@@ -244,7 +253,28 @@ pub open spec fn line_is_skippable(
         // Pure Comment (len == 1 && contains Comment)
         || (classifications@[line as int - 1].unwrap()@.len() == 1
             && classifications@[line as int - 1].unwrap()@.contains(LineProperty::Comment))
-        // Contains Annotation
+        // Contains Annotation.
+        //
+        // Note the asymmetry: Whitespace and Comment are skippable only when
+        // *pure* (`len == 1`), but Annotation is skippable on a mere `contains`.
+        // This is deliberate and sound, not an oversight. It would be unsound if
+        // a line could carry both `Annotation` and a scope property — e.g.
+        // `{Annotation, ScopeClose}` — because the walk would then step past a
+        // closing brace and could resolve a target into the *next* scope,
+        // yielding a false `Executed` (a Property-1 violation).
+        //
+        // That input cannot arise. An `Annotation` line is guaranteed pure with
+        // respect to scope/statement properties by the classifier that produces
+        // these classifications: `//=` / `//#` is detected only at the (trimmed)
+        // start of a line, so nothing but comment text follows it; and the
+        // classifier's mutual-exclusivity post-pass strips Statement,
+        // Declaration, ScopeOpen, ScopeClose, and NonLinearControl off any line
+        // carrying Annotation — even when a multi-line AST node (a fluent
+        // builder chain, say) paints those properties across it. So on every
+        // real input the extra properties a `contains(Annotation)` line might
+        // carry are non-scope, and skipping it can never cross a scope boundary.
+        // Pinned by `annotation_line_is_pure_even_across_multiline_span` in
+        // duvet/src/query/classify/java.rs.
         || classifications@[line as int - 1].unwrap()@.contains(LineProperty::Annotation)
     )
 }
