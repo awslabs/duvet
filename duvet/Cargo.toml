@@ -34,6 +34,14 @@ triple_accel = "0.4"
 url = "2"
 v_jsonescape = "0.7"
 
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/duvet-v{ version }-{ target }{ archive-suffix }"
+bin-dir = "duvet-v{ version }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
 [dev-dependencies]
 bolero = "0.13"
 duvet-core = { version = "0.4", path = "../duvet-core", features = ["testing"] }
