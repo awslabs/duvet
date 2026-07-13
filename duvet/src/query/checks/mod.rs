@@ -7,7 +7,7 @@ use crate::{
     specification::Specification,
     target::Target,
     text::whitespace,
-    Result,
+    Error, Result,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -19,41 +19,72 @@ pub mod coverage;
 /// If the target quote is "MUST foo, MUST bar, MUST baz"
 /// And the collection has "MUST foo,"; "MUST bar"; "MUST bar, MUST baz"; "MUST run"
 /// then the target is said to be covered
+///
+/// # Error collection (idx37A)
+///
+/// This returns `(Option<AnnotationCoverage>, Vec<Error>)` rather than a plain
+/// `Result` so that a single `duvet query` run can report *every* unmatchable
+/// quote at once instead of aborting on the first. The caller aggregates the
+/// `Vec<Error>` across all targets and, if any were collected, fails the run at
+/// the end (`duvet query` still exits non-zero — the errors are real). The two
+/// error kinds are treated differently:
+///   - A failure to locate the *target itself* (missing spec/section, or the
+///     target's own quote not found) means there is nothing to compute coverage
+///     against, so coverage is `None` and the error is collected.
+///   - A *covering* annotation whose quote can't be found is collected and that
+///     one coverer is skipped; the remaining coverers are still scored, so the
+///     target's `AnnotationCoverage` is still produced.
 pub async fn is_annotation_covered(
     target_annotation: &Arc<Annotation>,
     specifications: &Arc<HashMap<Arc<Target>, Arc<Specification>>>,
     annotations: &[Arc<Annotation>],
-) -> Result<AnnotationCoverage> {
+) -> (Option<AnnotationCoverage>, Vec<Error>) {
     if target_annotation.quote.trim().is_empty() {
-        return Ok(AnnotationCoverage {
-            fully_covered: true,
-            target: target_annotation.clone(),
-            covering_annotations: Vec::new(),
-            covered: Vec::new(),
-        });
+        return (
+            Some(AnnotationCoverage {
+                fully_covered: true,
+                target: target_annotation.clone(),
+                covering_annotations: Vec::new(),
+                covered: Vec::new(),
+            }),
+            Vec::new(),
+        );
     }
 
-    // Get the target and find the specification
-    let target = target_annotation.target()?;
-    let specification = specifications.get(&target).ok_or_else(|| {
-        duvet_core::error!(
-            "Specification not found for target: {}",
-            target_annotation.target
-        )
-    })?;
-    let target_section = target_annotation.target_section().ok_or_else(|| {
-        duvet_core::error!(
-            "No section in annotation target: {}",
-            target_annotation.target
-        )
-    })?;
-    let section = specification.section(&target_section).ok_or_else(|| {
-        duvet_core::error!(
-            "Section '{}' not found in specification: {}",
-            target_section,
-            target_annotation.target
-        )
-    })?;
+    // Get the target and find the specification. Any of these lookups failing is
+    // a target-level error: collect it and produce no coverage for this target.
+    let target = match target_annotation.target() {
+        Ok(target) => target,
+        Err(err) => return (None, vec![err]),
+    };
+    let Some(specification) = specifications.get(&target) else {
+        return (
+            None,
+            vec![duvet_core::error!(
+                "Specification not found for target: {}",
+                target_annotation.target
+            )],
+        );
+    };
+    let Some(target_section) = target_annotation.target_section() else {
+        return (
+            None,
+            vec![duvet_core::error!(
+                "No section in annotation target: {}",
+                target_annotation.target
+            )],
+        );
+    };
+    let Some(section) = specification.section(&target_section) else {
+        return (
+            None,
+            vec![duvet_core::error!(
+                "Section '{}' not found in specification: {}",
+                target_section,
+                target_annotation.target
+            )],
+        );
+    };
     let section_contents = section.view();
 
     // Normalize the sections for our matching
@@ -70,10 +101,13 @@ pub async fn is_annotation_covered(
     let target_start = match normalize_section_contents.find(&normalized_target_quote) {
         Some(start) => start,
         None => {
-            return Err(
-                duvet_core::error!("Exactly matchable quote not found in section")
-                .with_source_slice(target_annotation.original_text.clone(), "Quote")
-                .with_help("This is likely a multiline comment and the second line is missing `-` or other list operator.")
+            return (
+                None,
+                vec![
+                    duvet_core::error!("Exactly matchable quote not found in section")
+                    .with_source_slice(target_annotation.original_text.clone(), "Quote")
+                    .with_help("This is likely a multiline comment and the second line is missing `-` or other list operator.")
+                ],
             );
         }
     };
@@ -81,6 +115,9 @@ pub async fn is_annotation_covered(
 
     let mut covered = vec![false; normalized_target_quote.len()];
     let mut covering_annotations: Vec<Arc<Annotation>> = Vec::new();
+    // Coverer-level errors: a covering quote we couldn't locate. Collected and
+    // skipped so the remaining coverers still score this target.
+    let mut errors: Vec<Error> = Vec::new();
 
     for annotation in annotations
         .iter()
@@ -109,11 +146,13 @@ pub async fn is_annotation_covered(
         ) {
             Some(start) => start,
             None => {
-                return Err(
+                // idx37A: collect and skip this coverer, don't abort the run.
+                errors.push(
                     duvet_core::error!("Exactly matchable quote not found in section")
                     .with_source_slice(annotation.original_text.clone(), "Quote")
                     .with_help("This is likely a multiline comment and the second line is missing `-` or other list operator.")
                 );
+                continue;
             }
         };
         let annotation_end = annotation_start + normalized_quote.len();
@@ -134,12 +173,15 @@ pub async fn is_annotation_covered(
         }
     }
 
-    Ok(AnnotationCoverage {
-        fully_covered: covered.iter().all(|&covered| covered),
-        target: target_annotation.clone(),
-        covering_annotations,
-        covered,
-    })
+    (
+        Some(AnnotationCoverage {
+            fully_covered: covered.iter().all(|&covered| covered),
+            target: target_annotation.clone(),
+            covering_annotations,
+            covered,
+        }),
+        errors,
+    )
 }
 
 /// Find the occurrence of `needle` in `haystack` whose range best matches the
@@ -226,22 +268,52 @@ pub async fn classify_annotation_coverage(
             let secondary_annotations = secondary_annotations.clone();
 
             async move {
-                let (primary_coverage, secondary_coverage) = futures::future::try_join(
-                    is_annotation_covered(&annotation, &specifications, &primary_annotations),
-                    is_annotation_covered(&annotation, &specifications, &secondary_annotations),
-                )
-                .await?;
+                // idx37A: neither call aborts; each returns its own collected
+                // errors so a single run reports every unmatchable quote at once.
+                let (primary_coverage, primary_errors) =
+                    is_annotation_covered(&annotation, &specifications, &primary_annotations).await;
+                let (secondary_coverage, secondary_errors) =
+                    is_annotation_covered(&annotation, &specifications, &secondary_annotations)
+                        .await;
 
-                Ok::<_, crate::Error>((annotation, primary_coverage, secondary_coverage))
+                // A *target-level* failure (coverage is `None`: the target's own
+                // quote/section couldn't be located) is produced identically by
+                // both calls, since they share the same target — so take it once.
+                // *Coverer-level* errors (coverage is `Some`) come from the two
+                // distinct covering pools, so keep both.
+                let errors = if primary_coverage.is_none() {
+                    primary_errors
+                } else {
+                    let mut errors = primary_errors;
+                    errors.extend(secondary_errors);
+                    errors
+                };
+                (annotation, primary_coverage, secondary_coverage, errors)
             }
         })
         .collect();
 
-    // Execute all coverage calculations concurrently
-    let coverage_results = futures::future::try_join_all(coverage_futures).await?;
+    // Execute all coverage calculations concurrently. Unlike `try_join_all`,
+    // `join_all` does not short-circuit on the first error — every future runs to
+    // completion so we can surface all problems together (idx37A).
+    let coverage_results = futures::future::join_all(coverage_futures).await;
+
+    // Collect every per-annotation error across the whole run. If any were
+    // found, the run still fails at the end (below) with the aggregate — the
+    // errors are real, but the user gets to see all of them in one pass rather
+    // than fixing one, re-running, and hitting the next.
+    let mut errors: Vec<Error> = Vec::new();
 
     // Process results sequentially for classification
-    for (annotation, primary_coverage, secondary) in coverage_results {
+    for (annotation, primary_coverage, secondary, annotation_errors) in coverage_results {
+        errors.extend(annotation_errors);
+
+        // If either side failed to locate the target itself, there is no coverage
+        // to classify for this annotation; its error is already collected above.
+        let (Some(primary_coverage), Some(secondary)) = (primary_coverage, secondary) else {
+            continue;
+        };
+
         let primary_len = primary_coverage.covering_annotations.len();
         let secondary_len = secondary.covering_annotations.len();
 
@@ -261,6 +333,14 @@ pub async fn classify_annotation_coverage(
             // Zero coverage
             _ => no_coverage.push(annotation.clone()),
         }
+    }
+
+    // idx37A: any collected error fails the run, but only after all were
+    // gathered — so the user sees every problem in one pass instead of fixing
+    // one, re-running, and hitting the next. (Per-annotation duplicate
+    // suppression happens above, where the primary/secondary split is known.)
+    if !errors.is_empty() {
+        return Err(errors.into());
     }
 
     Ok(ClassifiedCoverage {
