@@ -126,7 +126,7 @@ Advice:
   ☞ Related context for:
   │  Executed annotations
     ╭─[src/main/java/com/example/StackingTest.java:19:13]
- 18 │     
+ 18 │             } finally {}
  19 │ ╭─▶         //= spec.md#section-3
  20 │ │           //= type=implementation
  21 │ ├─▶         //# This does not have a level.
