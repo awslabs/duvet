@@ -93,7 +93,20 @@ pub async fn is_annotation_covered(
     {
         let normalized_quote = whitespace::normalize(&annotation.quote);
 
-        let annotation_start = match normalize_section_contents.find(&normalized_quote) {
+        // idx37B: a covering quote can occur more than once in the section
+        // (e.g. a short requirement phrase repeated across paragraphs). The bare
+        // `find()` anchors to the *first* global occurrence, which may be nowhere
+        // near the requirement this covering annotation is meant to cover — so the
+        // overlap below would be computed against the wrong span and yield a wrong
+        // covered/uncovered verdict. The target's range is the natural anchor, so
+        // we pick the occurrence whose range best overlaps `[target_start,
+        // target_end)` (ties broken by proximity, then by first occurrence).
+        let annotation_start = match best_occurrence(
+            &normalize_section_contents,
+            &normalized_quote,
+            target_start,
+            target_end,
+        ) {
             Some(start) => start,
             None => {
                 return Err(
@@ -127,6 +140,54 @@ pub async fn is_annotation_covered(
         covering_annotations,
         covered,
     })
+}
+
+/// Find the occurrence of `needle` in `haystack` whose range best matches the
+/// target range `[target_start, target_end)`.
+///
+/// "Best" is: the occurrence with the largest overlap with the target range; on
+/// a tie (including the common no-overlap case) the one whose start is closest
+/// to `target_start`; on a further tie the earliest occurrence. Returns `None`
+/// only when `needle` does not occur in `haystack` at all — matching the
+/// contract of the bare `find()` this replaces (idx37B).
+fn best_occurrence(
+    haystack: &str,
+    needle: &str,
+    target_start: usize,
+    target_end: usize,
+) -> Option<usize> {
+    if needle.is_empty() {
+        return haystack.find(needle);
+    }
+
+    let mut best: Option<(usize, usize, usize)> = None; // (overlap, distance, start)
+    let mut search_from = 0;
+    while let Some(rel) = haystack[search_from..].find(needle) {
+        let start = search_from + rel;
+        let end = start + needle.len();
+
+        let overlap = end.min(target_end).saturating_sub(start.max(target_start));
+        let distance = start.abs_diff(target_start);
+
+        // Maximize overlap, then minimize distance, then earliest start.
+        let candidate = (overlap, distance, start);
+        let better = match best {
+            None => true,
+            Some((bo, bd, _)) => overlap > bo || (overlap == bo && distance < bd),
+        };
+        if better {
+            best = Some(candidate);
+        }
+
+        // Advance past this whole occurrence. `start` is a char boundary and
+        // `needle.len()` spans complete chars, so `end` is also a boundary —
+        // slicing there is panic-safe (a `start + 1` advance could split a
+        // multibyte char and panic). We therefore skip self-overlapping matches,
+        // which for real requirement phrases do not meaningfully occur.
+        search_from = end;
+    }
+
+    best.map(|(_, _, start)| start)
 }
 
 #[derive(Debug)]
@@ -209,4 +270,67 @@ pub async fn classify_annotation_coverage(
         mixed_coverage,
         secondary_coverage,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::best_occurrence;
+
+    #[test]
+    fn absent_needle_returns_none() {
+        assert_eq!(best_occurrence("the section text", "missing", 0, 3), None);
+    }
+
+    #[test]
+    fn single_occurrence_returns_it() {
+        let hay = "MUST encrypt the payload";
+        let start = hay.find("payload").unwrap();
+        assert_eq!(best_occurrence(hay, "payload", 0, 4), Some(start));
+    }
+
+    #[test]
+    fn picks_occurrence_overlapping_target_not_first() {
+        // "encrypt" appears twice; the target range sits on the SECOND one.
+        let hay = "encrypt A. Later we encrypt B.";
+        let first = hay.find("encrypt").unwrap();
+        let second = hay[first + 1..].find("encrypt").unwrap() + first + 1;
+        // Target range covers the second occurrence.
+        let got = best_occurrence(hay, "encrypt", second, second + 7);
+        assert_eq!(got, Some(second), "should anchor to the overlapping copy");
+        // Sanity: the naive find() would have returned `first`.
+        assert_ne!(got, Some(first));
+    }
+
+    #[test]
+    fn no_overlap_picks_closest_occurrence() {
+        // Three occurrences, none overlaps the target; pick the nearest start.
+        let hay = "foo ... foo ... target ... foo";
+        let occurrences: Vec<usize> = {
+            let mut v = Vec::new();
+            let mut from = 0;
+            while let Some(rel) = hay[from..].find("foo") {
+                let s = from + rel;
+                v.push(s);
+                from = s + 3;
+            }
+            v
+        };
+        let t = hay.find("target").unwrap();
+        // Independently compute which occurrence is nearest to the target start.
+        let expected = *occurrences
+            .iter()
+            .min_by_key(|&&s| s.abs_diff(t))
+            .unwrap();
+        let got = best_occurrence(hay, "foo", t, t + 6).unwrap();
+        assert_eq!(got, expected, "nearest occurrence to the target wins");
+    }
+
+    #[test]
+    fn multibyte_section_does_not_panic() {
+        // Non-ASCII before/around the needle: advancing by needle.len() must land
+        // on char boundaries.
+        let hay = "café — MUST café — donné";
+        let got = best_occurrence(hay, "café", 0, 4);
+        assert!(got.is_some());
+    }
 }
