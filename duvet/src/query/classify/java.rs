@@ -54,6 +54,26 @@ impl LineClassifier for JavaClassifier {
             None => return (0..line_count).map(|_| None).collect(),
         };
 
+        // Refuse to classify a tree that failed to parse cleanly. `parse` returns
+        // `Some(tree)` even for syntactically invalid input, inlining `ERROR` and
+        // `MISSING` nodes for the parts it could not model (a truncated file, a
+        // half-typed edit, or a Java feature tree-sitter-java doesn't fully
+        // support). The walk below would still emit `ScopeOpen`/`ScopeClose` for
+        // whichever subtrees parsed — but a missing `{`/`}` is exactly the kind of
+        // error that unbalances that stream, and `build_scope_tree` would then
+        // silently collapse to one whole-file scope (Property 2 becomes vacuous:
+        // every annotation resolves against the file-level scope, turning genuine
+        // Structural/Executed results into NotExecuted). `duvet query` is an
+        // inner-loop tool run against in-progress code, so this is routine. Rather
+        // than feed the verified model garbage, we drop the whole file to
+        // `Unknown` (all `None`), which every downstream consumer treats
+        // conservatively — the same conservative path as an unparseable file. This
+        // is a deliberate degrade: half-classified data would be more dangerous
+        // than none, because it looks trustworthy while silently mismodeling scope.
+        if tree.root_node().has_error() {
+            return (0..line_count).map(|_| None).collect();
+        }
+
         // Walk the CST
         walk_node(
             &tree.root_node(),
@@ -789,5 +809,36 @@ mod tests {
         let source = "public class Foo {\n    // just a note\n    void bar() {}\n}";
         let result = classify(source);
         assert!(is_exactly(&result[1], &[LineProperty::Comment]));
+    }
+
+    /// idx55: syntactically invalid Java (here a method body truncated mid-edit,
+    /// so the closing braces are missing) must NOT emit a lopsided
+    /// ScopeOpen/ScopeClose stream. tree-sitter returns `Some(tree)` with inline
+    /// ERROR/MISSING nodes; we detect `has_error()` and drop the whole file to
+    /// Unknown (`None`) rather than feed the verified scope model an unbalanced
+    /// stream it would collapse to a single whole-file scope.
+    #[test]
+    fn invalid_java_is_all_unknown() {
+        // Two opening braces, no closes — a partial save.
+        let source = "public class Foo {\n    void bar() {\n        doX();";
+        let result = classify(source);
+        assert!(
+            result.iter().all(|c| c.is_none()),
+            "invalid Java must classify every line as Unknown, got: {result:?}"
+        );
+    }
+
+    /// idx55: the parse-error guard must not fire on valid Java. A well-formed
+    /// file with a normally-uncommon-but-legal construct (a static initializer
+    /// block) still classifies as usual — the guard keys on `has_error()`, not on
+    /// unfamiliarity.
+    #[test]
+    fn valid_java_is_not_treated_as_error() {
+        let source = "public class Foo {\n    static { init(); }\n}";
+        let result = classify(source);
+        assert!(
+            result.iter().any(|c| c.is_some()),
+            "valid Java must still be classified, got all Unknown"
+        );
     }
 }
