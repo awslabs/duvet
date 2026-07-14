@@ -243,8 +243,9 @@ fn walk_node(
 
         // Variable declarations
         "local_variable_declaration" | "field_declaration" => {
-            let has_init =
-                has_child_kind(node, "variable_declarator") && node_has_initializer(node);
+            // `node_has_initializer` already looks only at `variable_declarator`
+            // children, so no separate presence check is needed.
+            let has_init = node_has_initializer(node);
             mark_lines(
                 start_line,
                 end_line,
@@ -469,39 +470,32 @@ fn has_child_kind(node: &tree_sitter::Node, kind: &str) -> bool {
     result
 }
 
+/// Whether a `local_variable_declaration` / `field_declaration` node declares a
+/// variable with an initializer (`int x = 5;`, executable → `Statement`) versus
+/// a bare declaration (`int x;`, `Declaration` only). The distinction feeds the
+/// verified model: Phase-2 backward propagation stops at `Statement` lines, so a
+/// mislabel changes execution verdicts.
+///
+/// idx39: this asks the grammar directly instead of guessing. In
+/// tree-sitter-java a `variable_declarator` is `name` (+ optional `dimensions`)
+/// with the initializer carried in the optional `value` field (grammar 0.23.x
+/// `node-types.json`: `value` is `array_initializer | expression`). So an
+/// initializer is present iff some `variable_declarator` has a `value` child.
+///
+/// This replaces a prior allowlist-of-initializer-kinds plus a denylist-of-type-
+/// kinds fallback. That denylist was fragile: any type node the grammar added or
+/// renamed (a new primitive, an annotated type, etc.) fell through and was
+/// misread as an initializer — a false `Statement`. Field-based detection has no
+/// such failure mode; it can only miss if the grammar renames the `value` field,
+/// which is a compile-surviving but test-visible change (see the initializer
+/// tests below).
 fn node_has_initializer(node: &tree_sitter::Node) -> bool {
     let mut cursor = node.walk();
     let children: Vec<_> = node.children(&mut cursor).collect();
-    for child in children {
-        if child.kind() == "variable_declarator" {
-            let mut inner = child.walk();
-            let grandchildren: Vec<_> = child.children(&mut inner).collect();
-            for grandchild in grandchildren {
-                if grandchild.kind() == "="
-                    || grandchild.kind() == "object_creation_expression"
-                    || grandchild.kind() == "method_invocation"
-                    || grandchild.kind() == "array_creation_expression"
-                {
-                    return true;
-                }
-                if grandchild.is_named()
-                    && grandchild.kind() != "identifier"
-                    && grandchild.kind() != "dimensions"
-                    && grandchild.kind() != "type_identifier"
-                    && grandchild.kind() != "integral_type"
-                    && grandchild.kind() != "floating_point_type"
-                    && grandchild.kind() != "boolean_type"
-                    && grandchild.kind() != "void_type"
-                    && grandchild.kind() != "generic_type"
-                    && grandchild.kind() != "array_type"
-                    && grandchild.kind() != "scoped_type_identifier"
-                {
-                    return true;
-                }
-            }
-        }
-    }
-    false
+    children
+        .iter()
+        .filter(|child| child.kind() == "variable_declarator")
+        .any(|declarator| declarator.child_by_field_name("value").is_some())
 }
 
 #[cfg(test)]
@@ -570,6 +564,53 @@ mod tests {
         // line 3: int x; → Declaration (no Statement)
         assert!(has_prop(&result[2], LineProperty::Declaration));
         assert!(!has_prop(&result[2], LineProperty::Statement));
+    }
+
+    // idx39: field-based initializer detection must recognize every initializer
+    // shape (the `value` field is `array_initializer | expression`, so any
+    // expression counts), and must NOT be fooled by declarations whose only
+    // interesting children are type nodes. These pin the shapes the old
+    // allowlist/denylist handled only incidentally.
+
+    #[test]
+    fn variable_with_ternary_init() {
+        // A ternary initializer: not one of the old allowlisted kinds, previously
+        // caught only by the type-denylist fallback.
+        let source = "public class Foo {\n    void bar() {\n        int x = a ? 1 : 2;\n    }\n}";
+        let result = classify(source);
+        assert!(has_prop(&result[2], LineProperty::Statement));
+        assert!(has_prop(&result[2], LineProperty::Declaration));
+    }
+
+    #[test]
+    fn variable_with_cast_init() {
+        // A cast initializer, likewise not in the old allowlist.
+        let source = "public class Foo {\n    void bar() {\n        int x = (int) y;\n    }\n}";
+        let result = classify(source);
+        assert!(has_prop(&result[2], LineProperty::Statement));
+        assert!(has_prop(&result[2], LineProperty::Declaration));
+    }
+
+    #[test]
+    fn generic_field_without_init_is_not_statement() {
+        // A parameterized-type field with NO initializer. Its `variable_declarator`
+        // has only a `name` child; the type nodes live on the declaration, not the
+        // declarator's `value` field. Must be Declaration only — never a false
+        // Statement from a type node.
+        let source = "public class Foo {\n    private Map<String, Integer> m;\n}";
+        let result = classify(source);
+        assert!(has_prop(&result[1], LineProperty::Declaration));
+        assert!(!has_prop(&result[1], LineProperty::Statement));
+    }
+
+    #[test]
+    fn multi_declarator_one_initialized_is_statement() {
+        // `int a, b = 2;` — one declarator has a `value`, one does not. The line
+        // executes, so it must be a Statement.
+        let source = "public class Foo {\n    void bar() {\n        int a, b = 2;\n    }\n}";
+        let result = classify(source);
+        assert!(has_prop(&result[2], LineProperty::Statement));
+        assert!(has_prop(&result[2], LineProperty::Declaration));
     }
 
     #[test]
