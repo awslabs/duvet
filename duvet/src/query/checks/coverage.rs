@@ -65,54 +65,126 @@ pub async fn build_execution_data(
     coverage_data: &CoverageData,
     project_sources: &HashSet<SourceFile>,
 ) -> Result<ExecutionDataMap> {
-    let mut file_futures = Vec::new();
+    let generic = coverage_data.as_generic();
 
+    // Resolve each duvet source file to its absolute path once. The absolute
+    // path carries the file's full on-disk directory context, which is exactly
+    // what lets a report's file path be matched regardless of where duvet was
+    // run from: a report path (e.g. JaCoCo's package-relative `com/example/Foo.java`,
+    // or LCOV's `SF:` path) is, when it refers to this file, a suffix of the
+    // file's real absolute path. See `coverage_path_matches`.
+    let mut duvet_sources: Vec<(&Path, String)> = Vec::new();
     for source_file in project_sources {
         let duvet_path = match source_file {
-            SourceFile::Text { path, .. } => path,
+            SourceFile::Text { path, .. } => &**path,
             SourceFile::Toml(_) => continue,
         };
+        let absolute = std::path::absolute(duvet_path).map_err(|err| {
+            duvet_core::error!(
+                "could not resolve absolute path for {}: {err}",
+                duvet_path.display()
+            )
+        })?;
+        duvet_sources.push((duvet_path, absolute.to_string_lossy().into_owned()));
+    }
 
-        let coverage_option = coverage_data
-            .as_generic()
-            .files
-            .iter()
-            .find(|(coverage_path, _)| paths_match(duvet_path, coverage_path))
-            .map(|(_, file_coverage)| file_coverage);
+    // Match every duvet source against every report entry by the suffix rule,
+    // collecting ALL matches in both directions so a genuine ambiguity is caught
+    // rather than silently resolved to whichever entry iterated first (the old
+    // `.find()` did the latter — verified-looking, but potentially wrong).
+    //
+    // A single duvet file matching TWO report entries, or a single report entry
+    // matched by TWO duvet files (the multi-module collision: `moduleA/…/com/example/Foo.java`
+    // and `moduleB/…/com/example/Foo.java` against a report that only says
+    // `com/example/Foo.java`), are both unresolvable from the paths alone. We
+    // refuse rather than guess.
+    let mut matches_for_file: Vec<(&Path, &FileCoverage)> = Vec::new();
+    let mut files_for_coverage: FxHashMap<&str, Vec<&Path>> = FxHashMap::default();
 
-        if let Some(file_coverage) = coverage_option {
-            // Refuse to score a covered file we cannot classify rather than
-            // silently falling back to the unverified forward-walk. JaCoCo is a
-            // JVM-wide format, so a report routinely names Kotlin/Scala/Groovy
-            // sources; those have no tree-sitter classifier today and would
-            // otherwise bypass the verified model, handing the user
-            // verified-looking output that never touched it. Erroring keeps the
-            // "Verus-verified" guarantee honest and surfaces the limitation.
-            // (The forward-walk in `executed_status_for_unclassified` remains the
-            // documented contract for a future non-Java coverage format that
-            // ships without a classifier.)
-            if classifier_for_path(duvet_path).is_none() {
-                return Err(duvet_core::error!(
-                    "no language classifier for {}; the coverage model only \
-                     supports sources it can classify (currently .java). Remove \
-                     this file from the coverage report or add a classifier for \
-                     its language.",
-                    duvet_path.display()
-                ));
+    for (duvet_path, absolute) in &duvet_sources {
+        let mut matched: Vec<(&str, &FileCoverage)> = Vec::new();
+        for (coverage_path, file_coverage) in &generic.files {
+            if coverage_path_matches(absolute, coverage_path) {
+                matched.push((coverage_path.as_str(), file_coverage));
+                files_for_coverage
+                    .entry(coverage_path.as_str())
+                    .or_default()
+                    .push(duvet_path);
             }
-
-            let duvet_path = duvet_path.clone();
-            let annotations = annotations.clone();
-            let file_coverage = file_coverage.clone();
-
-            let future = async move {
-                let data =
-                    build_file_execution_data(&duvet_path, &annotations, &file_coverage).await?;
-                Result::<_, crate::Error>::Ok((duvet_path.to_path_buf(), data))
-            };
-
-            file_futures.push(future);
         }
+
+        if matched.len() > 1 {
+            // `generic.files` is a hash map, so match order is not stable; sort
+            // the reported entries for a deterministic message.
+            let mut entries = matched.iter().map(|(path, _)| *path).collect::<Vec<_>>();
+            entries.sort_unstable();
+            let entries = entries.join(", ");
+            return Err(duvet_core::error!(
+                "coverage is ambiguous for {}: its path matches multiple report \
+                 entries ({}). duvet cannot tell which entry refers to this file.",
+                duvet_path.display(),
+                entries
+            ));
+        }
+
+        if let Some((_, file_coverage)) = matched.first() {
+            matches_for_file.push((*duvet_path, *file_coverage));
+        }
+    }
+
+    // The mirror ambiguity: one report entry claimed by more than one source file.
+    for (coverage_path, files) in &files_for_coverage {
+        if files.len() > 1 {
+            // `project_sources` is a `HashSet`, so iteration order is not stable;
+            // sort the reported names for a deterministic message.
+            let mut names = files
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>();
+            names.sort();
+            let names = names.join(", ");
+            return Err(duvet_core::error!(
+                "coverage report entry '{}' is ambiguous: it matches multiple \
+                 source files ({}). duvet cannot tell which file the report \
+                 refers to.",
+                coverage_path,
+                names
+            ));
+        }
+    }
+
+    let mut file_futures = Vec::new();
+    for (duvet_path, file_coverage) in matches_for_file {
+        // Refuse to score a covered file we cannot classify rather than
+        // silently falling back to the unverified forward-walk. JaCoCo is a
+        // JVM-wide format, so a report routinely names Kotlin/Scala/Groovy
+        // sources; those have no tree-sitter classifier today and would
+        // otherwise bypass the verified model, handing the user
+        // verified-looking output that never touched it. Erroring keeps the
+        // "Verus-verified" guarantee honest and surfaces the limitation.
+        // (The forward-walk in `executed_status_for_unclassified` remains the
+        // documented contract for a future non-Java coverage format that
+        // ships without a classifier.)
+        if classifier_for_path(duvet_path).is_none() {
+            return Err(duvet_core::error!(
+                "no language classifier for {}; the coverage model only \
+                 supports sources it can classify (currently .java). Remove \
+                 this file from the coverage report or add a classifier for \
+                 its language.",
+                duvet_path.display()
+            ));
+        }
+
+        let duvet_path = duvet_path.to_path_buf();
+        let annotations = annotations.clone();
+        let file_coverage = file_coverage.clone();
+
+        let future = async move {
+            let data = build_file_execution_data(&duvet_path, &annotations, &file_coverage).await?;
+            Result::<_, crate::Error>::Ok((duvet_path.clone(), data))
+        };
+
+        file_futures.push(future);
     }
 
     let results = futures::future::try_join_all(file_futures).await?;
@@ -272,43 +344,44 @@ fn update_whitespace_lines(line_map: &mut LineMap, lines: &[&str]) {
     }
 }
 
-/// Check if a Duvet source path matches a coverage report path.
-/// Handles various path format differences between Duvet and coverage tools.
-fn paths_match(duvet_path: &Path, coverage_path: &str) -> bool {
-    let duvet_path_str = format!("{}", duvet_path.display());
+/// Whether `coverage_path` (a file path as named by a coverage report) refers to
+/// the duvet source file whose absolute on-disk path is `absolute_duvet_path`.
+///
+/// The rule is a single test: **is `coverage_path` a suffix of the absolute
+/// duvet path, ending at a `/` boundary?** This is deterministic, direction-free,
+/// and dominates the old four-strategy `paths_match`:
+///
+///   - It subsumes exact-match and duvet-is-longer (the report names the whole
+///     path, or a package-relative tail of it).
+///   - It subsumes coverage-is-longer / nested-`.duvet` (duvet was run from
+///     inside the package so its glob returned a short path): absolutizing
+///     restores the real package directories, so the report's longer path is a
+///     suffix of the real file — anchored to the actual package, not a bare
+///     filename.
+///   - It relies only on the one invariant every coverage format shares — a
+///     file is a real file on disk — rather than on JaCoCo's package quirk, so
+///     it generalizes cleanly to LCOV/Clover/etc. (which name files by path).
+///
+/// The `/` boundary is what stops `Foo.java` from matching `MyFoo.java` and
+/// `com/example/Foo.java` from matching `xcom/example/Foo.java`. Absolutizing the
+/// duvet side (which carries full package context) also prevents a bare filename
+/// from colliding across packages — the residual multi-module same-tail collision
+/// is caught as an ambiguity by the caller, never silently resolved.
+///
+/// Report paths are normalized to `/` separators for the comparison; duvet
+/// absolute paths already use the platform separator, which is `/` here.
+fn coverage_path_matches(absolute_duvet_path: &str, coverage_path: &str) -> bool {
+    let coverage_path = coverage_path.replace('\\', "/");
+    let absolute = absolute_duvet_path.replace('\\', "/");
 
-    // Strategy 1: Direct exact match
-    if duvet_path_str == coverage_path {
-        return true;
+    let Some(prefix_len) = absolute.len().checked_sub(coverage_path.len()) else {
+        return false;
+    };
+    if !absolute.ends_with(&coverage_path) {
+        return false;
     }
-
-    // Strategy 2: Duvet path ends with coverage path at a path separator boundary
-    if duvet_path_str.ends_with(coverage_path) {
-        let prefix_len = duvet_path_str.len() - coverage_path.len();
-        if prefix_len == 0 || duvet_path_str.as_bytes()[prefix_len - 1] == b'/' {
-            return true;
-        }
-    }
-
-    // Strategy 3: Handle JaCoCo parser where coverage path has extra package prefix
-    // e.g. coverage_path = "com/example/src/main/java/com/example/Foo.java"
-    // should match duvet_path = "src/main/java/com/example/Foo.java"
-    if let Some(src_index) = coverage_path.find("src/") {
-        let trimmed_coverage_path = &coverage_path[src_index..];
-        if duvet_path_str == trimmed_coverage_path {
-            return true;
-        }
-    }
-
-    // Strategy 4: Coverage path ends with duvet path at a path separator boundary
-    if coverage_path.ends_with(&duvet_path_str) {
-        let prefix_len = coverage_path.len() - duvet_path_str.len();
-        if prefix_len == 0 || coverage_path.as_bytes()[prefix_len - 1] == b'/' {
-            return true;
-        }
-    }
-
-    false
+    // Suffix must begin at a path-separator boundary (or at the very start).
+    prefix_len == 0 || absolute.as_bytes()[prefix_len - 1] == b'/'
 }
 
 /// Parse coverage data from file.
@@ -580,5 +653,79 @@ public class Two {
         // No keys -> the forall is vacuously satisfied.
         let coverage = coverage_with_keys(&[]);
         assert!(classified_preconditions_hold(4, &coverage, 5));
+    }
+
+    // --- coverage_path_matches (idx32) ---
+    //
+    // These exercise the single suffix rule against every shape the old
+    // four-strategy `paths_match` handled, plus the boundary and same-name cases
+    // the reviewer asked for. The duvet side is always an *absolute* path, since
+    // the caller absolutizes before matching.
+
+    #[test]
+    fn exact_full_path_matches() {
+        // Report names the whole path.
+        assert!(coverage_path_matches(
+            "/proj/src/main/java/com/example/Foo.java",
+            "/proj/src/main/java/com/example/Foo.java"
+        ));
+    }
+
+    #[test]
+    fn package_relative_tail_matches() {
+        // JaCoCo names the package-relative tail; it is a suffix of the real file.
+        assert!(coverage_path_matches(
+            "/proj/src/main/java/com/example/Foo.java",
+            "com/example/Foo.java"
+        ));
+    }
+
+    #[test]
+    fn nested_duvet_coverage_is_longer_matches() {
+        // duvet was run from inside the package (glob returned `Foo.java`), so its
+        // real absolute path still ends with the report's longer package path.
+        assert!(coverage_path_matches(
+            "/proj/com/example/Foo.java",
+            "com/example/Foo.java"
+        ));
+    }
+
+    #[test]
+    fn suffix_not_at_separator_boundary_is_rejected() {
+        // `example/Foo.java` is a string-suffix of `...myexample/Foo.java` but not
+        // at a `/` boundary — must NOT match.
+        assert!(!coverage_path_matches(
+            "/proj/src/main/java/com/myexample/Foo.java",
+            "example/Foo.java"
+        ));
+    }
+
+    #[test]
+    fn filename_suffix_across_packages_is_rejected() {
+        // A bare filename that is NOT the package-qualified tail must not match a
+        // different package's file. `Foo.java` at a boundary DOES match (it's a
+        // valid tail), but `otherFoo.java` does not.
+        assert!(!coverage_path_matches(
+            "/proj/src/main/java/com/example/Foo.java",
+            "otherFoo.java"
+        ));
+    }
+
+    #[test]
+    fn different_package_same_filename_does_not_match() {
+        // `org/other/Foo.java` is not a suffix of a file under `com/example/`.
+        assert!(!coverage_path_matches(
+            "/proj/src/main/java/com/example/Foo.java",
+            "org/other/Foo.java"
+        ));
+    }
+
+    #[test]
+    fn longer_coverage_than_absolute_does_not_match() {
+        // Report path longer than the whole absolute path cannot be a suffix.
+        assert!(!coverage_path_matches(
+            "com/example/Foo.java",
+            "/proj/src/main/java/com/example/Foo.java"
+        ));
     }
 }

@@ -1,0 +1,105 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r jacoco-coverage.xml -f jacoco-xml"]
+report_output = false
+
+# idx32: the one path collision no string strategy can resolve. Two real source
+# files live at the SAME package-relative tail (`com/example/Foo.java`) under two
+# different module roots. A JaCoCo report names only the package-relative tail,
+# so — after absolutizing each duvet source — that single report entry is a
+# suffix of BOTH files' absolute paths. The information needed to disambiguate is
+# simply not in the paths.
+#
+# The old `paths_match` + `.find()` silently attached the report to whichever
+# file iterated first (verified-looking, but potentially wrong). The new matcher
+# collects ALL matches and refuses: a report entry claimed by more than one
+# source file is a hard error naming both files, so the user learns exactly what
+# duvet cannot tell apart instead of getting a confidently wrong answer.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST be implemented.
+"""
+
+[[file]]
+path = "moduleA/src/main/java/com/example/Foo.java"
+contents = """
+package com.example;
+
+public class Foo {
+    public void run() {
+        //= spec.md#section-1
+        //= type=implementation
+        //# This MUST be implemented.
+        doWork();
+    }
+}
+"""
+
+[[file]]
+path = "moduleB/src/main/java/com/example/Foo.java"
+contents = """
+package com.example;
+
+public class Foo {
+    public void run() {
+        //= spec.md#section-1
+        //= type=implementation
+        //# This MUST be implemented.
+        doWork();
+    }
+}
+"""
+
+[[file]]
+path = "jacoco-coverage.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="Ambiguous Multi-Module Test">
+    <sessioninfo id="test-session-1" start="1642000000000" dump="1642000001000"/>
+
+    <package name="com/example">
+        <class name="com/example/Foo" sourcefilename="Foo.java">
+            <method name="run" desc="()V" line="4">
+                <counter type="INSTRUCTION" missed="0" covered="3"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="0" covered="3"/>
+            <counter type="LINE" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+
+        <sourcefile name="Foo.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+
+        <counter type="INSTRUCTION" missed="0" covered="3"/>
+        <counter type="LINE" missed="0" covered="1"/>
+        <counter type="METHOD" missed="0" covered="1"/>
+        <counter type="CLASS" missed="0" covered="1"/>
+    </package>
+
+    <counter type="INSTRUCTION" missed="0" covered="3"/>
+    <counter type="LINE" missed="0" covered="1"/>
+    <counter type="METHOD" missed="0" covered="1"/>
+    <counter type="CLASS" missed="0" covered="1"/>
+</report>
+"""
