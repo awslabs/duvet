@@ -2,7 +2,7 @@ source = { local = true }
 cmd = ["duvet query -c coverage -r jacoco-coverage.xml -f jacoco-xml"]
 report_output = false
 
-# idx32: the one path collision no string strategy can resolve. Two real source
+# The one path collision no string strategy can resolve. Two real source
 # files live at the SAME package-relative tail (`com/example/Foo.java`) under two
 # different module roots. A JaCoCo report names only the package-relative tail,
 # so — after absolutizing each duvet source — that single report entry is a

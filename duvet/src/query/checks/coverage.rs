@@ -655,7 +655,7 @@ public class Two {
         assert!(classified_preconditions_hold(4, &coverage, 5));
     }
 
-    // --- coverage_path_matches (idx32) ---
+    // --- coverage_path_matches ---
     //
     // These exercise the single suffix rule against every shape the old
     // four-strategy `paths_match` handled, plus the boundary and same-name cases

@@ -145,14 +145,14 @@ mod tests {
 
     #[test]
     fn path_only_filter_does_not_over_match_prefix() {
-        // idx38: `-s spec.md` must not match a different file that merely shares
+        // `-s spec.md` must not match a different file that merely shares
         // the prefix as a byte string.
         let t = target("spec.md");
         assert!(!t.matches("spec.md.bak"));
         assert!(!t.matches("spec.markdown"));
         assert!(!t.matches("spec.md.bak#section-1"));
 
-        // idx38: numeric RFC ids are a real instance of the same hazard.
+        // numeric RFC ids are a real instance of the same hazard.
         let rfc = target("rfc2");
         assert!(!rfc.matches("rfc2324"));
         assert!(!rfc.matches("rfc200"));

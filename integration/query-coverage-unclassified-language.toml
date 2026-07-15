@@ -2,7 +2,7 @@ source = { local = true }
 cmd = ["duvet query -c coverage -r cov.xml -f jacoco-xml"]
 report_output = false
 
-# idx57: JaCoCo is a JVM-wide format, so a report can name non-Java sources
+# JaCoCo is a JVM-wide format, so a report can name non-Java sources
 # (Kotlin/Scala/Groovy). Those have no tree-sitter classifier, and the coverage
 # model must *refuse* to score them rather than silently falling back to the
 # unverified forward-walk — otherwise the user gets verified-looking output that

@@ -476,7 +476,7 @@ fn has_child_kind(node: &tree_sitter::Node, kind: &str) -> bool {
 /// verified model: Phase-2 backward propagation stops at `Statement` lines, so a
 /// mislabel changes execution verdicts.
 ///
-/// idx39: this asks the grammar directly instead of guessing. In
+/// This asks the grammar directly instead of guessing. In
 /// tree-sitter-java a `variable_declarator` is `name` (+ optional `dimensions`)
 /// with the initializer carried in the optional `value` field (grammar 0.23.x
 /// `node-types.json`: `value` is `array_initializer | expression`). So an
@@ -566,7 +566,7 @@ mod tests {
         assert!(!has_prop(&result[2], LineProperty::Statement));
     }
 
-    // idx39: field-based initializer detection must recognize every initializer
+    // field-based initializer detection must recognize every initializer
     // shape (the `value` field is `array_initializer | expression`, so any
     // expression counts), and must NOT be fooled by declarations whose only
     // interesting children are type nodes. These pin the shapes the old
@@ -852,7 +852,7 @@ mod tests {
         assert!(is_exactly(&result[1], &[LineProperty::Comment]));
     }
 
-    /// idx55: syntactically invalid Java (here a method body truncated mid-edit,
+    /// syntactically invalid Java (here a method body truncated mid-edit,
     /// so the closing braces are missing) must NOT emit a lopsided
     /// ScopeOpen/ScopeClose stream. tree-sitter returns `Some(tree)` with inline
     /// ERROR/MISSING nodes; we detect `has_error()` and drop the whole file to
@@ -869,7 +869,7 @@ mod tests {
         );
     }
 
-    /// idx55: the parse-error guard must not fire on valid Java. A well-formed
+    /// the parse-error guard must not fire on valid Java. A well-formed
     /// file with a normally-uncommon-but-legal construct (a static initializer
     /// block) still classifies as usual — the guard keys on `has_error()`, not on
     /// unfamiliarity.

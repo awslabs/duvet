@@ -2,7 +2,7 @@ source = { local = true }
 cmd = ["duvet query -c implementation"]
 report_output = false
 
-# idx37A: an unmatchable quote is a real error and must still fail the run
+# An unmatchable quote is a real error and must still fail the run
 # (exit non-zero), but the run should report *every* unmatchable quote in one
 # pass rather than aborting on the first — otherwise the user fixes one, re-runs,
 # hits the next, and repeats.
@@ -10,7 +10,7 @@ report_output = false
 # The quotes below each carry a one-character typo ("thinX"). That is close
 # enough to *fuzzy*-match in the earlier reference-matching phase (so it does not
 # abort there) but not *exactly*-match in is_annotation_covered — which is the
-# code path idx37A changed. Both errors must appear in the single run's output,
+# code path that collects errors instead of aborting. Both errors must appear in the single run's output,
 # deduped to one per annotation (each target is scored against two covering pools
 # but a target-quote miss is the same failure from both).
 [[file]]

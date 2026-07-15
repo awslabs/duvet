@@ -20,7 +20,7 @@ pub mod coverage;
 /// And the collection has "MUST foo,"; "MUST bar"; "MUST bar, MUST baz"; "MUST run"
 /// then the target is said to be covered
 ///
-/// # Error collection (idx37A)
+/// # Error collection
 ///
 /// This returns `(Option<AnnotationCoverage>, Vec<Error>)` rather than a plain
 /// `Result` so that a single `duvet query` run can report *every* unmatchable
@@ -130,7 +130,7 @@ pub async fn is_annotation_covered(
     {
         let normalized_quote = whitespace::normalize(&annotation.quote);
 
-        // idx37B: a covering quote can occur more than once in the section
+        // A covering quote can occur more than once in the section
         // (e.g. a short requirement phrase repeated across paragraphs). The bare
         // `find()` anchors to the *first* global occurrence, which may be nowhere
         // near the requirement this covering annotation is meant to cover — so the
@@ -146,7 +146,7 @@ pub async fn is_annotation_covered(
         ) {
             Some(start) => start,
             None => {
-                // idx37A: collect and skip this coverer, don't abort the run.
+                // Collect and skip this coverer, don't abort the run.
                 errors.push(
                     duvet_core::error!("Exactly matchable quote not found in section")
                     .with_source_slice(annotation.original_text.clone(), "Quote")
@@ -191,7 +191,7 @@ pub async fn is_annotation_covered(
 /// a tie (including the common no-overlap case) the one whose start is closest
 /// to `target_start`; on a further tie the earliest occurrence. Returns `None`
 /// only when `needle` does not occur in `haystack` at all — matching the
-/// contract of the bare `find()` this replaces (idx37B).
+/// contract of the bare `find()` this replaces.
 fn best_occurrence(
     haystack: &str,
     needle: &str,
@@ -268,7 +268,7 @@ pub async fn classify_annotation_coverage(
             let secondary_annotations = secondary_annotations.clone();
 
             async move {
-                // idx37A: neither call aborts; each returns its own collected
+                // Neither call aborts; each returns its own collected
                 // errors so a single run reports every unmatchable quote at once.
                 let (primary_coverage, primary_errors) =
                     is_annotation_covered(&annotation, &specifications, &primary_annotations).await;
@@ -295,7 +295,7 @@ pub async fn classify_annotation_coverage(
 
     // Execute all coverage calculations concurrently. Unlike `try_join_all`,
     // `join_all` does not short-circuit on the first error — every future runs to
-    // completion so we can surface all problems together (idx37A).
+    // completion so we can surface all problems together.
     let coverage_results = futures::future::join_all(coverage_futures).await;
 
     // Collect every per-annotation error across the whole run. If any were
@@ -335,7 +335,7 @@ pub async fn classify_annotation_coverage(
         }
     }
 
-    // idx37A: any collected error fails the run, but only after all were
+    // Any collected error fails the run, but only after all were
     // gathered — so the user sees every problem in one pass instead of fixing
     // one, re-running, and hitting the next. (Per-annotation duplicate
     // suppression happens above, where the primary/secondary split is known.)

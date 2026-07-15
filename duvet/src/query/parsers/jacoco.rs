@@ -372,7 +372,7 @@ mod tests {
         assert_eq!(function_info, "method_at_line_1");
     }
 
-    /// idx35: `ci`/`mi` decide statement status per JaCoCo's report.dtd
+    /// `ci`/`mi` decide statement status per JaCoCo's report.dtd
     /// (covered/missed *instructions*). The three cases:
     ///   - ci>0            -> executed        -> hit=1
     ///   - ci=0 && mi>0    -> uncovered code  -> hit=0 (Miss)
@@ -402,7 +402,7 @@ mod tests {
         assert!(!file_coverage.branches.contains_key(&12));
     }
 
-    /// idx35: a non-executable line (ci=0, mi=0) must not surface as a `Miss`
+    /// a non-executable line (ci=0, mi=0) must not surface as a `Miss`
     /// in the verified-model report — it should be absent entirely.
     #[test]
     fn non_executable_line_is_absent_from_coverage_report() {
@@ -429,7 +429,7 @@ mod tests {
         assert_eq!(report.get(&12), None);
     }
 
-    /// idx36: branch lines (mb>0 || cb>0) build the `branches` map, and
+    /// branch lines (mb>0 || cb>0) build the `branches` map, and
     /// `to_coverage_report` collapses them with a branch-OR: any taken branch
     /// makes the line a Hit, otherwise Miss.
     #[test]
@@ -463,7 +463,7 @@ mod tests {
         assert_eq!(report.get(&6), Some(&CoverageStatus::Miss));
     }
 
-    /// idx25 (belt-and-suspenders): `to_coverage_report` is Hit-priority, so a
+    /// belt-and-suspenders: `to_coverage_report` is Hit-priority, so a
     /// `Miss` never overwrites a `Hit` for the same line even if the two source
     /// maps were to overlap.
     #[test]

@@ -145,7 +145,7 @@ snapshot!(
     //@# Here is my citation"#
 );
 
-/// idx33: `Annotation::line_range()` must span only annotation-comment lines,
+/// `Annotation::line_range()` must span only annotation-comment lines,
 /// never real code. The coverage override stamps `{Annotation}` over that exact
 /// range (`query/checks/coverage.rs`); if the range could extend onto a
 /// `Statement`/`ScopeClose` line it would unbalance the scope tree. This pins
