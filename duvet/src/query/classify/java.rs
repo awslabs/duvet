@@ -164,12 +164,31 @@ fn walk_node(
     // can never fall out of sync: the arm that marks a code property is the same
     // arm that reports that code starts here.
     let marks_code = match kind {
-        // Declarations that open scopes
-        "class_declaration" | "interface_declaration" | "enum_declaration" => {
+        // Declarations that open scopes. `record_declaration` (Java 14+) carries
+        // a `class_body`, so it resolves through the same body-search as the
+        // others. It is worth modeling — JaCoCo attributes real hit/miss to the
+        // record header line (the generated accessors/ctor/equals live there),
+        // so treating it as a Declaration lets us consume that verdict instead of
+        // discarding it as an unclassified line.
+        "class_declaration"
+        | "interface_declaration"
+        | "enum_declaration"
+        | "record_declaration" => {
             mark_declaration_with_scope(node, lines, line_props, visited);
             true
         }
-        "method_declaration" | "constructor_declaration" => {
+        // `compact_constructor_declaration` is a record's canonical constructor
+        // (`Point { … }`); it has a `block` body and behaves like any other
+        // constructor for coverage. `static_initializer` (`static { … }`) also
+        // carries a `block`; marking the `static` keyword line as Declaration
+        // keeps it transparent to the backward walk (and handles the `static`
+        // and `{` landing on separate lines — the keyword line falls before the
+        // body start and is stamped Declaration, while the block child supplies
+        // the scope).
+        "method_declaration"
+        | "constructor_declaration"
+        | "compact_constructor_declaration"
+        | "static_initializer" => {
             mark_declaration_with_scope(node, lines, line_props, visited);
             true
         }
@@ -207,6 +226,21 @@ fn walk_node(
                 visited,
             );
             // The block child handles ScopeOpen/ScopeClose
+            true
+        }
+        // Arrow-form switch arm (`case A -> expr;` / `default -> { … }`).
+        // JaCoCo emits a per-arm hit/miss on the arm's own line, so the arm is a
+        // Statement (a coverage-bearing line with its own verdict). A block body
+        // (`-> { … }`) still gets ScopeOpen/ScopeClose from its `block` child via
+        // the recursion below; a bare expression arm is a one-liner with no scope.
+        "switch_rule" => {
+            mark_lines(
+                start_line,
+                start_line,
+                LineProperty::Statement,
+                line_props,
+                visited,
+            );
             true
         }
         "try_statement" => {
@@ -881,5 +915,161 @@ mod tests {
             result.iter().any(|c| c.is_some()),
             "valid Java must still be classified, got all Unknown"
         );
+    }
+
+    // --- Modern Java constructs ---
+    //
+    // Each of these was verified against a real JaCoCo report generated from the
+    // same construct: the classifier's role (which lines are Statement /
+    // Declaration / scope boundaries) is chosen to line up with the lines JaCoCo
+    // actually emits hit/miss for. Node kinds (`static_initializer`,
+    // `record_declaration`, `compact_constructor_declaration`, `switch_rule`)
+    // are the tree-sitter-java grammar's own names — leaning on the parser rather
+    // than pattern-matching source text.
+
+    /// A `static { … }` initializer runs at class-init and JaCoCo reports its
+    /// body lines. The `static` keyword line is a Declaration (transparent to the
+    /// backward walk); the inner block supplies the scope. Covers the reviewer's
+    /// `static` / `{` split-line hazard: the keyword line is stamped even when the
+    /// brace is on a later line.
+    #[test]
+    fn static_initializer_same_line_brace() {
+        let source = "public class Foo {\n    static {\n        setup();\n    }\n}";
+        let result = classify(source);
+        // line 2: `static {` → Declaration + ScopeOpen (block opens here)
+        assert!(has_prop(&result[1], LineProperty::Declaration));
+        assert!(has_prop(&result[1], LineProperty::ScopeOpen));
+        // line 3: body statement
+        assert!(has_prop(&result[2], LineProperty::Statement));
+        // line 4: `}` → ScopeClose
+        assert!(has_prop(&result[3], LineProperty::ScopeClose));
+    }
+
+    /// The `static` keyword on its own line (brace on the next) must still be
+    /// classified — otherwise an annotation above the block walks forward into an
+    /// unclassified line. This is the exact split the reviewer flagged.
+    #[test]
+    fn static_initializer_split_line_brace() {
+        let source = "public class Foo {\n    static\n    {\n        setup();\n    }\n}";
+        let result = classify(source);
+        // line 2: `static` → Declaration (not unknown)
+        assert!(
+            has_prop(&result[1], LineProperty::Declaration),
+            "the `static` keyword line must be a Declaration, got: {:?}",
+            result[1]
+        );
+        // line 3: `{` → ScopeOpen
+        assert!(has_prop(&result[2], LineProperty::ScopeOpen));
+        // line 5: `}` → ScopeClose
+        assert!(has_prop(&result[4], LineProperty::ScopeClose));
+    }
+
+    /// A record header carries a real JaCoCo verdict (generated accessors / ctor
+    /// / equals are attributed to it), so it must be a Declaration that opens the
+    /// record body scope — not an unclassified line whose coverage we discard.
+    #[test]
+    fn record_declaration_header_and_body() {
+        let source =
+            "public class Foo {\n    record Point(int x, int y) {\n        int sum() {\n            return x + y;\n        }\n    }\n}";
+        let result = classify(source);
+        // line 2: `record Point(...) {` → Declaration + ScopeOpen
+        assert!(has_prop(&result[1], LineProperty::Declaration));
+        assert!(has_prop(&result[1], LineProperty::ScopeOpen));
+        // line 3: `int sum() {` → Declaration + ScopeOpen (method inside record)
+        assert!(has_prop(&result[2], LineProperty::Declaration));
+        assert!(has_prop(&result[2], LineProperty::ScopeOpen));
+        // line 4: `return x + y;` → Statement
+        assert!(has_prop(&result[3], LineProperty::Statement));
+    }
+
+    /// A compact canonical constructor (`Point { … }`) is a real, coverage-bearing
+    /// constructor. It must behave like any other constructor: Declaration header
+    /// opening a scope, executable body inside.
+    #[test]
+    fn compact_constructor_declaration() {
+        let source =
+            "public class Foo {\n    record Point(int x) {\n        Point {\n            check(x);\n        }\n    }\n}";
+        let result = classify(source);
+        // line 3: `Point {` → Declaration + ScopeOpen
+        assert!(has_prop(&result[2], LineProperty::Declaration));
+        assert!(has_prop(&result[2], LineProperty::ScopeOpen));
+        // line 4: `check(x);` → Statement
+        assert!(has_prop(&result[3], LineProperty::Statement));
+    }
+
+    /// Arrow-form switch arms get a per-arm hit/miss from JaCoCo, so a bare
+    /// expression arm is a Statement (a coverage-bearing line), and a block-bodied
+    /// arm still opens a scope via its `block` child.
+    #[test]
+    fn switch_rule_arrow_arms() {
+        let source = "public class Foo {\n    String c(int n) {\n        return switch (n) {\n            case 0 -> \"zero\";\n            default -> {\n                yield \"many\";\n            }\n        };\n    }\n}";
+        let result = classify(source);
+        // line 4: `case 0 -> "zero";` → Statement (its own JaCoCo verdict)
+        assert!(
+            has_prop(&result[3], LineProperty::Statement),
+            "arrow arm must be a Statement, got: {:?}",
+            result[3]
+        );
+        // line 5: `default -> {` → Statement + ScopeOpen (block body)
+        assert!(has_prop(&result[4], LineProperty::Statement));
+        assert!(has_prop(&result[4], LineProperty::ScopeOpen));
+        // line 6: `yield "many";` → Statement
+        assert!(has_prop(&result[5], LineProperty::Statement));
+        // line 7: `}` → ScopeClose
+        assert!(has_prop(&result[6], LineProperty::ScopeClose));
+    }
+
+    /// Sealed types need no special handling: tree-sitter parses
+    /// `sealed interface … permits …` as an ordinary `interface_declaration`
+    /// (the `sealed` modifier and `permits` clause are child tokens), so it
+    /// already classifies as a Declaration that opens a scope. This locks that in
+    /// so a future refactor doesn't assume it needs a bespoke arm.
+    #[test]
+    fn sealed_interface_classifies_as_interface() {
+        let source =
+            "public class Foo {\n    sealed interface Shape permits Circle {\n        double area();\n    }\n}";
+        let result = classify(source);
+        // line 2: `sealed interface Shape permits Circle {` → Declaration + ScopeOpen
+        assert!(has_prop(&result[1], LineProperty::Declaration));
+        assert!(has_prop(&result[1], LineProperty::ScopeOpen));
+        // line 3: `double area();` → Declaration (abstract method)
+        assert!(has_prop(&result[2], LineProperty::Declaration));
+        // line 4: `}` → ScopeClose
+        assert!(has_prop(&result[3], LineProperty::ScopeClose));
+    }
+
+    /// A block-bodied lambda (`() -> { … }`) opens a real scope via its `block`
+    /// child — JaCoCo tracks the body lines independently of the creation site,
+    /// so the scope boundary is needed for correct attribution.
+    #[test]
+    fn block_bodied_lambda_opens_scope() {
+        let source =
+            "public class Foo {\n    void bar() {\n        Runnable r = () -> {\n            work();\n        };\n    }\n}";
+        let result = classify(source);
+        // line 3: `Runnable r = () -> {` → Statement (field/local w/ init) + ScopeOpen
+        assert!(has_prop(&result[2], LineProperty::ScopeOpen));
+        // line 4: `work();` → Statement
+        assert!(has_prop(&result[3], LineProperty::Statement));
+        // line 5: `};` → ScopeClose
+        assert!(has_prop(&result[4], LineProperty::ScopeClose));
+    }
+
+    /// An expression-bodied lambda (`x -> x * 2`, no braces) has no `block` child,
+    /// so it opens no scope — JaCoCo folds it into the enclosing statement's line,
+    /// which is already a Statement. Keeping scopes tied to braces avoids
+    /// synthesizing a boundary we'd then have to balance. This test asserts the
+    /// declaration line is a single-line Statement with no stray ScopeOpen.
+    #[test]
+    fn expression_bodied_lambda_opens_no_scope() {
+        let source = "public class Foo {\n    java.util.function.Function<Integer, Integer> f = x -> x * 2;\n}";
+        let result = classify(source);
+        // line 2: field with lambda initializer → Statement, but NO ScopeOpen
+        assert!(has_prop(&result[1], LineProperty::Statement));
+        assert!(
+            !has_prop(&result[1], LineProperty::ScopeOpen),
+            "brace-less lambda must not open a scope, got: {:?}",
+            result[1]
+        );
+        assert!(!has_prop(&result[1], LineProperty::ScopeClose));
     }
 }
