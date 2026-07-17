@@ -227,11 +227,25 @@ implementation correlations.
 ## 3. Requirement Scoping {#requirement-scoping}
 
 All checks support filtering to focus on specific requirements.
+Both filters below are **cuts on the words of the specification**:
+they select a slice of the spec, and that slice determines which
+requirements are in scope to report on. They are applied to the
+requirement side of each check only — never to the covering annotations.
+
+A requirement is covered when its covering annotations, taken together,
+tile its full quoted text (§4). Because the filters never remove a coverer
+from that pool, **a filter can only change which requirements you look at —
+it can never turn a covered requirement into a miss, nor a miss into a
+pass.** Covering annotations that point at an out-of-scope slice of the
+spec simply never pair with an in-scope requirement and fall away on their
+own (they share a requirement's exact target or they are ignored).
+
 Two orthogonal filters are available:
 
 ### 3.1 Section targeting (`--section`, `-s`)
 
-Filters annotations by specification target.
+Selects the spec slice by specification target (the `path#section` a
+requirement lives under).
 Supports both full section references and path-only references:
 
 ```bash
@@ -247,7 +261,8 @@ duvet query -c implementation -s "spec.md#section-1,spec.md#section-2"
 
 ### 3.2 Quote filtering (`--quote`, `-q`)
 
-Filters annotations by quoted text content.
+Selects the spec slice by quoted text content:
+a requirement is in scope when its quote contains the filter string.
 Case-insensitive substring match.
 Multiple `-q` flags combine with OR semantics:
 

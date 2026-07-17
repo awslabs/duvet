@@ -1,0 +1,47 @@
+source = { local = true }
+# "You can just quote it." A citation may quote spec text that was never hoisted
+# into a requirement (no `Spec` annotation, no RFC-2119 MUST/SHOULD to extract).
+# Such a citation is a coverer with no requirement to pair with, so it is never
+# scored as a requirement — with or without a filter. Here `-q` selects the one
+# real (extracted) requirement; the un-hoisted citation neither adds a
+# requirement to the run nor errors.
+cmd = ["duvet query --check implementation -q encrypt"]
+report_output = false
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# The client MUST encrypt the payload
+
+//= spec.md#section-2
+//= type=implementation
+//# a plain descriptive sentence
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+The client MUST encrypt the payload
+
+## Section 2
+
+a plain descriptive sentence
+"""
