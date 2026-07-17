@@ -82,41 +82,12 @@ fn parse_jacoco_report_package<T: BufRead>(
         match parser.read_event_into(buf) {
             Ok(Event::Start(ref e)) => {
                 match e.local_name().into_inner() {
-                    b"class" => {
-                        let fq_class = get_xml_attribute(parser, e, "name")?;
-                        // Class name: "Person$Age"
-                        let class = fq_class.split('/').next_back().ok_or_else(|| {
-                            CoverageError::InvalidData("Failed to parse class name".to_string())
-                        })?;
-                        // Class name "Person"
-                        let top_class = class.split('$').next().ok_or_else(|| {
-                            CoverageError::InvalidData("Failed to parse top class name".to_string())
-                        })?;
-                        // Fully qualified class name: "org/example/Person$Age"
-                        // Generally, we will use the filename if its present,
-                        // but if it isn't, fallback to the top level class name
-                        let file = get_xml_attribute(parser, e, "sourcefilename")
-                            .unwrap_or_else(|_| format!("{top_class}.java"));
-
-                        // Process all <method /> and <counter /> for this class
-                        let functions = parse_jacoco_report_class(parser, buf, class)?;
-
-                        match results_map.get_mut(&file) {
-                            Some(file_coverage) => {
-                                file_coverage.functions.extend(functions);
-                            }
-                            None => {
-                                results_map.insert(
-                                    file.clone(),
-                                    FileCoverage {
-                                        functions,
-                                        lines: BTreeMap::new(),
-                                        branches: BTreeMap::new(),
-                                    },
-                                );
-                            }
-                        }
-                    }
+                    // Per-line coverage lives only in <sourcefile>; <class>/<method>
+                    // carry no line data, so we skip them here (the loop's `_ => {}`
+                    // steps over their events until </package>). If JaCoCo method
+                    // boundaries are ever needed (see the `MethodBoundary` TODO in
+                    // coverage.rs), reintroduce exactly the parsing that consumer
+                    // requires.
                     b"sourcefile" => {
                         let file = get_xml_attribute(parser, e, "name")?;
                         let source_file_data = parse_jacoco_report_sourcefile(parser, buf)?;
@@ -130,7 +101,6 @@ fn parse_jacoco_report_package<T: BufRead>(
                                 results_map.insert(
                                     file.clone(),
                                     FileCoverage {
-                                        functions: FxHashMap::default(),
                                         lines: source_file_data.lines,
                                         branches: source_file_data.branches,
                                     },
@@ -164,52 +134,6 @@ fn parse_jacoco_report_package<T: BufRead>(
             )
         })
         .collect())
-}
-
-fn parse_jacoco_report_class<T: BufRead>(
-    parser: &mut Reader<T>,
-    buf: &mut Vec<u8>,
-    class_name: &str,
-) -> Result<FxHashMap<String, String>, CoverageError> {
-    let mut functions: FxHashMap<String, String> = FxHashMap::default();
-
-    loop {
-        match parser.read_event_into(buf) {
-            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"method" => {
-                let name = get_xml_attribute(parser, e, "name")?;
-                let full_name = format!("{class_name}#{name}");
-
-                let start_line = get_xml_attribute(parser, e, "line")?
-                    .parse::<u32>()
-                    .map_err(|_| CoverageError::InvalidData("Invalid line number".to_string()))?;
-                let function_info = parse_jacoco_report_method(parser, buf, start_line)?;
-                functions.insert(full_name, function_info);
-            }
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"class" => break,
-            Err(e) => return Err(CoverageError::Xml(e)),
-            _ => {}
-        }
-        buf.clear();
-    }
-
-    Ok(functions)
-}
-
-fn parse_jacoco_report_method<T: BufRead>(
-    parser: &mut Reader<T>,
-    buf: &mut Vec<u8>,
-    start: u32,
-) -> Result<String, CoverageError> {
-    loop {
-        match parser.read_event_into(buf) {
-            Ok(Event::End(ref e)) if e.local_name().into_inner() == b"method" => break,
-            Err(e) => return Err(CoverageError::Xml(e)),
-            _ => {}
-        }
-        buf.clear();
-    }
-
-    Ok(format!("method_at_line_{start}"))
 }
 
 struct JacocoSourceFileData {
@@ -365,11 +289,6 @@ mod tests {
         // Check lines
         assert_eq!(file_coverage.lines.get(&1), Some(&1));
         assert_eq!(file_coverage.lines.get(&4), Some(&1));
-
-        // Check functions
-        assert_eq!(file_coverage.functions.len(), 1);
-        let function_info = file_coverage.functions.get("Hello#<init>").unwrap();
-        assert_eq!(function_info, "method_at_line_1");
     }
 
     /// `ci`/`mi` decide statement status per JaCoCo's report.dtd
@@ -478,11 +397,7 @@ mod tests {
         let mut branches = BTreeMap::new();
         branches.insert(7u32, vec![true]); // Hit
 
-        let fc = FileCoverage {
-            lines,
-            branches,
-            functions: FxHashMap::default(),
-        };
+        let fc = FileCoverage { lines, branches };
 
         // Regardless of insertion order, Hit wins.
         assert_eq!(fc.to_coverage_report().get(&7), Some(&CoverageStatus::Hit));

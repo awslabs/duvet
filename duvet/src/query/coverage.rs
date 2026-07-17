@@ -36,9 +36,8 @@ impl GenericCoverageData {
 /// Coverage data for a single file
 #[derive(Clone, Debug)]
 pub struct FileCoverage {
-    pub lines: BTreeMap<u32, u64>,            // line_number -> hit_count
-    pub branches: BTreeMap<u32, Vec<bool>>,   // line_number -> [taken, not_taken, ...]
-    pub functions: FxHashMap<String, String>, // function_name -> function_info
+    pub lines: BTreeMap<u32, u64>,          // line_number -> hit_count
+    pub branches: BTreeMap<u32, Vec<bool>>, // line_number -> [taken, not_taken, ...]
 }
 
 impl FileCoverage {
