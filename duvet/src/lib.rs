@@ -10,6 +10,7 @@ mod config;
 mod extract;
 pub(crate) mod ids;
 mod init;
+mod merge;
 mod project;
 mod query;
 mod reference;
@@ -32,6 +33,8 @@ pub enum Arguments {
     Report(report::Report),
     /// Queries requirement traceability using coverage data
     Query(query::Query),
+    /// Merges multiple v2 JSON reports into one
+    Merge(merge::Merge),
 }
 
 #[duvet_core::query(cache)]
@@ -46,6 +49,7 @@ impl Arguments {
             Self::Extract(args) => args.exec().await,
             Self::Report(args) => args.exec().await,
             Self::Query(args) => args.exec().await,
+            Self::Merge(args) => args.exec().await,
         }
     }
 }

@@ -141,6 +141,12 @@ struct IntegrationTest {
     cwd: Option<String>,
     #[serde(default)]
     report_output: Option<bool>,
+    /// Additional JSON files (paths relative to the test's working
+    /// directory) to capture as insta snapshots after the cmd loop runs.
+    /// Useful for tests that produce multiple JSON outputs (e.g. a `duvet
+    /// merge` test that writes per-package and merged reports).
+    #[serde(default)]
+    extra_json_snapshots: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -232,12 +238,13 @@ impl IntegrationTest {
             ..
         } = self;
 
+        let target_dir = if let Some(cwd) = cwd {
+            target.join(cwd)
+        } else {
+            target.to_path_buf()
+        };
+
         let (stdout, stderr, json_report, json_v2_report, snapshot_report) = {
-            let target_dir = if let Some(cwd) = cwd {
-                target.join(cwd)
-            } else {
-                target.to_path_buf()
-            };
             let _dir = sh.push_dir(&target_dir);
             let html_report = sh.current_dir().join("duvet_report.html");
             let json_report = sh.current_dir().join("duvet_report.json");
@@ -328,6 +335,16 @@ impl IntegrationTest {
         } else {
             settings.bind(|| {
                 insta::assert_snapshot!(format!("{name}_stdout"), stdout);
+            });
+        }
+
+        for rel in &self.extra_json_snapshots {
+            let path = target_dir.join(rel);
+            let contents = sh.read_file(&path)?;
+            let value: serde_json::Value = serde_json::from_str(&contents)?;
+            let slug = rel.trim_end_matches(".json").replace('/', "_");
+            settings.bind(|| {
+                insta::assert_json_snapshot!(format!("{name}_{slug}"), value);
             });
         }
 
