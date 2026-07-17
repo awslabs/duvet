@@ -228,7 +228,7 @@ async fn execute_implementation_check(
         complete_coverage: fully_implemented,
         mixed_coverage: mixed_implementation,
         incomplete_coverage: incomplete_implementation,
-        secondary_coverage: todo,
+        pending_coverage: todo,
         no_coverage: not_implemented,
     } = classify_annotation_coverage(
         project_data,
@@ -657,8 +657,8 @@ async fn execute_duplicates(
 
 fn convert_to_duplicates(classified: ClassifiedCoverage) -> Duplicates {
     // This assumes that you used classify_annotation_coverage
-    // where annotations == maybe_primary_covering_annotations
-    // This means that mixed_coverage == [] && secondary_coverage == []
+    // where annotations == maybe_satisfied_covering_annotations
+    // This means that mixed_coverage == [] && pending_coverage == []
 
     let duplicates = deduplicate_annotation_coverage(classified.complete_coverage);
     Duplicates {

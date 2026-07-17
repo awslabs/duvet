@@ -238,25 +238,32 @@ pub struct ClassifiedCoverage {
     pub incomplete_coverage: Vec<AnnotationCoverage>,
     pub no_coverage: Vec<Arc<Annotation>>,
     pub mixed_coverage: Vec<AnnotationCoverage>,
-    pub secondary_coverage: Vec<AnnotationCoverage>,
+    // "Pending" coverage: the requirement is acknowledged but not yet resolved.
+    // Today this is exactly the `Todo` bucket; the name leaves room for other
+    // kinds of pending (deferred, blocked, etc.) without another rename.
+    pub pending_coverage: Vec<AnnotationCoverage>,
 }
 
 pub async fn classify_annotation_coverage(
     project_data: &ProjectData,
     annotations: &[Arc<Annotation>],
-    maybe_primary_covering_annotations: &[Arc<Annotation>],
-    maybe_secondary_covering_annotations: &[Arc<Annotation>],
+    // "Satisfied" coverers resolve a requirement one way or another —
+    // `Citation` (implemented), `Implication` (already true), or `Exception`
+    // (deliberately waived). "Pending" coverers (`Todo`) acknowledge it without
+    // resolving it. The distinction is resolved-vs-outstanding, not a type check.
+    maybe_satisfied_covering_annotations: &[Arc<Annotation>],
+    maybe_pending_covering_annotations: &[Arc<Annotation>],
 ) -> Result<ClassifiedCoverage> {
     let mut complete_coverage: Vec<AnnotationCoverage> = Vec::new();
     let mut incomplete_coverage: Vec<AnnotationCoverage> = Vec::new();
     let mut no_coverage: Vec<Arc<Annotation>> = Vec::new();
     let mut mixed_coverage: Vec<AnnotationCoverage> = Vec::new();
-    let mut secondary_coverage: Vec<AnnotationCoverage> = Vec::new();
+    let mut pending_coverage: Vec<AnnotationCoverage> = Vec::new();
 
     // Wrap in Arc to share across futures without cloning the entire Vec per annotation
     let specifications = project_data.specifications.clone();
-    let primary_annotations = Arc::new(maybe_primary_covering_annotations.to_vec());
-    let secondary_annotations = Arc::new(maybe_secondary_covering_annotations.to_vec());
+    let satisfied_annotations = Arc::new(maybe_satisfied_covering_annotations.to_vec());
+    let pending_annotations = Arc::new(maybe_pending_covering_annotations.to_vec());
 
     // Create futures for concurrent coverage calculation
     let coverage_futures: Vec<_> = annotations
@@ -264,31 +271,31 @@ pub async fn classify_annotation_coverage(
         .map(|annotation| {
             let annotation = annotation.clone();
             let specifications = specifications.clone();
-            let primary_annotations = primary_annotations.clone();
-            let secondary_annotations = secondary_annotations.clone();
+            let satisfied_annotations = satisfied_annotations.clone();
+            let pending_annotations = pending_annotations.clone();
 
             async move {
                 // Neither call aborts; each returns its own collected
                 // errors so a single run reports every unmatchable quote at once.
-                let (primary_coverage, primary_errors) =
-                    is_annotation_covered(&annotation, &specifications, &primary_annotations).await;
-                let (secondary_coverage, secondary_errors) =
-                    is_annotation_covered(&annotation, &specifications, &secondary_annotations)
+                let (satisfied_coverage, satisfied_errors) =
+                    is_annotation_covered(&annotation, &specifications, &satisfied_annotations)
                         .await;
+                let (pending_coverage, pending_errors) =
+                    is_annotation_covered(&annotation, &specifications, &pending_annotations).await;
 
                 // A *target-level* failure (coverage is `None`: the target's own
                 // quote/section couldn't be located) is produced identically by
                 // both calls, since they share the same target — so take it once.
                 // *Coverer-level* errors (coverage is `Some`) come from the two
                 // distinct covering pools, so keep both.
-                let errors = if primary_coverage.is_none() {
-                    primary_errors
+                let errors = if satisfied_coverage.is_none() {
+                    satisfied_errors
                 } else {
-                    let mut errors = primary_errors;
-                    errors.extend(secondary_errors);
+                    let mut errors = satisfied_errors;
+                    errors.extend(pending_errors);
                     errors
                 };
-                (annotation, primary_coverage, secondary_coverage, errors)
+                (annotation, satisfied_coverage, pending_coverage, errors)
             }
         })
         .collect();
@@ -305,31 +312,31 @@ pub async fn classify_annotation_coverage(
     let mut errors: Vec<Error> = Vec::new();
 
     // Process results sequentially for classification
-    for (annotation, primary_coverage, secondary, annotation_errors) in coverage_results {
+    for (annotation, satisfied_coverage, pending, annotation_errors) in coverage_results {
         errors.extend(annotation_errors);
 
         // If either side failed to locate the target itself, there is no coverage
         // to classify for this annotation; its error is already collected above.
-        let (Some(primary_coverage), Some(secondary)) = (primary_coverage, secondary) else {
+        let (Some(satisfied_coverage), Some(pending)) = (satisfied_coverage, pending) else {
             continue;
         };
 
-        let primary_len = primary_coverage.covering_annotations.len();
-        let secondary_len = secondary.covering_annotations.len();
+        let satisfied_len = satisfied_coverage.covering_annotations.len();
+        let pending_len = pending.covering_annotations.len();
 
-        match (primary_coverage.fully_covered, primary_len, secondary_len) {
-            // Complete primary coverage
-            (true, _, 0) => complete_coverage.push(primary_coverage),
-            // Complete primary but there is secondary coverage. duplicates?
-            (true, _, s) if 0 < s => mixed_coverage.push(primary_coverage.merge(secondary)),
-            // Primary is missing something
-            (false, p, s) if 0 < p && 0 == s => incomplete_coverage.push(primary_coverage),
-            // Mixed primary and secondary. duplicates?
+        match (satisfied_coverage.fully_covered, satisfied_len, pending_len) {
+            // Complete satisfied coverage
+            (true, _, 0) => complete_coverage.push(satisfied_coverage),
+            // Complete satisfied but there is pending coverage. duplicates?
+            (true, _, s) if 0 < s => mixed_coverage.push(satisfied_coverage.merge(pending)),
+            // Satisfied is missing something
+            (false, p, s) if 0 < p && 0 == s => incomplete_coverage.push(satisfied_coverage),
+            // Mixed satisfied and pending. duplicates?
             (false, p, s) if 0 < p && 0 < s => {
-                mixed_coverage.push(primary_coverage.merge(secondary))
+                mixed_coverage.push(satisfied_coverage.merge(pending))
             }
-            // Only secondary
-            (false, p, s) if 0 == p && 0 < s => secondary_coverage.push(secondary),
+            // Only pending
+            (false, p, s) if 0 == p && 0 < s => pending_coverage.push(pending),
             // Zero coverage
             _ => no_coverage.push(annotation.clone()),
         }
@@ -338,7 +345,7 @@ pub async fn classify_annotation_coverage(
     // Any collected error fails the run, but only after all were
     // gathered — so the user sees every problem in one pass instead of fixing
     // one, re-running, and hitting the next. (Per-annotation duplicate
-    // suppression happens above, where the primary/secondary split is known.)
+    // suppression happens above, where the satisfied/pending split is known.)
     if !errors.is_empty() {
         return Err(errors.into());
     }
@@ -348,7 +355,7 @@ pub async fn classify_annotation_coverage(
         incomplete_coverage,
         no_coverage,
         mixed_coverage,
-        secondary_coverage,
+        pending_coverage,
     })
 }
 
