@@ -400,7 +400,10 @@ impl fmt::Display for CoverageResult {
         writeln!(f, "  Executed implementations: {executed_implementations}")?;
         writeln!(f, "  Successful correlations: {successful}")?;
         writeln!(f, "  Failed correlations: {failed}")?;
-        writeln!(f, "  Tests with no implementation: {missing_implementation}")?;
+        writeln!(
+            f,
+            "  Tests with no implementation: {missing_implementation}"
+        )?;
         writeln!(f)?;
 
         // Tests that cite a spec section nobody implements (design §2.4).
@@ -556,11 +559,8 @@ impl fmt::Display for DuplicatesResult {
                             // Whitespace-only quote: trivially covered, no coverers. Render
                             // the target rather than panicking on an empty slice.
                             None => {
-                                overlap_info = with_annotation(
-                                    overlap_info,
-                                    &coverage.target,
-                                    "Some overlap",
-                                );
+                                overlap_info =
+                                    with_annotation(overlap_info, &coverage.target, "Some overlap");
                             }
                         }
                         writeln!(f, "{overlap_info:?}")?;

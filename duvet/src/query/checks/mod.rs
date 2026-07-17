@@ -404,10 +404,7 @@ mod tests {
         };
         let t = hay.find("target").unwrap();
         // Independently compute which occurrence is nearest to the target start.
-        let expected = *occurrences
-            .iter()
-            .min_by_key(|&&s| s.abs_diff(t))
-            .unwrap();
+        let expected = *occurrences.iter().min_by_key(|&&s| s.abs_diff(t)).unwrap();
         let got = best_occurrence(hay, "foo", t, t + 6).unwrap();
         assert_eq!(got, expected, "nearest occurrence to the target wins");
     }

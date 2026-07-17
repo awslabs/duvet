@@ -67,7 +67,7 @@ impl LineClassifier for JavaClassifier {
         // inner-loop tool run against in-progress code, so this is routine. Rather
         // than feed the verified model garbage, we drop the whole file to
         // `Unknown` (all `None`), which every downstream consumer treats
-        // conservatively — the same conservative path as an unparseable file. This
+        // conservatively — the same conservative path as an unparsable file. This
         // is a deliberate degrade: half-classified data would be more dangerous
         // than none, because it looks trustworthy while silently mismodeling scope.
         if tree.root_node().has_error() {

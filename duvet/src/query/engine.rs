@@ -412,13 +412,9 @@ async fn execute_coverage_check(
     // here the `Test` annotations being correlated — never to the covering
     // implementation pool. See `execute_implementation_check` for why filtering
     // coverers can manufacture a false miss.
-    for annotation in project_data
-        .annotations
-        .iter()
-        .filter(|annotation| {
-            !matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo)
-        })
-    {
+    for annotation in project_data.annotations.iter().filter(|annotation| {
+        !matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo)
+    }) {
         match &annotation.anno {
             // Requirement role: apply the spec-slice filter here.
             AnnotationType::Test => {

@@ -274,8 +274,9 @@ fn stamp_annotation_range(classifications: &mut [Option<LineClass>], range: (u64
     for line_num in start_line..=end_line {
         let idx = (line_num - 1) as usize;
         if idx < classifications.len() {
-            classifications[idx] =
-                Some(duvet_coverage::types::line_class(&[LineProperty::Annotation]));
+            classifications[idx] = Some(duvet_coverage::types::line_class(&[
+                LineProperty::Annotation,
+            ]));
         }
     }
 }
@@ -442,11 +443,8 @@ pub fn executed_status_for(
             //
             // requires: annotation.end_line < u64::MAX
             // requires: every coverage key K has (K - 1) < classifications.len()
-            let precondition_holds = classified_preconditions_hold(
-                end_line,
-                &data.coverage,
-                data.classifications.len(),
-            );
+            let precondition_holds =
+                classified_preconditions_hold(end_line, &data.coverage, data.classifications.len());
 
             if !precondition_holds {
                 ExecutionStatus::Unknown {
@@ -547,8 +545,7 @@ fn executed_status_for_unclassified(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::classify::java::JavaClassifier;
-    use crate::query::classify::LineClassifier;
+    use crate::query::classify::{java::JavaClassifier, LineClassifier};
     use duvet_coverage::types::{CoverageStatus, LineProperty};
 
     fn coverage_with_keys(keys: &[u64]) -> CoverageReportMap {

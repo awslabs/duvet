@@ -12,7 +12,13 @@
 // vstd imports are all required for `cargo verus build` verification.
 // `unused_braces`: the `global size_of usize == 8;` directive (below) expands
 // to braces that plain rustc flags but Verus needs.
-#![allow(unused_imports, unused_variables, unused_parens, unused_braces, dead_code)]
+#![allow(
+    unused_imports,
+    unused_variables,
+    unused_parens,
+    unused_braces,
+    dead_code
+)]
 // Verus also requires source patterns that clippy flags as anti-patterns:
 //   - `i = i + 1` rather than `i += 1` (assign_op_pattern)
 //   - `vec.len() == 0` rather than `vec.is_empty()` (len_zero)
