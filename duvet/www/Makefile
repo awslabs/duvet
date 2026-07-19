@@ -4,7 +4,7 @@ public/script.js: node_modules $(wildcard src/*.js)
 	@awk 1 build/static/js/*.js > public/script.js
 
 node_modules:
-	@npm install
+	@npm ci
 
 dev: node_modules src/result.test.json
 	@npm start
