@@ -215,12 +215,33 @@ async fn build_file_execution_data(
         // single whole-file scope and every annotation in the file would resolve
         // against it. The scope tree depends only on structure, not on which
         // lines carry annotations, so building it first is correct.
+        // Discharge `build_scope_tree`'s (and `match_scope_pairs`') sole
+        // precondition, `file_length < u64::MAX`, at this Verus/Rust boundary.
+        // Verus checks it against the proof but it compiles away for this
+        // unverified caller, so state it explicitly. It is physically
+        // unfalsifiable — `line_count` is a line tally, and u64::MAX lines is
+        // ~exabytes — so `debug_assert!` (checked in tests/CI, compiled out in
+        // release) is the honest weight: it asserts the contract input where a
+        // logic regression would surface, without a release panic path that can
+        // never fire.
+        debug_assert!(line_count < u64::MAX);
         let scopes = build_scope_tree(&classifications, line_count);
 
         apply_annotation_override(&mut classifications, annotations, duvet_path);
 
         let coverage = file_coverage.to_coverage_report();
 
+        // TRUSTED-BASE ASSUMPTION (unverified glue): the `scopes` stored here
+        // satisfy `is_annotation_executed`'s scope-bound preconditions
+        // (open_line >= 1, close_line < u64::MAX) *because* they came from
+        // `build_scope_tree`, whose contract now states those bounds. Nothing at
+        // the type level enforces that this field only ever holds a
+        // `build_scope_tree` result — `scopes: Vec<Scope>` is a plain public
+        // field. Today this is the sole producer, so the assumption holds by
+        // construction. TODO(VerifiedScopeTree): replace `Vec<Scope>` with an
+        // opaque newtype whose only constructor is `build_scope_tree` and whose
+        // Verus type invariant carries the bounds, so the query-side consumer
+        // discharges those `requires` from the type instead of this comment.
         Ok(FileExecutionData::Classified(ClassifiedFileData {
             classifications,
             scopes,

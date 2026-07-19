@@ -49,7 +49,14 @@ verus! {
 /// at the fallback below for why that is a deliberate, if lossy, choice.
 pub fn build_scope_tree(classifications: &[Option<LineClass>], file_length: u64) -> (scopes: Vec<Scope>)
     requires file_length < u64::MAX,
-    ensures scopes_well_formed(scopes@),
+    ensures
+        scopes_well_formed(scopes@),
+        // The scope-bound preconditions of `is_annotation_executed` (#3/#4).
+        // Stated here so the runtime trust boundary in `executed_status_for`
+        // can rely on the *contract*, not on this function's implementation.
+        forall|i: int| 0 <= i < scopes@.len() ==>
+            (#[trigger] scopes@[i]).open_line >= 1
+            && scopes@[i].close_line < u64::MAX,
 {
     // Pass 1: collect (open_line, close_line) pairs
     let pairs = match_scope_pairs(classifications, file_length);
@@ -97,6 +104,10 @@ fn match_scope_pairs(classifications: &[Option<LineClass>], file_length: u64) ->
         // Every pair has open <= close
         forall|i: int| 0 <= i < pairs@.len() ==>
             (#[trigger] pairs@[i]).0 <= pairs@[i].1,
+        // Every pair has close < u64::MAX (emitted at line_num, and the loop
+        // invariant keeps every emitted close < line_num <= file_length < u64::MAX).
+        forall|i: int| 0 <= i < pairs@.len() ==>
+            (#[trigger] pairs@[i]).1 < u64::MAX,
         // Pairs are properly nested: if two strictly overlap, one contains the other
         forall|i: int, j: int| 0 <= i < pairs@.len() && 0 <= j < pairs@.len() && i != j
             && (#[trigger] pairs@[i]).0 < (#[trigger] pairs@[j]).1
