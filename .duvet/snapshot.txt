@@ -28,9 +28,11 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[implication]: - Every line between L and the annotation's target (exclusive)
     TEXT[implication]:   is classified (`Some`)
     TEXT[implication]:   and has properties that are a subset of
-    TEXT[implication]:   {Whitespace, Comment, Annotation, Declaration, ScopeOpen}
+    TEXT[implication]:   {Whitespace, Comment, Annotation, Declaration}
     TEXT[implication]: - No line between L and the annotation's target
     TEXT[implication]:   has the `ScopeClose` property
+    TEXT[implication]: - No line between L and the annotation's target
+    TEXT[implication]:   has the `ScopeOpen` property
     TEXT[implication]: - No line between L and the annotation's target
     TEXT[implication]:   is unknown (`None`)
 
@@ -51,10 +53,10 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MAY,implication,test]: propagation MAY occur through S'.
 
   SECTION: [Property 4: Monotonicity](#property-4-monotonicity)
-    TEXT[!MUST,implementation,test]: The implementation MUST prove that
-    TEXT[!MUST,implementation,test]: given two coverage reports E1 and E2
-    TEXT[!MUST,implementation,test]: where E1 ⊆ E2
-    TEXT[!MUST,implementation,test]: (E2 reports all the same hits as E1, plus possibly more):
+    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that
+    TEXT[!MUST,implementation,implication,test]: given two coverage reports E1 and E2
+    TEXT[!MUST,implementation,implication,test]: where E1 ⊆ E2
+    TEXT[!MUST,implementation,implication,test]: (E2 reports all the same hits as E1, plus possibly more):
 
   SECTION: [Property 5: Annotation Stacking Transitivity](#property-5-stacking-transitivity)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that
@@ -90,3 +92,28 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
   SECTION: [Property 10: Annotation Target Bounds](#property-10-annotation-target-bounds)
     TEXT[implication]: If `annotation_target(annotation, ...) = Some(target)`,
     TEXT[implication]: then `target.line_number > annotation.end_line`.
+
+  SECTION: [7.4 Properties](#degraded-properties)
+    TEXT[!MUST]: These properties MUST be proven with Verus for the degraded path,
+    TEXT[!MUST]: alongside the Section 5 properties for the classified path.
+
+  SECTION: [Property D1: Direct Observation](#property-d1-direct-observation)
+    TEXT[!MUST,implication]: The implementation MUST prove that the degraded status is a direct observation
+    TEXT[!MUST,implication]: of the target line's own coverage, never an inference propagated from another
+    TEXT[!MUST,implication]: line.
+
+  SECTION: [Property D2: Degraded Target Bounds](#property-d2-degraded-target-bounds)
+    TEXT[!MUST,implication]: The implementation MUST prove that any `Executed` or `NotExecuted` degraded
+    TEXT[!MUST,implication]: status resolves a target strictly below the annotation
+    TEXT[!MUST,implication]: (`target > annotation.end_line`).
+
+  SECTION: [Property D3: Degraded Stacking Transitivity](#property-d3-degraded-stacking)
+    TEXT[!MUST,implication]: The implementation MUST prove that the degraded status depends on the annotation
+    TEXT[!MUST,implication]: only through its resolved target: two annotations that resolve to the same
+    TEXT[!MUST,implication]: target receive the same status.
+
+  SECTION: [Property D4: Agreement with the Classified Model](#property-d4-agreement-with-classified)
+    TEXT[!MUST,implication]: The implementation MUST prove that where the degraded path emits a verdict on a
+    TEXT[!MUST,implication]: directly-hit line that a full classifier would mark as a plain `Statement` (and
+    TEXT[!MUST,implication]: not `NonLinearControl`), it returns the same result the classified model
+    TEXT[!MUST,implication]: `is_annotation_executed` returns, namely `Executed`.

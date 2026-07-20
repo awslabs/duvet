@@ -56,6 +56,7 @@ verus! {
 }
 
 pub mod annotation_execution;
+pub mod degraded;
 pub mod execution_propagation;
 pub mod predicates;
 pub mod proofs;

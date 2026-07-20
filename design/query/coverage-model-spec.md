@@ -695,3 +695,82 @@ This follows from the forward walk starting at
 
 See [coverage-model-examples.md](coverage-model-examples.md)
 for worked examples illustrating each phase of the algorithm.
+
+## 7. Degraded Mode: Classifier-less Coverage {#degraded-mode}
+
+Sections 2–5 assume a language classifier assigns each line a `LineClass`. Many
+languages that produce coverage reports have no tree-sitter classifier today:
+Kotlin, Scala, and Groovy all emit JVM-wide JaCoCo reports, and other languages
+emit LCOV. Rather than refuse such files — or fall back to an unverified
+heuristic — the model scores them with a **verified degraded path** that reuses
+the Phase 1 forward walk but decides status from coverage alone.
+
+### 7.1 Minimal Classification {#degraded-classification}
+
+When no language classifier exists for a file, a universal fallback classifier
+certifies only what is language-agnostic: a blank line is `Whitespace`, and every
+other line is unclassified (`None`). Annotation lines are stamped `Annotation` as
+in the classified path. This is the only classification the degraded path needs.
+
+### 7.2 Governance {#degraded-governance}
+
+The degraded path defines the code an annotation governs by the **forward-nearest**
+rule: the governed line is the first non-skippable line at or below
+`annotation.end_line + 1` — the first line that is neither whitespace nor an
+annotation. This is weaker than the scope-based governance of Sections 2–4 (there
+is no scope tree and no propagation), but it requires no classifier.
+
+### 7.3 Definition {#degraded-definition}
+
+```
+degraded_status_of(target: Option<Line>, coverage: CoverageReport) → ExecutionStatus =
+    match target:
+        None        → Unknown        // no observable code below the annotation
+        Some(line)  →
+            if coverage has no opinion on line → Unknown
+            else if coverage[line] == Hit      → Executed
+            else                               → NotExecuted
+```
+
+where `target` is `annotation_target` (§2) computed over the minimal
+classification. A `None` target — the walk reached end-of-file over only
+skippable lines — yields `Unknown`: there is nothing observable to attribute.
+
+### 7.4 Properties {#degraded-properties}
+
+These properties MUST be proven with Verus for the degraded path,
+alongside the Section 5 properties for the classified path.
+
+#### Property D1: Direct Observation {#property-d1-direct-observation}
+
+The implementation MUST prove that the degraded status is a direct observation
+of the target line's own coverage, never an inference propagated from another
+line. Specifically, if the degraded status is `Executed` then the target line is
+directly `Hit`; if it is `NotExecuted` then the target line is directly `Miss`;
+and if coverage has no opinion on the target line, the status is `Unknown`.
+Because the degraded path never propagates, non-linear control flow cannot make
+it unsound: it reports only what coverage directly says about the resolved line.
+
+#### Property D2: Degraded Target Bounds {#property-d2-degraded-target-bounds}
+
+The implementation MUST prove that any `Executed` or `NotExecuted` degraded
+status resolves a target strictly below the annotation
+(`target > annotation.end_line`). This is inherited from Phase 1 (Property 10).
+
+#### Property D3: Degraded Stacking Transitivity {#property-d3-degraded-stacking}
+
+The implementation MUST prove that the degraded status depends on the annotation
+only through its resolved target: two annotations that resolve to the same
+target receive the same status.
+
+#### Property D4: Agreement with the Classified Model {#property-d4-agreement-with-classified}
+
+The implementation MUST prove that where the degraded path emits a verdict on a
+directly-hit line that a full classifier would mark as a plain `Statement` (and
+not `NonLinearControl`), it returns the same result the classified model
+`is_annotation_executed` returns, namely `Executed`. Degraded and classified
+scoring agree on this domain, so a degraded verdict needs no separate provenance
+marker; they may differ only on the classifier-dependent cases
+(`NonLinearControl` and `Declaration` targets, and covered structural lines),
+where the degraded path is sound under forward-nearest governance but
+lower-fidelity.
