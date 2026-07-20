@@ -680,7 +680,10 @@ mod tests {
     #[test]
     fn stray_close_is_flagged_and_tree_collapses() {
         // A `}` with nothing open: stray close (depth underflow at line 1).
-        let c = vec![s(&[LineProperty::ScopeClose]), s(&[LineProperty::Statement])];
+        let c = vec![
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::Statement]),
+        ];
         assert_eq!(scope_imbalance_site(&c, 2), Some(1));
         // Tie: build_scope_tree collapses to the whole-file fallback.
         let sc = build_scope_tree(&c, 2);
@@ -696,7 +699,10 @@ mod tests {
             s(&[LineProperty::Statement]),
         ];
         let site = scope_imbalance_site(&c, 2);
-        assert!(site.is_some(), "unclosed open must be flagged, got {site:?}");
+        assert!(
+            site.is_some(),
+            "unclosed open must be flagged, got {site:?}"
+        );
         // Tie: build_scope_tree collapses to the whole-file fallback.
         let sc = build_scope_tree(&c, 2);
         assert_eq!(sc.len(), 1);

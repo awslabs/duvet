@@ -588,7 +588,8 @@ mod tests {
                 let mut all = vec![first];
                 all.extend(rest);
                 assert!(
-                    all.iter().all(|i| i.reason == ClassifierFailure::ParseError),
+                    all.iter()
+                        .all(|i| i.reason == ClassifierFailure::ParseError),
                     "every issue must be a ParseError"
                 );
                 assert!(
@@ -962,7 +963,8 @@ mod tests {
                 let mut all = vec![first];
                 all.extend(rest);
                 assert!(
-                    all.iter().all(|i| i.reason == ClassifierFailure::ParseError),
+                    all.iter()
+                        .all(|i| i.reason == ClassifierFailure::ParseError),
                     "truncated Java must report ParseError issues, got {all:?}"
                 );
                 assert!(

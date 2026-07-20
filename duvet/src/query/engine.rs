@@ -411,7 +411,10 @@ async fn execute_coverage_check(
             }
             if !unbalanced.is_empty() {
                 let lines: Vec<String> = unbalanced.iter().map(|i| i.line.to_string()).collect();
-                detail.push(format!("unbalanced scope stream near line(s) {}", lines.join(", ")));
+                detail.push(format!(
+                    "unbalanced scope stream near line(s) {}",
+                    lines.join(", ")
+                ));
             }
             progress!(
                 "Coverage model: {} — the selected classifier could not produce a \
@@ -440,7 +443,9 @@ async fn execute_coverage_check(
                     crate::query::checks::coverage::FileExecutionData::Degraded(_) => {
                         degraded_files.insert(path.as_path());
                     }
-                    crate::query::checks::coverage::FileExecutionData::DefeatedClassification { .. } => {
+                    crate::query::checks::coverage::FileExecutionData::DefeatedClassification {
+                        ..
+                    } => {
                         // Reported unconditionally above (loud, not verbose-gated).
                     }
                 }
