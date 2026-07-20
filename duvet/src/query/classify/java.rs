@@ -7,15 +7,15 @@
 //! Returns `None` for lines the tree-sitter walk does not visit and that are not
 //! blank or annotations (Decision 9).
 
-use crate::query::classify::LineClassifier;
-use duvet_coverage::types::{LineClass, LineProperty};
+use crate::query::classify::{Classification, ClassifierFailure, LineClassifier};
+use duvet_coverage::types::LineProperty;
 use std::collections::BTreeSet;
 
 /// Java source classifier using tree-sitter.
 pub struct JavaClassifier;
 
 impl LineClassifier for JavaClassifier {
-    fn classify(&self, source: &str) -> Vec<Option<LineClass>> {
+    fn classify(&self, source: &str) -> Classification {
         let lines: Vec<&str> = source.lines().collect();
         let line_count = lines.len();
         // Track which properties apply to each line (1-indexed, index 0 unused)
@@ -51,27 +51,32 @@ impl LineClassifier for JavaClassifier {
 
         let tree = match parser.parse(source, None) {
             Some(tree) => tree,
-            None => return (0..line_count).map(|_| None).collect(),
+            // tree-sitter could not produce a tree at all. We cannot localize
+            // within the file, so report a single file-level parse issue (line 1).
+            None => return Classification::unclassifiable(ClassifierFailure::ParseError, vec![1]),
         };
 
-        // Refuse to classify a tree that failed to parse cleanly. `parse` returns
-        // `Some(tree)` even for syntactically invalid input, inlining `ERROR` and
-        // `MISSING` nodes for the parts it could not model (a truncated file, a
-        // half-typed edit, or a Java feature tree-sitter-java doesn't fully
-        // support). The walk below would still emit `ScopeOpen`/`ScopeClose` for
-        // whichever subtrees parsed — but a missing `{`/`}` is exactly the kind of
-        // error that unbalances that stream, and `build_scope_tree` would then
-        // silently collapse to one whole-file scope (Property 2 becomes vacuous:
-        // every annotation resolves against the file-level scope, turning genuine
-        // Structural/Executed results into NotExecuted). `duvet query` is an
-        // inner-loop tool run against in-progress code, so this is routine. Rather
-        // than feed the verified model garbage, we drop the whole file to
-        // `Unknown` (all `None`), which every downstream consumer treats
-        // conservatively — the same conservative path as an unparsable file. This
-        // is a deliberate degrade: half-classified data would be more dangerous
-        // than none, because it looks trustworthy while silently mismodeling scope.
+        // Defeated commitment (spec §1.5): `parse` returns `Some(tree)` even for
+        // syntactically invalid input, inlining `ERROR`/`MISSING` nodes for the
+        // parts it could not model (a truncated file, a half-typed edit, or a
+        // Java construct tree-sitter-java doesn't support). The walk below would
+        // still emit `ScopeOpen`/`ScopeClose` for whichever subtrees parsed — but
+        // a missing `{`/`}` unbalances that stream, and `build_scope_tree` would
+        // then collapse to one whole-file scope (a well-formed WRONG tree: every
+        // annotation resolves against the file-level scope). Rather than feed the
+        // verified model that garbage, we refuse and surface every located parse
+        // error. The dispatcher escalates (non-blocking `Unknown` in `query`);
+        // whether the file simply isn't Java or the grammar has a gap is
+        // undecidable here, so we report facts (where), never a cause (why).
         if tree.root_node().has_error() {
-            return (0..line_count).map(|_| None).collect();
+            let mut error_lines = Vec::new();
+            collect_parse_error_lines(&tree.root_node(), &mut error_lines);
+            // has_error() implies at least one ERROR/MISSING node; the fallback
+            // is purely defensive so `unclassifiable`'s non-empty contract holds.
+            if error_lines.is_empty() {
+                error_lines.push(1);
+            }
+            return Classification::unclassifiable(ClassifierFailure::ParseError, error_lines);
         }
 
         // Walk the CST
@@ -134,16 +139,32 @@ impl LineClassifier for JavaClassifier {
         }
 
         // Build result: 0-indexed output, each element corresponds to line (i+1)
-        (0..line_count)
-            .map(|i| {
-                let line_num = i + 1;
-                if visited[line_num] {
-                    Some(line_props[line_num].clone())
-                } else {
-                    None // Unvisited, non-blank, non-annotation → unknown
-                }
-            })
-            .collect()
+        Classification::Classified(
+            (0..line_count)
+                .map(|i| {
+                    let line_num = i + 1;
+                    if visited[line_num] {
+                        Some(line_props[line_num].clone())
+                    } else {
+                        None // Unvisited, non-blank, non-annotation → unknown
+                    }
+                })
+                .collect(),
+        )
+    }
+}
+
+/// Collect the 1-based start line of every `ERROR`/`MISSING` node in the parse
+/// tree. These locate the syntax errors for the defeated-commitment diagnostic
+/// (spec §1.5). Reporting *all* of them — not just the first — lets the user see
+/// the whole set in one `query` run (cf. idx37A: collect all before failing).
+fn collect_parse_error_lines(node: &tree_sitter::Node, out: &mut Vec<u64>) {
+    if node.is_error() || node.is_missing() {
+        out.push(node.start_position().row as u64 + 1);
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        collect_parse_error_lines(&child, out);
     }
 }
 
@@ -535,9 +556,48 @@ fn node_has_initializer(node: &tree_sitter::Node) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use duvet_coverage::types::LineClass;
 
     fn classify(source: &str) -> Vec<Option<LineClass>> {
-        JavaClassifier.classify(source)
+        match JavaClassifier.classify(source) {
+            Classification::Classified(c) => c,
+            Classification::Unclassifiable { .. } => {
+                panic!("test source failed to classify (unexpected parse error)")
+            }
+        }
+    }
+
+    #[test]
+    fn valid_java_is_classified() {
+        let ok = "public class Foo {\n    void m() {\n        doX();\n    }\n}";
+        assert!(matches!(
+            JavaClassifier.classify(ok),
+            Classification::Classified(_)
+        ));
+    }
+
+    #[test]
+    fn parse_error_is_unclassifiable_and_located() {
+        // Broken Java (incomplete expression): tree-sitter reports an error, so
+        // the classifier refuses rather than emitting a half-built (and likely
+        // unbalanced) classification. The result is a non-empty set of located
+        // ParseError issues — never a silent all-`None` (Finding #3 / idx55).
+        let broken = "public class Foo {\n    void m() {\n        int x = ;\n    }\n}";
+        match JavaClassifier.classify(broken) {
+            Classification::Unclassifiable { first, rest } => {
+                let mut all = vec![first];
+                all.extend(rest);
+                assert!(
+                    all.iter().all(|i| i.reason == ClassifierFailure::ParseError),
+                    "every issue must be a ParseError"
+                );
+                assert!(
+                    all.iter().all(|i| i.line >= 1),
+                    "every issue must be located (line >= 1), got {all:?}"
+                );
+            }
+            Classification::Classified(_) => panic!("broken Java must be Unclassifiable"),
+        }
     }
 
     fn has_prop(class: &Option<LineClass>, prop: LineProperty) -> bool {
@@ -886,21 +946,34 @@ mod tests {
         assert!(is_exactly(&result[1], &[LineProperty::Comment]));
     }
 
-    /// syntactically invalid Java (here a method body truncated mid-edit,
-    /// so the closing braces are missing) must NOT emit a lopsided
-    /// ScopeOpen/ScopeClose stream. tree-sitter returns `Some(tree)` with inline
-    /// ERROR/MISSING nodes; we detect `has_error()` and drop the whole file to
-    /// Unknown (`None`) rather than feed the verified scope model an unbalanced
-    /// stream it would collapse to a single whole-file scope.
+    /// syntactically invalid Java (here a method body truncated mid-edit, so the
+    /// closing braces are missing) must NOT emit a lopsided ScopeOpen/ScopeClose
+    /// stream. tree-sitter returns `Some(tree)` with inline ERROR/MISSING nodes;
+    /// we detect `has_error()` and report `Unclassifiable` with located parse
+    /// issues (Finding #3), so the dispatcher escalates loudly to a located
+    /// `Unknown` instead of silently feeding the verified scope model an
+    /// unbalanced stream it would collapse to one whole-file scope.
     #[test]
-    fn invalid_java_is_all_unknown() {
+    fn invalid_java_is_unclassifiable_and_located() {
         // Two opening braces, no closes — a partial save.
         let source = "public class Foo {\n    void bar() {\n        doX();";
-        let result = classify(source);
-        assert!(
-            result.iter().all(|c| c.is_none()),
-            "invalid Java must classify every line as Unknown, got: {result:?}"
-        );
+        match JavaClassifier.classify(source) {
+            Classification::Unclassifiable { first, rest } => {
+                let mut all = vec![first];
+                all.extend(rest);
+                assert!(
+                    all.iter().all(|i| i.reason == ClassifierFailure::ParseError),
+                    "truncated Java must report ParseError issues, got {all:?}"
+                );
+                assert!(
+                    all.iter().all(|i| i.line >= 1),
+                    "every issue must be located, got {all:?}"
+                );
+            }
+            Classification::Classified(_) => {
+                panic!("invalid Java must be Unclassifiable, not silently classified")
+            }
+        }
     }
 
     /// the parse-error guard must not fire on valid Java. A well-formed

@@ -4,7 +4,10 @@
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
     query::{
-        classify::{classifier_for_path, DefaultClassifier, LineClassifier},
+        classify::{
+            classifier_for_path, Classification, ClassifierFailure, ClassifierIssue,
+            DefaultClassifier, LineClassifier,
+        },
         coverage::{CoverageData, CoverageParser, FileCoverage},
         parsers::JacocoParser,
     },
@@ -14,7 +17,7 @@ use crate::{
 use duvet_coverage::{
     annotation_execution::is_annotation_executed,
     degraded::degraded_execution_status,
-    scopes::build_scope_tree,
+    scopes::{build_scope_tree, scope_imbalance_site},
     types::{
         AnnotationSpan, CoverageReport as CoverageReportMap, ExecutionStatus, LineClass,
         LineProperty, Scope,
@@ -71,6 +74,17 @@ pub enum FileExecutionData {
     /// forward target walk, deciding status by reading coverage directly on the
     /// resolved line. Sound but lower-fidelity (no scope propagation).
     Degraded(DegradedFileData),
+    /// **Defeated commitment** (Finding #3, spec §1.5). Either the classifier
+    /// reported it could not parse the file, or the verified balance check found
+    /// its `ScopeOpen`/`ScopeClose` stream unbalanced. Either way no trustworthy
+    /// classification exists, so instead of scoring against `build_scope_tree`'s
+    /// collapsed whole-file scope — a well-formed *wrong* tree — we route every
+    /// annotation in the file to a located `Unknown`. `issues` is **non-empty**
+    /// and names each problem (parse errors: one per `ERROR` node; imbalance: the
+    /// witness site). The cause (the file is not this language vs. a classifier
+    /// gap) is undecidable here, so we escalate rather than auto-substitute the
+    /// coarse model. Non-blocking in `query`.
+    DefeatedClassification { issues: Vec<ClassifierIssue> },
 }
 
 /// Map from file path to execution data.
@@ -211,7 +225,19 @@ async fn build_file_execution_data(
 
     if let Some(classifier) = classifier_for_path(duvet_path) {
         // Classified path: tree-sitter classification + verified two-phase model.
-        let mut classifications = classifier.classify(&file_content);
+        let mut classifications = match classifier.classify(&file_content) {
+            Classification::Classified(c) => c,
+            // Defeated commitment (spec §1.5): the classifier could not parse the
+            // file and reported located parse errors. Escalate rather than build
+            // and score a scope tree from garbage — same response as an
+            // unbalanced stream below, since the cause is equally undecidable.
+            Classification::Unclassifiable { first, rest } => {
+                let mut issues = Vec::with_capacity(rest.len() + 1);
+                issues.push(first);
+                issues.extend(rest);
+                return Ok(FileExecutionData::DefeatedClassification { issues });
+            }
+        };
 
         // Build the scope tree from the *pristine* classifier output, before the
         // annotation override below. A duvet annotation trailing a structural
@@ -231,6 +257,28 @@ async fn build_file_execution_data(
         // logic regression would surface, without a release panic path that can
         // never fire.
         debug_assert!(line_count < u64::MAX);
+
+        // Spec §1.5 Scope Balance Contract: the selected classifier MUST emit a
+        // balanced ScopeOpen/ScopeClose stream. Check the *pristine*
+        // classification (before `apply_annotation_override`, which can itself
+        // unbalance the stream by clobbering a trailing `}`) with the verified
+        // `scope_imbalance_site`. On imbalance we refuse to score against
+        // `build_scope_tree`'s collapsed whole-file scope — it is well-formed but
+        // WRONG (every annotation would resolve against one giant scope) — and
+        // escalate to a located `Unknown` (Finding #3). This is a defeated
+        // commitment: extension routing selected this classifier and it produced
+        // untrustworthy structure; whether the file simply isn't this language or
+        // the classifier has a gap is undecidable here, so we surface it rather
+        // than silently substitute a coarser model.
+        if let Some(witness_line) = scope_imbalance_site(&classifications, line_count) {
+            return Ok(FileExecutionData::DefeatedClassification {
+                issues: vec![ClassifierIssue {
+                    reason: ClassifierFailure::UnbalancedScopes,
+                    line: witness_line,
+                }],
+            });
+        }
+
         let scopes = build_scope_tree(&classifications, line_count);
 
         apply_annotation_override(&mut classifications, annotations, duvet_path);
@@ -258,7 +306,14 @@ async fn build_file_execution_data(
         // annotation lines, and let the verified `degraded_execution_status`
         // resolve the target and read coverage directly. No scope tree is built:
         // the degraded model does not propagate, so none is needed.
-        let mut classifications = DefaultClassifier.classify(&file_content);
+        let mut classifications = match DefaultClassifier.classify(&file_content) {
+            Classification::Classified(c) => c,
+            // DefaultClassifier is total (blank-line detection cannot fail), so
+            // it never reports Unclassifiable. This arm is unreachable.
+            Classification::Unclassifiable { .. } => {
+                unreachable!("DefaultClassifier never returns Unclassifiable")
+            }
+        };
         apply_annotation_override(&mut classifications, annotations, duvet_path);
         Ok(FileExecutionData::Degraded(DegradedFileData {
             classifications,
@@ -450,6 +505,15 @@ pub fn executed_status_for(
                 )
             }
         }
+        Some(FileExecutionData::DefeatedClassification { issues }) => {
+            // Defeated commitment (Finding #3): no trustworthy classification
+            // exists for this file (parse error or unbalanced scopes). Report a
+            // located, non-blocking `Unknown` anchored to the first issue rather
+            // than a verdict computed against a collapsed/garbage tree. `issues`
+            // is non-empty by construction; fall back defensively to line 0.
+            let line_number = issues.first().map(|i| i.line).unwrap_or(0);
+            ExecutionStatus::Unknown { line_number }
+        }
         None => ExecutionStatus::NotExecuted,
     }
 }
@@ -477,7 +541,7 @@ fn classified_preconditions_hold(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::classify::{java::JavaClassifier, LineClassifier};
+    use crate::query::classify::{java::JavaClassifier, Classification, LineClassifier};
     use duvet_coverage::types::{CoverageStatus, LineProperty};
 
     fn coverage_with_keys(keys: &[u64]) -> CoverageReportMap {
@@ -510,7 +574,10 @@ public class Two {
         //= type=implementation
     }
 }";
-        let classifications = JavaClassifier.classify(source);
+        let classifications = match JavaClassifier.classify(source) {
+            Classification::Classified(c) => c,
+            Classification::Unclassifiable { .. } => panic!("fixture must classify cleanly"),
+        };
         let line_count = classifications.len() as u64;
 
         // Two method bodies + the class body ⇒ three scope opens from the

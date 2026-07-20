@@ -375,6 +375,55 @@ async fn execute_coverage_check(
         futures::future::try_join_all(build_futures).await?;
     let report_count = execution_data_maps.len();
 
+    // Loud, non-verbose: files whose selected classifier could not produce a
+    // trustworthy classification — a parse error, or an unbalanced scope stream
+    // (Finding #3, spec §1.5). We refuse to score against a collapsed/garbage
+    // tree; their annotations are reported `Unknown`. Surfaced unconditionally
+    // because it signals either a mislabeled file or a classifier gap — both need
+    // a human, and silence is the bug we are fixing. `query` stays non-blocking
+    // (annotations are `Unknown`, the run continues); the hard-error gate belongs
+    // to `report` once it consumes coverage. We report *that* and *where*, never
+    // a *cause* (mislabeled vs. classifier gap is undecidable here).
+    {
+        use crate::query::classify::{ClassifierFailure, ClassifierIssue};
+        let mut defeated: std::collections::BTreeMap<
+            &std::path::Path,
+            Vec<crate::query::classify::ClassifierIssue>,
+        > = std::collections::BTreeMap::new();
+        for map in &execution_data_maps {
+            for (path, data) in map {
+                if let crate::query::checks::coverage::FileExecutionData::DefeatedClassification {
+                    issues,
+                } = data
+                {
+                    defeated.entry(path.as_path()).or_default().extend(issues);
+                }
+            }
+        }
+        for (path, issues) in &defeated {
+            let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
+                .iter()
+                .partition(|i| matches!(i.reason, ClassifierFailure::ParseError));
+            let mut detail = Vec::new();
+            if !parse.is_empty() {
+                let lines: Vec<String> = parse.iter().map(|i| i.line.to_string()).collect();
+                detail.push(format!("parse error(s) at line(s) {}", lines.join(", ")));
+            }
+            if !unbalanced.is_empty() {
+                let lines: Vec<String> = unbalanced.iter().map(|i| i.line.to_string()).collect();
+                detail.push(format!("unbalanced scope stream near line(s) {}", lines.join(", ")));
+            }
+            progress!(
+                "Coverage model: {} — the selected classifier could not produce a \
+                 trustworthy classification ({}). The file may not be this \
+                 language, or the classifier has a gap. Its annotations are \
+                 reported Unknown; report the file or the classifier gap.",
+                path.display(),
+                detail.join("; ")
+            );
+        }
+    }
+
     if verbose {
         // Tell the user which coverage path each covered file uses: the
         // language-aware two-phase model (classifier present) or the verified
@@ -390,6 +439,9 @@ async fn execute_coverage_check(
                     }
                     crate::query::checks::coverage::FileExecutionData::Degraded(_) => {
                         degraded_files.insert(path.as_path());
+                    }
+                    crate::query::checks::coverage::FileExecutionData::DefeatedClassification { .. } => {
+                        // Reported unconditionally above (loud, not verbose-gated).
                     }
                 }
             }

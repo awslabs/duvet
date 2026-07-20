@@ -324,6 +324,180 @@ fn build_from_pairs(pairs: &[(u64, u64)]) -> (scopes: Vec<Scope>)
     scopes
 }
 
+// ---------------------------------------------------------------------------
+// Scope-stream balance detection (spec §1.5 Scope Balance Contract).
+//
+// `build_scope_tree` collapses to a single whole-file scope whenever the
+// ScopeOpen/ScopeClose stream fails to match as balanced parentheses. That
+// collapse is a well-formed *wrong* tree, and the classifier is the only party
+// that can guarantee balance — so the dispatcher must be able to *detect* the
+// imbalance and escalate rather than silently score against the collapsed tree.
+//
+// This detector characterises imbalance with a depth counter, which is exactly
+// `match_scope_pairs`' stack *size*: process `ScopeClose` before `ScopeOpen` on
+// each classified line (so `} else {` closes then opens); a `ScopeClose` while
+// the depth is 0 is a stray close (underflow), and a nonzero depth at EOF is a
+// set of unclosed opens. Either is an imbalance. A stream with no delimiters at
+// all has depth 0 throughout with no underflow — it is *balanced*, and its
+// whole-file scope is legitimate, so it is deliberately NOT flagged. This is the
+// distinction the naive "single scope spanning the file" heuristic cannot make.
+// ---------------------------------------------------------------------------
+
+/// Spec: the classified line `c` carries `ScopeClose`.
+pub open spec fn spec_has_close(c: Option<LineClass>) -> bool {
+    match c {
+        Some(cls) => cls@.contains(LineProperty::ScopeClose),
+        None => false,
+    }
+}
+
+/// Spec: the classified line `c` carries `ScopeOpen`.
+pub open spec fn spec_has_open(c: Option<LineClass>) -> bool {
+    match c {
+        Some(cls) => cls@.contains(LineProperty::ScopeOpen),
+        None => false,
+    }
+}
+
+/// Spec twin of the balance walk. Folds the first `n` classified lines with a
+/// scope-depth counter, returning `(final_depth, no_underflow)`. `ScopeClose` is
+/// applied before `ScopeOpen` on each line; a close at depth 0 records underflow
+/// (and does not drive the depth negative), matching `match_scope_pairs`'
+/// empty-stack rule. `no_underflow` is absorbing-false: once a stray close is
+/// seen it stays false regardless of later lines.
+pub open spec fn balance_upto(c: Seq<Option<LineClass>>, n: int) -> (int, bool)
+    decreases n,
+{
+    if n <= 0 {
+        (0int, true)
+    } else {
+        let prev = balance_upto(c, n - 1);
+        let d = prev.0;
+        let ok = prev.1;
+        let ci = c[n - 1];
+        let after_close: (int, bool) = if spec_has_close(ci) {
+            if d <= 0 {
+                (d, false)
+            } else {
+                (d - 1, ok)
+            }
+        } else {
+            (d, ok)
+        };
+        let d2: int = if spec_has_open(ci) {
+            after_close.0 + 1
+        } else {
+            after_close.0
+        };
+        (d2, after_close.1)
+    }
+}
+
+/// Spec: the ScopeOpen/ScopeClose stream over the first `n` classified lines is
+/// balanced — no stray close, and every open matched by EOF.
+pub open spec fn scope_stream_balanced_spec(c: Seq<Option<LineClass>>, n: int) -> bool {
+    let r = balance_upto(c, n);
+    r.1 && r.0 == 0
+}
+
+/// The number of classified lines the balance walk consumes: `min(file_length,
+/// classifications.len())`, mirroring `match_scope_pairs`, which stops at the
+/// shorter of `file_length` and the classification vector.
+pub open spec fn balance_bound(c: Seq<Option<LineClass>>, file_length: u64) -> int {
+    if (file_length as int) < c.len() as int {
+        file_length as int
+    } else {
+        c.len() as int
+    }
+}
+
+/// Detect an unbalanced scope stream and locate it.
+///
+/// Returns `None` when the stream is balanced (including the no-delimiters case,
+/// which is a legitimate whole-file scope — deliberately NOT an imbalance).
+/// Returns `Some(line)` when unbalanced, where `line` is the offending stray
+/// `ScopeClose` or, failing that, the last unmatched `ScopeOpen` — a diagnostic
+/// aid. The soundness-critical guarantee is the `is None <==> balanced`
+/// equivalence in the `ensures`; the witness line itself is not otherwise
+/// constrained by the proof.
+pub fn scope_imbalance_site(classifications: &[Option<LineClass>], file_length: u64) -> (result:
+    Option<u64>)
+    requires
+        file_length < u64::MAX,
+    ensures
+        (result is None) <==> scope_stream_balanced_spec(
+            classifications@,
+            balance_bound(classifications@, file_length),
+        ),
+{
+    let mut depth: u64 = 0;
+    let mut underflow_line: Option<u64> = None;
+    let mut last_open_line: u64 = 0;
+    let mut line_num: u64 = 1;
+
+    while line_num <= file_length
+        invariant
+            file_length < u64::MAX,
+            1 <= line_num <= file_length + 1,
+            depth as int <= line_num as int - 1,
+            ({
+                let processed = if (line_num as int - 1) < classifications@.len() as int {
+                    line_num as int - 1
+                } else {
+                    classifications@.len() as int
+                };
+                let r = balance_upto(classifications@, processed);
+                &&& depth as int == r.0
+                &&& (underflow_line is None) <==> r.1
+            }),
+        decreases file_length - line_num + 1,
+    {
+        let idx: usize = (line_num - 1) as usize;
+        if idx >= classifications.len() {
+            // Past the classified lines: `match_scope_pairs` stops here, so the
+            // consumed count is `classifications.len()` and the walk is complete.
+            assert(classifications@.len() as int <= line_num as int - 1);
+            return if underflow_line.is_some() {
+                underflow_line
+            } else if depth == 0 {
+                None
+            } else {
+                Some(last_open_line)
+            };
+        }
+        proof {
+            broadcast use crate::types::lemma_line_property_obeys_cmp_spec;
+        }
+        match &classifications[idx] {
+            None => {}
+            Some(props) => {
+                if props.contains(&LineProperty::ScopeClose) {
+                    if depth == 0 {
+                        if underflow_line.is_none() {
+                            underflow_line = Some(line_num);
+                        }
+                    } else {
+                        depth = depth - 1;
+                    }
+                }
+                if props.contains(&LineProperty::ScopeOpen) {
+                    last_open_line = line_num;
+                    depth = depth + 1;
+                }
+            }
+        }
+        line_num = line_num + 1;
+    }
+
+    if underflow_line.is_some() {
+        underflow_line
+    } else if depth == 0 {
+        None
+    } else {
+        Some(last_open_line)
+    }
+}
+
 } // verus!
 
 #[cfg(test)]
@@ -428,5 +602,108 @@ mod tests {
         ];
         let sc = build_scope_tree(&c, 7);
         assert_eq!(sc.len(), 3);
+    }
+
+    // --- scope_imbalance_site: empirical witnesses (spec §1.5 balance) ---
+    //
+    // The verified `ensures` proves `is None <==> balanced` against the
+    // depth-counter spec. These witnesses ground that spec against reality AND
+    // demonstrate the tie to `build_scope_tree`: where the detector says
+    // balanced (None), the tree is faithful (>1 scope, or a real single scope);
+    // where it says unbalanced (Some), the tree collapses to the whole-file
+    // fallback. This is the distinction the "single scope spanning the file"
+    // heuristic cannot make.
+
+    #[test]
+    fn balanced_multiscope_is_not_flagged() {
+        // Nested method-in-class: two balanced scopes.
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        assert_eq!(scope_imbalance_site(&c, 5), None);
+        // Tie: the tree is faithful (two real scopes), not the collapse.
+        assert_eq!(build_scope_tree(&c, 5).len(), 2);
+    }
+
+    #[test]
+    fn genuine_whole_file_single_scope_is_not_flagged() {
+        // A class whose `{` is line 1 and `}` is the last line, with only a
+        // field inside: ONE balanced scope spanning 1..=3. Output shape is
+        // indistinguishable from the fallback, but it is balanced — the detector
+        // must NOT flag it. This is the false-positive the shape heuristic hits.
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        assert_eq!(scope_imbalance_site(&c, 3), None);
+        // Tie: build_scope_tree recovers the REAL scope (1,3) via a pair, not
+        // the collapse fallback — both are `[Scope{1,3}]`, so shape alone can't
+        // tell them apart, but balance can.
+        let sc = build_scope_tree(&c, 3);
+        assert_eq!(sc.len(), 1);
+        assert_eq!((sc[0].open_line, sc[0].close_line), (1, 3));
+    }
+
+    #[test]
+    fn no_delimiters_is_not_flagged() {
+        // Pure statements, no scopes. Depth stays 0, never underflows: balanced.
+        // The whole-file scope build_scope_tree returns here is legitimate.
+        let c = vec![s(&[LineProperty::Statement]), s(&[LineProperty::Statement])];
+        assert_eq!(scope_imbalance_site(&c, 2), None);
+    }
+
+    #[test]
+    fn all_none_is_not_flagged() {
+        // The idx55 parse-error representation (has_error -> all `None`). No
+        // delimiters -> balanced -> NOT an imbalance. Confirms the detector does
+        // not double-report the parse-error case: that escalation rides on
+        // `has_error`, not on this predicate.
+        let c: Vec<Option<LineClass>> = vec![None, None, None];
+        assert_eq!(scope_imbalance_site(&c, 3), None);
+    }
+
+    #[test]
+    fn stray_close_is_flagged_and_tree_collapses() {
+        // A `}` with nothing open: stray close (depth underflow at line 1).
+        let c = vec![s(&[LineProperty::ScopeClose]), s(&[LineProperty::Statement])];
+        assert_eq!(scope_imbalance_site(&c, 2), Some(1));
+        // Tie: build_scope_tree collapses to the whole-file fallback.
+        let sc = build_scope_tree(&c, 2);
+        assert_eq!(sc.len(), 1);
+        assert_eq!((sc[0].open_line, sc[0].close_line), (1, 2));
+    }
+
+    #[test]
+    fn unclosed_open_is_flagged_and_tree_collapses() {
+        // A `{` never closed: leftover depth at EOF.
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
+            s(&[LineProperty::Statement]),
+        ];
+        let site = scope_imbalance_site(&c, 2);
+        assert!(site.is_some(), "unclosed open must be flagged, got {site:?}");
+        // Tie: build_scope_tree collapses to the whole-file fallback.
+        let sc = build_scope_tree(&c, 2);
+        assert_eq!(sc.len(), 1);
+        assert_eq!((sc[0].open_line, sc[0].close_line), (1, 2));
+    }
+
+    #[test]
+    fn close_then_open_at_depth_zero_underflows() {
+        // `} else {` at the top level (no enclosing scope): the close is
+        // processed first and underflows at depth 0, even though opens == closes.
+        // A naive net-delta counter would call this balanced; the close-before-
+        // open rule catches it, matching match_scope_pairs' empty-stack check.
+        let c = vec![s(&[
+            LineProperty::ScopeClose,
+            LineProperty::ScopeOpen,
+            LineProperty::Declaration,
+        ])];
+        assert_eq!(scope_imbalance_site(&c, 1), Some(1));
     }
 }
