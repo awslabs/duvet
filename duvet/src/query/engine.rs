@@ -376,32 +376,31 @@ async fn execute_coverage_check(
     let report_count = execution_data_maps.len();
 
     if verbose {
-        // Tell the user which coverage path each source file is using, so a
-        // missing classifier (and the resulting fallback to forward-walk)
-        // is visible during development. Aggregate across all reports —
-        // the same file may appear in several with the same path, but the
-        // chosen path is determined by file extension, not coverage report.
+        // Tell the user which coverage path each covered file uses: the
+        // language-aware two-phase model (classifier present) or the verified
+        // degraded path (no classifier). Both are verified; the degraded path is
+        // lower-fidelity (forward-nearest governance). Aggregate across reports.
         let mut classified_files: BTreeSet<&std::path::Path> = BTreeSet::new();
-        let mut unclassified_files: BTreeSet<&std::path::Path> = BTreeSet::new();
+        let mut degraded_files: BTreeSet<&std::path::Path> = BTreeSet::new();
         for map in &execution_data_maps {
             for (path, data) in map {
                 match data {
                     crate::query::checks::coverage::FileExecutionData::Classified(_) => {
                         classified_files.insert(path.as_path());
                     }
-                    crate::query::checks::coverage::FileExecutionData::Unclassified(_) => {
-                        unclassified_files.insert(path.as_path());
+                    crate::query::checks::coverage::FileExecutionData::Degraded(_) => {
+                        degraded_files.insert(path.as_path());
                     }
                 }
             }
         }
         progress!(
-            "Coverage model: {} file(s) using language-aware (verified) path, {} file(s) using forward-walk fallback",
+            "Coverage model: {} file(s) language-aware (verified), {} file(s) degraded — no classifier (verified)",
             classified_files.len(),
-            unclassified_files.len()
+            degraded_files.len()
         );
-        for path in &unclassified_files {
-            progress!("  forward-walk fallback: {}", path.display());
+        for path in &degraded_files {
+            progress!("  degraded (no classifier, verified): {}", path.display());
         }
     }
 

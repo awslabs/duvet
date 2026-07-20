@@ -4,8 +4,8 @@
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
     query::{
-        classify::classifier_for_path,
-        coverage::{CoverageData, CoverageParser, ExecutionType, FileCoverage, LineInfo, LineMap},
+        classify::{classifier_for_path, DefaultClassifier, LineClassifier},
+        coverage::{CoverageData, CoverageParser, FileCoverage},
         parsers::JacocoParser,
     },
     source::SourceFile,
@@ -13,6 +13,7 @@ use crate::{
 };
 use duvet_coverage::{
     annotation_execution::is_annotation_executed,
+    degraded::degraded_execution_status,
     scopes::build_scope_tree,
     types::{
         AnnotationSpan, CoverageReport as CoverageReportMap, ExecutionStatus, LineClass,
@@ -43,23 +44,43 @@ pub struct ClassifiedFileData {
     pub file_length: u64,
 }
 
-/// Per-file execution data: either classified (enhanced two-phase model)
-/// or unclassified (basic forward-walk fallback).
+/// Coverage model data for a file with **no** tree-sitter classifier: the
+/// minimal universal classification (blank lines → `Whitespace`, everything else
+/// → `None`, annotation lines stamped by the caller) plus coverage and length.
+/// Fed to the verified degraded path, which needs no scope tree because it does
+/// not propagate — it reads coverage directly on the resolved target line.
+#[derive(Debug, Clone)]
+pub struct DegradedFileData {
+    pub classifications: Vec<Option<LineClass>>,
+    pub coverage: CoverageReportMap,
+    pub file_length: u64,
+}
+
+/// Per-file execution data. A file with a tree-sitter classifier uses the
+/// verified two-phase model ([`FileExecutionData::Classified`]); a file without
+/// one uses the verified degraded path ([`FileExecutionData::Degraded`]). Both
+/// paths are verified in `duvet-coverage`; they differ only in fidelity
+/// (scope-based governance vs. forward-nearest governance).
 #[derive(Debug, Clone)]
 pub enum FileExecutionData {
     /// File has a tree-sitter classifier — uses the two-phase coverage model
     /// (target resolution + execution propagation) from duvet-coverage.
     Classified(ClassifiedFileData),
-    /// No classifier available — uses the basic forward-walk over a LineMap.
-    Unclassified(LineMap),
+    /// File has no tree-sitter classifier — uses the verified degraded path
+    /// ([`duvet_coverage::degraded::degraded_execution_status`]): the same
+    /// forward target walk, deciding status by reading coverage directly on the
+    /// resolved line. Sound but lower-fidelity (no scope propagation).
+    Degraded(DegradedFileData),
 }
 
 /// Map from file path to execution data.
 pub type ExecutionDataMap = FxHashMap<PathBuf, FileExecutionData>;
 
-/// Build execution data for all source files that have coverage.
-/// Each file gets either classified data (when a tree-sitter classifier exists)
-/// or a LineMap (fallback). Never both.
+/// Build execution data for all source files that have coverage. Each covered
+/// file is routed to the verified two-phase model when a tree-sitter classifier
+/// exists for its language ([`FileExecutionData::Classified`]), or to the
+/// verified degraded path otherwise ([`FileExecutionData::Degraded`]). Both are
+/// verified; neither is the old unverified forward-walk.
 pub async fn build_execution_data(
     annotations: &AnnotationSet,
     coverage_data: &CoverageData,
@@ -155,26 +176,10 @@ pub async fn build_execution_data(
 
     let mut file_futures = Vec::new();
     for (duvet_path, file_coverage) in matches_for_file {
-        // Refuse to score a covered file we cannot classify rather than
-        // silently falling back to the unverified forward-walk. JaCoCo is a
-        // JVM-wide format, so a report routinely names Kotlin/Scala/Groovy
-        // sources; those have no tree-sitter classifier today and would
-        // otherwise bypass the verified model, handing the user
-        // verified-looking output that never touched it. Erroring keeps the
-        // "Verus-verified" guarantee honest and surfaces the limitation.
-        // (The forward-walk in `executed_status_for_unclassified` remains the
-        // documented contract for a future non-Java coverage format that
-        // ships without a classifier.)
-        if classifier_for_path(duvet_path).is_none() {
-            return Err(duvet_core::error!(
-                "no language classifier for {}; the coverage model only \
-                 supports sources it can classify (currently .java). Remove \
-                 this file from the coverage report or add a classifier for \
-                 its language.",
-                duvet_path.display()
-            ));
-        }
-
+        // A covered file without a language classifier is no longer refused: it
+        // is routed to the verified degraded path in `build_file_execution_data`
+        // (forward-nearest governance over the minimal universal classification).
+        // Both the classified and degraded paths are verified in duvet-coverage.
         let duvet_path = duvet_path.to_path_buf();
         let annotations = annotations.clone();
         let file_coverage = file_coverage.clone();
@@ -191,20 +196,21 @@ pub async fn build_execution_data(
     Ok(results.into_iter().collect())
 }
 
-/// Build execution data for a single file.
-/// Uses the classified path if a tree-sitter classifier exists, otherwise falls back
-/// to the basic LineMap. Only one path is built — no redundant work.
+/// Build execution data for a single covered file. Uses the verified two-phase
+/// model when a tree-sitter classifier exists for the language, otherwise the
+/// verified degraded path over the minimal universal classification.
 async fn build_file_execution_data(
     duvet_path: &Path,
     annotations: &AnnotationSet,
     file_coverage: &FileCoverage,
 ) -> Result<FileExecutionData> {
-    if let Some(classifier) = classifier_for_path(duvet_path) {
-        // Enhanced path: tree-sitter classification + verified two-phase model
-        let source_file = duvet_core::vfs::read_string(duvet_path).await?;
-        let file_content = source_file.to_string();
-        let line_count = file_content.lines().count() as u64;
+    let source_file = duvet_core::vfs::read_string(duvet_path).await?;
+    let file_content = source_file.to_string();
+    let line_count = file_content.lines().count() as u64;
+    let coverage = file_coverage.to_coverage_report();
 
+    if let Some(classifier) = classifier_for_path(duvet_path) {
+        // Classified path: tree-sitter classification + verified two-phase model.
         let mut classifications = classifier.classify(&file_content);
 
         // Build the scope tree from the *pristine* classifier output, before the
@@ -229,8 +235,6 @@ async fn build_file_execution_data(
 
         apply_annotation_override(&mut classifications, annotations, duvet_path);
 
-        let coverage = file_coverage.to_coverage_report();
-
         // TRUSTED-BASE ASSUMPTION (unverified glue): the `scopes` stored here
         // satisfy `is_annotation_executed`'s scope-bound preconditions
         // (open_line >= 1, close_line < u64::MAX) *because* they came from
@@ -249,9 +253,18 @@ async fn build_file_execution_data(
             file_length: line_count,
         }))
     } else {
-        // Fallback path: basic forward-walk over LineMap
-        let line_map = build_line_map_for_file(duvet_path, annotations, file_coverage).await?;
-        Ok(FileExecutionData::Unclassified(line_map))
+        // Degraded path: no language classifier for this file. Build the minimal
+        // universal classification (blank → Whitespace, else None), stamp
+        // annotation lines, and let the verified `degraded_execution_status`
+        // resolve the target and read coverage directly. No scope tree is built:
+        // the degraded model does not propagate, so none is needed.
+        let mut classifications = DefaultClassifier.classify(&file_content);
+        apply_annotation_override(&mut classifications, annotations, duvet_path);
+        Ok(FileExecutionData::Degraded(DegradedFileData {
+            classifications,
+            coverage,
+            file_length: line_count,
+        }))
     }
 }
 
@@ -298,70 +311,6 @@ fn stamp_annotation_range(classifications: &mut [Option<LineClass>], range: (u64
             classifications[idx] = Some(duvet_coverage::types::line_class(&[
                 LineProperty::Annotation,
             ]));
-        }
-    }
-}
-
-async fn build_line_map_for_file(
-    duvet_path: &Path,
-    annotations: &AnnotationSet,
-    file_coverage: &FileCoverage,
-) -> Result<LineMap> {
-    let source_file = duvet_core::vfs::read_string(duvet_path).await?;
-    let file_content = source_file.to_string();
-    let lines: Vec<&str> = file_content.lines().collect();
-    let line_count = lines.len();
-
-    let mut line_map: LineMap = (1..=line_count as u64)
-        .map(|line_num| (line_num, LineInfo::Unknown))
-        .collect();
-
-    update_coverage_lines(&mut line_map, file_coverage);
-    update_annotation_lines(&mut line_map, annotations, duvet_path);
-    update_whitespace_lines(&mut line_map, &lines);
-
-    Ok(line_map)
-}
-
-fn update_coverage_lines(line_map: &mut LineMap, file_coverage: &FileCoverage) {
-    for (&line_num, &hit_count) in &file_coverage.lines {
-        let line_info = if hit_count > 0 {
-            LineInfo::Executed(ExecutionType::Line)
-        } else {
-            LineInfo::NotExecuted(ExecutionType::Line)
-        };
-        line_map.insert(line_num as u64, line_info);
-    }
-
-    for (&line_num, branches) in &file_coverage.branches {
-        let any_branch_taken = branches.iter().any(|&taken| taken);
-        let line_info = if any_branch_taken {
-            LineInfo::Executed(ExecutionType::Branch)
-        } else {
-            LineInfo::NotExecuted(ExecutionType::Branch)
-        };
-        line_map.insert(line_num as u64, line_info);
-    }
-}
-
-fn update_annotation_lines(line_map: &mut LineMap, annotations: &AnnotationSet, duvet_path: &Path) {
-    for annotation in annotations.iter() {
-        if annotation.source == *duvet_path {
-            let (start_line, end_line) = annotation.line_range();
-            for line_num in start_line..=end_line {
-                line_map.insert(line_num, LineInfo::Annotation(annotation.clone()));
-            }
-        }
-    }
-}
-
-fn update_whitespace_lines(line_map: &mut LineMap, lines: &[&str]) {
-    for (index, line_content) in lines.iter().enumerate() {
-        let line_num = (index + 1) as u64;
-        if let Some(LineInfo::Unknown) = line_map.get(&line_num) {
-            if line_content.trim().is_empty() {
-                line_map.insert(line_num, LineInfo::Whitespace);
-            }
         }
     }
 }
@@ -421,16 +370,10 @@ pub async fn parse_coverage_data(
 
 /// Check if an annotation is executed according to coverage data.
 ///
-/// Decide the [`ExecutionStatus`] of an annotation given the execution data
-/// for its source file.
-///
-/// When classified data (tree-sitter) is available for the file, delegates to
-/// the verified two-phase coverage model in `duvet_coverage`. Otherwise falls
-/// back to [`executed_status_for_unclassified`], which performs a forward
-/// walk over a `LineMap`. The unclassified fallback exists for languages
-/// without a tree-sitter classifier; with the current set of supported
-/// coverage formats (jacoco-xml only) it is not actually reachable from any
-/// integration test, but it remains the contract for future formats.
+/// Decide the [`ExecutionStatus`] of an annotation given the execution data for
+/// its source file, using the verified two-phase coverage model in
+/// `duvet_coverage`. Files without a tree-sitter classifier are refused upstream
+/// by [`build_execution_data`], so every entry reaching here is classified.
 pub fn executed_status_for(
     annotation: &Arc<Annotation>,
     execution_data_map: &ExecutionDataMap,
@@ -481,8 +424,29 @@ pub fn executed_status_for(
                 )
             }
         }
-        Some(FileExecutionData::Unclassified(line_map)) => {
-            executed_status_for_unclassified(annotation, line_map)
+        Some(FileExecutionData::Degraded(data)) => {
+            let (start_line, end_line) = annotation.line_range();
+            // Trust boundary: `degraded_execution_status` requires
+            // `end_line < u64::MAX` (it computes `end_line + 1` in the target
+            // walk). Physically unfalsifiable for a real line number, but guard
+            // rather than risk overflow in release, mirroring the classified
+            // precondition guard above.
+            if end_line == u64::MAX {
+                ExecutionStatus::Unknown {
+                    line_number: start_line,
+                }
+            } else {
+                let ann_span = AnnotationSpan {
+                    start_line,
+                    end_line,
+                };
+                degraded_execution_status(
+                    &ann_span,
+                    &data.classifications,
+                    &data.coverage,
+                    data.file_length,
+                )
+            }
         }
         None => ExecutionStatus::NotExecuted,
     }
@@ -506,61 +470,6 @@ fn classified_preconditions_hold(
         && coverage
             .keys()
             .all(|&k| k >= 1 && (k as usize - 1) < classifications_len)
-}
-
-/// Forward-walk execution detection for files without a tree-sitter
-/// classifier. Walks forward from the annotation, skipping whitespace and
-/// stacked annotations, until reaching a line that coverage data has an
-/// opinion about.
-fn executed_status_for_unclassified(
-    annotation: &Arc<Annotation>,
-    line_map: &LineMap,
-) -> ExecutionStatus {
-    let (start_line, end_line) = annotation.line_range();
-
-    // Confirm this is the same annotation in the line map
-    for line_num in start_line..=end_line {
-        if let Some(LineInfo::Annotation(stored_annotation)) = line_map.get(&line_num) {
-            if stored_annotation != annotation {
-                return ExecutionStatus::Unknown {
-                    line_number: line_num,
-                };
-            }
-        } else {
-            return ExecutionStatus::Unknown {
-                line_number: line_num,
-            };
-        }
-    }
-
-    // Walk forward from end of annotation
-    let mut current_line = end_line + 1;
-
-    loop {
-        match line_map.get(&current_line) {
-            Some(LineInfo::Whitespace) => {
-                current_line += 1;
-            }
-            Some(LineInfo::Annotation(next_annotation)) => {
-                // Stacked annotation — execution is transitive
-                return executed_status_for_unclassified(next_annotation, line_map);
-            }
-            Some(LineInfo::Executed(_)) => {
-                return ExecutionStatus::Executed;
-            }
-            Some(LineInfo::NotExecuted(_)) => {
-                return ExecutionStatus::NotExecuted;
-            }
-            Some(LineInfo::Unknown) => {
-                return ExecutionStatus::Unknown {
-                    line_number: current_line,
-                };
-            }
-            None => {
-                return ExecutionStatus::NotExecuted;
-            }
-        }
-    }
 }
 
 #[cfg(test)]

@@ -1,9 +1,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{annotation::Annotation, Result};
+use crate::Result;
 use rustc_hash::FxHashMap;
-use std::{collections::BTreeMap, path::Path, sync::Arc};
+use std::{collections::BTreeMap, path::Path};
 
 /// Coverage data abstraction
 #[derive(Clone, Debug)]
@@ -84,27 +84,6 @@ impl FileCoverage {
         report
     }
 }
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum LineInfo {
-    Executed(ExecutionType),
-    NotExecuted(ExecutionType),
-    Annotation(Arc<Annotation>), // Use Arc<Annotation> from AnnotationSet
-    Whitespace,
-    Unknown,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExecutionType {
-    // TODO: JaCoCo MethodBoundary information is just the first executed `Line`
-    // This means that matching on this information is complicated
-    // and it may not be portable to other coverage formats.
-    // MethodBoundary,
-    Branch,
-    Line,
-}
-
-pub type LineMap = BTreeMap<u64, LineInfo>;
 
 /// Re-export of the verified [`duvet_coverage::types::ExecutionStatus`] used
 /// throughout the query subsystem. The `Structural` variant marks targets that
