@@ -791,15 +791,23 @@ mod tests {
         use crate::annotation_execution::is_annotation_executed;
         let c = vec![
             s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), // 1 scope opens
-            s(&[LineProperty::Annotation]),                          // 2 annotation
-            s(&[LineProperty::Declaration]),                         // 3 TARGET (propagated)
-            s(&[LineProperty::Statement]),                           // 4 HIT
-            s(&[LineProperty::ScopeClose]),                          // 5 scope closes
+            s(&[LineProperty::Annotation]),                           // 2 annotation
+            s(&[LineProperty::Declaration]),                          // 3 TARGET (propagated)
+            s(&[LineProperty::Statement]),                            // 4 HIT
+            s(&[LineProperty::ScopeClose]),                           // 5 scope closes
         ];
-        let scopes = &[Scope { open_line: 1, close_line: 5, parent: None, children: vec![] }];
+        let scopes = &[Scope {
+            open_line: 1,
+            close_line: 5,
+            parent: None,
+            children: vec![],
+        }];
         let cov = cov_hit(&[4]);
         let status = is_annotation_executed(
-            &AnnotationSpan { start_line: 2, end_line: 2 },
+            &AnnotationSpan {
+                start_line: 2,
+                end_line: 2,
+            },
             &c,
             scopes,
             &cov,
@@ -863,24 +871,37 @@ mod tests {
         use crate::annotation_execution::is_annotation_executed;
         let c = vec![
             s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), // 1 parent opens
-            s(&[LineProperty::NonLinearControl]),                    // 2 parent is NLC
+            s(&[LineProperty::NonLinearControl]),                     // 2 parent is NLC
             s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), // 3 child opens
-            s(&[LineProperty::Annotation]),                          // 4 annotation
-            s(&[LineProperty::Declaration]),                         // 5 TARGET (in child + parent)
-            s(&[LineProperty::Statement]),                           // 6 HIT
-            s(&[LineProperty::ScopeClose]),                          // 7 child closes
-            s(&[LineProperty::Statement]),                           // 8
-            s(&[LineProperty::ScopeClose]),                          // 9 parent closes
+            s(&[LineProperty::Annotation]),                           // 4 annotation
+            s(&[LineProperty::Declaration]), // 5 TARGET (in child + parent)
+            s(&[LineProperty::Statement]),   // 6 HIT
+            s(&[LineProperty::ScopeClose]),  // 7 child closes
+            s(&[LineProperty::Statement]),   // 8
+            s(&[LineProperty::ScopeClose]),  // 9 parent closes
         ];
         let scopes = &[
-            Scope { open_line: 1, close_line: 9, parent: None, children: vec![] }, // NLC parent
-            Scope { open_line: 3, close_line: 7, parent: None, children: vec![] }, // non-NLC child
+            Scope {
+                open_line: 1,
+                close_line: 9,
+                parent: None,
+                children: vec![],
+            }, // NLC parent
+            Scope {
+                open_line: 3,
+                close_line: 7,
+                parent: None,
+                children: vec![],
+            }, // non-NLC child
         ];
         let cov = cov_hit(&[6]);
 
         // The annotation at line 4 resolves forward to line 5 (the target).
         let status = is_annotation_executed(
-            &AnnotationSpan { start_line: 4, end_line: 4 },
+            &AnnotationSpan {
+                start_line: 4,
+                end_line: 4,
+            },
             &c,
             scopes,
             &cov,
@@ -940,14 +961,22 @@ mod tests {
         use crate::annotation_execution::is_annotation_executed;
         let c = vec![
             s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), // 1 scope opens
-            s(&[LineProperty::Annotation]),                          // 2 annotation
-            s(&[LineProperty::Declaration]),                         // 3 TARGET
-            s(&[LineProperty::Statement]),                           // 4 hit in E1 and E2
-            s(&[LineProperty::Statement]),                           // 5 hit only in E2
-            s(&[LineProperty::ScopeClose]),                          // 6 scope closes
+            s(&[LineProperty::Annotation]),                           // 2 annotation
+            s(&[LineProperty::Declaration]),                          // 3 TARGET
+            s(&[LineProperty::Statement]),                            // 4 hit in E1 and E2
+            s(&[LineProperty::Statement]),                            // 5 hit only in E2
+            s(&[LineProperty::ScopeClose]),                           // 6 scope closes
         ];
-        let scopes = &[Scope { open_line: 1, close_line: 6, parent: None, children: vec![] }];
-        let ann = AnnotationSpan { start_line: 2, end_line: 2 };
+        let scopes = &[Scope {
+            open_line: 1,
+            close_line: 6,
+            parent: None,
+            children: vec![],
+        }];
+        let ann = AnnotationSpan {
+            start_line: 2,
+            end_line: 2,
+        };
         let e1 = cov_hit(&[4]);
         let e2 = cov_hit(&[4, 5]);
         // E1 ⊊ E2.
