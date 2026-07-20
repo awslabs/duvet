@@ -602,3 +602,28 @@ See [coverage-model-spec.md](coverage-model-spec.md)
 for the specification
 and [coverage-model-decisions.md](coverage-model-decisions.md)
 for the design decisions specific to the coverage model.
+
+### Update: the forward-walk baseline was replaced by a verified degraded path {#decision-12-update}
+
+Option B kept the **unverified** basic forward-walk as the classifier-less
+baseline. Review (PR #227) surfaced two problems: the forward-walk was unverified
+and untested, and — after `b74ebb0` made `build_execution_data` *refuse* covered
+files with no classifier — it became unreachable dead code that still read as a
+live second path (Finding #5). We changed direction:
+
+- The unverified forward-walk (`LineMap` / `LineInfo` /
+  `executed_status_for_unclassified` and the `update_*_lines` helpers) is
+  **removed**.
+- Classifier-less covered files are now scored by a **verified degraded path**
+  (`duvet_coverage::degraded`, spec [§7](coverage-model-spec.md#degraded-mode)):
+  the same forward-nearest target resolution as Phase 1, deciding status by
+  reading coverage directly on the resolved line — no propagation, so it is sound
+  without a scope tree. Proven properties D1 (direct observation), D2 (target
+  bounds), D3 (stacking transitivity), D4 (agreement with the classified model).
+- The `b74ebb0` refusal is **reversed**: classifier-less files are scored (lower
+  fidelity, forward-nearest governance), not refused.
+
+So Option B's intent — "languages without classifiers keep working, no
+regression" — is preserved, but the baseline is now verified rather than an
+untested heuristic. The two-code-path con remains (classified vs. degraded), and
+both paths are now verified.

@@ -371,9 +371,11 @@ pub async fn parse_coverage_data(
 /// Check if an annotation is executed according to coverage data.
 ///
 /// Decide the [`ExecutionStatus`] of an annotation given the execution data for
-/// its source file, using the verified two-phase coverage model in
-/// `duvet_coverage`. Files without a tree-sitter classifier are refused upstream
-/// by [`build_execution_data`], so every entry reaching here is classified.
+/// its source file. A [`FileExecutionData::Classified`] entry is scored by the
+/// verified two-phase model in `duvet_coverage`; a [`FileExecutionData::Degraded`]
+/// entry (no tree-sitter classifier) is scored by the verified degraded path
+/// [`duvet_coverage::degraded::degraded_execution_status`]. Both paths are
+/// verified.
 pub fn executed_status_for(
     annotation: &Arc<Annotation>,
     execution_data_map: &ExecutionDataMap,
