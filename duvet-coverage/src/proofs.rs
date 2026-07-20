@@ -186,6 +186,10 @@ proof fn lemma_no_cross_scope_leakage(
 /// `lemma_no_cross_scope_leakage`; this harness is its observable projection.
 /// The two well-formedness hypotheses are carried as harness `requires`, exactly
 /// as P5 re-declares `is_annotation_executed`'s shared preconditions.
+///
+/// VACUITY NOTE: the antecedent (Executed, target in scope, not directly hit) is
+/// satisfiable — the witness `executed_via_propagation_is_reachable` exhibits an
+/// Executed target reached by propagation, so this `ensures` is not vacuous.
 fn executed_annotation_has_no_cross_scope_leakage(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -489,6 +493,10 @@ proof fn lemma_validly_in_exec_set_monotone(
 /// target/classification/NLC branch conditions are coverage-independent (equal to
 /// call 1's), so the `Executed` branch is reached under E2 too. Returns the pair
 /// so the `ensures` can relate the two real return values.
+///
+/// VACUITY NOTE: the witness `executed_survives_added_coverage` shows the
+/// antecedent (Executed under E1) is reachable with E1 ⊊ E2, so the implication
+/// is exercised on a real coverage-growth step, not just the reflexive case.
 fn executed_annotation_monotonic(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -764,6 +772,49 @@ mod tests {
         assert!(!exec_set.contains(&5));
         assert!(!exec_set.contains(&6));
     }
+
+    //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
+    //= type=test
+    //# The implementation MUST prove that for any two lines A and B where A is in
+    //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
+    //# S2 is not a parent of S1:
+    /// Non-vacuity witness for `executed_annotation_has_no_cross_scope_leakage`.
+    ///
+    /// The P2 harness's `ensures` says something only when the target is in a
+    /// scope AND was not directly hit — i.e. it reached the execution set by
+    /// propagation. This exhibits exactly that: an annotation whose target (line
+    /// 3, a Declaration) is `Executed` via backward propagation from the hit at
+    /// line 4, sits inside scope [1,5], and is itself not a coverage hit. Without
+    /// it the `!directly_hit` antecedent could be vacuously empty.
+    #[test]
+    fn executed_via_propagation_is_reachable() {
+        use crate::annotation_execution::is_annotation_executed;
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), // 1 scope opens
+            s(&[LineProperty::Annotation]),                          // 2 annotation
+            s(&[LineProperty::Declaration]),                         // 3 TARGET (propagated)
+            s(&[LineProperty::Statement]),                           // 4 HIT
+            s(&[LineProperty::ScopeClose]),                          // 5 scope closes
+        ];
+        let scopes = &[Scope { open_line: 1, close_line: 5, parent: None, children: vec![] }];
+        let cov = cov_hit(&[4]);
+        let status = is_annotation_executed(
+            &AnnotationSpan { start_line: 2, end_line: 2 },
+            &c,
+            scopes,
+            &cov,
+            5,
+        );
+        // Antecedent is satisfiable: Executed ...
+        assert_eq!(status, ExecutionStatus::Executed);
+        // ... on a target (line 3) inside scope [1,5] ...
+        assert!(3 >= scopes[0].open_line && 3 <= scopes[0].close_line);
+        // ... that is NOT directly hit (only line 4 is) ...
+        assert!(!cov.contains_key(&3));
+        // ... and reached the execution set by propagation.
+        let exec_set = execution_set(&c, scopes, &cov);
+        assert!(exec_set.contains(&3));
+    }
     //= design/query/coverage-model-spec.md#property-3-conservative-fallback
     //= type=test
     //# The implementation MUST prove that no backward propagation occurs WITHIN a
@@ -871,6 +922,41 @@ mod tests {
         for line in e1.iter() {
             assert!(e2.contains(line));
         }
+    }
+
+    //= design/query/coverage-model-spec.md#property-4-monotonicity
+    //= type=test
+    //# The implementation MUST prove that given two coverage reports E1 and E2 where
+    //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
+    /// Non-vacuity witness for `executed_annotation_monotonic`.
+    ///
+    /// The P4 harness's `ensures` (`Executed under E1 ==> Executed under E2`) is
+    /// only meaningful when E1 is Executed AND E2 strictly grows the coverage;
+    /// otherwise it is tested only at the degenerate E1 == E2 point. This runs the
+    /// same annotation under E1 = {hit 4} and E2 = {hit 4, hit 5} (E1 ⊊ E2) and
+    /// shows the target stays `Executed` across the growth.
+    #[test]
+    fn executed_survives_added_coverage() {
+        use crate::annotation_execution::is_annotation_executed;
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), // 1 scope opens
+            s(&[LineProperty::Annotation]),                          // 2 annotation
+            s(&[LineProperty::Declaration]),                         // 3 TARGET
+            s(&[LineProperty::Statement]),                           // 4 hit in E1 and E2
+            s(&[LineProperty::Statement]),                           // 5 hit only in E2
+            s(&[LineProperty::ScopeClose]),                          // 6 scope closes
+        ];
+        let scopes = &[Scope { open_line: 1, close_line: 6, parent: None, children: vec![] }];
+        let ann = AnnotationSpan { start_line: 2, end_line: 2 };
+        let e1 = cov_hit(&[4]);
+        let e2 = cov_hit(&[4, 5]);
+        // E1 ⊊ E2.
+        assert!(!e1.contains_key(&5) && e2.contains_key(&5));
+        let status_e1 = is_annotation_executed(&ann, &c, scopes, &e1, 6);
+        let status_e2 = is_annotation_executed(&ann, &c, scopes, &e2, 6);
+        // Antecedent satisfiable (Executed under E1) and preserved under the larger E2.
+        assert_eq!(status_e1, ExecutionStatus::Executed);
+        assert_eq!(status_e2, ExecutionStatus::Executed);
     }
     //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
     //= type=test
