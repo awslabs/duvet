@@ -193,6 +193,26 @@ If a line is unknown,
 it cannot be a `ScopeOpen` or `ScopeClose`,
 so it does not affect the scope tree.
 
+**Scope Balance Contract:** {#scope-balance-contract}
+A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
+matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
+no `ScopeClose` occurs with no open to match,
+and no `ScopeOpen` is left unmatched at end of file.
+An unbalanced stream is a contract violation.
+`build_scope_tree` recovers no pairs from an unbalanced stream and falls back to
+a single whole-file scope, which is well-formed but *wrong* —
+every annotation in the file then resolves against one giant scope,
+turning a genuine `Structural` or `Executed` result into `NotExecuted`.
+When the stream is unbalanced,
+the coverage model MUST NOT score annotations against the collapsed scope tree;
+it MUST surface the file as a defeated classification and escalate
+(see [Classifier Selection and Dispatch](#dispatch)).
+This is the twin of the mutual-exclusivity and `NonLinearControl` contracts:
+it is the classifier's responsibility,
+detected downstream rather than proven about the classifier,
+and surfaced rather than silently degraded.
+Balance detection is [Property 11](#property-11-scope-stream-balance-detection).
+
 ### 1.6 Annotations {#annotations}
 
 An annotation occupies one or more contiguous lines,
@@ -691,6 +711,21 @@ The target is always strictly after the annotation.
 This follows from the forward walk starting at
 `annotation.end_line + 1`.
 
+### Property 11: Scope-Stream Balance Detection {#property-11-scope-stream-balance-detection}
+
+The implementation MUST prove that the balance detector returns balanced if and
+only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+end of file.
+
+A stream with no scope delimiters is balanced, and its whole-file scope is
+legitimate. This is what lets the dispatcher distinguish a genuine imbalance,
+which must escalate ([Dispatch](#dispatch)), from a file that legitimately has
+one whole-file scope or no scopes at all. The detector locates the imbalance
+(a stray `ScopeClose` or an unmatched `ScopeOpen`) for the diagnostic, but the
+located line is a diagnostic aid only; the balanced/unbalanced verdict is the
+soundness-critical result.
+
 ## 6. Worked Examples
 
 See [coverage-model-examples.md](coverage-model-examples.md)
@@ -774,3 +809,46 @@ marker; they may differ only on the classifier-dependent cases
 (`NonLinearControl` and `Declaration` targets, and covered structural lines),
 where the degraded path is sound under forward-nearest governance but
 lower-fidelity.
+
+## 8. Classifier Selection and Dispatch {#dispatch}
+
+### 8.1 Selection {#classifier-selection}
+
+The classifier for a file is selected by its file extension.
+The extension is the sole selector: `.java` selects the Java classifier;
+a file whose extension has no classifier takes the degraded path (§7).
+duvet does not second-guess the extension —
+if a file is misnamed, the fix is the file's name, not a duvet option.
+
+### 8.2 Trust Taxonomy and Response {#trust-taxonomy}
+
+A file's classification can fail in three ways,
+and the response depends on *which* trust was lost:
+
+- **Abstention** — no classifier exists for the extension.
+  duvet made no commitment, so it routes the file to the coarse degraded model
+  (§7) automatically. This is expected, not an error.
+- **Defeated commitment** — a classifier was selected but could not produce a
+  trustworthy classification: the parser reported a syntax error, or the
+  classified `ScopeOpen`/`ScopeClose` stream is unbalanced (§1.5). The cause —
+  the file is not this language, or the classifier has a gap — is undecidable by
+  the tool. duvet MUST NOT silently substitute the coarse model or score against
+  the collapsed scope tree; it MUST escalate, reporting each located issue.
+- **Drift** — coverage refers to a line outside the classified source (a coverage
+  key past end of file). Every model reads coverage, so no model can be trusted;
+  duvet reports `Unknown`.
+
+### 8.3 Escalation {#escalation}
+
+On a defeated commitment, duvet reports *what* and *where* — the located issues —
+but never *why*, because mislabeled-file versus classifier-gap is undecidable.
+In `query`, the inner-loop tool run against in-progress code, escalation is
+non-blocking: the file's annotations resolve to a located `Unknown` and the run
+continues. When `report` consumes coverage, a defeated commitment MUST be a hard
+error there, because `report` is the authoritative artifact.
+
+> Note: the dispatch and escalation policy is implemented in the (currently
+> unscanned) `duvet` crate, so §8 is tracked as a requirement here but its
+> implementing citations land once `duvet/**` is scannable (see the `.duvet`
+> config note / issue #226). Balance *detection* (Property 11) lives in the
+> verified `duvet-coverage` crate and is cited from `scope_imbalance_site`.

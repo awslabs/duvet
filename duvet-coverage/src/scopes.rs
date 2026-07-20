@@ -420,6 +420,12 @@ pub open spec fn balance_bound(c: Seq<Option<LineClass>>, file_length: u64) -> i
 /// aid. The soundness-critical guarantee is the `is None <==> balanced`
 /// equivalence in the `ensures`; the witness line itself is not otherwise
 /// constrained by the proof.
+//= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+//= type=implementation
+//# The implementation MUST prove that the balance detector returns balanced if and
+//# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+//# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+//# end of file.
 pub fn scope_imbalance_site(classifications: &[Option<LineClass>], file_length: u64) -> (result:
     Option<u64>)
     requires
@@ -653,6 +659,10 @@ mod tests {
     fn no_delimiters_is_not_flagged() {
         // Pure statements, no scopes. Depth stays 0, never underflows: balanced.
         // The whole-file scope build_scope_tree returns here is legitimate.
+        //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+        //= type=test
+        //# A stream with no scope delimiters is balanced, and its whole-file scope is
+        //# legitimate.
         let c = vec![s(&[LineProperty::Statement]), s(&[LineProperty::Statement])];
         assert_eq!(scope_imbalance_site(&c, 2), None);
     }

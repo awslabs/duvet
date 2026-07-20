@@ -1,0 +1,26 @@
+target = "design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection"
+
+# Property 11: Scope-Stream Balance Detection
+#
+# The implementation MUST prove that the balance detector returns balanced if and
+# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+# end of file.
+# 
+# A stream with no scope delimiters is balanced, and its whole-file scope is
+# legitimate. This is what lets the dispatcher distinguish a genuine imbalance,
+# which must escalate ([Dispatch](#dispatch)), from a file that legitimately has
+# one whole-file scope or no scopes at all. The detector locates the imbalance
+# (a stray `ScopeClose` or an unmatched `ScopeOpen`) for the diagnostic, but the
+# located line is a diagnostic aid only; the balanced/unbalanced verdict is the
+# soundness-critical result.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that the balance detector returns balanced if and
+only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+end of file.
+'''
+

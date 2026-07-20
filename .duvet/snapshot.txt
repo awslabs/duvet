@@ -11,6 +11,15 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[test]: A scope is a contiguous range of lines
     TEXT[test]: delimited by `ScopeOpen` and `ScopeClose` properties.
     TEXT[test]: Scopes nest.
+    TEXT[!MUST]: **Scope Balance Contract:** {#scope-balance-contract}
+    TEXT[!MUST]: A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
+    TEXT[!MUST]: matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
+    TEXT[!MUST]: no `ScopeClose` occurs with no open to match,
+    TEXT[!MUST]: and no `ScopeOpen` is left unmatched at end of file.
+    TEXT[!MUST]: When the stream is unbalanced,
+    TEXT[!MUST]: the coverage model MUST NOT score annotations against the collapsed scope tree;
+    TEXT[!MUST]: it MUST surface the file as a defeated classification and escalate
+    TEXT[!MUST]: (see [Classifier Selection and Dispatch](#dispatch)).
 
   SECTION: [5. Correctness Properties](#correctness-properties)
     TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus.
@@ -93,6 +102,14 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[implication]: If `annotation_target(annotation, ...) = Some(target)`,
     TEXT[implication]: then `target.line_number > annotation.end_line`.
 
+  SECTION: [Property 11: Scope-Stream Balance Detection](#property-11-scope-stream-balance-detection)
+    TEXT[!MUST,implementation]: The implementation MUST prove that the balance detector returns balanced if and
+    TEXT[!MUST,implementation]: only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+    TEXT[!MUST,implementation]: no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+    TEXT[!MUST,implementation]: end of file.
+    TEXT[test]: A stream with no scope delimiters is balanced, and its whole-file scope is
+    TEXT[test]: legitimate.
+
   SECTION: [7.4 Properties](#degraded-properties)
     TEXT[!MUST]: These properties MUST be proven with Verus for the degraded path,
     TEXT[!MUST]: alongside the Section 5 properties for the classified path.
@@ -117,3 +134,11 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MUST,implication]: directly-hit line that a full classifier would mark as a plain `Statement` (and
     TEXT[!MUST,implication]: not `NonLinearControl`), it returns the same result the classified model
     TEXT[!MUST,implication]: `is_annotation_executed` returns, namely `Executed`.
+
+  SECTION: [8.2 Trust Taxonomy and Response](#trust-taxonomy)
+    TEXT[!MUST]: duvet MUST NOT silently substitute the coarse model or score against
+    TEXT[!MUST]:   the collapsed scope tree; it MUST escalate, reporting each located issue.
+
+  SECTION: [8.3 Escalation](#escalation)
+    TEXT[!MUST]: When `report` consumes coverage, a defeated commitment MUST be a hard
+    TEXT[!MUST]: error there, because `report` is the authoritative artifact.
