@@ -3,12 +3,13 @@ cmd = ["duvet query -c coverage -r cov.xml -f jacoco-xml"]
 report_output = false
 
 # JaCoCo is a JVM-wide format, so a report can name non-Java sources
-# (Kotlin/Scala/Groovy). Those have no tree-sitter classifier, and the coverage
-# model must *refuse* to score them rather than silently falling back to the
-# unverified forward-walk — otherwise the user gets verified-looking output that
-# never touched the verified model. Here the report's `Other.rs` matches the
-# project source `src/Other.rs`, so the classifier lookup fails and the run
-# errors instead of falling back.
+# (Kotlin/Scala/Groovy) — or, as here, a `.rs` source. Those have no tree-sitter
+# classifier, so they are scored by the *verified degraded path*
+# (duvet_coverage::degraded): the annotation's target resolves to the nearest
+# non-skippable line (line 4, `fn work() {}`), and coverage reports it Hit, so the
+# implementation annotation is Executed. Lower fidelity than the classified model
+# (forward-nearest governance, no scope propagation) but verified and honest — no
+# unverified forward-walk, and no refusal.
 [[file]]
 path = ".duvet/config.toml"
 contents = """

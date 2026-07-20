@@ -1,9 +1,8 @@
 ---
 source: xtask/src/tests.rs
-expression: stderr
+expression: stdout
 ---
 $ duvet query -c coverage -r cov.xml -f jacoco-xml
-EXIT: Some(1)
     Starting duvet in query mode...
   Extracting requirements
     Scanning sources
@@ -16,6 +15,15 @@ EXIT: Some(1)
       Mapped 1 sections 
     Matching references
      Matched 2 references 
-  × no language classifier for src/Other.rs; the coverage model only supports
-  │ sources it can classify (currently .java). Remove this file from the
-  │ coverage report or add a classifier for its language.
+  
+Coverage: ✓ PASS
+
+  Coverage reports checked: 1
+  Executed tests: 0
+  Executed implementations: 1
+  Successful correlations: 0
+  Failed correlations: 0
+  Tests with no implementation: 0
+
+
+Overall: ✓ PASS
