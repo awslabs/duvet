@@ -165,6 +165,88 @@ proof fn lemma_no_cross_scope_leakage(
     }
 }
 
+//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
+//= type=implication
+//# The implementation MUST prove that for any two lines A and B where A is in
+//# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
+//# S2 is not a parent of S1:
+/// Property 2, composed end-to-end over the *public* `is_annotation_executed`.
+///
+/// This is the P5 treatment applied to Property 2: it calls the real public
+/// function and states no-cross-scope-leakage as an observable consequence of
+/// the value a caller actually receives. `is_annotation_executed`'s third
+/// `ensures` gives `status == Executed ==> validly_in_exec_set(target, ..)` — the
+/// same Property-1 postcondition the lemma needs, now discharged all the way
+/// through `execution_set` (and across its two `external_body` leaves, whose
+/// membership specs are sufficient because that is all the reachability reads).
+///
+/// The public interface only ever exposes one execution-set line — the
+/// annotation's resolved target — so the statement is about that line, not the
+/// spec's full "any two lines A and B" set. The full-set form remains proven by
+/// `lemma_no_cross_scope_leakage`; this harness is its observable projection.
+/// The two well-formedness hypotheses are carried as harness `requires`, exactly
+/// as P5 re-declares `is_annotation_executed`'s shared preconditions.
+fn executed_annotation_has_no_cross_scope_leakage(
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    coverage: &CoverageReport,
+    file_length: u64,
+) -> (status: ExecutionStatus)
+    requires
+        annotation.end_line < u64::MAX,
+        forall|line: u64| coverage@.contains_key(line)
+            ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
+        // Well-formedness the lemma needs, beyond is_annotation_executed's ensures.
+        scopes_well_formed(scopes@),
+        scopes_match_classifications(scopes@, classifications),
+    ensures
+        status == ExecutionStatus::Executed ==> {
+            let target = annotation_target_spec(annotation, classifications, file_length);
+            &&& target.is_some()
+            &&& forall|s2_idx: int|
+                    in_scope(target.unwrap(), scopes, s2_idx)
+                    && !(coverage@.contains_key(target.unwrap())
+                         && coverage@[target.unwrap()] == CoverageStatus::Hit)
+                    ==> exists|hit_line: u64|
+                            coverage@.contains_key(hit_line)
+                            && coverage@[hit_line] == CoverageStatus::Hit
+                            && in_scope(hit_line, scopes, s2_idx)
+        },
+{
+    let status = is_annotation_executed(annotation, classifications, scopes, coverage, file_length);
+    proof {
+        if status == ExecutionStatus::Executed {
+            // is_annotation_executed's ensures #3: the target is validly in the set.
+            let target_opt = annotation_target_spec(annotation, classifications, file_length);
+            let target = target_opt.unwrap();
+            assert(validly_in_exec_set(target, classifications, scopes, coverage));
+            // Instantiate the lemma at the single observable line via a singleton
+            // set whose only member is `target` — the forall postcondition holds
+            // because `target` is validly in the set.
+            let es = Set::<u64>::empty().insert(target);
+            assert forall|s2_idx: int|
+                in_scope(target, scopes, s2_idx)
+                && !(coverage@.contains_key(target) && coverage@[target] == CoverageStatus::Hit)
+            implies exists|hit_line: u64|
+                    coverage@.contains_key(hit_line)
+                    && coverage@[hit_line] == CoverageStatus::Hit
+                    && in_scope(hit_line, scopes, s2_idx)
+            by {
+                assert forall|line: u64| es.contains(line)
+                    implies validly_in_exec_set(line, classifications, scopes, coverage)
+                by {
+                    assert(line == target);
+                }
+                lemma_no_cross_scope_leakage(es, classifications, scopes, coverage, target, s2_idx);
+            }
+        }
+    }
+    status
+}
+
 //= design/query/coverage-model-spec.md#property-3-conservative-fallback
 //# The implementation MUST prove that no backward propagation occurs WITHIN a
 //# scope that contains a `NonLinearControl` line.
@@ -206,6 +288,82 @@ proof fn lemma_conservative_fallback(
     assert(!scope_has_non_linear_control(classifications, scopes, path_scope_idx));
     assert(scope_has_non_linear_control(classifications, scopes, scope_idx));
     assert(path_scope_idx != scope_idx);
+}
+
+//= design/query/coverage-model-spec.md#property-3-conservative-fallback
+//= type=implication
+//# The implementation MUST prove that no backward propagation occurs WITHIN a
+//# scope that contains a `NonLinearControl` line.
+/// Property 3, composed end-to-end over the *public* `is_annotation_executed`.
+///
+/// Stated over the value a caller receives: if an annotation is Executed and its
+/// target sits in an NLC scope but was not directly hit, the propagation that
+/// carried it happened in a *different*, non-NLC scope. Discharged from
+/// `is_annotation_executed`'s Property-1 `ensures` (`Executed ==>
+/// validly_in_exec_set(target)`) via `lemma_conservative_fallback`, instantiated
+/// at the single observable target line.
+///
+/// VACUITY NOTE: the antecedent is satisfiable only in the *nested* case — a
+/// target in an NLC parent scope reached via a non-NLC child. In a flat NLC scope
+/// no line is both in-set and not-directly-hit, so the antecedent is empty. The
+/// companion witness `executed_target_in_nlc_parent_is_reachable` exhibits a
+/// concrete Executed annotation satisfying the antecedent, so this `ensures` is
+/// not vacuously true.
+fn executed_annotation_conservative_fallback(
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    coverage: &CoverageReport,
+    file_length: u64,
+) -> (status: ExecutionStatus)
+    requires
+        annotation.end_line < u64::MAX,
+        forall|line: u64| coverage@.contains_key(line)
+            ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
+    ensures
+        status == ExecutionStatus::Executed ==> {
+            let target = annotation_target_spec(annotation, classifications, file_length);
+            &&& target.is_some()
+            &&& forall|scope_idx: int|
+                    scope_has_non_linear_control(classifications, scopes, scope_idx)
+                    && in_scope(target.unwrap(), scopes, scope_idx)
+                    && !(coverage@.contains_key(target.unwrap())
+                         && coverage@[target.unwrap()] == CoverageStatus::Hit)
+                    ==> exists|hit_line: u64, path_scope_idx: int|
+                            has_valid_path(target.unwrap(), hit_line, classifications, scopes,
+                                path_scope_idx, coverage)
+                            && path_scope_idx != scope_idx
+                            && !scope_has_non_linear_control(classifications, scopes, path_scope_idx)
+        },
+{
+    let status = is_annotation_executed(annotation, classifications, scopes, coverage, file_length);
+    proof {
+        if status == ExecutionStatus::Executed {
+            let target_opt = annotation_target_spec(annotation, classifications, file_length);
+            let target = target_opt.unwrap();
+            assert(validly_in_exec_set(target, classifications, scopes, coverage));
+            let es = Set::<u64>::empty().insert(target);
+            assert forall|scope_idx: int|
+                scope_has_non_linear_control(classifications, scopes, scope_idx)
+                && in_scope(target, scopes, scope_idx)
+                && !(coverage@.contains_key(target) && coverage@[target] == CoverageStatus::Hit)
+            implies exists|hit_line: u64, path_scope_idx: int|
+                    has_valid_path(target, hit_line, classifications, scopes, path_scope_idx, coverage)
+                    && path_scope_idx != scope_idx
+                    && !scope_has_non_linear_control(classifications, scopes, path_scope_idx)
+            by {
+                assert forall|line: u64| es.contains(line)
+                    implies validly_in_exec_set(line, classifications, scopes, coverage)
+                by {
+                    assert(line == target);
+                }
+                lemma_conservative_fallback(es, classifications, scopes, coverage, target, scope_idx);
+            }
+        }
+    }
+    status
 }
 
 //= design/query/coverage-model-spec.md#property-4-monotonicity
@@ -281,6 +439,101 @@ proof fn lemma_monotonicity(
         // By completeness ensures on exec_set_2: validly_in_exec_set ==> in the set
         assert(exec_set_2.contains(line));
     }
+}
+
+/// Pointwise monotonicity of `validly_in_exec_set` under coverage growth: if a
+/// line is validly in the execution set under E1 and E1 ⊆ E2 (every E1 hit is an
+/// E2 hit), then it is validly in the set under E2. This is the coverage-facing
+/// heart of Property 4 — `has_valid_path` depends on coverage only through the
+/// membership of its hit line, so a hit that survives E1 → E2 keeps the whole
+/// path valid; the direct-hit case is immediate from E1 ⊆ E2.
+proof fn lemma_validly_in_exec_set_monotone(
+    line: u64,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    coverage_e1: &CoverageReport,
+    coverage_e2: &CoverageReport,
+)
+    requires
+        validly_in_exec_set(line, classifications, scopes, coverage_e1),
+        forall|l: u64| coverage_e1@.contains_key(l) && coverage_e1@[l] == CoverageStatus::Hit
+            ==> coverage_e2@.contains_key(l) && coverage_e2@[l] == CoverageStatus::Hit,
+    ensures
+        validly_in_exec_set(line, classifications, scopes, coverage_e2),
+{
+    if coverage_e1@.contains_key(line) && coverage_e1@[line] == CoverageStatus::Hit {
+        assert(coverage_e2@.contains_key(line) && coverage_e2@[line] == CoverageStatus::Hit);
+    } else {
+        let (hit_line, scope_idx): (u64, int) = choose|hit_line: u64, scope_idx: int|
+            has_valid_path(line, hit_line, classifications, scopes, scope_idx, coverage_e1);
+        assert(coverage_e1@.contains_key(hit_line) && coverage_e1@[hit_line] == CoverageStatus::Hit);
+        assert(coverage_e2@.contains_key(hit_line) && coverage_e2@[hit_line] == CoverageStatus::Hit);
+        assert(has_valid_path(line, hit_line, classifications, scopes, scope_idx, coverage_e2));
+    }
+}
+
+//= design/query/coverage-model-spec.md#property-4-monotonicity
+//= type=implication
+//# The implementation MUST prove that given two coverage reports E1 and E2 where
+//# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
+/// Property 4, composed end-to-end over the *public* `is_annotation_executed`.
+///
+/// The observable form of monotonicity: running the same annotation against a
+/// larger coverage report never revokes an Executed verdict. Calls the public fn
+/// twice (E1, then E2 ⊇ E1) and relates the two concrete `ExecutionStatus`
+/// values it returns, exactly as the P5 harness relates two statuses.
+///
+/// Chain: call 1's Property-1 `ensures` gives `validly_in_exec_set(target, E1)`;
+/// `lemma_validly_in_exec_set_monotone` carries it to E2; call 2's equivalence
+/// `ensures` pins `status_2 == execution_status_of(target, .., E2)`, and the
+/// target/classification/NLC branch conditions are coverage-independent (equal to
+/// call 1's), so the `Executed` branch is reached under E2 too. Returns the pair
+/// so the `ensures` can relate the two real return values.
+fn executed_annotation_monotonic(
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    coverage_e1: &CoverageReport,
+    coverage_e2: &CoverageReport,
+    file_length: u64,
+) -> (result: (ExecutionStatus, ExecutionStatus))
+    requires
+        annotation.end_line < u64::MAX,
+        forall|line: u64| coverage_e1@.contains_key(line)
+            ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
+        forall|line: u64| coverage_e2@.contains_key(line)
+            ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
+        // E1 ⊆ E2: every hit in E1 is a hit in E2.
+        forall|l: u64| coverage_e1@.contains_key(l) && coverage_e1@[l] == CoverageStatus::Hit
+            ==> coverage_e2@.contains_key(l) && coverage_e2@[l] == CoverageStatus::Hit,
+    ensures
+        // Executed under E1 ==> Executed under E2.
+        result.0 == ExecutionStatus::Executed ==> result.1 == ExecutionStatus::Executed,
+{
+    let status_1 = is_annotation_executed(annotation, classifications, scopes, coverage_e1, file_length);
+    let status_2 = is_annotation_executed(annotation, classifications, scopes, coverage_e2, file_length);
+    proof {
+        if status_1 == ExecutionStatus::Executed {
+            let target_opt = annotation_target_spec(annotation, classifications, file_length);
+            let target = target_opt.unwrap();
+            // From call 1's ensures #3.
+            assert(validly_in_exec_set(target, classifications, scopes, coverage_e1));
+            // Carry validity across the coverage growth.
+            lemma_validly_in_exec_set_monotone(
+                target, classifications, scopes, coverage_e1, coverage_e2);
+            assert(validly_in_exec_set(target, classifications, scopes, coverage_e2));
+            // status_2 equals the spec twin over the same target (call 2, ensures #1).
+            // The pre-validity branch conditions (Some target, classified, not NLC)
+            // are coverage-independent and hold from status_1 == Executed; with
+            // validity now holding under E2, the twin lands on Executed.
+            assert(status_2 == execution_status_of(
+                annotation_target_spec(annotation, classifications, file_length),
+                classifications, scopes, coverage_e2));
+        }
+    }
+    (status_1, status_2)
 }
 
 //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
@@ -540,6 +793,57 @@ mod tests {
         assert!(r.contains(&4));
         assert!(!r.contains(&1));
         assert!(!r.contains(&2));
+    }
+
+    //= design/query/coverage-model-spec.md#property-3-conservative-fallback
+    //= type=test
+    //# If an ancestor scope S contains `NonLinearControl` but a child
+    //# scope S' does not, propagation MAY occur through S'.
+    /// Non-vacuity witness for `executed_annotation_conservative_fallback`.
+    ///
+    /// The public P3 harness's `ensures` antecedent — Executed, target in an NLC
+    /// scope, not directly hit — is only satisfiable in the nested case. This test
+    /// exhibits it: an annotation whose target (line 5, a Declaration) sits inside
+    /// an NLC *parent* scope (1–9, NLC at line 2) yet is `Executed` via propagation
+    /// through a non-NLC *child* scope (3–7) from the hit at line 6. Without a
+    /// witness like this, the harness's `ensures` would be vacuously true.
+    #[test]
+    fn executed_target_in_nlc_parent_is_reachable() {
+        use crate::annotation_execution::is_annotation_executed;
+        let c = vec![
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), // 1 parent opens
+            s(&[LineProperty::NonLinearControl]),                    // 2 parent is NLC
+            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]), // 3 child opens
+            s(&[LineProperty::Annotation]),                          // 4 annotation
+            s(&[LineProperty::Declaration]),                         // 5 TARGET (in child + parent)
+            s(&[LineProperty::Statement]),                           // 6 HIT
+            s(&[LineProperty::ScopeClose]),                          // 7 child closes
+            s(&[LineProperty::Statement]),                           // 8
+            s(&[LineProperty::ScopeClose]),                          // 9 parent closes
+        ];
+        let scopes = &[
+            Scope { open_line: 1, close_line: 9, parent: None, children: vec![] }, // NLC parent
+            Scope { open_line: 3, close_line: 7, parent: None, children: vec![] }, // non-NLC child
+        ];
+        let cov = cov_hit(&[6]);
+
+        // The annotation at line 4 resolves forward to line 5 (the target).
+        let status = is_annotation_executed(
+            &AnnotationSpan { start_line: 4, end_line: 4 },
+            &c,
+            scopes,
+            &cov,
+            9,
+        );
+        // Antecedent is satisfiable: Executed verdict ...
+        assert_eq!(status, ExecutionStatus::Executed);
+        // ... on a target (line 5) that is inside the NLC parent scope [1,9] ...
+        assert!(5 >= scopes[0].open_line && 5 <= scopes[0].close_line);
+        // ... and is NOT directly hit (only line 6 is).
+        assert!(!cov.contains_key(&5));
+        // The propagation that carried it ran through the non-NLC child [3,7].
+        let exec_set = execution_set(&c, scopes, &cov);
+        assert!(exec_set.contains(&5));
     }
     //= design/query/coverage-model-spec.md#property-4-monotonicity
     //= type=test
