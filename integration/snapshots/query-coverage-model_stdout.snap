@@ -17,7 +17,7 @@ $ duvet query -c coverage -r *.xml -f jacoco-xml --verbose
     Matching references
      Matched 16 references 
      Running test execution correlation check...
-    Coverage model: 6 file(s) using language-aware (verified) path, 0 file(s) using forward-walk fallback
+    Coverage model: 6 file(s) language-aware (verified), 0 file(s) degraded — no classifier (verified)
   
 Coverage: ✓ PASS
 
