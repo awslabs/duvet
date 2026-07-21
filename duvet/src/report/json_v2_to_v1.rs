@@ -558,13 +558,14 @@ fn build_v1_specifications(
         let mut sections = Vec::new();
 
         for section in parsed_spec.specification.sorted_sections() {
-            let section_extent = section_range(section);
             let mut section_requirements = BTreeSet::new();
             let mut lines = Vec::new();
             for line in &section.lines {
                 let Line::Str(line) = line else {
                     continue;
                 };
+                // Preserve the streaming v1 writer's behavior: it emits the
+                // complete parser slice once for every source line it spans.
                 for _ in line.line_range() {
                     lines.push(segment_line(
                         line.as_ref(),
@@ -572,14 +573,6 @@ fn build_v1_specifications(
                         references,
                         &mut section_requirements,
                     )?);
-                }
-            }
-            for reference in references {
-                if reference.anno_type == "SPEC"
-                    && reference.range.start >= section_extent.start
-                    && reference.range.end <= section_extent.end
-                {
-                    section_requirements.insert(reference.annotation_id);
                 }
             }
             sections.push(SectionV1 {
@@ -675,6 +668,9 @@ fn segment_line(
 }
 
 fn all_ref_statuses() -> Vec<RefStatusV1> {
+    // This order intentionally mirrors json.rs::RefStatus::id so converted
+    // reports preserve the exact legacy wire layout, not just an internally
+    // consistent table.
     let mut statuses = Vec::with_capacity(256);
     for level in ["AUTO", "MAY", "SHOULD", "MUST"] {
         for bits in 0..64 {
@@ -816,11 +812,24 @@ fn validate_byte_range(file: &SourceFile, range: &ByteRange, context: &str) -> c
 }
 
 fn validate_source_ref(contents: &str, start: usize, end: usize, context: &str) -> crate::Result {
-    validate_byte_range(
-        &SourceFile::new("<validation>", contents.to_string())?,
-        &ByteRange { start, end },
-        context,
-    )
+    if start > end || end > contents.len() {
+        return Err(duvet_core::error!(
+            "{} has out-of-bounds range {}..{} for {}-byte source",
+            context,
+            start,
+            end,
+            contents.len()
+        ));
+    }
+    if contents.get(start..end).is_none() {
+        return Err(duvet_core::error!(
+            "{} range {}..{} is not on UTF-8 boundaries",
+            context,
+            start,
+            end
+        ));
+    }
+    Ok(())
 }
 
 fn specification_identity(annotation: &SpecificationAnnotation, file_name: &str) -> String {
@@ -1502,6 +1511,135 @@ mod tests {
     }
 
     #[test]
+    fn empty_quote_does_not_add_a_section_requirement() {
+        let mut report = fixture();
+        let inline = &report.sources.inline["src-1"];
+        let file = SourceFile::new(inline.file_name.clone(), inline.contents.clone()).unwrap();
+        let specification = Format::Markdown.parse(&file).unwrap();
+        let title_range = specification.section("section").unwrap().full_title.range();
+        let requirement = report.annotations.requirement.get_mut("req-1").unwrap();
+        requirement.origin.ranges = vec![ByteRange {
+            start: title_range.start,
+            end: title_range.end,
+        }];
+        requirement.coverage.clear();
+
+        let (converted, _) = convert(&report, None).unwrap();
+        let requirement_id = converted
+            .annotations
+            .iter()
+            .position(|annotation| annotation.anno_type == "SPEC")
+            .unwrap();
+        let specification = &converted.specifications["spec.md"];
+        assert_eq!(specification.requirements, [requirement_id]);
+        assert!(specification
+            .sections
+            .iter()
+            .all(|section| !section.requirements.contains(&requirement_id)));
+    }
+
+    #[test]
+    fn converts_ietf_page_breaks_and_validates_url_and_section_aliases() {
+        let contents = concat!(
+            "1. Overview\n",
+            "\n",
+            "alpha part\n",
+            "\u{C}\n",
+            "RFC 9999  Example\n",
+            "\n",
+            "beta part\n",
+        )
+        .to_string();
+        let alpha = contents.find("alpha part").unwrap();
+        let beta = contents.find("beta part").unwrap();
+        let ranges = vec![
+            ByteRange {
+                start: alpha,
+                end: alpha + "alpha part".len(),
+            },
+            ByteRange {
+                start: beta,
+                end: beta + "beta part".len(),
+            },
+        ];
+        let mut report = base_fixture(
+            contents,
+            "rfc9999.txt",
+            Format::Ietf,
+            Some("https://www.rfc-editor.org/rfc/rfc9999.txt"),
+        );
+        report.annotations.requirement.insert(
+            "req-ietf".to_string(),
+            RequirementAnnotation {
+                source: SourceLocation {
+                    src: "lnk-requirement".to_string(),
+                    line: Some(7),
+                },
+                origin: SourceRanges {
+                    src: "src-1".to_string(),
+                    ranges: ranges.clone(),
+                },
+                level: AnnotationLevel::Must,
+                coverage: BTreeMap::from([("cite-ietf".to_string(), ranges.clone())]),
+            },
+        );
+        report.annotations.cite.insert(
+            "cite-ietf".to_string(),
+            CiteAnnotation {
+                source: SourceLocation {
+                    src: "lnk-code".to_string(),
+                    line: Some(1),
+                },
+                target: SourceRanges {
+                    src: "src-1".to_string(),
+                    ranges,
+                },
+                anno_type: AnnotationType::Citation,
+                level: AnnotationLevel::Must,
+                comment: None,
+                feature: None,
+                tracking_issue: None,
+                tags: Vec::new(),
+            },
+        );
+
+        let (converted, _) = convert(&report, None).unwrap();
+        let canonical_url = "https://www.rfc-editor.org/rfc/rfc9999.txt";
+        let specification = &converted.specifications[canonical_url];
+        let section = specification
+            .sections
+            .iter()
+            .find(|section| section.id == "section-1")
+            .unwrap();
+        let text = section
+            .lines
+            .iter()
+            .map(|line| match line {
+                LineV1::Text(text) => text.clone(),
+                LineV1::Segments(segments) => {
+                    segments.iter().map(|(_, _, text)| text.as_str()).collect()
+                }
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        assert!(text.contains("alpha part"));
+        assert!(text.contains("beta part"));
+        assert!(!text.contains("RFC 9999"));
+
+        let mut authored_v1 = converted.clone();
+        let specification = authored_v1.specifications.remove(canonical_url).unwrap();
+        authored_v1.specifications.insert(
+            "https://www.rfc-editor.org/rfc/rfc9999.html".to_string(),
+            specification,
+        );
+        for annotation in &mut authored_v1.annotations {
+            annotation.target_path = "https://www.rfc-editor.org/rfc/rfc9999.html".to_string();
+            annotation.target_section = Some("1".to_string());
+        }
+        validate_semantics(&authored_v1, &converted, true).unwrap();
+    }
+
+    #[test]
     fn rejects_dangling_coverage_reference() {
         let mut report = fixture();
         report
@@ -1593,27 +1731,9 @@ mod tests {
 
     fn fixture() -> ReportV2 {
         let contents = "# Spec\n\n## Section\n\nalpha β gamma\n".to_string();
-        let file = SourceFile::new("spec.md", contents.clone()).unwrap();
-        let specification = Format::Markdown.parse(&file).unwrap();
         let alpha = contents.find("alpha").unwrap();
         let gamma = contents.find("gamma").unwrap();
-
-        let mut sections = BTreeMap::new();
-        for (index, section) in specification.sorted_sections().into_iter().enumerate() {
-            let range = section_range(section);
-            sections.insert(
-                format!("sec-{index}"),
-                SectionAnnotation {
-                    source: SourceRef {
-                        src: "src-1".to_string(),
-                        start: range.start,
-                        end: range.end,
-                    },
-                    short_name: section.id.clone(),
-                    long_name: Some(section.title.clone()),
-                },
-            );
-        }
+        let mut report = base_fixture(contents, "spec.md", Format::Markdown, None);
 
         let cite_types = [
             ("cite-citation", AnnotationType::Citation),
@@ -1651,6 +1771,59 @@ mod tests {
             );
         }
 
+        report.annotations.requirement.insert(
+            "req-1".to_string(),
+            RequirementAnnotation {
+                source: SourceLocation {
+                    src: "lnk-requirement".to_string(),
+                    line: Some(7),
+                },
+                origin: SourceRanges {
+                    src: "src-1".to_string(),
+                    ranges: vec![
+                        ByteRange {
+                            start: alpha,
+                            end: alpha + 5,
+                        },
+                        ByteRange {
+                            start: gamma,
+                            end: gamma + 5,
+                        },
+                    ],
+                },
+                level: AnnotationLevel::Must,
+                coverage,
+            },
+        );
+        report.annotations.cite = cites;
+        report
+    }
+
+    fn base_fixture(
+        contents: String,
+        file_name: &str,
+        format: Format,
+        url: Option<&str>,
+    ) -> ReportV2 {
+        let file = SourceFile::new(file_name, contents.clone()).unwrap();
+        let specification = format.parse(&file).unwrap();
+        let mut sections = BTreeMap::new();
+        for (index, section) in specification.sorted_sections().into_iter().enumerate() {
+            let range = section_range(section);
+            sections.insert(
+                format!("sec-{index}"),
+                SectionAnnotation {
+                    source: SourceRef {
+                        src: "src-1".to_string(),
+                        start: range.start,
+                        end: range.end,
+                    },
+                    short_name: section.id.clone(),
+                    long_name: Some(section.title.clone()),
+                },
+            );
+        }
+
         ReportV2 {
             version: "2.0".to_string(),
             issue_links: Vec::new(),
@@ -1659,7 +1832,7 @@ mod tests {
                 inline: BTreeMap::from([(
                     "src-1".to_string(),
                     InlineSource {
-                        file_name: "spec.md".to_string(),
+                        file_name: file_name.to_string(),
                         contents: contents.clone(),
                     },
                 )]),
@@ -1690,37 +1863,14 @@ mod tests {
                             start: 0,
                             end: contents.len(),
                         },
-                        title: Some("Spec".to_string()),
-                        format: "markdown".to_string(),
-                        url: None,
+                        title: specification.title.clone(),
+                        format: specification.format.to_string(),
+                        url: url.map(str::to_string),
                     },
                 )]),
                 section: sections,
-                requirement: BTreeMap::from([(
-                    "req-1".to_string(),
-                    RequirementAnnotation {
-                        source: SourceLocation {
-                            src: "lnk-requirement".to_string(),
-                            line: Some(7),
-                        },
-                        origin: SourceRanges {
-                            src: "src-1".to_string(),
-                            ranges: vec![
-                                ByteRange {
-                                    start: alpha,
-                                    end: alpha + 5,
-                                },
-                                ByteRange {
-                                    start: gamma,
-                                    end: gamma + 5,
-                                },
-                            ],
-                        },
-                        level: AnnotationLevel::Must,
-                        coverage,
-                    },
-                )]),
-                cite: cites,
+                requirement: BTreeMap::new(),
+                cite: BTreeMap::new(),
                 extensions: BTreeMap::new(),
             },
         }
