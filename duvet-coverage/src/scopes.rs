@@ -562,9 +562,9 @@ mod tests {
         let e = vec![
             ev(6, true),
             ev(8, true),
-            ev(10, true), // try {
+            ev(10, true),  // try {
             ev(18, false), // } (closes try)
-            ev(18, true), // { (finally)
+            ev(18, true),  // { (finally)
             ev(18, false), // } (closes finally)
             ev(23, false),
             ev(24, false),
@@ -701,7 +701,10 @@ mod tests {
     fn unclosed_open_is_flagged_and_tree_collapses() {
         let e = vec![ev(1, true)];
         let site = scope_imbalance_site(&e);
-        assert!(site.is_some(), "unclosed open must be flagged, got {site:?}");
+        assert!(
+            site.is_some(),
+            "unclosed open must be flagged, got {site:?}"
+        );
         let sc = build_scope_tree(&e, 2);
         assert_eq!(sc.len(), 1);
         assert_eq!((sc[0].open_line, sc[0].close_line), (1, 2));
