@@ -39,6 +39,28 @@ pub async fn is_annotation_covered(
     specifications: &Arc<HashMap<Arc<Target>, Arc<Specification>>>,
     annotations: &[Arc<Annotation>],
 ) -> (Option<AnnotationCoverage>, Vec<Error>) {
+    // Degenerate case: a *requirement* (`Spec`) whose quote is empty or
+    // whitespace-only. This is an authoring footgun, not a normal state —
+    // `duvet extract` only emits requirements from normative spec text, so an
+    // empty requirement quote arises only from a hand-edited requirements TOML
+    // (`[[spec]] quote = ""`) or a hand-authored `//= type=spec` with no `//#`.
+    //
+    // The early return is not load-bearing for the result: with it removed,
+    // `normalize("")`/`normalize("   ")` is `""`, `find("")` matches at offset 0
+    // with a zero-length range, `covered` is empty, and `covered.iter().all(..)`
+    // is vacuously true — the same "covered" verdict. We short-circuit only to
+    // keep it explicit and to avoid handing an empty covering set to the verbose
+    // renderer (the original `--verbose` panic; now also guarded by the `None`
+    // arm in result.rs).
+    //
+    // KNOWN DIVERGENCE (accepted, low severity): `duvet report` scores the same
+    // empty-quote requirement as an *uncovered gap* — reference.rs anchors it at
+    // the section title, which nothing covers — whereas `query` reports it as
+    // fully covered here. Neither is truly "right" about a requirement that has
+    // no text to cover; because the input cannot arise from the supported
+    // extract path, we document rather than error. The distinct, *intentional*
+    // case — an empty quote on a *coverer*, used as a section-level navigational
+    // reference — lives in reference.rs::build_references and is kept as-is.
     if target_annotation.quote.trim().is_empty() {
         return (
             Some(AnnotationCoverage {
