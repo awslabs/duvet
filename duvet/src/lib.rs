@@ -7,6 +7,7 @@ use std::sync::Arc;
 mod annotation;
 mod comment;
 mod config;
+mod convert;
 mod extract;
 pub(crate) mod ids;
 mod init;
@@ -33,6 +34,8 @@ pub enum Arguments {
     Report(report::Report),
     /// Queries requirement traceability using coverage data
     Query(query::Query),
+    /// Converts a v2 JSON report to the legacy v1 JSON format
+    Convert(convert::Convert),
     /// Merges multiple v2 JSON reports into one
     Merge(merge::Merge),
 }
@@ -49,6 +52,7 @@ impl Arguments {
             Self::Extract(args) => args.exec().await,
             Self::Report(args) => args.exec().await,
             Self::Query(args) => args.exec().await,
+            Self::Convert(args) => args.exec().await,
             Self::Merge(args) => args.exec().await,
         }
     }

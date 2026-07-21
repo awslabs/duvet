@@ -1,0 +1,126 @@
+---
+source: duvet/src/report/json_v2_to_v1.rs
+expression: converted
+---
+{
+  "specifications": {
+    "spec.md": {
+      "title": "Spec",
+      "format": "markdown",
+      "requirements": [
+        0
+      ],
+      "sections": [
+        {
+          "id": "spec",
+          "title": "Spec",
+          "lines": []
+        },
+        {
+          "id": "section",
+          "title": "Section",
+          "lines": [
+            [
+              [
+                [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                255,
+                "alpha"
+              ],
+              [
+                [],
+                0,
+                " β "
+              ],
+              [
+                [
+                  0
+                ],
+                224,
+                "gamma"
+              ]
+            ]
+          ],
+          "requirements": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "annotations": [
+    {
+      "source": "requirements.toml",
+      "target_path": "spec.md",
+      "target_section": "section",
+      "line": 7,
+      "type": "SPEC",
+      "level": "MUST",
+      "comment": "alpha\ngamma"
+    },
+    {
+      "source": "src/lib.rs",
+      "target_path": "spec.md",
+      "target_section": "section",
+      "line": 1,
+      "level": "MUST"
+    },
+    {
+      "source": "src/lib.rs",
+      "target_path": "spec.md",
+      "target_section": "section",
+      "line": 2,
+      "type": "TEST",
+      "level": "MUST"
+    },
+    {
+      "source": "src/lib.rs",
+      "target_path": "spec.md",
+      "target_section": "section",
+      "line": 3,
+      "type": "IMPLICATION",
+      "level": "MUST"
+    },
+    {
+      "source": "src/lib.rs",
+      "target_path": "spec.md",
+      "target_section": "section",
+      "line": 4,
+      "type": "EXCEPTION",
+      "level": "MUST"
+    },
+    {
+      "source": "src/lib.rs",
+      "target_path": "spec.md",
+      "target_section": "section",
+      "line": 5,
+      "type": "TODO",
+      "level": "MUST"
+    }
+  ],
+  "statuses": {
+    "0": {
+      "spec": 10,
+      "incomplete": 5,
+      "citation": 5,
+      "implication": 5,
+      "test": 5,
+      "exception": 5,
+      "todo": 5,
+      "related": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  },
+  "refs": []
+}
