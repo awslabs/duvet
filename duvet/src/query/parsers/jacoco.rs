@@ -3,7 +3,7 @@
 
 use quick_xml::{
     events::{BytesStart, Event},
-    Reader,
+    Reader, XmlVersion,
 };
 use rustc_hash::FxHashMap;
 use std::{
@@ -241,7 +241,7 @@ fn get_xml_attribute<R: BufRead>(
         let a = a.map_err(|e| CoverageError::InvalidData(format!("Attribute error: {e}")))?;
         if a.key.into_inner() == name.as_bytes() {
             return Ok(a
-                .decode_and_unescape_value(reader.decoder())
+                .decoded_and_normalized_value(XmlVersion::Explicit1_0, reader.decoder())
                 .map_err(CoverageError::Xml)?
                 .into_owned());
         }
