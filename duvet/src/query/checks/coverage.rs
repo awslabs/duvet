@@ -259,18 +259,19 @@ async fn build_file_execution_data(
         debug_assert!(line_count < u64::MAX);
 
         // Spec §1.5 Scope Balance Contract: the selected classifier MUST emit a
-        // balanced ScopeOpen/ScopeClose stream. Check the *pristine*
-        // classification (before `apply_annotation_override`, which can itself
-        // unbalance the stream by clobbering a trailing `}`) with the verified
-        // `scope_imbalance_site`. On imbalance we refuse to score against
-        // `build_scope_tree`'s collapsed whole-file scope — it is well-formed but
-        // WRONG (every annotation would resolve against one giant scope) — and
-        // escalate to a located `Unknown` (Finding #3). This is a defeated
-        // commitment: extension routing selected this classifier and it produced
-        // untrustworthy structure; whether the file simply isn't this language or
-        // the classifier has a gap is undecidable here, so we surface it rather
-        // than silently substitute a coarser model.
-        if let Some(witness_line) = scope_imbalance_site(&classifications, line_count) {
+        // balanced scope stream. We check the classifier's *ordered scope-event
+        // stream* — every `{`/`}` in source order, with full multiplicity — not
+        // the per-line `LineClass` set. The set holds at most one
+        // `ScopeOpen`/`ScopeClose` per line and so drops a brace on a COMPOUND
+        // line (`} finally {}`, `}}`), which made the verified balance check
+        // (correctly, over its lossy input) report balanced code as unbalanced
+        // and falsely escalate valid Java to `DefeatedClassification` (PR #227;
+        // git bisect: a612679). The event stream is faithful, so a
+        // brace-balanced file now passes the gate. On a genuine imbalance we
+        // still refuse to score against `build_scope_tree`'s collapsed whole-file
+        // scope (Finding #3) and escalate to a located `Unknown`.
+        let scope_events = classifier.scope_events(&file_content);
+        if let Some(witness_line) = scope_imbalance_site(&scope_events) {
             return Ok(FileExecutionData::DefeatedClassification {
                 issues: vec![ClassifierIssue {
                     reason: ClassifierFailure::UnbalancedScopes,
@@ -279,7 +280,7 @@ async fn build_file_execution_data(
             });
         }
 
-        let scopes = build_scope_tree(&classifications, line_count);
+        let scopes = build_scope_tree(&scope_events, line_count);
 
         apply_annotation_override(&mut classifications, annotations, duvet_path);
 
@@ -556,10 +557,11 @@ mod tests {
             .count()
     }
 
-    /// Regression: the scope tree must be built from the pristine classifier
-    /// output, before the annotation override. An annotation trailing a method's
-    /// closing brace would otherwise clobber the `ScopeClose`, unbalance the
-    /// stream, and collapse the file to a single whole-file scope.
+    /// The scope tree is derived from the classifier's CST scope-event stream,
+    /// so an annotation override that clobbers a `ScopeClose` on the per-line
+    /// classification set can no longer unbalance the tree or collapse the file
+    /// to a single whole-file scope. The hazard the old pristine-ordering
+    /// guarded is eliminated by construction (PR #227).
     #[test]
     fn scope_tree_survives_annotation_on_closing_brace() {
         // A two-method class. An annotation ends on `bar`'s closing brace
@@ -588,30 +590,29 @@ public class Two {
             "expected the class body plus two method bodies, got {pristine_opens} scope opens"
         );
 
-        // Correct order (what production now does): build the tree from the
-        // pristine classification, before the override.
-        let scopes = build_scope_tree(&classifications, line_count);
+        // The scope tree is built from the CST-derived event stream, not from
+        // `classifications`, so it recovers the real scopes (class body + two
+        // method bodies) and — unlike the old set-based matcher — cannot be
+        // collapsed by an annotation override that clobbers a `ScopeClose` on
+        // the classification set. That hazard is eliminated by construction
+        // (PR #227): `build_scope_tree` no longer reads the mutated set.
+        let events = JavaClassifier.scope_events(source);
+        let scopes = build_scope_tree(&events, line_count);
         assert!(
             scopes.len() >= 3,
-            "scope tree collapsed even before the override: {} scopes",
+            "expected class body + two method bodies, got {} scopes",
             scopes.len()
         );
 
-        // Simulate an annotation spanning lines 6-8, whose last line is the `}`.
-        // Stamping it collapses the ScopeClose on line 8.
+        // Overriding the classification set (what `apply_annotation_override`
+        // does) no longer feeds `build_scope_tree`, so the tree is unchanged —
+        // demonstrating the reorder hazard is gone rather than merely avoided.
         let mut overridden = classifications.clone();
         stamp_annotation_range(&mut overridden, (6, 8));
-
-        // Building the tree from the *overridden* classification (the old,
-        // buggy order) collapses it — this asserts the hazard the reorder
-        // avoids. Production builds `scopes` (above) from pristine data instead.
-        let scopes_after_wrong_order = build_scope_tree(&overridden, line_count);
-        assert!(
-            scopes_after_wrong_order.len() < scopes.len(),
-            "sanity: overriding the brace before build_scope_tree should collapse \
-             the tree (the bug the reorder avoids); got {} vs {}",
-            scopes_after_wrong_order.len(),
-            scopes.len()
+        assert_eq!(
+            build_scope_tree(&events, line_count).len(),
+            scopes.len(),
+            "the event-based tree is independent of classification-set overrides"
         );
     }
 

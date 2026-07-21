@@ -8,7 +8,7 @@
 
 pub mod java;
 
-use duvet_coverage::types::{line_class, LineClass, LineProperty};
+use duvet_coverage::types::{line_class, LineClass, LineProperty, ScopeEvent};
 use std::path::Path;
 
 /// Why a classifier could not produce a trustworthy classification for a file it
@@ -88,6 +88,20 @@ impl Classification {
 /// react to a failure.
 pub trait LineClassifier {
     fn classify(&self, source: &str) -> Classification;
+
+    /// The ordered scope-delimiter stream for this file, in source order (spec
+    /// §1.5). Feeds the verified `scope_imbalance_site` and (in future) the
+    /// scope-tree builder. Unlike the per-line `LineClass` set — which can hold
+    /// at most one `ScopeOpen`/`ScopeClose` per line and so silently drops a
+    /// brace on a COMPOUND line (`} finally {}`, `}}`) — this stream carries
+    /// every transition with full multiplicity and order (PR #227 fix).
+    ///
+    /// Default: no delimiters. The `DefaultClassifier` (degraded, non-language
+    /// path) builds no scope tree, so it emits an empty stream; only
+    /// language-aware classifiers override this.
+    fn scope_events(&self, _source: &str) -> Vec<ScopeEvent> {
+        Vec::new()
+    }
 }
 
 /// Universal fallback classifier for source files that have no language-specific

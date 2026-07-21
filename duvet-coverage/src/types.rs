@@ -32,6 +32,23 @@ pub enum LineProperty {
 
 pub type LineClass = BTreeSet<LineProperty>;
 
+/// A single scope-delimiter transition, in source order.
+///
+/// The classifier emits an ordered stream of these from the CST so that a
+/// COMPOUND line — one physical line carrying more than one brace, e.g.
+/// `} finally {}` (close-try, open-finally, close-finally) — is represented
+/// faithfully. The per-line `LineClass` set cannot: a `BTreeSet` holds at most
+/// one `ScopeOpen` and one `ScopeClose`, silently dropping a second close, so a
+/// balanced source projected onto per-line sets can read as unbalanced (the
+/// false "defeated classification" of PR #227). `line` is the 1-based source
+/// line the brace sits on (used for `Scope` open/close lines and diagnostics);
+/// `opens` is true for `{`, false for `}`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScopeEvent {
+    pub line: u64,
+    pub opens: bool,
+}
+
 } // verus!
 
 // Verus spec implementations for LineProperty's Ord — only compiled under Verus

@@ -34,9 +34,11 @@ verus! {
 
 /// Two-pass scope tree construction (spec §1.5).
 ///
-/// Pass 1 (`match_scope_pairs`): walk the classified lines with a stack, pushing
-///         on `ScopeOpen` and popping on `ScopeClose`, to recover the balanced
-///         `(open_line, close_line)` pairs. Any imbalance discards the pairs.
+/// Pass 1 (`match_scope_pairs_events`): walk the ordered scope-event stream with
+///         a stack, pushing on each open and popping on each close, to recover
+///         the `(open_line, close_line)` pairs (deduplicating identical-extent
+///         scopes). A source-ordered stream is balanced by construction here —
+///         the dispatcher runs the verified balance gate first.
 /// Pass 2 (`build_from_pairs`): turn each pair into a `Scope`. Containment is
 ///         expressed purely through `open_line`/`close_line` (see `scope_contains`
 ///         in predicates.rs), so no parent/children wiring is needed here.
@@ -47,8 +49,19 @@ verus! {
 /// cannot be a scope delimiter). On unbalanced input the tree collapses to a
 /// single file-level scope spanning the whole file — see the trust-boundary note
 /// at the fallback below for why that is a deliberate, if lossy, choice.
-pub fn build_scope_tree(classifications: &[Option<LineClass>], file_length: u64) -> (scopes: Vec<Scope>)
-    requires file_length < u64::MAX,
+pub fn build_scope_tree(events: &[ScopeEvent], file_length: u64) -> (scopes: Vec<Scope>)
+    requires
+        file_length < u64::MAX,
+        // The classifier emits events in source (byte) order, so their lines
+        // never decrease; and every brace sits on a real, bounded line. These
+        // are discharged at the unverified classifier boundary (`coverage.rs`),
+        // exactly like `file_length < u64::MAX`.
+        forall|a: int, b: int|
+            0 <= a <= b < events@.len() ==> (#[trigger] events@[a].line) <= (
+            #[trigger] events@[b].line),
+        forall|k: int|
+            0 <= k < events@.len() ==> (#[trigger] events@[k].line) >= 1
+                && events@[k].line < u64::MAX,
     ensures
         scopes_well_formed(scopes@),
         // The scope-bound preconditions of `is_annotation_executed` (#3/#4).
@@ -58,20 +71,16 @@ pub fn build_scope_tree(classifications: &[Option<LineClass>], file_length: u64)
             (#[trigger] scopes@[i]).open_line >= 1
             && scopes@[i].close_line < u64::MAX,
 {
-    // Pass 1: collect (open_line, close_line) pairs
-    let pairs = match_scope_pairs(classifications, file_length);
+    // Pass 1: collect (open_line, close_line) pairs from the faithful, ordered
+    // scope-event stream (full multiplicity per compound line — PR #227).
+    let pairs = match_scope_pairs_events(events);
 
-    // TRUST BOUNDARY: `match_scope_pairs` returns empty on *any* ScopeOpen/
-    // ScopeClose imbalance, and we then fall back to one file-level scope below.
-    // The proofs guarantee the result is well-formed, but a file-level scope is
-    // a well-formed *wrong* tree if the imbalance was spurious: every annotation
-    // in the file then resolves against one giant scope, which can turn a real
-    // `Structural` (e.g. an interface method) into `NotExecuted` because the
-    // whole-file scan finds some unrelated statement. Balanced classifier output
-    // is an *assumption* this crate cannot verify -- it is the unverified Java
-    // classifier's responsibility (a dropped ScopeClose, e.g. from an over-broad
-    // mutual-exclusivity post-pass, would trigger exactly this degradation). If
-    // this fallback fires on real code, suspect the classifier, not the model.
+    // A file with no scope delimiters has no pairs; its single whole-file scope
+    // is legitimate (spec §1.5). NOTE: unlike the old set-based matcher, an
+    // *imbalanced* stream can no longer reach here silently — the dispatcher
+    // runs the verified `scope_imbalance_site` on this same event stream first
+    // and escalates to `DefeatedClassification`, so a spurious whole-file
+    // collapse from a dropped brace is no longer possible (Finding #3, PR #227).
     if pairs.len() == 0 {
         if file_length >= 1 {
             let s = vec![Scope { open_line: 1, close_line: file_length, parent: None, children: vec![] }];
@@ -86,162 +95,169 @@ pub fn build_scope_tree(classifications: &[Option<LineClass>], file_length: u64)
     build_from_pairs(&pairs)
 }
 
-/// Pass 1: Match balanced ScopeOpen/ScopeClose using a stack.
-/// Returns Vec of (open_line, close_line) pairs.
-/// Returns empty Vec on unbalanced input (fallback to file-level scope).
+/// Match a balanced, source-ordered scope-event stream into `(open_line,
+/// close_line)` pairs, faithfully preserving the multiplicity a COMPOUND line
+/// carries (PR #227). Consuming one event per brace (rather than a per-line set,
+/// which can hold only one `ScopeOpen`/`ScopeClose` per line) is what lets
+/// `} finally {}` (close, open, close) and `}}` (close, close) pair correctly.
 ///
-/// On each classified line, `ScopeClose` is handled *before* `ScopeOpen` so that
-/// a line carrying both — e.g. `} catch (e) {` or `} else {` — first closes the
-/// scope it ends and then opens the sibling it begins (spec §1.5). A `ScopeClose`
-/// with an empty stack, or a leftover open on the stack at EOF, is an imbalance:
-/// the pairs are discarded and the caller falls back to a file-level scope.
-fn match_scope_pairs(classifications: &[Option<LineClass>], file_length: u64) -> (pairs: Vec<(u64, u64)>)
-    requires file_length < u64::MAX,
+/// Two distinct scopes that share BOTH open and close lines (e.g. `{{` on one
+/// line, `}}` on another) yield identical `(open_line, close_line)` pairs. Such
+/// duplicates are always emitted consecutively (all same-line opens are
+/// contiguous in a source-ordered stream, hence adjacent on the stack, and are
+/// popped by contiguous same-line closes), so a single "skip if equal to the
+/// previous pair" test dedups them. Dedup is **sound** — the downstream model
+/// keys scopes only on `(open_line, close_line)`, so identical-extent scopes are
+/// indistinguishable to it — and **required**, since `scopes_well_formed` cannot
+/// represent two distinct scopes of identical extent.
+fn match_scope_pairs_events(events: &[ScopeEvent]) -> (pairs: Vec<(u64, u64)>)
+    requires
+        // Source order: events are byte-sorted, so their lines never decrease.
+        forall|a: int, b: int|
+            0 <= a <= b < events@.len() ==> (#[trigger] events@[a].line) <= (
+            #[trigger] events@[b].line),
+        // Every brace sits on a real, bounded line.
+        forall|k: int|
+            0 <= k < events@.len() ==> (#[trigger] events@[k].line) >= 1
+                && events@[k].line < u64::MAX,
     ensures
-        // Every pair has open >= 1
-        forall|i: int| 0 <= i < pairs@.len() ==>
-            (#[trigger] pairs@[i]).0 >= 1,
-        // Every pair has open <= close
-        forall|i: int| 0 <= i < pairs@.len() ==>
-            (#[trigger] pairs@[i]).0 <= pairs@[i].1,
-        // Every pair has close < u64::MAX (emitted at line_num, and the loop
-        // invariant keeps every emitted close < line_num <= file_length < u64::MAX).
-        forall|i: int| 0 <= i < pairs@.len() ==>
-            (#[trigger] pairs@[i]).1 < u64::MAX,
-        // Pairs are properly nested: if two strictly overlap, one contains the other
-        forall|i: int, j: int| 0 <= i < pairs@.len() && 0 <= j < pairs@.len() && i != j
-            && (#[trigger] pairs@[i]).0 < (#[trigger] pairs@[j]).1
-            && pairs@[j].0 < pairs@[i].1
-            ==> (pairs@[i].0 <= pairs@[j].0 && pairs@[j].1 <= pairs@[i].1
-                 && (pairs@[i].0 < pairs@[j].0 || pairs@[j].1 < pairs@[i].1))
-                || (pairs@[j].0 <= pairs@[i].0 && pairs@[i].1 <= pairs@[j].1
-                    && (pairs@[j].0 < pairs@[i].0 || pairs@[i].1 < pairs@[j].1)),
+        forall|i: int| 0 <= i < pairs@.len() ==> (#[trigger] pairs@[i]).0 >= 1,
+        forall|i: int| 0 <= i < pairs@.len() ==> (#[trigger] pairs@[i]).0 <= pairs@[i].1,
+        forall|i: int| 0 <= i < pairs@.len() ==> (#[trigger] pairs@[i]).1 < u64::MAX,
+        forall|i: int, j: int|
+            0 <= i < pairs@.len() && 0 <= j < pairs@.len() && i != j && (#[trigger] pairs@[i]).0
+                < (#[trigger] pairs@[j]).1 && pairs@[j].0 < pairs@[i].1 ==> (pairs@[i].0
+                <= pairs@[j].0 && pairs@[j].1 <= pairs@[i].1 && (pairs@[i].0 < pairs@[j].0
+                || pairs@[j].1 < pairs@[i].1)) || (pairs@[j].0 <= pairs@[i].0 && pairs@[i].1
+                <= pairs@[j].1 && (pairs@[j].0 < pairs@[i].0 || pairs@[i].1 < pairs@[j].1)),
 {
     let mut stack: Vec<u64> = Vec::new();
     let mut pairs: Vec<(u64, u64)> = Vec::new();
-    let mut done = false;
-    let mut unbalanced = false;
+    let mut i: usize = 0;
 
-    let mut line_num: u64 = 1;
-    while line_num <= file_length && !done
+    while i < events.len()
         invariant
-            line_num >= 1,
-            file_length < u64::MAX,
-            // Stack is sorted strictly ascending
+            0 <= i <= events.len(),
+            // Nothing is on the stack until at least one event has been seen.
+            i == 0 ==> stack@.len() == 0,
+            // No pair can be emitted before the first close, i.e. before i > 0.
+            i == 0 ==> pairs@.len() == 0,
+            // Source order over the whole slice (carried for reasoning at pops).
+            forall|a: int, b: int|
+                0 <= a <= b < events@.len() ==> (#[trigger] events@[a].line) <= (
+                #[trigger] events@[b].line),
+            forall|k: int|
+                0 <= k < events@.len() ==> (#[trigger] events@[k].line) >= 1
+                    && events@[k].line < u64::MAX,
+            // Stack entries are real lines, non-decreasing, and no later than the
+            // most recently processed event line.
             forall|k: int| 0 <= k < stack@.len() ==> (#[trigger] stack@[k]) >= 1,
-            forall|k: int, l: int| 0 <= k < l && l < stack@.len()
-                ==> (#[trigger] stack@[k]) < (#[trigger] stack@[l]),
-            // All stack entries < line_num (pushed at earlier line_nums)
-            forall|k: int| 0 <= k < stack@.len() ==> (#[trigger] stack@[k]) < line_num,
-            // All emitted pairs have open >= 1 and open <= close
-            forall|i: int| 0 <= i < pairs@.len() ==> (#[trigger] pairs@[i]).0 >= 1,
-            forall|i: int| 0 <= i < pairs@.len() ==> (#[trigger] pairs@[i]).0 <= pairs@[i].1,
-            // All emitted pairs have close < line_num (emitted at earlier line_nums)
-            forall|i: int| 0 <= i < pairs@.len() ==> (#[trigger] pairs@[i]).1 < line_num,
-            // Nesting: emitted pairs are properly nested
-            forall|i: int, j: int| 0 <= i < pairs@.len() && 0 <= j < pairs@.len() && i != j
-                && (#[trigger] pairs@[i]).0 < (#[trigger] pairs@[j]).1
-                && pairs@[j].0 < pairs@[i].1
-                ==> (pairs@[i].0 <= pairs@[j].0 && pairs@[j].1 <= pairs@[i].1
-                     && (pairs@[i].0 < pairs@[j].0 || pairs@[j].1 < pairs@[i].1))
-                    || (pairs@[j].0 <= pairs@[i].0 && pairs@[i].1 <= pairs@[j].1
-                        && (pairs@[j].0 < pairs@[i].0 || pairs@[i].1 < pairs@[j].1)),
-            // Key nesting bridge: every emitted pair is either at or before
-            // a stack entry, or strictly contained within it (open > stack entry).
-            forall|i: int, k: int| 0 <= i < pairs@.len() && 0 <= k < stack@.len()
-                ==> (#[trigger] pairs@[i]).1 <= (#[trigger] stack@[k])
-                    || (stack@[k] < pairs@[i].0 && pairs@[i].0 <= pairs@[i].1),
-        decreases if done { 0 } else { file_length - line_num + 2 },
+            forall|k: int, l: int|
+                0 <= k <= l < stack@.len() ==> (#[trigger] stack@[k]) <= (#[trigger] stack@[l]),
+            i > 0 ==> forall|k: int|
+                0 <= k < stack@.len() ==> (#[trigger] stack@[k]) <= events@[i as int - 1].line,
+            // Emitted pairs are well-shaped.
+            forall|m: int| 0 <= m < pairs@.len() ==> (#[trigger] pairs@[m]).0 >= 1,
+            forall|m: int| 0 <= m < pairs@.len() ==> (#[trigger] pairs@[m]).0 <= pairs@[m].1,
+            forall|m: int|
+                0 <= m < pairs@.len() ==> (#[trigger] pairs@[m]).1 < u64::MAX,
+            // Emitted pairs are properly nested.
+            forall|a: int, b: int|
+                0 <= a < pairs@.len() && 0 <= b < pairs@.len() && a != b && (#[trigger] pairs@[a]).0
+                    < (#[trigger] pairs@[b]).1 && pairs@[b].0 < pairs@[a].1 ==> (pairs@[a].0
+                    <= pairs@[b].0 && pairs@[b].1 <= pairs@[a].1 && (pairs@[a].0 < pairs@[b].0
+                    || pairs@[b].1 < pairs@[a].1)) || (pairs@[b].0 <= pairs@[a].0 && pairs@[a].1
+                    <= pairs@[b].1 && (pairs@[b].0 < pairs@[a].0 || pairs@[a].1 < pairs@[b].1)),
+            // Emitted pairs closed no later than the previous event's line.
+            i > 0 ==> forall|m: int|
+                0 <= m < pairs@.len() ==> (#[trigger] pairs@[m]).1 <= events@[i as int - 1].line,
+            // Bridge: each emitted pair either closed at/before a still-open
+            // scope's open line (sibling/earlier), or opened at/after it (nested
+            // inside). Lets a newly-closed pair be shown to nest with every
+            // existing pair the moment its opener is popped.
+            forall|m: int, k: int|
+                0 <= m < pairs@.len() && 0 <= k < stack@.len() ==> (#[trigger] pairs@[m]).1 <= (
+                #[trigger] stack@[k]) || stack@[k] <= pairs@[m].0,
+        decreases events.len() - i,
     {
-        let idx: usize = ((line_num - 1) as usize);
-        if idx >= classifications.len() {
-            done = true;
-        } else {
-        match &classifications[idx] {
-            None => { }
-            Some(props) => {
-                proof { broadcast use crate::types::lemma_line_property_obeys_cmp_spec; }
-
-                // Process ScopeClose BEFORE ScopeOpen (handles } catch {, } else {)
-                if props.contains(&LineProperty::ScopeClose) {
-                    if stack.len() == 0 {
-                        // Unbalanced — return empty
-                        unbalanced = true;
-                        done = true;
-                    } else {
-                        let open = stack[stack.len() - 1];
-                        // Prove the new pair (open, line_num) nests with all existing pairs.
-                        // open is the top of stack. All existing pairs with close >= open
-                        // have open > some earlier stack entry, meaning they're inside
-                        // the scope we're closing. Their close < line_num (invariant).
-                        // So they're strictly contained in (open, line_num).
-                        proof {
-                            assert(open >= 1u64);
-                            assert(open < line_num);
-                            assert forall|i: int| 0 <= i < pairs@.len()
-                                && (#[trigger] pairs@[i]).0 < line_num
-                                && open < pairs@[i].1
-                            implies
-                                (open <= pairs@[i].0 && pairs@[i].1 <= line_num
-                                 && (open < pairs@[i].0 || pairs@[i].1 < line_num))
-                            by {
-                                assert(pairs@[i].1 < line_num);
-                            }
-                        }
-                        let ghost pairs_before = pairs@;
-                        let ghost stack_before = stack@;
-                        stack.pop();
-                        pairs.push((open, line_num));
-                        proof {
-                            // After pop, remaining stack entries are stack_before[0..len-1].
-                            // They were all < open (strictly ascending, open was last).
-                            // New pair (open, line_num) satisfies bridge: stack[k] < open = new_pair.0.
-                            // Old pairs: bridge held with stack_before, and stack is a prefix of
-                            // stack_before (minus the last element), so it still holds.
-                            assert forall|i: int, k: int|
-                                0 <= i < pairs@.len() && 0 <= k < stack@.len()
-                            implies
-                                (#[trigger] pairs@[i]).1 <= (#[trigger] stack@[k])
-                                || (stack@[k] < pairs@[i].0 && pairs@[i].0 <= pairs@[i].1)
-                            by {
-                                assert(stack@[k] == stack_before[k]);
-                                assert(stack@[k] < open);
-                                if i < pairs_before.len() {
-                                    // Old pair: bridge held before with stack_before[k]
-                                    assert(pairs@[i] == pairs_before[i]);
-                                } else {
-                                    // New pair: (open, line_num). stack[k] < open.
-                                    assert(pairs@[i] == (open, line_num));
-                                    assert(stack@[k] < open);
-                                }
-                            }
-                        }
-                    }
-                }
-                if !done && props.contains(&LineProperty::ScopeOpen) {
-                    // All existing stack entries < line_num (invariant).
-                    // line_num > all stack entries, so sorted order is maintained.
-                    proof {
-                        // Bridge for new stack entry: for all existing pairs (a,b),
-                        // b < line_num (from invariant), so first disjunct holds.
-                        assert forall|i: int| 0 <= i < pairs@.len()
-                        implies
-                            (#[trigger] pairs@[i]).1 <= line_num
-                        by {}
-                    }
-                    stack.push(line_num);
-                }
+        let ev = events[i];
+        proof {
+            // Sortedness at the current step: the previous event's line is no
+            // later than this one, so every stack entry and every emitted pair
+            // (<= events[i-1].line by the invariants) is also <= events[i].line.
+            if i > 0 {
+                assert(events@[i as int - 1].line <= events@[i as int].line);
+            }
+            assert forall|m: int| 0 <= m < pairs@.len() implies (#[trigger] pairs@[m]).1
+                <= events@[i as int].line by {
+                // pairs nonempty ==> i > 0, then pairs[m].1 <= events[i-1].line
+                // <= events[i].line.
             }
         }
-        }
-        if !done {
-            line_num = line_num + 1;
-        }
-    }
+        if ev.opens {
+            stack.push(ev.line);
+        } else if stack.len() > 0 {
+            let open = stack[stack.len() - 1];
+            let ghost pre_pairs = pairs@;
+            let ghost pre_stack = stack@;
+            stack.pop();
+            proof {
+                // After the pop, every remaining stack entry is <= the popped top
+                // `open` (the stack is non-decreasing and `open` was its last
+                // element), so the bridge's second disjunct (stack[k] <= cand.0)
+                // holds for the pair we are about to emit.
+                assert(forall|k: int| 0 <= k < stack@.len() ==> stack@[k] == pre_stack[k]);
+                assert(forall|k: int| 0 <= k < stack@.len() ==> (#[trigger] stack@[k]) <= open);
+            }
+            let cand = (open, ev.line);
 
-    if unbalanced || !stack.is_empty() {
-        // Unbalanced — return empty
-        return vec![];
+            // Full-scan dedup: two blocks with identical extent (`{{` … `}}`)
+            // would emit the same (open, close), which `scopes_well_formed`
+            // cannot represent (two distinct, identical-extent scopes overlap yet
+            // neither strictly contains the other). Skipping an already-present
+            // candidate keeps pairs distinct — sound because the downstream model
+            // keys scopes only on (open_line, close_line).
+            let mut dup = false;
+            let mut j: usize = 0;
+            while j < pairs.len()
+                invariant
+                    0 <= j <= pairs@.len(),
+                    dup == (exists|t: int| 0 <= t < j && pairs@[t] == cand),
+                decreases pairs@.len() - j,
+            {
+                if pairs[j].0 == cand.0 && pairs[j].1 == cand.1 {
+                    dup = true;
+                }
+                j = j + 1;
+            }
+
+            if !dup {
+                proof {
+                    // cand is distinct from every existing pair.
+                    assert(forall|t: int| 0 <= t < pairs@.len() ==> pairs@[t] != cand);
+                    // Every existing pair nests with cand = (open, ev.line):
+                    //   bridge(a): pairs[a].1 <= open  OR  open <= pairs[a].0.
+                    //   - If pairs[a].1 <= open = cand.0: they don't overlap
+                    //     (overlap needs cand.0 < pairs[a].1), so nesting is vacuous.
+                    //   - Else open <= pairs[a].0 = cand.0 <= pairs[a].0, and
+                    //     pairs[a].1 <= events[i-1].line <= ev.line = cand.1, so cand
+                    //     contains pairs[a]; distinctness gives the strict side.
+                    assert(open <= events@[i as int - 1].line);
+                    assert(events@[i as int - 1].line <= ev.line);
+                    assert forall|a: int|
+                        0 <= a < pairs@.len() && cand.0 < (#[trigger] pairs@[a]).1 && pairs@[a].0
+                            < cand.1 implies pairs@[a].0 >= cand.0 && pairs@[a].1 <= cand.1
+                        && (cand.0 < pairs@[a].0 || pairs@[a].1 < cand.1) by {
+                        // bridge with k = old top (== open): first disjunct is
+                        // ruled out by the overlap hypothesis cand.0 < pairs[a].1.
+                        assert(pairs@[a].1 <= open || open <= pairs@[a].0);
+                        assert(pairs@[a].1 <= events@[i as int - 1].line);
+                    }
+                }
+                pairs.push(cand);
+            }
+        }
+        i = i + 1;
     }
 
     pairs
@@ -333,9 +349,9 @@ fn build_from_pairs(pairs: &[(u64, u64)]) -> (scopes: Vec<Scope>)
 // that can guarantee balance — so the dispatcher must be able to *detect* the
 // imbalance and escalate rather than silently score against the collapsed tree.
 //
-// This detector characterises imbalance with a depth counter, which is exactly
-// `match_scope_pairs`' stack *size*: process `ScopeClose` before `ScopeOpen` on
-// each classified line (so `} else {` closes then opens); a `ScopeClose` while
+// This detector characterises imbalance with a depth counter over the ordered
+// scope-event stream: each `opens` event increments the depth and each close
+// decrements it (a `ScopeClose` while
 // the depth is 0 is a stray close (underflow), and a nonzero depth at EOF is a
 // set of unclosed opens. Either is an imbalance. A stream with no delimiters at
 // all has depth 0 throughout with no underflow — it is *balanced*, and its
@@ -343,75 +359,45 @@ fn build_from_pairs(pairs: &[(u64, u64)]) -> (scopes: Vec<Scope>)
 // distinction the naive "single scope spanning the file" heuristic cannot make.
 // ---------------------------------------------------------------------------
 
-/// Spec: the classified line `c` carries `ScopeClose`.
-pub open spec fn spec_has_close(c: Option<LineClass>) -> bool {
-    match c {
-        Some(cls) => cls@.contains(LineProperty::ScopeClose),
-        None => false,
-    }
-}
-
-/// Spec: the classified line `c` carries `ScopeOpen`.
-pub open spec fn spec_has_open(c: Option<LineClass>) -> bool {
-    match c {
-        Some(cls) => cls@.contains(LineProperty::ScopeOpen),
-        None => false,
-    }
-}
-
-/// Spec twin of the balance walk. Folds the first `n` classified lines with a
-/// scope-depth counter, returning `(final_depth, no_underflow)`. `ScopeClose` is
-/// applied before `ScopeOpen` on each line; a close at depth 0 records underflow
-/// (and does not drive the depth negative), matching `match_scope_pairs`'
-/// empty-stack rule. `no_underflow` is absorbing-false: once a stray close is
-/// seen it stays false regardless of later lines.
-pub open spec fn balance_upto(c: Seq<Option<LineClass>>, n: int) -> (int, bool)
+/// Spec twin of the balance walk over the ordered scope-event stream. Folds the
+/// first `n` events with a scope-depth counter, returning `(final_depth,
+/// no_underflow)`. An `opens` event increments depth; a close at depth 0 records
+/// underflow (and does not drive the depth negative), matching
+/// `match_scope_pairs_events`' empty-stack rule. `no_underflow` is absorbing-false:
+/// once a stray close is seen it stays false regardless of later events.
+///
+/// Faithful by construction: because each `ScopeEvent` is a *single* transition
+/// in source order, a compound line contributes each of its braces as its own
+/// event — the multiplicity the per-line `LineClass` set used to drop (PR #227)
+/// is preserved.
+pub open spec fn balance_upto(e: Seq<ScopeEvent>, n: int) -> (int, bool)
     decreases n,
 {
     if n <= 0 {
         (0int, true)
     } else {
-        let prev = balance_upto(c, n - 1);
+        let prev = balance_upto(e, n - 1);
         let d = prev.0;
         let ok = prev.1;
-        let ci = c[n - 1];
-        let after_close: (int, bool) = if spec_has_close(ci) {
-            if d <= 0 {
-                (d, false)
-            } else {
-                (d - 1, ok)
-            }
+        let ev = e[n - 1];
+        if ev.opens {
+            (d + 1, ok)
+        } else if d <= 0 {
+            (d, false)
         } else {
-            (d, ok)
-        };
-        let d2: int = if spec_has_open(ci) {
-            after_close.0 + 1
-        } else {
-            after_close.0
-        };
-        (d2, after_close.1)
+            (d - 1, ok)
+        }
     }
 }
 
-/// Spec: the ScopeOpen/ScopeClose stream over the first `n` classified lines is
-/// balanced — no stray close, and every open matched by EOF.
-pub open spec fn scope_stream_balanced_spec(c: Seq<Option<LineClass>>, n: int) -> bool {
-    let r = balance_upto(c, n);
+/// Spec: the whole scope-event stream is balanced — no stray close, and every
+/// open matched by EOF.
+pub open spec fn scope_stream_balanced_spec(e: Seq<ScopeEvent>) -> bool {
+    let r = balance_upto(e, e.len() as int);
     r.1 && r.0 == 0
 }
 
-/// The number of classified lines the balance walk consumes: `min(file_length,
-/// classifications.len())`, mirroring `match_scope_pairs`, which stops at the
-/// shorter of `file_length` and the classification vector.
-pub open spec fn balance_bound(c: Seq<Option<LineClass>>, file_length: u64) -> int {
-    if (file_length as int) < c.len() as int {
-        file_length as int
-    } else {
-        c.len() as int
-    }
-}
-
-/// Detect an unbalanced scope stream and locate it.
+/// Detect an unbalanced scope-event stream and locate it.
 ///
 /// Returns `None` when the stream is balanced (including the no-delimiters case,
 /// which is a legitimate whole-file scope — deliberately NOT an imbalance).
@@ -426,73 +412,40 @@ pub open spec fn balance_bound(c: Seq<Option<LineClass>>, file_length: u64) -> i
 //# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
 //# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
 //# end of file.
-pub fn scope_imbalance_site(classifications: &[Option<LineClass>], file_length: u64) -> (result:
-    Option<u64>)
-    requires
-        file_length < u64::MAX,
+pub fn scope_imbalance_site(events: &[ScopeEvent]) -> (result: Option<u64>)
     ensures
-        (result is None) <==> scope_stream_balanced_spec(
-            classifications@,
-            balance_bound(classifications@, file_length),
-        ),
+        (result is None) <==> scope_stream_balanced_spec(events@),
 {
     let mut depth: u64 = 0;
     let mut underflow_line: Option<u64> = None;
     let mut last_open_line: u64 = 0;
-    let mut line_num: u64 = 1;
+    let mut i: usize = 0;
 
-    while line_num <= file_length
+    while i < events.len()
         invariant
-            file_length < u64::MAX,
-            1 <= line_num <= file_length + 1,
-            depth as int <= line_num as int - 1,
+            0 <= i <= events.len(),
+            // depth never exceeds the number of events processed, so `depth + 1`
+            // cannot overflow u64 (i < events.len() <= usize::MAX <= u64::MAX).
+            depth as int <= i as int,
             ({
-                let processed = if (line_num as int - 1) < classifications@.len() as int {
-                    line_num as int - 1
-                } else {
-                    classifications@.len() as int
-                };
-                let r = balance_upto(classifications@, processed);
+                let r = balance_upto(events@, i as int);
                 &&& depth as int == r.0
                 &&& (underflow_line is None) <==> r.1
             }),
-        decreases file_length - line_num + 1,
+        decreases events.len() - i,
     {
-        let idx: usize = (line_num - 1) as usize;
-        if idx >= classifications.len() {
-            // Past the classified lines: `match_scope_pairs` stops here, so the
-            // consumed count is `classifications.len()` and the walk is complete.
-            assert(classifications@.len() as int <= line_num as int - 1);
-            return if underflow_line.is_some() {
-                underflow_line
-            } else if depth == 0 {
-                None
-            } else {
-                Some(last_open_line)
-            };
-        }
-        proof {
-            broadcast use crate::types::lemma_line_property_obeys_cmp_spec;
-        }
-        match &classifications[idx] {
-            None => {}
-            Some(props) => {
-                if props.contains(&LineProperty::ScopeClose) {
-                    if depth == 0 {
-                        if underflow_line.is_none() {
-                            underflow_line = Some(line_num);
-                        }
-                    } else {
-                        depth = depth - 1;
-                    }
-                }
-                if props.contains(&LineProperty::ScopeOpen) {
-                    last_open_line = line_num;
-                    depth = depth + 1;
-                }
+        let ev = events[i];
+        if ev.opens {
+            last_open_line = ev.line;
+            depth = depth + 1;
+        } else if depth == 0 {
+            if underflow_line.is_none() {
+                underflow_line = Some(ev.line);
             }
+        } else {
+            depth = depth - 1;
         }
-        line_num = line_num + 1;
+        i = i + 1;
     }
 
     if underflow_line.is_some() {
@@ -510,8 +463,9 @@ pub fn scope_imbalance_site(classifications: &[Option<LineClass>], file_length: 
 mod tests {
     use super::*;
     use crate::types::*;
-    fn s(props: &[LineProperty]) -> Option<LineClass> {
-        Some(line_class(props))
+
+    fn ev(line: u64, opens: bool) -> ScopeEvent {
+        ScopeEvent { line, opens }
     }
 
     //= design/query/coverage-model-spec.md#scopes
@@ -520,94 +474,172 @@ mod tests {
     //# `ScopeClose` properties. Scopes nest.
     #[test]
     fn simple_method_in_class() {
-        let c = vec![
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Statement]),
-            s(&[LineProperty::ScopeClose]),
-            s(&[LineProperty::ScopeClose]),
-        ];
-        let sc = build_scope_tree(&c, 5);
+        // class `{` L1, method `{` L2, `}` L4, `}` L5.
+        let e = vec![ev(1, true), ev(2, true), ev(4, false), ev(5, false)];
+        let sc = build_scope_tree(&e, 5);
         assert_eq!(sc.len(), 2);
-        // Find the outer and inner scopes by open_line
         let outer = sc.iter().find(|s| s.open_line == 1).unwrap();
         let inner = sc.iter().find(|s| s.open_line == 2).unwrap();
         assert_eq!(outer.close_line, 5);
         assert_eq!(inner.close_line, 4);
     }
+
     #[test]
     fn sibling_methods() {
-        let c = vec![
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::ScopeClose]),
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::ScopeClose]),
-            s(&[LineProperty::ScopeClose]),
+        let e = vec![
+            ev(1, true),
+            ev(2, true),
+            ev(3, false),
+            ev(4, true),
+            ev(5, false),
+            ev(6, false),
         ];
-        let sc = build_scope_tree(&c, 6);
+        let sc = build_scope_tree(&e, 6);
         assert_eq!(sc.len(), 3);
     }
+
     #[test]
-    fn unbalanced_fallback() {
-        let sc = build_scope_tree(
-            &vec![s(&[LineProperty::ScopeOpen]), s(&[LineProperty::Statement])],
-            2,
-        );
-        // Unbalanced: pairs returns empty, so we get file-level scope
+    fn unclosed_open_falls_back_to_whole_file() {
+        // A single unclosed `{`: no pair is emitted, so build_scope_tree yields
+        // the whole-file scope. (The dispatcher's balance gate escalates this
+        // case to DefeatedClassification before it ever reaches here.)
+        let sc = build_scope_tree(&[ev(1, true)], 2);
         assert!(sc.len() >= 1);
-        assert_eq!(sc[0].open_line, 1);
-        assert_eq!(sc[0].close_line, 2);
+        assert_eq!((sc[0].open_line, sc[0].close_line), (1, 2));
     }
+
     #[test]
     fn empty_file() {
-        assert_eq!(build_scope_tree(&vec![], 0).len(), 0);
+        assert_eq!(build_scope_tree(&[], 0).len(), 0);
     }
+
     #[test]
-    fn unknown_lines_ignored() {
-        let c = vec![
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            None,
-            s(&[LineProperty::Statement]),
-            s(&[LineProperty::ScopeClose]),
-        ];
-        let sc = build_scope_tree(&c, 4);
+    fn no_events_whole_file_scope() {
+        // A file with statements but no braces: no events, one legitimate
+        // whole-file scope.
+        let sc = build_scope_tree(&[], 4);
         assert_eq!(sc.len(), 1);
-        assert_eq!(sc[0].open_line, 1);
-        assert_eq!(sc[0].close_line, 4);
+        assert_eq!((sc[0].open_line, sc[0].close_line), (1, 4));
     }
+
     #[test]
     fn four_level_nesting() {
-        let c = vec![
-            s(&[LineProperty::ScopeOpen]),
-            s(&[LineProperty::ScopeOpen]),
-            s(&[LineProperty::ScopeOpen]),
-            s(&[LineProperty::ScopeOpen]),
-            s(&[LineProperty::ScopeClose]),
-            s(&[LineProperty::ScopeClose]),
-            s(&[LineProperty::ScopeClose]),
-            s(&[LineProperty::ScopeClose]),
+        let e = vec![
+            ev(1, true),
+            ev(2, true),
+            ev(3, true),
+            ev(4, true),
+            ev(5, false),
+            ev(6, false),
+            ev(7, false),
+            ev(8, false),
         ];
-        let sc = build_scope_tree(&c, 8);
+        let sc = build_scope_tree(&e, 8);
         assert_eq!(sc.len(), 4);
     }
+
     #[test]
     fn catch_creates_sibling_scopes() {
-        let c = vec![
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Statement]),
-            s(&[
-                LineProperty::Declaration,
-                LineProperty::ScopeOpen,
-                LineProperty::ScopeClose,
-            ]),
-            s(&[LineProperty::Statement]),
-            s(&[LineProperty::ScopeClose]),
-            s(&[LineProperty::ScopeClose]),
+        // ... a `{}`-on-one-line sibling block (open+close on L4).
+        let e = vec![
+            ev(1, true),
+            ev(2, true),
+            ev(4, true),
+            ev(4, false),
+            ev(6, false),
+            ev(7, false),
         ];
-        let sc = build_scope_tree(&c, 7);
+        let sc = build_scope_tree(&e, 7);
         assert_eq!(sc.len(), 3);
+    }
+
+    // --- PR #227: compound lines the per-line set could not represent ---
+
+    #[test]
+    fn compound_close_open_close_one_line_pairs_faithfully() {
+        // `} finally {}` on line 18: close(try), open(finally), close(finally),
+        // inside a method opened L8, class opened L6, both closed L23/L24.
+        let e = vec![
+            ev(6, true),
+            ev(8, true),
+            ev(10, true), // try {
+            ev(18, false), // } (closes try)
+            ev(18, true), // { (finally)
+            ev(18, false), // } (closes finally)
+            ev(23, false),
+            ev(24, false),
+        ];
+        // Balanced: the second close on line 18 is preserved (it was the bug).
+        assert_eq!(scope_imbalance_site(&e), None);
+        let sc = build_scope_tree(&e, 24);
+        // try (10,18), finally (18,18), method (8,23), class (6,24).
+        assert_eq!(sc.len(), 4);
+        assert!(sc.iter().any(|s| (s.open_line, s.close_line) == (10, 18)));
+        assert!(sc.iter().any(|s| (s.open_line, s.close_line) == (18, 18)));
+    }
+
+    #[test]
+    fn identical_extent_scopes_are_deduped() {
+        // `{{` on line 5 … `}}` on line 10: two nested scopes of identical extent
+        // (5,10). They are indistinguishable to the line-keyed model, so they
+        // collapse to a single scope — sound, and required for well-formedness.
+        let e = vec![ev(5, true), ev(5, true), ev(10, false), ev(10, false)];
+        assert_eq!(scope_imbalance_site(&e), None);
+        let sc = build_scope_tree(&e, 12);
+        assert_eq!(sc.len(), 1);
+        assert_eq!((sc[0].open_line, sc[0].close_line), (5, 10));
+    }
+
+    #[test]
+    fn opens_on_one_line_closes_on_separate_lines_nest() {
+        // `{{{{{` on line 5, then `}` on lines 7..=11. Five scopes SHARE an open
+        // line but have DISTINCT close lines, so they are not identical-extent:
+        // no dedup, fully faithful, nested via the close side (innermost first).
+        let e = vec![
+            ev(5, true),
+            ev(5, true),
+            ev(5, true),
+            ev(5, true),
+            ev(5, true),
+            ev(7, false),
+            ev(8, false),
+            ev(9, false),
+            ev(10, false),
+            ev(11, false),
+        ];
+        assert_eq!(scope_imbalance_site(&e), None);
+        let sc = build_scope_tree(&e, 11);
+        assert_eq!(sc.len(), 5);
+        assert!(sc.iter().all(|s| s.open_line == 5));
+        let mut closes: Vec<u64> = sc.iter().map(|s| s.close_line).collect();
+        closes.sort_unstable();
+        assert_eq!(closes, vec![7, 8, 9, 10, 11]);
+    }
+
+    #[test]
+    fn opens_on_separate_lines_closes_on_one_line_nest() {
+        // The mirror image: `{` on lines 1..=5, then `}}}}}` on line 10. Five
+        // scopes SHARE a close line but have DISTINCT open lines; no dedup,
+        // fully faithful, nested via the open side (outermost opened first).
+        let e = vec![
+            ev(1, true),
+            ev(2, true),
+            ev(3, true),
+            ev(4, true),
+            ev(5, true),
+            ev(10, false),
+            ev(10, false),
+            ev(10, false),
+            ev(10, false),
+            ev(10, false),
+        ];
+        assert_eq!(scope_imbalance_site(&e), None);
+        let sc = build_scope_tree(&e, 10);
+        assert_eq!(sc.len(), 5);
+        assert!(sc.iter().all(|s| s.close_line == 10));
+        let mut opens: Vec<u64> = sc.iter().map(|s| s.open_line).collect();
+        opens.sort_unstable();
+        assert_eq!(opens, vec![1, 2, 3, 4, 5]);
     }
 
     // --- scope_imbalance_site: empirical witnesses (spec §1.5 balance) ---
@@ -615,111 +647,73 @@ mod tests {
     // The verified `ensures` proves `is None <==> balanced` against the
     // depth-counter spec. These witnesses ground that spec against reality AND
     // demonstrate the tie to `build_scope_tree`: where the detector says
-    // balanced (None), the tree is faithful (>1 scope, or a real single scope);
-    // where it says unbalanced (Some), the tree collapses to the whole-file
-    // fallback. This is the distinction the "single scope spanning the file"
-    // heuristic cannot make.
+    // balanced (None), the tree is faithful; where it says unbalanced (Some),
+    // the tree collapses to the whole-file fallback.
 
     #[test]
     fn balanced_multiscope_is_not_flagged() {
-        // Nested method-in-class: two balanced scopes.
-        let c = vec![
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Statement]),
-            s(&[LineProperty::ScopeClose]),
-            s(&[LineProperty::ScopeClose]),
-        ];
-        assert_eq!(scope_imbalance_site(&c, 5), None);
-        // Tie: the tree is faithful (two real scopes), not the collapse.
-        assert_eq!(build_scope_tree(&c, 5).len(), 2);
+        let e = vec![ev(1, true), ev(2, true), ev(4, false), ev(5, false)];
+        assert_eq!(scope_imbalance_site(&e), None);
+        assert_eq!(build_scope_tree(&e, 5).len(), 2);
     }
 
     #[test]
     fn genuine_whole_file_single_scope_is_not_flagged() {
-        // A class whose `{` is line 1 and `}` is the last line, with only a
-        // field inside: ONE balanced scope spanning 1..=3. Output shape is
-        // indistinguishable from the fallback, but it is balanced — the detector
-        // must NOT flag it. This is the false-positive the shape heuristic hits.
-        let c = vec![
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Statement]),
-            s(&[LineProperty::ScopeClose]),
-        ];
-        assert_eq!(scope_imbalance_site(&c, 3), None);
-        // Tie: build_scope_tree recovers the REAL scope (1,3) via a pair, not
-        // the collapse fallback — both are `[Scope{1,3}]`, so shape alone can't
-        // tell them apart, but balance can.
-        let sc = build_scope_tree(&c, 3);
+        // class `{` L1 … `}` L3: ONE balanced scope. Output shape matches the
+        // fallback, but it is balanced — the detector must NOT flag it.
+        let e = vec![ev(1, true), ev(3, false)];
+        assert_eq!(scope_imbalance_site(&e), None);
+        let sc = build_scope_tree(&e, 3);
         assert_eq!(sc.len(), 1);
         assert_eq!((sc[0].open_line, sc[0].close_line), (1, 3));
     }
 
     #[test]
     fn no_delimiters_is_not_flagged() {
-        // Pure statements, no scopes. Depth stays 0, never underflows: balanced.
-        // The whole-file scope build_scope_tree returns here is legitimate.
+        // No scope events at all. Depth stays 0, never underflows: balanced.
         //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
         //= type=test
         //# A stream with no scope delimiters is balanced, and its whole-file scope is
         //# legitimate.
-        let c = vec![s(&[LineProperty::Statement]), s(&[LineProperty::Statement])];
-        assert_eq!(scope_imbalance_site(&c, 2), None);
+        assert_eq!(scope_imbalance_site(&[]), None);
     }
 
     #[test]
-    fn all_none_is_not_flagged() {
-        // The idx55 parse-error representation (has_error -> all `None`). No
-        // delimiters -> balanced -> NOT an imbalance. Confirms the detector does
-        // not double-report the parse-error case: that escalation rides on
-        // `has_error`, not on this predicate.
-        let c: Vec<Option<LineClass>> = vec![None, None, None];
-        assert_eq!(scope_imbalance_site(&c, 3), None);
+    fn parse_error_empty_stream_is_not_flagged() {
+        // On a parse error the classifier emits an EMPTY event stream (the
+        // escalation rides on `has_error`, not on this detector), which is
+        // balanced — so the detector does not double-report it.
+        assert_eq!(scope_imbalance_site(&[]), None);
     }
 
     #[test]
     fn stray_close_is_flagged_and_tree_collapses() {
-        // A `}` with nothing open: stray close (depth underflow at line 1).
-        let c = vec![
-            s(&[LineProperty::ScopeClose]),
-            s(&[LineProperty::Statement]),
-        ];
-        assert_eq!(scope_imbalance_site(&c, 2), Some(1));
-        // Tie: build_scope_tree collapses to the whole-file fallback.
-        let sc = build_scope_tree(&c, 2);
+        // A `}` with nothing open: stray close (depth underflow at the event).
+        let e = vec![ev(1, false)];
+        assert_eq!(scope_imbalance_site(&e), Some(1));
+        // Tie: build_scope_tree ignores the stray close, so no pairs → whole-file.
+        let sc = build_scope_tree(&e, 2);
         assert_eq!(sc.len(), 1);
         assert_eq!((sc[0].open_line, sc[0].close_line), (1, 2));
     }
 
     #[test]
     fn unclosed_open_is_flagged_and_tree_collapses() {
-        // A `{` never closed: leftover depth at EOF.
-        let c = vec![
-            s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
-            s(&[LineProperty::Statement]),
-        ];
-        let site = scope_imbalance_site(&c, 2);
-        assert!(
-            site.is_some(),
-            "unclosed open must be flagged, got {site:?}"
-        );
-        // Tie: build_scope_tree collapses to the whole-file fallback.
-        let sc = build_scope_tree(&c, 2);
+        let e = vec![ev(1, true)];
+        let site = scope_imbalance_site(&e);
+        assert!(site.is_some(), "unclosed open must be flagged, got {site:?}");
+        let sc = build_scope_tree(&e, 2);
         assert_eq!(sc.len(), 1);
         assert_eq!((sc[0].open_line, sc[0].close_line), (1, 2));
     }
 
     #[test]
     fn close_then_open_at_depth_zero_underflows() {
-        // `} else {` at the top level (no enclosing scope): the close is
+        // `} else {` at the top level (no enclosing scope): the leading close is
         // processed first and underflows at depth 0, even though opens == closes.
-        // A naive net-delta counter would call this balanced; the close-before-
-        // open rule catches it, matching match_scope_pairs' empty-stack check.
-        let c = vec![s(&[
-            LineProperty::ScopeClose,
-            LineProperty::ScopeOpen,
-            LineProperty::Declaration,
-        ])];
-        assert_eq!(scope_imbalance_site(&c, 1), Some(1));
+        // A naive net-delta counter would call this balanced; the ordered fold
+        // catches it.
+        let e = vec![ev(1, false), ev(1, true)];
+        assert_eq!(scope_imbalance_site(&e), Some(1));
     }
 }

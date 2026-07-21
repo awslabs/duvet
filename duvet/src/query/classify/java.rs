@@ -8,7 +8,7 @@
 //! blank or annotations (Decision 9).
 
 use crate::query::classify::{Classification, ClassifierFailure, LineClassifier};
-use duvet_coverage::types::LineProperty;
+use duvet_coverage::types::{LineProperty, ScopeEvent};
 use std::collections::BTreeSet;
 
 /// Java source classifier using tree-sitter.
@@ -151,6 +151,69 @@ impl LineClassifier for JavaClassifier {
                 })
                 .collect(),
         )
+    }
+
+    fn scope_events(&self, source: &str) -> Vec<ScopeEvent> {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_java::LANGUAGE.into())
+            .expect("Error loading Java grammar");
+        let Some(tree) = parser.parse(source, None) else {
+            return Vec::new();
+        };
+        // A parse error means `classify` returns `Unclassifiable` and the
+        // dispatcher escalates before any scope stream is consumed; emit nothing.
+        if tree.root_node().has_error() {
+            return Vec::new();
+        }
+        // Collect every block delimiter keyed by source byte offset, then sort
+        // into source order. Sorting is what makes a COMPOUND line faithful: the
+        // close-try, open-finally, close-finally of `} finally {}` all sit on one
+        // line but at distinct byte offsets, so they emerge as three ordered
+        // events — the multiplicity the per-line `LineClass` set drops (PR #227).
+        let mut keyed: Vec<(usize, ScopeEvent)> = Vec::new();
+        collect_scope_events(&tree.root_node(), &mut keyed);
+        keyed.sort_by_key(|(byte, _)| *byte);
+        keyed.into_iter().map(|(_, ev)| ev).collect()
+    }
+}
+
+/// Collect one `ScopeEvent` per brace of every scope-bearing block node, keyed
+/// by source byte offset (open at the `{`, close at the `}`). The node kinds
+/// mirror the `block`-family arm in `walk_node` that stamps
+/// `ScopeOpen`/`ScopeClose`, so the event stream and the per-line set agree on
+/// *which* lines are boundaries — they differ only in that the stream also keeps
+/// multiplicity and order, which the set cannot.
+fn collect_scope_events(node: &tree_sitter::Node, out: &mut Vec<(usize, ScopeEvent)>) {
+    if matches!(
+        node.kind(),
+        "block"
+            | "class_body"
+            | "interface_body"
+            | "enum_body"
+            | "switch_block"
+            | "constructor_body"
+    ) {
+        out.push((
+            node.start_byte(),
+            ScopeEvent {
+                line: node.start_position().row as u64 + 1,
+                opens: true,
+            },
+        ));
+        // `end_byte` is exclusive (one past `}`); the `}` itself is the last
+        // byte, and `end_position().row` is the row that `}` sits on.
+        out.push((
+            node.end_byte().saturating_sub(1),
+            ScopeEvent {
+                line: node.end_position().row as u64 + 1,
+                opens: false,
+            },
+        ));
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        collect_scope_events(&child, out);
     }
 }
 
@@ -599,6 +662,126 @@ mod tests {
             }
             Classification::Classified(_) => panic!("broken Java must be Unclassifiable"),
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Scope Faithfulness (no false defeat) — regression guard for PR #227.
+    //
+    // Property: for any parseable, brace-balanced Java source, the classifier's
+    // ScopeOpen/ScopeClose stream MUST be balanced, i.e. the verified
+    // `scope_imbalance_site` returns `None`. A balanced source the classifier
+    // reports as unbalanced is a *false* defeated-classification: valid code
+    // scored as `Unknown` (coverage.rs routes an imbalance to
+    // `DefeatedClassification`). git bisect pinned the regression to a612679;
+    // the root cause is representational — `LineClass = BTreeSet<LineProperty>`
+    // cannot carry more than one `ScopeClose` (or `ScopeOpen`) per physical line,
+    // so a compound line like `} finally {}` (close-try + open-finally +
+    // close-finally) loses a close and the stream reads as unbalanced.
+    //
+    // NOTE ON PLUMBING: this helper reads the property through the classifier's
+    // *current* scope representation. When the faithful ordered-transition
+    // representation lands, only this helper changes; every assertion below is
+    // stated in terms of the property and stays put.
+    // -------------------------------------------------------------------------
+    fn classifier_scope_is_balanced(source: &str) -> bool {
+        use duvet_coverage::scopes::scope_imbalance_site;
+        // A genuine parse error is a *different*, legitimate outcome; the
+        // property is only about brace-balanced code the parser accepts.
+        if matches!(
+            JavaClassifier.classify(source),
+            Classification::Unclassifiable { .. }
+        ) {
+            return true;
+        }
+        let events = JavaClassifier.scope_events(source);
+        scope_imbalance_site(&events).is_none()
+    }
+
+    #[test]
+    fn balanced_compound_brace_lines_are_not_falsely_defeated() {
+        // Each snippet is valid, brace-balanced Java containing a COMPOUND line:
+        // a single physical line carrying more than one scope transition. These
+        // are exactly the inputs the per-line-set representation cannot encode
+        // faithfully, and each was (or would be) falsely flagged unbalanced.
+        let cases = [
+            // The exact PR #227 regression: `} finally {}` on one line =
+            // close(try-block) + open(finally-block) + close(finally-block).
+            (
+                "try/empty-finally",
+                "public class C {\n    int m() {\n        int x;\n        try {\n            x = 1;\n        } finally {}\n        return x;\n    }\n}",
+            ),
+            // `} else {` = close(then-block) + open(else-block).
+            (
+                "if-else-same-line",
+                "public class C {\n    int m(boolean b) {\n        int x;\n        if (b) {\n            x = 1;\n        } else {\n            x = 2;\n        }\n        return x;\n    }\n}",
+            ),
+            // `} catch (Exception e) {` = close(try-block) + open(catch-block).
+            (
+                "try-catch-same-line",
+                "public class C {\n    void m() {\n        try {\n            work();\n        } catch (Exception e) {\n            handle();\n        }\n    }\n}",
+            ),
+            // Two closes on one line: `}}`.
+            (
+                "double-close",
+                "public class C {\n    void m() {\n        if (true) {\n            work();\n        }}\n}",
+            ),
+        ];
+        for (name, src) in cases {
+            assert!(
+                classifier_scope_is_balanced(src),
+                "valid balanced Java `{name}` was falsely flagged as an unbalanced \
+                 scope stream (false DefeatedClassification)"
+            );
+        }
+    }
+
+    /// Deterministically build valid, brace-balanced Java from arbitrary bytes:
+    /// a method body containing a random nesting of *bare block statements*
+    /// (`{ ... }`), a construct tree-sitter-java always accepts. Each byte emits
+    /// one brace (open while depth is bounded, else close while depth > 0),
+    /// separated by either a space or a newline — so sibling/nested braces land
+    /// on the same physical line (`}}`, `}{`, `{}`) or separate lines at random.
+    /// Any leftover open blocks are closed at the end, so the output is always
+    /// balanced valid Java. This exercises the compound-line space that the
+    /// per-line-set representation mishandles.
+    fn gen_java_blocks(bytes: &[u8]) -> String {
+        let mut body = String::new();
+        let mut depth: usize = 0;
+        for &b in bytes.iter().take(64) {
+            let open = (b & 1) == 0;
+            let sep = if (b & 2) == 0 { ' ' } else { '\n' };
+            if open && depth < 16 {
+                body.push('{');
+                depth += 1;
+            } else if !open && depth > 0 {
+                body.push('}');
+                depth -= 1;
+            } else {
+                continue;
+            }
+            body.push(sep);
+        }
+        while depth > 0 {
+            body.push('}');
+            depth -= 1;
+        }
+        format!("public class C {{\n    void m() {{\n{body}\n}}\n}}")
+    }
+
+    #[test]
+    fn prop_balanced_blocks_are_never_falsely_defeated() {
+        use bolero::check;
+        // For ALL byte inputs, gen_java_blocks yields valid, brace-balanced Java;
+        // therefore the classifier's scope stream MUST be balanced. A failing
+        // input is a source whose braces balance but whose *classified* stream
+        // does not — the false-defeat bug, generalized beyond the fixed cases.
+        check!().with_type::<Vec<u8>>().for_each(|bytes| {
+            let src = gen_java_blocks(bytes);
+            assert!(
+                classifier_scope_is_balanced(&src),
+                "balanced generated Java was falsely flagged unbalanced:\n{src}"
+            );
+        });
     }
 
     fn has_prop(class: &Option<LineClass>, prop: LineProperty) -> bool {

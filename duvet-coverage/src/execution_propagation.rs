@@ -703,6 +703,7 @@ mod tests {
     #[test]
     fn try_block_propagation_into_parent_scope() {
         use crate::scopes::build_scope_tree;
+        use crate::types::ScopeEvent;
         let c = vec![
             s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
             s(&[LineProperty::Declaration]),
@@ -717,7 +718,17 @@ mod tests {
             s(&[LineProperty::ScopeClose]),
             s(&[LineProperty::ScopeClose]),
         ];
-        let r = execution_set(&c, &build_scope_tree(&c, 8), &cov_hit(&[4]));
+        // The scope-event stream matching `c`: open L1, open L3, open+close L5,
+        // close L7, close L8.
+        let e = vec![
+            ScopeEvent { line: 1, opens: true },
+            ScopeEvent { line: 3, opens: true },
+            ScopeEvent { line: 5, opens: true },
+            ScopeEvent { line: 5, opens: false },
+            ScopeEvent { line: 7, opens: false },
+            ScopeEvent { line: 8, opens: false },
+        ];
+        let r = execution_set(&c, &build_scope_tree(&e, 8), &cov_hit(&[4]));
         assert!(r.contains(&4));
         assert!(r.contains(&3));
     }
