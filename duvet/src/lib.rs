@@ -32,6 +32,7 @@ pub enum Arguments {
     /// Generates reports for the project
     Report(report::Report),
     /// Converts a v2 JSON report to the legacy v1 JSON format
+    #[command(hide = true)]
     Convert(convert::Convert),
     /// Merges multiple v2 JSON reports into one
     Merge(merge::Merge),
@@ -57,4 +58,27 @@ impl Arguments {
 pub async fn run() -> Result {
     arguments().await.exec().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Arguments;
+    use clap::{CommandFactory, Parser};
+
+    #[test]
+    fn convert_is_hidden_but_parseable() {
+        let help = Arguments::command().render_long_help().to_string();
+        assert!(!help.contains("convert"));
+
+        let arguments = Arguments::try_parse_from([
+            "duvet",
+            "convert",
+            "--input",
+            "report-v2.json",
+            "--output",
+            "report-v1.json",
+        ])
+        .unwrap();
+        assert!(matches!(arguments, Arguments::Convert(_)));
+    }
 }
