@@ -1,3 +1,9 @@
+## Unreleased
+
+### Bug Fixes
+
+* An annotation that references a specification without a `#section` is now reported as an error instead of being silently ignored. Coverage is computed per section, so a section-less reference can never be scored; previously it produced no reference and no diagnostic. If your project relied on the silent behavior, this will surface as new errors in `duvet report`.
+
 ## 0.4.0 (2025-01-22)
 
 ### Features
