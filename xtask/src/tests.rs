@@ -303,6 +303,16 @@ impl IntegrationTest {
             return Ok(());
         }
 
+        let converted_report = target_dir.join("duvet_report_converted.json");
+        {
+            let _dir = sh.push_dir(&target_dir);
+            cmd!(
+                sh,
+                "duvet convert --input={json_v2_report} --output={converted_report} --validate-against={json_report}"
+            )
+            .run()?;
+        }
+
         let json_file = sh.read_file(&json_report)?;
         let json: serde_json::Value = serde_json::from_str(&json_file)?;
 
