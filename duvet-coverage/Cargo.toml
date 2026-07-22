@@ -17,6 +17,15 @@ publish = false
 # the published duvet artifact.
 vstd = "=0.0.0-2026-05-24-0157"
 
+[dev-dependencies]
+# Property-based testing harness, pinned to the same major as the `duvet` crate
+# (which already uses bolero in `query/classify/java.rs`). Used to exercise the
+# `ensures` of the trusted `#[verifier::external_body]` leaves against an
+# independent oracle, so a body/spec drift in an axiom fails a test instead of
+# silently passing verification. Dev-only: `cargo verus build` compiles the lib,
+# not tests, so this never touches the verified build or any published artifact.
+bolero = "0.13"
+
 [package.metadata.verus]
 verify = true
 

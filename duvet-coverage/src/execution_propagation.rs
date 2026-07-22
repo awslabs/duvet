@@ -749,4 +749,82 @@ mod tests {
         assert!(r.contains(&4));
         assert!(r.contains(&3));
     }
+
+    // Property test for the trusted `collect_hit_lines` leaf (spec §3.3:
+    // `directly_executed = { line | coverage[line] == Hit }`).
+    //
+    // `collect_hit_lines` is `#[verifier::external_body]`: Verus checks only its
+    // `ensures` (a two-way iff with `CoverageStatus::Hit`) and trusts the body.
+    // That makes the body the one place a change could keep every proof green
+    // while silently altering what the model treats as executed — e.g. testing
+    // for `Miss`, inserting on the wrong key, or an off-by-one. Verification alone
+    // cannot catch that drift, because the drift is *in the axiom itself*.
+    //
+    // So we test the axiom: run the real body over randomized coverage maps and
+    // assert BOTH directions of the `ensures` explicitly (mirroring the two
+    // `forall` clauses), plus set-equality with an independent oracle. Body/spec
+    // drift now fails here instead of passing verification vacuously. This is the
+    // "turn the trusted leaf into a checkable property" discipline: the axiom is
+    // trusted by the proof, but no longer unchecked by the test suite.
+    //
+    // Linked via a Duvet `type=test` annotation to the requirement the axiom
+    // grounds — Property 9 (Execution Set Containment), "the execution set always
+    // contains all directly-hit lines," whose base case IS `collect_hit_lines`'
+    // forward direction. Its `type=implementation` citation sits on `execution_set`
+    // above; this pairs it with a test citation. (The backward direction also
+    // guards the no-false-positive seed of Property 1.)
+    //= design/query/coverage-model-spec.md#property-9-execution-set-containment
+    //= type=test
+    //# The execution set always contains all directly-hit lines: if
+    //# `coverage[line] == Hit`, then `line` is in the result.
+    #[test]
+    fn collect_hit_lines_matches_hit_oracle() {
+        use std::collections::{BTreeMap, BTreeSet};
+        bolero::check!()
+            .with_type::<Vec<(u64, bool)>>()
+            .for_each(|entries| {
+                // Build an arbitrary CoverageReport from generated (line, is_hit)
+                // pairs. BTreeMap dedups keys (a later pair for the same line
+                // wins) — the exact map semantics `collect_hit_lines` reads.
+                let mut coverage: CoverageReport = BTreeMap::new();
+                for &(line, is_hit) in entries {
+                    let status = if is_hit {
+                        CoverageStatus::Hit
+                    } else {
+                        CoverageStatus::Miss
+                    };
+                    coverage.insert(line, status);
+                }
+
+                // Independent oracle for the two-way iff: exactly the keys mapped
+                // to Hit, computed without touching `collect_hit_lines`'s body.
+                let expected: BTreeSet<u64> = coverage
+                    .iter()
+                    .filter(|(_, &status)| status == CoverageStatus::Hit)
+                    .map(|(&line, _)| line)
+                    .collect();
+
+                let got = collect_hit_lines(&coverage);
+
+                // Forward `ensures`: coverage[line] == Hit  ==>  line in result.
+                for (&line, &status) in coverage.iter() {
+                    if status == CoverageStatus::Hit {
+                        assert!(
+                            got.contains(&line),
+                            "forward iff violated: Hit line {line} missing from result"
+                        );
+                    }
+                }
+                // Backward `ensures`: line in result  ==>  coverage[line] == Hit.
+                for &line in got.iter() {
+                    assert_eq!(
+                        coverage.get(&line),
+                        Some(&CoverageStatus::Hit),
+                        "backward iff violated: result line {line} is not a Hit in coverage"
+                    );
+                }
+                // Both directions together are exactly set-equality with the oracle.
+                assert_eq!(got, expected);
+            });
+    }
 }

@@ -725,4 +725,122 @@ public class Two {
             "/proj/src/main/java/com/example/Foo.java"
         ));
     }
+
+    // --- forward-walk fallback (degraded path) integration ---
+
+    /// End-to-end coverage of the non-Java format path (the previously
+    /// disclosed gap: "forward-walk fallback has no integration test, no non-Java
+    /// format ships"). Drives the real dispatcher `build_file_execution_data` on a
+    /// file whose extension has no tree-sitter classifier, then feeds the result
+    /// to the verified `degraded_execution_status`.
+    ///
+    /// The extension `.xyzzy` is deliberately meaningless — the magic word from
+    /// Colossal Cave Adventure, "nothing happens." It stands in for any language
+    /// duvet has no classifier for, chosen over a real language (Rust, Python,
+    /// Haskell, ...) precisely because none of those is safe: any of them could
+    /// gain a classifier later and silently convert this from the degraded path
+    /// to the classified path, rotting the test. `.xyzzy` will not.
+    ///
+    /// This exercises the routing decision unique to the fallback — `classifier_for_path`
+    /// returns `None`, so the file must land on `FileExecutionData::Degraded`
+    /// (not `Classified`, not `DefeatedClassification`) — and then the verified
+    /// degraded verdict over the `DefaultClassifier` projection. (`executed_status_for`'s
+    /// `Degraded` arm is a thin guard-and-delegate over `degraded_execution_status`,
+    /// covered by that function's own unit tests.)
+    #[tokio::test]
+    async fn unknown_extension_routes_to_verified_degraded_path() {
+        use duvet_coverage::types::{AnnotationSpan, CoverageStatus, ExecutionStatus};
+        use std::io::Write;
+
+        // File layout (1-based):
+        //   1: code   (Hit)
+        //   2: (blank) -> Whitespace, skippable by the forward walk
+        //   3: code   (Miss)
+        let content = "let a = compute();\n\nlet b = other();\n";
+
+        // Write a real temp file: the default VFS reads from disk, and the
+        // extension is what drives the routing under test.
+        let mut path = std::env::temp_dir();
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        path.push(format!("duvet_fallback_{}_{}.xyzzy", std::process::id(), nanos));
+        std::fs::File::create(&path)
+            .unwrap()
+            .write_all(content.as_bytes())
+            .unwrap();
+
+        // Precondition of the fallback: no language classifier for this extension.
+        assert!(
+            classifier_for_path(&path).is_none(),
+            ".xyzzy must have no classifier — that is what routes it to the degraded path"
+        );
+
+        // Annotations are irrelevant to the routing decision; an empty set means
+        // no lines are stamped, isolating the DefaultClassifier projection.
+        let annotations: AnnotationSet = Arc::new(std::collections::BTreeSet::new());
+
+        // Coverage: line 1 hit (count 1), line 3 not hit (count 0) -> Hit / Miss.
+        let mut lines = std::collections::BTreeMap::new();
+        lines.insert(1u32, 1u64);
+        lines.insert(3u32, 0u64);
+        let file_coverage = FileCoverage {
+            lines,
+            branches: std::collections::BTreeMap::new(),
+        };
+
+        let data = build_file_execution_data(&path, &annotations, &file_coverage)
+            .await
+            .expect("degraded path must not error");
+
+        let _ = std::fs::remove_file(&path);
+
+        // 1. Routing: an unknown extension is neither refused nor classified — it
+        //    is the verified degraded path.
+        let degraded = match data {
+            FileExecutionData::Degraded(d) => d,
+            other => panic!("unknown extension must route to Degraded, got {other:?}"),
+        };
+
+        // 2. The degraded data is the DefaultClassifier projection + the coverage
+        //    report (blank -> Whitespace, code -> None).
+        assert_eq!(degraded.file_length, 3);
+        assert_eq!(degraded.classifications.len(), 3);
+        assert!(
+            degraded.classifications[0].is_none(),
+            "line 1 is code -> None (unclassified)"
+        );
+        assert!(
+            degraded.classifications[1]
+                .as_ref()
+                .unwrap()
+                .contains(&LineProperty::Whitespace),
+            "line 2 is blank -> Whitespace"
+        );
+        assert!(
+            degraded.classifications[2].is_none(),
+            "line 3 is code -> None (unclassified)"
+        );
+        assert_eq!(degraded.coverage.get(&1), Some(&CoverageStatus::Hit));
+        assert_eq!(degraded.coverage.get(&3), Some(&CoverageStatus::Miss));
+
+        // 3. The verified degraded verdict flows through. An annotation ending on
+        //    line 1 resolves forward over the blank line 2 (skippable) to the
+        //    nearest coverage-opinionated line 3 (Miss) -> NotExecuted.
+        let not_executed = degraded_execution_status(
+            &AnnotationSpan {
+                start_line: 1,
+                end_line: 1,
+            },
+            &degraded.classifications,
+            &degraded.coverage,
+            degraded.file_length,
+        );
+        assert_eq!(
+            not_executed,
+            ExecutionStatus::NotExecuted,
+            "forward walk lands on line 3 (Miss)"
+        );
+    }
 }

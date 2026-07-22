@@ -199,6 +199,16 @@ mod tests {
         // verified degraded path, not a refusal.
         assert!(classifier_for_path(Path::new("src/Other.rs")).is_none());
         assert!(classifier_for_path(Path::new("Main.kt")).is_none());
+        // An arbitrary, meaningless extension stands in for "any language duvet
+        // has no classifier for" — including ones we will never add. `.xyzzy` (the
+        // magic word from Colossal Cave Adventure: "nothing happens") is not a
+        // real source language and is exceedingly unlikely to become one, so it
+        // exercises the fallback precondition without the risk that a future
+        // classifier (Rust, Python, ...) silently reclassifies the case. The
+        // end-to-end degraded routing this precondition gates is covered by
+        // `unknown_extension_routes_to_verified_degraded_path` in
+        // `query/checks/coverage.rs`.
+        assert!(classifier_for_path(Path::new("thing.xyzzy")).is_none());
         assert!(classifier_for_path(Path::new("Foo.java")).is_some());
     }
 }
