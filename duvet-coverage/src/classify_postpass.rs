@@ -49,25 +49,25 @@ verus! {
 /// `ScopeOpen`, the output also contains `ScopeOpen` at that index.
 /// Symmetrically for `ScopeClose`.
 pub fn clean_classifications(
-    classifications: &mut Vec<Option<BTreeSet<LineProperty>>>,
+    classifications: &mut [Option<BTreeSet<LineProperty>>],
     code_start: &[bool],
 )
     requires
         old(classifications).len() == code_start@.len(),
     ensures
-        classifications.len() == old(classifications).len(),
+        final(classifications)@.len() == old(classifications)@.len(),
         // STRUCTURAL PRESERVATION: ScopeOpen never stripped
         forall|i: int| 0 <= i < old(classifications).len()
             && (#[trigger] old(classifications)@[i]).is_some()
             && old(classifications)@[i].unwrap()@.contains(LineProperty::ScopeOpen)
-            ==> classifications@[i].is_some()
-                && classifications@[i].unwrap()@.contains(LineProperty::ScopeOpen),
+            ==> final(classifications)@[i].is_some()
+                && final(classifications)@[i].unwrap()@.contains(LineProperty::ScopeOpen),
         // STRUCTURAL PRESERVATION: ScopeClose never stripped
         forall|i: int| 0 <= i < old(classifications).len()
             && (#[trigger] old(classifications)@[i]).is_some()
             && old(classifications)@[i].unwrap()@.contains(LineProperty::ScopeClose)
-            ==> classifications@[i].is_some()
-                && classifications@[i].unwrap()@.contains(LineProperty::ScopeClose),
+            ==> final(classifications)@[i].is_some()
+                && final(classifications)@[i].unwrap()@.contains(LineProperty::ScopeClose),
 {
     let len = classifications.len();
     let mut idx: usize = 0;
@@ -95,6 +95,7 @@ pub fn clean_classifications(
         decreases len - idx,
     {
         if let Some(ref mut props) = classifications[idx] {
+            let ghost props_entry = props@;
             let has_annotation = props.contains(&LineProperty::Annotation);
             let has_whitespace = props.contains(&LineProperty::Whitespace);
             let has_comment = props.contains(&LineProperty::Comment);
@@ -112,6 +113,22 @@ pub fn clean_classifications(
                 // this is aesthetics, not correctness).
                 props.remove(&LineProperty::Comment);
             }
+
+            // Structural preservation, proven while `props` is live. Every
+            // removal above targets a semantic property (Statement /
+            // Declaration / NonLinearControl / Comment); distinct LineProperty
+            // variants are unequal, so BTreeSet::remove leaves ScopeOpen and
+            // ScopeClose membership unchanged. Reasoning over BTreeSet<LineProperty>
+            // requires the element type's comparison laws in scope.
+            proof { broadcast use crate::types::lemma_line_property_obeys_cmp_spec; }
+            assert(props@.contains(LineProperty::ScopeOpen)
+                == props_entry.contains(LineProperty::ScopeOpen));
+            assert(props@.contains(LineProperty::ScopeClose)
+                == props_entry.contains(LineProperty::ScopeClose));
+            // props began equal to old(classifications)@[idx] (loop-top
+            // unchanged-suffix invariant), so its structural membership matches
+            // the entry value; Verus writes props back to classifications@[idx]
+            // on block exit, carrying these facts into the prefix invariants.
         }
 
         idx = idx + 1;
@@ -139,8 +156,7 @@ mod tests {
         let props = classifications[0].as_ref().unwrap();
         assert!(
             props.contains(&LineProperty::ScopeClose),
-            "ScopeClose must survive cleaning on a comment line, got: {:?}",
-            props
+            "ScopeClose must survive cleaning on a comment line, got: {props:?}"
         );
     }
 
@@ -159,14 +175,12 @@ mod tests {
         let props = classifications[0].as_ref().unwrap();
         assert!(
             props.contains(&LineProperty::ScopeOpen),
-            "ScopeOpen must survive cleaning, got: {:?}",
-            props
+            "ScopeOpen must survive cleaning, got: {props:?}"
         );
         // Declaration should be stripped (annotation line)
         assert!(
             !props.contains(&LineProperty::Declaration),
-            "Declaration should be stripped from annotation line, got: {:?}",
-            props
+            "Declaration should be stripped from annotation line, got: {props:?}"
         );
     }
 
@@ -225,8 +239,7 @@ mod tests {
         let props = classifications[0].as_ref().unwrap();
         assert!(
             props.contains(&LineProperty::ScopeClose),
-            "ScopeClose MUST survive: this is the Property 2 precondition. Got: {:?}",
-            props
+            "ScopeClose MUST survive: this is the Property 2 precondition. Got: {props:?}"
         );
         // Comment stays (it's the authoritative non-code property)
         assert!(props.contains(&LineProperty::Comment));
