@@ -71,12 +71,13 @@ pub(crate) fn execution_set(
     ensures
         //= design/query/coverage-model-spec.md#property-9-execution-set-containment
         //= type=implication
-        // Property 9: every directly-hit line is in the result
+        //# If `coverage[line] == Hit`,
+        //# then `line ∈ execution_set(classifications, scopes, coverage)`.
         forall|line: u64| coverage@.contains_key(line) && coverage@[line] == CoverageStatus::Hit
             ==> result@.contains(line),
-        //= design/query/coverage-model-spec.md#property-1-no-false-positives
-        //= type=implication
-        // Property 1 (No False Positives): every line in the result is validly there
+        // Property 1 (No False Positives): every line in the result is validly
+        // there. The P1 citation chain lives on the predicates it maps to
+        // (`clear_path` and friends in predicates.rs).
         forall|line: u64| result@.contains(line)
             ==> validly_in_exec_set(line, classifications, scopes, coverage),
         // Property 4 (Completeness): every line with a valid path is in the result
@@ -775,8 +776,7 @@ mod tests {
     // guards the no-false-positive seed of Property 1.)
     //= design/query/coverage-model-spec.md#property-9-execution-set-containment
     //= type=test
-    //# The execution set always contains all directly-hit lines: if
-    //# `coverage[line] == Hit`, then `line` is in the result.
+    //# The execution set always contains all directly-hit lines.
     #[test]
     fn collect_hit_lines_matches_hit_oracle() {
         use std::collections::{BTreeMap, BTreeSet};

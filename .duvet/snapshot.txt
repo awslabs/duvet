@@ -95,6 +95,7 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[implication]:   No partial overlaps.
 
   SECTION: [Property 9: Execution Set Containment](#property-9-execution-set-containment)
+    TEXT[test]: The execution set always contains all directly-hit lines.
     TEXT[implication]: If `coverage[line] == Hit`,
     TEXT[implication]: then `line ∈ execution_set(classifications, scopes, coverage)`.
 

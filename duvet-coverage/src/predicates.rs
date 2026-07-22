@@ -75,14 +75,6 @@ pub open spec fn in_scope(line: u64, scopes: &[Scope], scope_idx: int) -> bool {
     &&& line <= scopes@[scope_idx].close_line
 }
 
-//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-//= type=implication
-//# The implementation MUST prove that
-//# for any two lines A and B
-//# where A is in scope S1 and B is in scope S2
-//# and S1 ≠ S2
-//# and S1 is not a parent of S2
-//# and S2 is not a parent of S1:
 /// Spec predicate: a propagated line and its source hit line are both
 /// within the same scope. Encodes the No Cross-Scope Leakage invariant.
 pub open spec fn propagated_within_scope(
@@ -163,11 +155,6 @@ pub open spec fn scope_has_non_linear_control(
 
 //= design/query/coverage-model-spec.md#property-3-conservative-fallback
 //= type=implication
-//# The implementation MUST prove that
-//# no backward propagation occurs WITHIN a scope
-//# that contains a `NonLinearControl` line.
-//= design/query/coverage-model-spec.md#property-3-conservative-fallback
-//= type=implication
 //# If an ancestor scope S contains `NonLinearControl` but a child
 //# scope S' does not, propagation MAY occur through S'.
 /// Spec predicate: line was reached via backward propagation from hit_line.
@@ -209,10 +196,6 @@ pub open spec fn has_valid_path(
 // Composite predicate (spec Section 3.3)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-//= design/query/coverage-model-spec.md#property-9-execution-set-containment
-//= type=implication
-//# If `coverage[line] == Hit`,
-//# then `line ∈ execution_set(classifications, scopes, coverage)`.
 /// Spec predicate: line is validly in the execution set — either directly hit,
 /// or reachable via a valid propagation path from a hit line.
 pub open spec fn validly_in_exec_set(

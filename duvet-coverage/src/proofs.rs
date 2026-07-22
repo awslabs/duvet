@@ -773,11 +773,6 @@ mod tests {
         assert!(!exec_set.contains(&6));
     }
 
-    //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-    //= type=test
-    //# The implementation MUST prove that for any two lines A and B where A is in
-    //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-    //# S2 is not a parent of S1:
     /// Non-vacuity witness for `executed_annotation_has_no_cross_scope_leakage`.
     ///
     /// The P2 harness's `ensures` says something only when the target is in a
@@ -854,10 +849,6 @@ mod tests {
         assert!(!r.contains(&2));
     }
 
-    //= design/query/coverage-model-spec.md#property-3-conservative-fallback
-    //= type=test
-    //# If an ancestor scope S contains `NonLinearControl` but a child
-    //# scope S' does not, propagation MAY occur through S'.
     /// Non-vacuity witness for `executed_annotation_conservative_fallback`.
     ///
     /// The public P3 harness's `ensures` antecedent — Executed, target in an NLC
@@ -945,10 +936,6 @@ mod tests {
         }
     }
 
-    //= design/query/coverage-model-spec.md#property-4-monotonicity
-    //= type=test
-    //# The implementation MUST prove that given two coverage reports E1 and E2 where
-    //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
     /// Non-vacuity witness for `executed_annotation_monotonic`.
     ///
     /// The P4 harness's `ensures` (`Executed under E1 ==> Executed under E2`) is
