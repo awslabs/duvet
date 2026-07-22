@@ -131,9 +131,7 @@ mod tests {
     /// The core bug: a `} // comment` line must retain ScopeClose after cleaning.
     #[test]
     fn scope_close_preserved_on_comment_line() {
-        let mut classifications = vec![
-            lc(&[LineProperty::ScopeClose, LineProperty::Comment]),
-        ];
+        let mut classifications = vec![lc(&[LineProperty::ScopeClose, LineProperty::Comment])];
         let code_start = vec![false]; // no code starts here (it's an end-line)
 
         clean_classifications(&mut classifications, &code_start);
@@ -149,9 +147,11 @@ mod tests {
     /// ScopeOpen on an annotation line must also survive.
     #[test]
     fn scope_open_preserved_on_annotation_line() {
-        let mut classifications = vec![
-            lc(&[LineProperty::ScopeOpen, LineProperty::Annotation, LineProperty::Declaration]),
-        ];
+        let mut classifications = vec![lc(&[
+            LineProperty::ScopeOpen,
+            LineProperty::Annotation,
+            LineProperty::Declaration,
+        ])];
         let code_start = vec![true];
 
         clean_classifications(&mut classifications, &code_start);
@@ -173,9 +173,7 @@ mod tests {
     /// Statement IS stripped from a non-code-start comment line.
     #[test]
     fn statement_stripped_from_comment_only_line() {
-        let mut classifications = vec![
-            lc(&[LineProperty::Statement, LineProperty::Comment]),
-        ];
+        let mut classifications = vec![lc(&[LineProperty::Statement, LineProperty::Comment])];
         let code_start = vec![false];
 
         clean_classifications(&mut classifications, &code_start);
@@ -188,9 +186,7 @@ mod tests {
     /// Statement is kept on a code-start line with trailing comment.
     #[test]
     fn statement_kept_on_code_start_line() {
-        let mut classifications = vec![
-            lc(&[LineProperty::Statement, LineProperty::Comment]),
-        ];
+        let mut classifications = vec![lc(&[LineProperty::Statement, LineProperty::Comment])];
         let code_start = vec![true];
 
         clean_classifications(&mut classifications, &code_start);
@@ -221,9 +217,7 @@ mod tests {
         // The walk_node puts ScopeClose (from the block end) and Comment
         // (from the line_comment node). code_start is false because the
         // block *ends* here, it doesn't *start* here.
-        let mut classifications = vec![
-            lc(&[LineProperty::ScopeClose, LineProperty::Comment]),
-        ];
+        let mut classifications = vec![lc(&[LineProperty::ScopeClose, LineProperty::Comment])];
         let code_start = vec![false];
 
         clean_classifications(&mut classifications, &code_start);

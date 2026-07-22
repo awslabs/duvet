@@ -765,7 +765,11 @@ public class Two {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        path.push(format!("duvet_fallback_{}_{}.xyzzy", std::process::id(), nanos));
+        path.push(format!(
+            "duvet_fallback_{}_{}.xyzzy",
+            std::process::id(),
+            nanos
+        ));
         std::fs::File::create(&path)
             .unwrap()
             .write_all(content.as_bytes())
