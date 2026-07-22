@@ -54,7 +54,7 @@ $ duvet query -c implementation,test --section my-spec.md
 $ duvet query -c coverage -r 'target/jacoco/*.xml' -f jacoco-xml
 ```
 
-The coverage check correlates test annotations with executed implementation annotations using a coverage report. For Java sources, duvet uses a verified two-phase coverage model that understands method declarations and other constructs that don't appear in bytecode-based coverage data; for other languages it falls back to a forward-walk over executed lines.
+The coverage check correlates test annotations with executed implementation annotations using a coverage report. For Java sources, duvet uses a verified two-phase coverage model that understands method declarations and other constructs that don't appear in bytecode-based coverage data; for other languages it uses a verified degraded model that reads coverage directly at the annotation's target line.
 
 See the [guide](./guide/src/query.md) for the full reference.
 

@@ -526,8 +526,19 @@ pub fn executed_status_for(
 ///   - every coverage key `K` maps to a valid 0-based index: `1 <= K` and
 ///     `K - 1 < classifications_len`
 ///
-/// (The scope invariants in the third/fourth `requires` are guaranteed by
-/// `build_scope_tree`'s postcondition and need no runtime check here.)
+/// (The scope-bounds invariants in the third/fourth `requires` are guaranteed
+/// by `build_scope_tree`'s postcondition and need no runtime check here.
+///
+/// Property 2's `scopes_match_classifications` hypothesis is *not* a
+/// `requires` of `is_annotation_executed` and is likewise not checked here —
+/// but not because of `build_scope_tree`: that postcondition governs the
+/// scope *tree*, while propagation reads the per-line classification *set*,
+/// and their silent disagreement was a real bug (a `} // comment` line lost
+/// `ScopeClose` to the mutual-exclusivity post-pass, letting backward
+/// propagation cross the brace). It is discharged upstream by construction:
+/// the verified post-pass (`classify_postpass::clean_classifications`) proves
+/// `ScopeOpen`/`ScopeClose` are never stripped, and the classifier property
+/// test proves boundary lines carry them in the first place.)
 fn classified_preconditions_hold(
     end_line: u64,
     coverage: &CoverageReportMap,

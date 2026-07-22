@@ -175,9 +175,16 @@ exist and correlate.
 If a test annotation has no matching implementation annotation,
 that's a failure of the test check, not the coverage check.
 However,
-the coverage check will surface this as a failed correlation
-because there are no implementation annotations
-to verify execution against.
+the coverage check also surfaces this case:
+tests with no implementation annotations
+to verify execution against
+are collected into a dedicated
+"Tests with no implementation" bucket,
+reported with its own count,
+and any non-empty bucket fails the run.
+This is deliberately distinct from the failed-correlations count —
+a failed correlation means an implementation exists but did not execute;
+this bucket means there is nothing to correlate against.
 
 **Structural annotations:**
 When the two-phase coverage model determines
@@ -374,19 +381,20 @@ The walk forward from the annotation skips whitespace
 and stacked annotations
 (execution is transitive through stacked annotations).
 
-Two implementations exist:
+Two implementations exist, both in the verified `duvet-coverage` crate:
 
-**Basic forward-walk:**
-The simplified execution detection.
-Walks forward from the annotation,
-skipping whitespace and other annotations.
-Stops at the first line that appears in coverage data
-(executed or not executed)
-or at an unknown line.
+**Degraded model:**
+The classifier-less execution detection.
+Resolves the annotation to its target line
+(the next non-annotation, non-whitespace line below it)
+and reads execution status directly from the coverage report
+at that line — no propagation.
 Works for any language
 but cannot see through declarations,
 method signatures,
 or other constructs that coverage tools don't report.
+Its properties (D1–D4) are proven with Verus
+alongside the two-phase model's.
 
 **Two-phase coverage model (enhanced):**
 Uses tree-sitter AST parsing to classify source lines,
@@ -397,16 +405,16 @@ to determine which non-executable lines
 (declarations, signatures) were reached.
 This is formally specified in
 [coverage-model-spec.md](coverage-model-spec.md)
-and designed to be verified with Verus proofs.
+and verified with Verus proofs.
 Currently available for Java;
-other languages use the basic forward-walk.
+other languages use the degraded model.
 
 The enhanced model is a transparent upgrade —
 when a tree-sitter classifier exists for the file's language,
 it is used automatically.
 When no classifier exists,
-the basic forward-walk provides identical behavior
-to the pre-enhancement implementation.
+the degraded model decides status
+from direct coverage observation alone.
 The goal is to make annotation placement intuitive:
 put the annotation where it reads best
 (before the method signature),
@@ -499,7 +507,7 @@ for Java.
 Classifiers for Rust, Python, and Kotlin are planned.
 Each classifier enables the enhanced coverage model
 for that language's files;
-files without a classifier continue to use the basic forward-walk.
+files without a classifier use the verified degraded model.
 
 ### 7.4 Acceptable duplicates
 

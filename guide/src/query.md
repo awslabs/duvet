@@ -61,15 +61,15 @@ For Java sources, duvet uses a verified two-phase coverage model from the `duvet
 
 The algorithms are formally specified in [`design/query/coverage-model-spec.md`](https://github.com/awslabs/duvet/blob/main/design/query/coverage-model-spec.md) and proven correct with [Verus](https://verus-lang.github.io/verus/guide/). The properties cover absence of false positives, no cross-scope leakage, conservative handling of non-linear control flow (`goto`, `break` to label, etc.), and monotonicity under coverage refinement.
 
-For source files without a language-specific classifier, the coverage check falls back to the original forward-walk over executed lines. Run with `--verbose` (`-v`) to see which path each file is using:
+For source files without a language-specific classifier, the coverage check uses a verified degraded model: the annotation resolves to its target line and status is read directly from the coverage report at that line, with no propagation. This is lower-fidelity than the two-phase model — constructs invisible to the coverage tool (declarations, signatures) cannot be credited — but its properties are proven with the same Verus machinery. Run with `--verbose` (`-v`) to see which path each file is using:
 
 ```console
 $ duvet query -c coverage -r '**/*.xml' -f jacoco-xml --verbose
 ...
-Coverage model: 12 file(s) using language-aware (verified) path, 3 file(s) using forward-walk fallback
-  forward-walk fallback: src/main/python/loader.py
-  forward-walk fallback: src/main/c/parser.c
-  forward-walk fallback: src/main/rust/lib.rs
+Coverage model: 12 file(s) language-aware (verified), 3 file(s) degraded — no classifier (verified)
+  degraded (no classifier, verified): src/main/python/loader.py
+  degraded (no classifier, verified): src/main/c/parser.c
+  degraded (no classifier, verified): src/main/rust/lib.rs
 ```
 
 ## Verbose output

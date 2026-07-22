@@ -213,6 +213,21 @@ is not a limitation — it's a feature.
 If an annotation quotes text that doesn't appear in the spec,
 that's a bug in the annotation.
 
+### Update: powering matching off the v2 report {#decision-4-update}
+
+Review (PR #227) asked whether the v2 report format
+buys anything here,
+since the normalized specification text is embedded in it.
+It could — and the important point is agreement on the *format*.
+Because matching is anchored to specification text coordinates,
+whether those coordinates are computed directly from the spec
+or read from a v2 report
+is an implementation detail that can land later
+without changing the matching semantics.
+Going forward: format-first;
+v2-report-as-input is deferred,
+not rejected.
+
 ---
 
 ## Decision 5: Coverage format abstraction {#decision-5}
@@ -353,6 +368,19 @@ Executed coverage ensures that the test you're actively working on
 has correct annotation placements,
 so errors don't pile up silently
 and surface all at once when the full suite runs.
+
+### Update: separate check, not a flag {#decision-7-update}
+
+Review (PR #227) suggested this could be
+a flag on the coverage check
+(easier to discover from `--help`
+when the full check is failing)
+rather than a separate check type.
+Considered; keeping the separate check.
+It would be the only check-specific flag in the CLI,
+and `--check` values stay uniform —
+every mode is selected the same way.
+Reviewer was fine with either approach.
 
 ---
 
