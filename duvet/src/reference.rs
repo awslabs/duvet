@@ -84,7 +84,16 @@ pub async fn build_references(
     let mut references = vec![];
 
     let Some(section_id) = section_id else {
-        // TODO return a warning that referring to a spec without a section doesn't make sense
+        // A reference that names a spec but no `#section` cannot be scored:
+        // coverage is computed per section, so there is nothing to match the
+        // annotation's quote against. Treat it as an error and enumerate every
+        // offending annotation (same collect-and-list contract as the
+        // missing-section case below) so the user can fix them all in one pass.
+        for annotation in annotations.iter() {
+            let mut error = error!("reference to {} is missing a section", target.path);
+            error = error.with_source_slice(annotation.original_target.clone(), "referenced here");
+            errors.push(error);
+        }
         return (references.into(), errors.into());
     };
 
