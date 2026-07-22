@@ -88,69 +88,37 @@ impl LineClassifier for JavaClassifier {
             &mut code_start,
         );
 
-        // Post-processing: enforce the mutual-exclusivity contract (spec §1.3) —
-        // no line may carry both a code property (Statement/Declaration/scope)
-        // and a non-code one (Annotation/Comment/Whitespace). The two strips
-        // below are NOT symmetric in importance:
+        // Post-processing: enforce the mutual-exclusivity contract (spec §1.3).
         //
-        //   * Stripping spurious code off a non-code line is LOAD-BEARING.
-        //     A multi-line AST node (e.g. a fluent builder chain parsed as one
-        //     `local_variable_declaration`) stamps Statement/Declaration on
-        //     every line it spans, including an annotation or comment line in
-        //     its interior — yielding e.g. `{Annotation, Statement}`. That
-        //     `Statement` is a lie the verified model would act on: Phase 2
-        //     backward propagation stops at any `Statement` line, so a
-        //     contaminated annotation line between a covered line and its target
-        //     blocks the path and turns a genuinely-Executed target into a false
-        //     NotExecuted. (An `{Annotation, Statement}` line never arises
-        //     honestly — Annotation requires `//=`/`//#` at line start, which
-        //     leaves no room for a statement; it is always a span artifact.)
-        //     So on Annotation/Whitespace lines, and on comment lines with no
-        //     code node *starting* on them, drop the spurious code properties.
+        // The verified `clean_classifications` in duvet-coverage guarantees
+        // STRUCTURAL PRESERVATION: ScopeOpen and ScopeClose are never stripped.
+        // This closes the false-Executed bug (PR #227 review Finding: a
+        // `} // comment` line lost ScopeClose, letting backward propagation
+        // cross the brace and violating Property 2). The function strips only
+        // semantic properties (Statement/Declaration/NonLinearControl) from
+        // non-code-start lines; structural scope delimiters survive
+        // unconditionally.
         //
-        //   * Stripping Comment off a real code line is CANONICALIZATION, not
-        //     correctness. `doX(); // note` is honestly `{Statement, Comment}`.
-        //     The model only ever reads Comment behind a `len == 1` guard (a
-        //     line counts as skippable only if it is *pure* `{Comment}`), so a
-        //     Comment riding alongside a Statement is already ignored and the
-        //     verdict is identical with or without this strip. We drop it anyway
-        //     to keep the "exactly one authoritative class per line" invariant
-        //     and stable snapshots.
-        for line_num in 1..=line_count {
-            let props = &mut line_props[line_num];
-            let has_annotation = props.contains(&LineProperty::Annotation);
-            let has_whitespace = props.contains(&LineProperty::Whitespace);
-            let has_comment = props.contains(&LineProperty::Comment);
+        // The input is 0-indexed (element i = line i+1); build from the
+        // 1-indexed line_props, skipping index 0.
+        let mut classifications_for_clean: Vec<Option<BTreeSet<LineProperty>>> = (1..=line_count)
+            .map(|i| {
+                if visited[i] {
+                    Some(line_props[i].clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        // code_start is 1-indexed with index 0 unused; slice off the prefix.
+        let code_start_slice = &code_start[1..];
+        duvet_coverage::classify_postpass::clean_classifications(
+            &mut classifications_for_clean,
+            code_start_slice,
+        );
 
-            if has_annotation || has_whitespace || (has_comment && !code_start[line_num]) {
-                // Non-code line (possibly spanned by a multi-line node): strip
-                // the spurious code properties. Annotation/Whitespace/Comment
-                // are left intact — they are the authoritative classification.
-                props.remove(&LineProperty::Statement);
-                props.remove(&LineProperty::Declaration);
-                props.remove(&LineProperty::ScopeOpen);
-                props.remove(&LineProperty::ScopeClose);
-                props.remove(&LineProperty::NonLinearControl);
-            } else if has_comment {
-                // Trailing comment on a real code line (`doX(); // note`):
-                // canonicalize to pure code (see contract note above).
-                props.remove(&LineProperty::Comment);
-            }
-        }
-
-        // Build result: 0-indexed output, each element corresponds to line (i+1)
-        Classification::Classified(
-            (0..line_count)
-                .map(|i| {
-                    let line_num = i + 1;
-                    if visited[line_num] {
-                        Some(line_props[line_num].clone())
-                    } else {
-                        None // Unvisited, non-blank, non-annotation → unknown
-                    }
-                })
-                .collect(),
-        )
+        // Return the cleaned classifications directly (already 0-indexed).
+        Classification::Classified(classifications_for_clean)
     }
 
     fn scope_events(&self, source: &str) -> Vec<ScopeEvent> {
@@ -784,6 +752,57 @@ mod tests {
         });
     }
 
+    // -------------------------------------------------------------------------
+    // Bridge property (PR #227 review, Finding by ajrudzitis) — the scope-event
+    // stream and the per-line classification set MUST agree on scope boundaries.
+    //
+    // The verified `clean_classifications` (duvet-coverage) proves the post-pass
+    // never *removes* ScopeOpen/ScopeClose. This property test proves the other
+    // half the proof cannot see: that the classifier + post-pass *composition*
+    // actually *establishes* ScopeClose (and ScopeOpen) on every boundary line
+    // for all generated inputs. Together they close the loop the false-Executed
+    // bug exploited — where the AST-derived event stream (read by the imbalance
+    // detector) and the per-line set (read by Phase-2 propagation) silently
+    // disagreed on a `} // comment` line.
+    //
+    // This is exactly the `scopes_match_classifications` precondition that
+    // Property 2 (no cross-scope leakage) requires, exercised over the
+    // compound-brace input space rather than assumed.
+    // -------------------------------------------------------------------------
+    #[test]
+    fn prop_scope_events_agree_with_classification_boundaries() {
+        use bolero::check;
+        use duvet_coverage::types::ScopeEvent;
+        check!().with_type::<Vec<u8>>().for_each(|bytes| {
+            let src = gen_java_blocks(bytes);
+            // A genuine parse error is a different, legitimate outcome; the
+            // property is only about balanced code the parser accepts.
+            let classified = match JavaClassifier.classify(&src) {
+                Classification::Classified(c) => c,
+                Classification::Unclassifiable { .. } => return,
+            };
+            let events = JavaClassifier.scope_events(&src);
+            for ScopeEvent { line, opens } in events {
+                let idx = line as usize - 1;
+                // A compound line like `}}` produces multiple close events on the
+                // same line; the per-line set can only carry one ScopeClose, so we
+                // assert *presence* on the boundary line, not multiplicity (the
+                // event stream owns multiplicity; the set owns per-line presence).
+                let want = if opens {
+                    LineProperty::ScopeOpen
+                } else {
+                    LineProperty::ScopeClose
+                };
+                assert!(
+                    has_prop(&classified[idx], want),
+                    "scope event (line {line}, opens={opens}) has no matching \
+                     {want:?} in the per-line classification: {:?}\nsource:\n{src}",
+                    classified[idx]
+                );
+            }
+        });
+    }
+
     fn has_prop(class: &Option<LineClass>, prop: LineProperty) -> bool {
         class.as_ref().is_some_and(|c| c.contains(&prop))
     }
@@ -1128,6 +1147,30 @@ mod tests {
         let source = "public class Foo {\n    // just a note\n    void bar() {}\n}";
         let result = classify(source);
         assert!(is_exactly(&result[1], &[LineProperty::Comment]));
+    }
+
+    /// REGRESSION (PR #227 review, Finding by ajrudzitis): a closing brace with
+    /// a trailing comment (`} // end bar`) must retain `ScopeClose`. The old
+    /// post-pass stripped all code properties (including scope delimiters) from
+    /// comment-only lines; the new verified `clean_classifications` strips only
+    /// semantic properties. Without `ScopeClose`, backward propagation crosses
+    /// the brace and violates Property 2 (no cross-scope leakage).
+    #[test]
+    fn closing_brace_with_comment_retains_scope_close() {
+        let source = "public class Foo {\n    void bar() {\n        doX();\n    } // end bar\n}";
+        let result = classify(source);
+        // line 4 (index 3): `} // end bar` — ScopeClose MUST survive.
+        assert!(
+            has_prop(&result[3], LineProperty::ScopeClose),
+            "}} // comment must retain ScopeClose (Property 2 precondition), got: {:?}",
+            result[3]
+        );
+        // Comment stays (it's the non-code property)
+        assert!(
+            has_prop(&result[3], LineProperty::Comment),
+            "}} // comment must retain Comment, got: {:?}",
+            result[3]
+        );
     }
 
     /// syntactically invalid Java (here a method body truncated mid-edit, so the
