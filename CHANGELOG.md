@@ -1,3 +1,9 @@
+## Unreleased
+
+### Bug Fixes
+
+* Honor `NO_COLOR` and disable ANSI escape codes in diagnostic output when stderr is not a terminal.
+
 ## 0.4.0 (2025-01-22)
 
 ### Features
