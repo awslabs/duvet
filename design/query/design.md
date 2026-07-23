@@ -205,15 +205,15 @@ for the rationale.
 ### 2.5 Executed Coverage (`--check executed-coverage`) {#check-executed-coverage}
 
 **Question:** Same as coverage,
-but only for test annotations that were actually executed.
+but skipping test annotations that were not executed.
 
 When running a single test with coverage,
 most test annotations in the project will not be executed —
 they belong to other tests.
 The standard coverage check would report all of these as failures,
 which is noise.
-Executed coverage filters to only the test annotations
-that the coverage data shows as executed,
+Executed coverage filters out the test annotations
+that the coverage data shows as not executed,
 giving a clean signal for the specific test being worked on.
 
 This also prevents a subtle accumulation problem.

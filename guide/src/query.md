@@ -17,7 +17,7 @@ $ duvet query -c implementation -c test
 | `implementation` | Do all in-scope specification requirements have implementation annotations? |
 | `test` | Do all in-scope implementation annotations have corresponding test annotations? |
 | `coverage` | Do test annotations actually execute their corresponding implementation annotations? |
-| `executed-coverage` | Same as `coverage`, but only considers test annotations that appear in the supplied coverage data. Useful when iterating on a single test. |
+| `executed-coverage` | Same as `coverage`, but skips test annotations the supplied coverage data shows as not executed. Useful when iterating on a single test. |
 | `duplicates` | Are there annotations of the same type that redundantly cover the same specification text? |
 
 Annotations of type `citation`, `implication`, and `exception` count as implementation. `todo` annotations are tracked separately — a requirement covered only by `todo` annotations is reported as "TODO only" by the `implementation` check, not as implemented.
