@@ -1,0 +1,24 @@
+target = "design/query/coverage-model-spec.md#correctness-properties"
+
+# 5. Correctness Properties
+#
+# These properties MUST be proven with Verus.
+# Each property below defines a correctness invariant of the coverage model.
+# The Verus proof files MUST carry duvet annotations
+# linking each `proof fn` back to the corresponding property section
+# in this document.
+
+[[spec]]
+level = "MUST"
+quote = '''
+These properties MUST be proven with Verus.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The Verus proof files MUST carry duvet annotations
+linking each `proof fn` back to the corresponding property section
+in this document.
+'''
+

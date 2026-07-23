@@ -1,0 +1,30 @@
+target = "design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage"
+
+# Property 2: No Cross-Scope Leakage
+#
+# The implementation MUST prove that
+# for any two lines A and B
+# where A is in scope S1 and B is in scope S2
+# and S1 ≠ S2
+# and S1 is not a parent of S2
+# and S2 is not a parent of S1:
+# 
+# - If `coverage[A] == Hit` and `coverage[B] != Hit`,
+#   then B ∉ execution_set
+# 
+# In other words:
+# execution of a line in one scope never causes a line
+# in a sibling or unrelated scope
+# to appear in the execution set.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that
+for any two lines A and B
+where A is in scope S1 and B is in scope S2
+and S1 ≠ S2
+and S1 is not a parent of S2
+and S2 is not a parent of S1:
+'''
+

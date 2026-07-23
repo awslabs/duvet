@@ -11,9 +11,9 @@ fn main() {
     // destination, not whatever miette's default lazy autodetection sees.
     //
     // Diagnostics in duvet are commonly rendered via `format!("{:?}", error)`
-    // inside Display impls. At that point the formatter is a
-    // `core::fmt::Formatter` and miette's default handler has no way to
-    // consult the eventual destination, so it ships ANSI escapes
+    // inside Display impls (see duvet/src/query/result.rs). At that point the
+    // formatter is a `core::fmt::Formatter` and miette's default handler has
+    // no way to consult the eventual destination, so it ships ANSI escapes
     // unconditionally. Captured stdout/stderr in CI then contains color codes
     // that no one will see and that break snapshot tests.
     //

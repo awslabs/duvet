@@ -1,0 +1,49 @@
+source = { local = true }
+# A requirement is covered by three citations whose quotes OVERLAP to tile its
+# full text. `-q validated` selects the requirement (its quote contains
+# "validated") but must NOT be applied to the covering citations: the first tile
+# ("This MUST be encrypted and") does not contain "validated", so filtering the
+# coverer pool would drop it, leave the head of the requirement uncovered, and
+# flip a fully-covered requirement to a false "incomplete". With the filter
+# applied to the requirement side only, all three tiles remain and it PASSES.
+# (Verified: under the old blanket filter this run reported FAIL/incomplete.)
+cmd = ["duvet query --check implementation -q validated"]
+report_output = false
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST be encrypted and
+
+//= spec.md#section-1
+//= type=implementation
+//# encrypted and validated and
+
+//= spec.md#section-1
+//= type=implementation
+//# validated and stored
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST be encrypted and validated and stored
+"""

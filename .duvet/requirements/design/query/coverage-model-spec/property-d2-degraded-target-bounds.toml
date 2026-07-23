@@ -1,0 +1,16 @@
+target = "design/query/coverage-model-spec.md#property-d2-degraded-target-bounds"
+
+# Property D2: Degraded Target Bounds
+#
+# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
+# status resolves a target strictly below the annotation
+# (`target > annotation.end_line`). This is inherited from Phase 1 (Property 10).
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that any `Executed` or `NotExecuted` degraded
+status resolves a target strictly below the annotation
+(`target > annotation.end_line`).
+'''
+

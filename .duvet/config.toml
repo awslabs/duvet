@@ -1,7 +1,18 @@
 '$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
 
+# Only `duvet-coverage` carries real requirement annotations (the coverage
+# model proofs). `duvet/**` is intentionally NOT scanned for now: duvet's
+# annotation parser also reads string literals, so example annotations in
+# duvet's own test fixtures and help strings (e.g. `//= spec.md#...`,
+# `//= https://.../rfc2324...`) would be picked up as real citations. Once
+# that parser issue is fixed, `duvet/**` can be scanned safely.
+# See https://github.com/awslabs/duvet/issues/226
+
 [[source]]
-pattern = "duvet/**/*.rs"
+pattern = "duvet-coverage/**/*.rs"
+
+[[specification]]
+source = "design/query/coverage-model-spec.md"
 
 [report.html]
 enabled = true

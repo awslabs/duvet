@@ -1,0 +1,53 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c coverage -r jacoco.xml -f jacoco-xml
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 5 sources 
+     Parsing annotations
+      Parsed 9 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 3 sections 
+    Matching references
+     Matched 9 references 
+  
+Coverage: ✗ FAIL
+
+  Coverage reports checked: 1
+  Executed tests: 3
+  Executed implementations: 2
+  Successful correlations: 2
+  Failed correlations: 1
+  Tests with no implementation: 0
+
+  × Failed correlation
+    ╭─[src/com/example/ShapesTest.java:17:13]
+ 16 │     
+ 17 │ ╭─▶         //= spec.md#square-area
+ 18 │ │           //= type=test
+ 19 │ ├─▶         //# The area of a square MUST be the side length squared.
+    · ╰──── Executed test
+ 20 │             // This test is itself executed (it runs in main), but it never calls
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Failed correlation
+    ╭─[src/com/example/Shapes.java:20:17]
+ 19 │             public double area() {
+ 20 │ ╭─▶             //= spec.md#square-area
+ 21 │ │               //= type=implementation
+ 22 │ ├─▶             //# The area of a square MUST be the side length squared.
+    · ╰──── Not executed implementation
+ 23 │                 return s * s;
+    ╰────
+
+
+
+Overall: ✗ FAIL

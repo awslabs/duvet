@@ -1,0 +1,22 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c coverage -r jacoco-coverage.xml -f jacoco-xml
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 3 sources 
+     Parsing annotations
+      Parsed 3 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 3 references 
+  × coverage report entry 'com/example/Foo.java' is ambiguous: it matches
+  │ multiple source files (moduleA/src/main/java/com/example/Foo.java,
+  │ moduleB/src/main/java/com/example/Foo.java). duvet cannot tell which file
+  │ the report refers to.
