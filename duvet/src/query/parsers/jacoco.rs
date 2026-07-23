@@ -84,9 +84,8 @@ fn parse_jacoco_report_package<T: BufRead>(
                 // Per-line coverage lives only in <sourcefile>; <class>/<method>
                 // carry no line data, so we skip everything else here (the loop's
                 // outer `_ => {}` steps over their events until </package>). If
-                // JaCoCo method boundaries are ever needed (see the `MethodBoundary`
-                // TODO in coverage.rs), reintroduce exactly the parsing that
-                // consumer requires.
+                // JaCoCo method boundaries are ever needed, reintroduce exactly
+                // the parsing that consumer requires.
                 if e.local_name().into_inner() == b"sourcefile" {
                     let file = get_xml_attribute(parser, e, "name")?;
                     let source_file_data = parse_jacoco_report_sourcefile(parser, buf)?;
@@ -116,7 +115,7 @@ fn parse_jacoco_report_package<T: BufRead>(
     }
 
     // The `results_map` keys are filenames by this point (set from
-    // `sourcefilename` / `<sourcefile name>` above), so prefix each with the
+    // `<sourcefile name>` above), so prefix each with the
     // package to form the report path (e.g. `com/example/Hello.java`).
     // If package is the empty string, we have to trim the leading '/' in order to
     // obtain a relative path.
@@ -286,6 +285,54 @@ mod tests {
         // Check lines
         assert_eq!(file_coverage.lines.get(&1), Some(&1));
         assert_eq!(file_coverage.lines.get(&4), Some(&1));
+    }
+
+    /// JaCoCo emits `<package name="">` for classes in the default (unnamed)
+    /// package. The path join would produce `/Hello.java`; the parser must
+    /// trim the leading `/` so the key is a relative path.
+    #[test]
+    fn empty_package_name_trims_leading_slash() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<report name="test">
+    <package name="">
+        <sourcefile name="Hello.java">
+            <line nr="1" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>"#;
+
+        let result = parse_jacoco_xml_report(Cursor::new(xml)).unwrap();
+
+        assert_eq!(result.files.len(), 1);
+        let file_coverage = result.files.get("Hello.java").unwrap();
+        assert_eq!(file_coverage.lines.get(&1), Some(&1));
+    }
+
+    /// Per-line coverage is read only from `<sourcefile>`; `<class>` elements
+    /// (and their `sourcefilename` attributes) are skipped entirely. A
+    /// `<class>` with no matching `<sourcefile>` contributes nothing.
+    #[test]
+    fn class_elements_are_ignored() {
+        let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+<report name="test">
+    <package name="com/example">
+        <class name="com/example/Orphan" sourcefilename="Orphan.java">
+            <method name="foo" desc="()V" line="1">
+                <counter type="LINE" missed="0" covered="1"/>
+            </method>
+        </class>
+        <sourcefile name="Hello.java">
+            <line nr="1" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>"#;
+
+        let result = parse_jacoco_xml_report(Cursor::new(xml)).unwrap();
+
+        // Only the <sourcefile> entry exists; the orphan <class> is invisible.
+        assert_eq!(result.files.len(), 1);
+        assert!(result.files.contains_key("com/example/Hello.java"));
+        assert!(!result.files.contains_key("com/example/Orphan.java"));
     }
 
     /// `ci`/`mi` decide statement status per JaCoCo's report.dtd

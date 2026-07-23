@@ -50,21 +50,12 @@ pub struct Query {
 // matching `//#` quote lines, on purpose — they show users what real
 // annotations look like.
 //
-// These string literals are scanned by duvet's own annotation parser when
-// it runs on this repository, because the parser does not currently
-// distinguish source comments from string literal contents. The result is
-// that RFC 2324 (HTCPCP) is recorded as a tracked specification in
-// `.duvet/snapshot.txt`, and its text is cached in
-// `.duvet/specifications/www.rfc-editor.org/rfc/rfc2324.txt` so that
-// builds remain reproducible without a network fetch.
-//
-// This is a known leak — the help text accidentally creates real
-// traceability state. See https://github.com/awslabs/duvet/issues/226
-// for the planned fix
-// (either escape the `//=` patterns here or teach the annotation parser
-// to skip Rust string literals). Until that lands, do not delete the
-// cached RFC file or remove the example annotations from these help
-// strings without coordinating both changes.
+// Duvet's own annotation parser does not distinguish source comments from
+// string literal contents, so if this file were scanned, these examples
+// would be recorded as real citations. The repo's `.duvet/config.toml`
+// therefore scans only `duvet-coverage/**` and deliberately excludes
+// `duvet/**`. See https://github.com/awslabs/duvet/issues/226 for the
+// parser fix that would make `duvet/**` scannable.
 pub enum CheckType {
     #[value(alias = "implementations")]
     #[value(
@@ -120,11 +111,11 @@ Example test annotation:
     Test,
     #[value(
         help = "Uses code coverage to verify that all test annotations are executed
-and that each test annotation executes it corresponding implementation annotation(s).
+and that each test annotation executes its corresponding implementation annotation(s).
 
 The check PASSES when:
 - Annotations accurately quote the specification requirements
-- All test annotations are executed and each test annotation, the corresponding implementation annotation is executed.
+- All test annotations are executed and, for each test annotation, the corresponding implementation annotation is executed.
 
 The check FAILS when:
 - Any test annotations are not executed
@@ -132,20 +123,24 @@ The check FAILS when:
 - Any corresponding implementation annotations do not exist.
 
 Executed:
-An annotation is said to be executed if it is followed by an executed line in code coverage.
-If _only_ whitespace exists between the end of the annotation and the executed line,
-then the annotation is still said to be executed.
-Execution is also a transitive property,
-so if an annotation is stacked onto of an executed annotation it is also executed.
+An annotation is executed when the code construct it targets was executed
+according to the coverage report. The target is found by walking forward from
+the annotation, skipping whitespace, comments, and stacked annotations
+(so execution is transitive across a stack of annotations). Non-executable
+target lines (declarations, method signatures) count as executed when the
+code they introduce ran.
 
-Any line that is not an annotation, or appears in the coverage report as executable
-is considered `unknown` and will break the chain of executable.
-This includes comments and type definitions, like interfaces.
+Annotations that target purely structural constructs (e.g. an interface with
+no executable code) are reported as structural and FAIL this check —
+execution cannot verify them. Use `type=implication` for such targets.
+
+When no line classifier exists for the file's language, a degraded model
+reads the target's coverage directly from the report instead.
 
 Note: This check, like test, only operates on existing annotations.
 
-Example implementation annotation:
-    pub fn handle_brew_request() {
+Example test annotation:
+    pub fn test_handle_brew_request() {
         //= https://www.rfc-editor.org/rfc/rfc2324#section-2.1.1
         //= type=test
         //# A coffee pot server MUST accept both the BREW and POST method
@@ -154,7 +149,7 @@ Example implementation annotation:
     )]
     Coverage,
     #[value(
-        help = "The same as `coverage` expect it only operates on executed test annotations.
+        help = "The same as `coverage` except it only operates on executed test annotations.
 This is helpful for quick on-off checking of a single test.
 "
     )]

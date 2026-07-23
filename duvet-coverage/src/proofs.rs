@@ -1000,9 +1000,9 @@ mod tests {
             children: vec![],
         }];
         let cov = cov_hit(&[6]);
-        // Property 5 (Stacking Transitivity) is proven over the spec twins in a
-        // follow-up commit; this test verifies runtime behavior: stacked
-        // annotations both return Executed.
+        // Property 5 (Stacking Transitivity) is proven over the spec twins by
+        // `lemma_stacking_transitivity` above; this test verifies runtime
+        // behavior: stacked annotations both return Executed.
         let status_a = is_annotation_executed(
             &AnnotationSpan {
                 start_line: 2,

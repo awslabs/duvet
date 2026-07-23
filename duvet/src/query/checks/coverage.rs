@@ -74,7 +74,7 @@ pub enum FileExecutionData {
     /// forward target walk, deciding status by reading coverage directly on the
     /// resolved line. Sound but lower-fidelity (no scope propagation).
     Degraded(DegradedFileData),
-    /// **Defeated commitment** (Finding #3, spec §1.5). Either the classifier
+    /// **Defeated commitment** (spec §1.5). Either the classifier
     /// reported it could not parse the file, or the verified balance check found
     /// its `ScopeOpen`/`ScopeClose` stream unbalanced. Either way no trustworthy
     /// classification exists, so instead of scoring against `build_scope_tree`'s
@@ -265,11 +265,11 @@ async fn build_file_execution_data(
         // `ScopeOpen`/`ScopeClose` per line and so drops a brace on a COMPOUND
         // line (`} finally {}`, `}}`), which made the verified balance check
         // (correctly, over its lossy input) report balanced code as unbalanced
-        // and falsely escalate valid Java to `DefeatedClassification` (PR #227;
-        // git bisect: a612679). The event stream is faithful, so a
+        // and falsely escalate valid Java to `DefeatedClassification`. The
+        // event stream is faithful, so a
         // brace-balanced file now passes the gate. On a genuine imbalance we
         // still refuse to score against `build_scope_tree`'s collapsed whole-file
-        // scope (Finding #3) and escalate to a located `Unknown`.
+        // scope (spec §1.5) and escalate to a located `Unknown`.
         let scope_events = classifier.scope_events(&file_content);
         if let Some(witness_line) = scope_imbalance_site(&scope_events) {
             return Ok(FileExecutionData::DefeatedClassification {
@@ -279,6 +279,18 @@ async fn build_file_execution_data(
                 }],
             });
         }
+
+        // Discharge `build_scope_tree`'s event-stream preconditions at this
+        // same boundary: events arrive in source order (lines never decrease)
+        // and every brace sits on a real, bounded line. This holds by
+        // construction today — classifiers emit events sorted by byte offset
+        // and tree-sitter rows are monotone — but a future classifier that
+        // violates it would void the verified nesting guarantees, so this is
+        // the tripwire.
+        debug_assert!(scope_events.windows(2).all(|w| w[0].line <= w[1].line));
+        debug_assert!(scope_events
+            .iter()
+            .all(|e| e.line >= 1 && e.line < u64::MAX));
 
         let scopes = build_scope_tree(&scope_events, line_count);
 
@@ -507,7 +519,7 @@ pub fn executed_status_for(
             }
         }
         Some(FileExecutionData::DefeatedClassification { issues }) => {
-            // Defeated commitment (Finding #3): no trustworthy classification
+            // Defeated commitment (spec §1.5): no trustworthy classification
             // exists for this file (parse error or unbalanced scopes). Report a
             // located, non-blocking `Unknown` anchored to the first issue rather
             // than a verdict computed against a collapsed/garbage tree. `issues`
@@ -666,8 +678,8 @@ public class Two {
     // --- coverage_path_matches ---
     //
     // These exercise the single suffix rule against every shape the old
-    // four-strategy `paths_match` handled, plus the boundary and same-name cases
-    // the reviewer asked for. The duvet side is always an *absolute* path, since
+    // four-strategy `paths_match` handled, plus the boundary and same-name
+    // cases. The duvet side is always an *absolute* path, since
     // the caller absolutizes before matching.
 
     #[test]

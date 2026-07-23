@@ -188,7 +188,7 @@ fn collect_scope_events(node: &tree_sitter::Node, out: &mut Vec<(usize, ScopeEve
 /// Collect the 1-based start line of every `ERROR`/`MISSING` node in the parse
 /// tree. These locate the syntax errors for the defeated-commitment diagnostic
 /// (spec §1.5). Reporting *all* of them — not just the first — lets the user see
-/// the whole set in one `query` run (cf. idx37A: collect all before failing).
+/// the whole set in one `query` run.
 fn collect_parse_error_lines(node: &tree_sitter::Node, out: &mut Vec<u64>) {
     if node.is_error() || node.is_missing() {
         out.push(node.start_position().row as u64 + 1);
@@ -612,7 +612,7 @@ mod tests {
         // Broken Java (incomplete expression): tree-sitter reports an error, so
         // the classifier refuses rather than emitting a half-built (and likely
         // unbalanced) classification. The result is a non-empty set of located
-        // ParseError issues — never a silent all-`None` (Finding #3 / idx55).
+        // ParseError issues — never a silent all-`None` (spec §1.5).
         let broken = "public class Foo {\n    void m() {\n        int x = ;\n    }\n}";
         match JavaClassifier.classify(broken) {
             Classification::Unclassifiable { first, rest } => {
@@ -640,7 +640,8 @@ mod tests {
     // `scope_imbalance_site` returns `None`. A balanced source the classifier
     // reports as unbalanced is a *false* defeated-classification: valid code
     // scored as `Unknown` (coverage.rs routes an imbalance to
-    // `DefeatedClassification`). git bisect pinned the regression to a612679;
+    // `DefeatedClassification`). The regression was introduced when
+    // defeated-classification escalation replaced the silent fallback;
     // the root cause is representational — `LineClass = BTreeSet<LineProperty>`
     // cannot carry more than one `ScopeClose` (or `ScopeOpen`) per physical line,
     // so a compound line like `} finally {}` (close-try + open-finally +
@@ -955,12 +956,16 @@ mod tests {
 
     // An `Annotation` line carries *only* `Annotation`, never a code property —
     // even when a multi-line AST node paints over it. `//=`/`//#` is detected at
-    // the (trimmed) line start, so everything after is comment text; and the
-    // mutual-exclusivity post-pass strips Statement/Declaration/ScopeOpen/
-    // ScopeClose/NonLinearControl off any annotation line. This is what makes
-    // `line_is_skippable`'s `contains(Annotation)` rule sound in the coverage
-    // model (duvet-coverage predicates.rs): the walk can skip an annotation line
-    // without ever stepping past a scope boundary, because a line like
+    // the (trimmed) line start, so the whole line is annotation text and no
+    // brace token can appear on it; ScopeOpen/ScopeClose are stamped only on
+    // the lines carrying a block's `{`/`}` tokens, so no structural property
+    // ever lands on an annotation line. Semantic properties a multi-line node
+    // paints across it are stripped by the post-pass, which removes semantic
+    // properties from non-code-start lines — an annotation line is never
+    // code-start. This is what makes `line_is_skippable`'s
+    // `contains(Annotation)` rule sound in the coverage model (duvet-coverage
+    // predicates.rs): the walk can skip an annotation line without ever
+    // stepping past a scope boundary, because a line like
     // `{Annotation, ScopeClose}` cannot leave this classifier.
     #[test]
     fn annotation_line_is_pure_even_across_multiline_span() {
@@ -1177,7 +1182,7 @@ mod tests {
     /// closing braces are missing) must NOT emit a lopsided ScopeOpen/ScopeClose
     /// stream. tree-sitter returns `Some(tree)` with inline ERROR/MISSING nodes;
     /// we detect `has_error()` and report `Unclassifiable` with located parse
-    /// issues (Finding #3), so the dispatcher escalates loudly to a located
+    /// issues (spec §1.5), so the dispatcher escalates loudly to a located
     /// `Unknown` instead of silently feeding the verified scope model an
     /// unbalanced stream it would collapse to one whole-file scope.
     #[test]
@@ -1230,7 +1235,7 @@ mod tests {
 
     /// A `static { … }` initializer runs at class-init and JaCoCo reports its
     /// body lines. The `static` keyword line is a Declaration (transparent to the
-    /// backward walk); the inner block supplies the scope. Covers the reviewer's
+    /// backward walk); the inner block supplies the scope. Covers the
     /// `static` / `{` split-line hazard: the keyword line is stamped even when the
     /// brace is on a later line.
     #[test]
@@ -1248,7 +1253,7 @@ mod tests {
 
     /// The `static` keyword on its own line (brace on the next) must still be
     /// classified — otherwise an annotation above the block walks forward into an
-    /// unclassified line. This is the exact split the reviewer flagged.
+    /// unclassified line.
     #[test]
     fn static_initializer_split_line_brace() {
         let source = "public class Foo {\n    static\n    {\n        setup();\n    }\n}";

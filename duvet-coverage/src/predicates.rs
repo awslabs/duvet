@@ -247,16 +247,21 @@ pub open spec fn line_is_skippable(
         // yielding a false `Executed` (a Property-1 violation).
         //
         // That input cannot arise. An `Annotation` line is guaranteed pure with
-        // respect to scope/statement properties by the classifier that produces
-        // these classifications: `//=` / `//#` is detected only at the (trimmed)
-        // start of a line, so nothing but comment text follows it; and the
-        // classifier's mutual-exclusivity post-pass strips Statement,
-        // Declaration, ScopeOpen, ScopeClose, and NonLinearControl off any line
-        // carrying Annotation — even when a multi-line AST node (a fluent
-        // builder chain, say) paints those properties across it. So on every
-        // real input the extra properties a `contains(Annotation)` line might
-        // carry are non-scope, and skipping it can never cross a scope boundary.
-        // Pinned by `annotation_line_is_pure_even_across_multiline_span` in
+        // respect to scope properties by the classifier that produces these
+        // classifications: `//=` / `//#` is detected only at the (trimmed)
+        // start of a line, so the entire line is annotation text and no brace
+        // token can appear on it; and the classifier stamps
+        // ScopeOpen/ScopeClose only on the lines carrying a block's `{`/`}`
+        // tokens — never across a multi-line node's interior — so no
+        // structural property is ever stamped on an annotation line. Semantic
+        // properties (Statement, Declaration, NonLinearControl) that a
+        // multi-line AST node (a fluent builder chain, say) paints across an
+        // annotation line are removed by the post-pass, which strips semantic
+        // properties from non-code-start lines; an annotation line is never
+        // code-start. So on every real input the extra properties a
+        // `contains(Annotation)` line might carry are non-scope, and skipping
+        // it can never cross a scope boundary. Pinned by
+        // `annotation_line_is_pure_even_across_multiline_span` in
         // duvet/src/query/classify/java.rs.
         || classifications@[line as int - 1].unwrap()@.contains(LineProperty::Annotation)
     )

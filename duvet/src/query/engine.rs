@@ -377,7 +377,7 @@ async fn execute_coverage_check(
 
     // Loud, non-verbose: files whose selected classifier could not produce a
     // trustworthy classification — a parse error, or an unbalanced scope stream
-    // (Finding #3, spec §1.5). We refuse to score against a collapsed/garbage
+    // (spec §1.5). We refuse to score against a collapsed/garbage
     // tree; their annotations are reported `Unknown`. Surfaced unconditionally
     // because it signals either a mislabeled file or a classifier gap — both need
     // a human, and silence is the bug we are fixing. `query` stays non-blocking

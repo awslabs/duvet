@@ -321,7 +321,14 @@ In practice,
 the [mutual exclusivity contract](#mutual-exclusivity-contract)
 ensures that `Whitespace` and `Comment` do not appear
 in compound classifications with `Statement` or `Declaration`,
-so the only realistic compound cases are
+but structural properties are preserved:
+a closing brace with a trailing comment (`} // end`)
+is classified `{ScopeClose, Comment}`.
+Such a line matches neither pure check
+and falls through to the compound handling below —
+the intended behavior, since a scope delimiter
+must never be skipped as if it were a comment.
+The skippable compound cases are therefore
 `{Whitespace}`, `{Comment}`, or `{Whitespace, Comment}`.
 The `Annotation` check uses containment (`props contains Annotation`)
 because annotations may appear on lines
@@ -543,6 +550,14 @@ propagation. Stopping is the conservative choice — it can only drop lines from
 result (a completeness cost), never add a false positive. Consequently a
 `ScopeOpen` line may only ever be the *terminal* (topmost) line of a propagation
 path, never one strictly between L and the target.
+
+Two formalization notes. First, the between-lines subset condition is
+discharged jointly: `clear_path` forbids `Statement`, `ScopeOpen`, and
+`ScopeClose` between L and the target, while `NonLinearControl` is excluded by
+a sibling conjunct of `has_valid_path` (`!scope_has_non_linear_control`) — the
+guarantee holds by their composition, not by `clear_path` alone. Second, when L
+is the target itself (a direct hit), the "same scope as the target" condition
+holds trivially.
 
 ### Property 2: No Cross-Scope Leakage {#property-2-no-cross-scope-leakage}
 

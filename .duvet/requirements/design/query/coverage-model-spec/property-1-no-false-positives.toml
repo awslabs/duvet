@@ -31,6 +31,14 @@ target = "design/query/coverage-model-spec.md#property-1-no-false-positives"
 # result (a completeness cost), never add a false positive. Consequently a
 # `ScopeOpen` line may only ever be the *terminal* (topmost) line of a propagation
 # path, never one strictly between L and the target.
+# 
+# Two formalization notes. First, the between-lines subset condition is
+# discharged jointly: `clear_path` forbids `Statement`, `ScopeOpen`, and
+# `ScopeClose` between L and the target, while `NonLinearControl` is excluded by
+# a sibling conjunct of `has_valid_path` (`!scope_has_non_linear_control`) — the
+# guarantee holds by their composition, not by `clear_path` alone. Second, when L
+# is the target itself (a direct hit), the "same scope as the target" condition
+# holds trivially.
 
 [[spec]]
 level = "MUST"

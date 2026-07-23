@@ -635,9 +635,9 @@ for the design decisions specific to the coverage model.
 
 Option B kept the **unverified** basic forward-walk as the classifier-less
 baseline. Review (PR #227) surfaced two problems: the forward-walk was unverified
-and untested, and — after `b74ebb0` made `build_execution_data` *refuse* covered
+and untested, and — once `build_execution_data` was changed to *refuse* covered
 files with no classifier — it became unreachable dead code that still read as a
-live second path (Finding #5). We changed direction:
+live second path. We changed direction:
 
 - The unverified forward-walk (`LineMap` / `LineInfo` /
   `executed_status_for_unclassified` and the `update_*_lines` helpers) is
@@ -648,7 +648,7 @@ live second path (Finding #5). We changed direction:
   reading coverage directly on the resolved line — no propagation, so it is sound
   without a scope tree. Proven properties D1 (direct observation), D2 (target
   bounds), D3 (stacking transitivity), D4 (agreement with the classified model).
-- The `b74ebb0` refusal is **reversed**: classifier-less files are scored (lower
+- The refuse-to-score policy is **reversed**: classifier-less files are scored (lower
   fidelity, forward-nearest governance), not refused.
 
 So Option B's intent — "languages without classifiers keep working, no

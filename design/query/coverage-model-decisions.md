@@ -436,6 +436,16 @@ structural annotations belong to the team using duvet, not to duvet itself.
 This doesn't preclude adding an opt-in strict mode later. But the default
 should be informative, not prescriptive.
 
+### Update: the coverage check fails structural test annotations
+
+The shipped coverage check treats `Structural` as `NotExecuted` and fails.
+A `type=test` annotation claims execution-verified coverage; a structural
+target cannot be verified by execution, so reporting it as passing would
+overstate what was checked. The status itself remains informative — `query`
+reports `Structural` as a distinct status — but the check enforces that
+unverifiable-by-execution targets carry `type=implication` instead of
+`type=test`. See design.md §2.4 ("Structural annotations").
+
 ## Decision 7: Representing unclassified lines (Unknown)
 
 ### Context
@@ -523,9 +533,11 @@ behavior.
 ### Context
 
 The coverage model is formally verified with Verus (Decision 5). The spec
-document defines five correctness properties (no false positives, no
-cross-scope leakage, conservative fallback, monotonicity, stacking
-transitivity) plus a sixth property for Unknown safety. Each property is proven
+document defines correctness properties — no false positives, no cross-scope
+leakage, conservative fallback, monotonicity, stacking transitivity, Unknown
+safety, and the rest of the collections in
+[spec §5](coverage-model-spec.md#correctness-properties) and
+[spec §7.4](coverage-model-spec.md#degraded-properties). Each property is proven
 by a Verus `proof fn`.
 
 Duvet's purpose is requirements traceability — linking specifications to
@@ -585,8 +597,9 @@ descriptions as-is (they are already precise pseudocode). This gives a
 reasonable relation between the design spec and the actual proofs without
 requiring a full RFC-style rewrite of every function description.
 
-A new Task 0 in the implementation plan will configure duvet to track the spec
-document and verify that the Verus proofs provide coverage.
+The repository's `.duvet/config.toml` tracks the spec document and scans
+`duvet-coverage/**`, so `duvet report` verifies that the Verus proofs provide
+coverage of the spec.
 
 ## Decision 9: Classifier contract for unclassifiable lines
 
@@ -817,3 +830,24 @@ The post-processing pass is simple, language-agnostic,
 and makes the mutual exclusivity invariant explicit.
 The spec documents this as a classifier contract
 (see [spec §1.3](#mutual-exclusivity-contract)).
+
+### Update: the post-pass preserves structural properties
+
+The shipped post-pass (`clean_classifications`,
+verified in `duvet-coverage/src/classify_postpass.rs`)
+strips only the *semantic* properties
+(`Statement`, `Declaration`, `NonLinearControl`)
+from non-code-start lines,
+and **never** removes the *structural* properties
+(`ScopeOpen`, `ScopeClose`).
+Stripping a scope delimiter would let the resolution walk
+step across a scope boundary —
+a Property 2 (no cross-scope leakage) violation.
+A line like `} // end` is therefore
+deliberately `{ScopeClose, Comment}`.
+Annotation-line purity does not depend on the post-pass
+stripping structural properties:
+the classifier stamps `ScopeOpen`/`ScopeClose`
+only on the lines carrying a block's brace tokens,
+and an annotation line is entirely `//=`/`//#` text,
+so no structural property is ever stamped on one.
