@@ -130,6 +130,64 @@ jobs:
         run: |
           cargo xtask test
 
+  verify: # verify the duvet-coverage Verus proofs
+    name: Verify duvet-coverage proofs
+    runs-on: ubuntu-latest
+    env:
+      # Verus release pinned for reproducibility. Bump when the matching
+      # vstd version on crates.io advances; the corresponding Rust toolchain
+      # is installed dynamically below by parsing the verus binary's
+      # missing-toolchain error message.
+      #
+      # Releases live at https://github.com/verus-lang/verus/releases
+      VERUS_VERSION: "0.2026.05.24.ecee80a"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache Verus binary
+        id: cache-verus
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/.verus
+          key: verus-${{ env.VERUS_VERSION }}-x86-linux
+
+      - name: Download Verus binary release
+        if: steps.cache-verus.outputs.cache-hit != 'true'
+        run: |
+          curl -L --fail \
+            -o verus.zip \
+            "https://github.com/verus-lang/verus/releases/download/release%2F${VERUS_VERSION}/verus-${VERUS_VERSION}-x86-linux.zip"
+          unzip -q verus.zip
+          mv verus-x86-linux .verus
+
+      - name: Add Verus to PATH
+        run: echo "${{ github.workspace }}/.verus" >> "$GITHUB_PATH"
+
+      - name: Install Rust toolchain required by Verus
+        run: |
+          # Verus pins a specific Rust toolchain per release; install exactly
+          # that one, otherwise `cargo verus build` only sees the repo's pinned
+          # toolchain and aborts with "required rust toolchain <ver> not found".
+          # `verus --version` reports the toolchain (on its `Toolchain:` line,
+          # or in the not-found error). Capture defensively: under
+          # `bash -eo pipefail`, verus exiting non-zero when its toolchain is
+          # missing would otherwise abort this step. Extract by pattern so it
+          # works regardless of message format and across VERUS_VERSION bumps.
+          ver_out=$(verus --version 2>&1 || true)
+          echo "$ver_out"
+          TOOLCHAIN=$(printf '%s\n' "$ver_out" \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-x86_64-unknown-linux-gnu' \
+            | head -1)
+          if [ -z "$TOOLCHAIN" ]; then
+            echo "Could not determine Verus's required toolchain" >&2
+            exit 1
+          fi
+          echo "Installing Verus-required toolchain: $TOOLCHAIN"
+          rustup toolchain install "$TOOLCHAIN"
+
+      - name: Verify duvet-coverage proofs
+        run: cargo verus build -p duvet-coverage
+
   action: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
     steps:

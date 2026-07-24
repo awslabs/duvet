@@ -1,0 +1,23 @@
+target = "design/query/coverage-model-spec.md#property-d4-agreement-with-classified"
+
+# Property D4: Agreement with the Classified Model
+#
+# The implementation MUST prove that where the degraded path emits a verdict on a
+# directly-hit line that a full classifier would mark as a plain `Statement` (and
+# not `NonLinearControl`), it returns the same result the classified model
+# `is_annotation_executed` returns, namely `Executed`. Degraded and classified
+# scoring agree on this domain, so a degraded verdict needs no separate provenance
+# marker; they may differ only on the classifier-dependent cases
+# (`NonLinearControl` and `Declaration` targets, and covered structural lines),
+# where the degraded path is sound under forward-nearest governance but
+# lower-fidelity.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that where the degraded path emits a verdict on a
+directly-hit line that a full classifier would mark as a plain `Statement` (and
+not `NonLinearControl`), it returns the same result the classified model
+`is_annotation_executed` returns, namely `Executed`.
+'''
+

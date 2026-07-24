@@ -1,0 +1,28 @@
+---
+source: xtask/src/tests.rs
+expression: stdout
+---
+$ duvet query --check implementation -q encrypt
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 2 sources 
+     Parsing annotations
+      Parsed 3 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 2 sections 
+    Matching references
+     Matched 3 references 
+
+Implementation: ✓ PASS
+
+  Total requirements: 1
+  Fully implemented: 1
+  Incomplete implementation: 0
+  Mixed implementation: 0
+  TODO: 0
+  Not implemented: 0
+
+Overall: ✓ PASS

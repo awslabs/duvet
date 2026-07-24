@@ -111,8 +111,18 @@ pub async fn build_references(
 
     for annotation in annotations.iter() {
         if annotation.quote.is_empty() {
-            // empty quotes don't count towards coverage but are still
-            // references
+            // A section reference with no quote (`//= spec#section` and no `//#`)
+            // is an intentional *navigational* reference — present by design
+            // since v0.1.0. It anchors at the section title so the section shows
+            // a backlink to this code, but overlaps no requirement text, so it
+            // scores nothing: empty quotes don't count towards coverage but are
+            // still references.
+            //
+            // This is the coverer-side counterpart to the requirement-side
+            // empty-quote footgun documented in
+            // `query::checks::is_annotation_covered`. For a `Spec` annotation an
+            // empty quote is meaningless: it renders here as a title-anchored
+            // *gap*, never a pass — see the known divergence noted there.
             let text = section.full_title.clone();
             references.push(Reference {
                 target: target.clone(),

@@ -1,9 +1,22 @@
 ## Unreleased
 
+### Features
+
+* New `duvet query` subcommand for interactive traceability checks during development. Supports five composable checks: `implementation`, `test`, `coverage`, `executed-coverage`, and `duplicates`. Filter results with `--section` and `--quote`; supply coverage data with `--coverage-report` and `--coverage-format`.
+* New `duvet-coverage` internal crate providing a Verus-verified two-phase coverage model. Algorithms for scope tree construction, target resolution, and execution-set propagation are formally proven against the correctness properties in `design/query/coverage-model-spec.md`. Used by `duvet query --check coverage` for languages with a tree-sitter classifier; other languages use a verified degraded model that reads coverage directly at the annotation's target line.
+* Java line classifier built on tree-sitter; extends the coverage check to handle method declarations, interface bodies, fields without initializers, and other constructs that bytecode-based coverage tools (e.g., JaCoCo) do not report.
+* JaCoCo XML coverage report parser.
+
 ### Bug Fixes
 
 * Honor `NO_COLOR` and disable ANSI escape codes in diagnostic output when stderr is not a terminal.
 * An annotation that references a specification without a `#section` is now reported as an error instead of being silently ignored. Coverage is computed per section, so a section-less reference can never be scored; previously it produced no reference and no diagnostic. If your project relied on the silent behavior, this will surface as new errors in `duvet report`.
+* `duvet query --verbose` no longer panics on annotations with a whitespace-only quote.
+* Java classifier keeps `Statement` on code lines that carry a trailing `//` comment (e.g. `doX(); // note`), so the coverage check no longer reports such lines as not executed.
+* `duvet query --check coverage` builds the scope tree from the pristine classifier output before applying the annotation override, so an annotation trailing a closing brace no longer collapses the file to a single scope.
+* The `duplicates` check reports every duplicate relationship instead of hiding exact-duplicate pairs behind a partial-quote coverer.
+* The `coverage` check ORs execution status across multiple coverage reports before deciding a correlation, so a test passes when any report proves full coverage (design §5.2).
+* The `coverage` check reports tests whose cited specification has no correlated implementation annotation rather than silently passing (design §2.4).
 
 ## 0.4.0 (2025-01-22)
 
