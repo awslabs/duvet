@@ -82,7 +82,7 @@ jobs:
           crate: cargo-udeps
 
       - name: Cache node_modules
-        uses: actions/cache@v5.0.5
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: duvet/www/node_modules
@@ -120,7 +120,7 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: Cache node_modules
-        uses: actions/cache@v5.0.5
+        uses: actions/cache@v6
         continue-on-error: true
         with:
           path: duvet/www/node_modules
@@ -146,7 +146,7 @@ jobs:
 
       - name: Cache Verus binary
         id: cache-verus
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/.verus
           key: verus-${{ env.VERUS_VERSION }}-x86-linux
