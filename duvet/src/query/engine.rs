@@ -522,24 +522,37 @@ async fn execute_coverage_check(
     }
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
-        // Fold the test's own execution status across ALL reports first, with
-        // OR semantics: a test that ran in any report is executed (design
-        // §5.2). Emitting a verdict per report instead pushed a test into both
-        // `successful` (a report where its impl ran) and `failed` (a report
-        // where the impl was missed), double-counting it and failing the check
-        // even when one report proves full coverage.
-        let test_executed = fold_execution_status(&test.target, &execution_data_maps);
+        // Witnesses for this test: the reports that show the test itself
+        // executed (design §5.2). A pair (test, implementation) is discharged
+        // only by a single witness that also shows the implementation
+        // executed — a test executed in one report and an implementation
+        // executed only in a different report do not correlate, because no
+        // single measurement demonstrates that the test exercised the
+        // implementation (Decision 13). Folding each side independently
+        // across ALL reports asked (∃r: test(r)) ∧ (∃r: impl(r)) when the
+        // check means ∃r: test(r) ∧ impl(r), passing exactly the vacuous
+        // cross-report case the check exists to catch.
+        let witnesses: Vec<&ExecutionDataMap> = execution_data_maps
+            .iter()
+            .filter(|exec_data| {
+                matches!(
+                    executed_status_for(&test.target, exec_data),
+                    ExecutionStatus::Executed
+                )
+            })
+            .collect();
 
-        if matches!(test_executed, ExecutionStatus::Executed) {
-            // Fold each covering implementation across reports the same way, so
-            // an implementation executed in any report counts as executed. This
-            // matches the summary reduction used for `executed_implementations`
-            // below.
+        if !witnesses.is_empty() {
+            // The test executed in at least one report. Evaluate each
+            // covering implementation across the witnesses only, with OR
+            // semantics within that set: a pair discharged by any one
+            // witness must not be failed by another report that missed it
+            // (Decision 6's motivating case, preserved by Decision 13).
             let mut executed_implementations = Vec::new();
             let mut not_executed_implementations = Vec::new();
 
             for annotation in &test.covering_annotations {
-                let status = fold_execution_status(annotation, &execution_data_maps);
+                let status = fold_execution_status(annotation, witnesses.iter().copied());
                 if matches!(status, ExecutionStatus::Executed) {
                     executed_implementations.push(annotation.clone());
                 } else {
@@ -562,6 +575,11 @@ async fn execute_coverage_check(
                 failed.push(result);
             }
         } else {
+            // No witnesses: fold the test's own status across all reports
+            // for the diagnostic (Unknown is preferred over Structural /
+            // NotExecuted because it carries line information).
+            let test_executed = fold_execution_status(&test.target, &execution_data_maps);
+
             // Unknown tests are NOT skipped in executed-coverage mode: they
             // represent annotation placement errors that must be fixed
             // regardless of which test you're working on. Only NotExecuted
@@ -749,15 +767,19 @@ fn empty_duplicates() -> Duplicates {
     }
 }
 
-/// Fold an annotation's execution status across every coverage report with OR
-/// semantics: if any report shows it `Executed`, the result is `Executed`
-/// (design §5.2 — executed if ANY report shows it executed). Among the
-/// remaining statuses, `Unknown` is preferred over `Structural`/`NotExecuted`
-/// because it carries diagnostic line information; `NotExecuted` is the base
-/// case when there are no reports.
-fn fold_execution_status(
+/// Fold an annotation's execution status across the given coverage reports
+/// with OR semantics: if any report shows it `Executed`, the result is
+/// `Executed` (design §5.2). Among the remaining statuses, `Unknown` is
+/// preferred over `Structural`/`NotExecuted` because it carries diagnostic
+/// line information; `NotExecuted` is the base case when there are no reports.
+///
+/// The caller chooses the quantifier scope by choosing the reports (design
+/// §5.2, Decision 13): fold over ALL reports for per-annotation questions
+/// ("was this ever executed?"), or over a single test's witnesses for pair
+/// discharge ("did the implementation run in a report where the test ran?").
+fn fold_execution_status<'a>(
     annotation: &Arc<Annotation>,
-    execution_data_maps: &[ExecutionDataMap],
+    execution_data_maps: impl IntoIterator<Item = &'a ExecutionDataMap>,
 ) -> ExecutionStatus {
     let mut folded = ExecutionStatus::NotExecuted;
     for exec_data in execution_data_maps {

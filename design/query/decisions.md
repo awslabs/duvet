@@ -315,6 +315,13 @@ and other test suites that produce separate reports.
 The `--coverage-report` flag accepts multiple paths
 with glob expansion.
 
+Refined by [Decision 13](#decision-13):
+OR semantics remain correct for per-annotation questions
+("was this ever executed?")
+and for false-failure prevention,
+but discharging a test/implementation pair
+requires a single report that witnessed both sides.
+
 ---
 
 ## Decision 7: Executed coverage variant {#decision-7}
@@ -655,3 +662,100 @@ So Option B's intent — "languages without classifiers keep working, no
 regression" — is preserved, but the baseline is now verified rather than an
 untested heuristic. The two-code-path con remains (classified vs. degraded), and
 both paths are now verified.
+
+---
+
+## Decision 13: Same-witness pair discharge {#decision-13}
+
+**Context:** Decision 6 chose OR semantics across reports:
+an annotation is executed if ANY report shows it executed.
+Its recorded con —
+"Can't distinguish 'test A executed this'
+from 'test B executed this' with aggregate formats" —
+was scoped to aggregate formats in prose,
+but the implementation folded every annotation independently
+across all reports, for all inputs.
+
+Each coverage report is a single *measurement*:
+one coherent observation of what executed together.
+With one report per test run,
+report B can show the test executed (implementation missed)
+while report A shows the implementation executed (test missed).
+No single measurement saw both sides,
+yet the coverage check reported a successful correlation.
+The check's question is
+"is there a report where the test ran AND the implementation ran"
+— ∃r: test(r) ∧ impl(r) —
+but the independent fold silently rewrote it as
+"is there a report where the test ran,
+and a report where the implementation ran"
+— (∃r: test(r)) ∧ (∃r: impl(r)).
+The existential does not distribute over the conjunction:
+the fold erased exactly the information
+that per-test reports contain.
+
+### Option A: Keep independent folding for pair discharge
+
+- Pro: No change.
+- Con: Passes the vacuous case above —
+  the exact pairing failure the check exists to catch.
+  A union of execution facts across reports
+  answers no question duvet asks:
+  "executed somewhere" and "executed together"
+  are different claims,
+  and only the second discharges
+  a test/implementation pair.
+
+### Option B: Same-witness discharge
+
+A *witness* for a test T is a report that shows T executed.
+A pair is discharged only by a witness
+that also shows the implementation executed:
+
+```
+witnesses_for(T)  = { report r : T executed in r }
+test_executed(T)  = witnesses_for(T) ≠ ∅
+discharged(T, I)  = ∃ w ∈ witnesses_for(T) : I executed in w
+ever_executed(I)  = ∃ any report r : I executed in r    # summary only
+```
+
+- Pro: Discharge evidence now comes from a single measurement.
+  Correct for per-test reports.
+  Aggregate-report behavior is unchanged:
+  one aggregate report witnesses everything it shows executed,
+  so it discharges the same pairs as before.
+  OR semantics survive where they were right:
+  a pair discharged by any one witness
+  must not be failed by another report that missed it
+  (Decision 6's motivating case),
+  and the ever-executed summary stays a global OR.
+- Con: Mixing aggregate and per-test reports
+  lets the aggregate report discharge a pair
+  that the per-test report missed.
+  This is inherent to accepting aggregate measurements,
+  not to the discharge rule.
+
+### Decision: Option B (same-witness discharge)
+
+This refines Decision 6 rather than reversing it.
+OR across reports remains the semantics
+for per-annotation questions
+("was this ever executed?");
+pair discharge is a conjunction of execution facts
+and must be answered inside a single witness.
+
+The general rule this decision records,
+so this class of problem does not recur:
+when a check conjoins two or more execution facts,
+the semantics must state which report(s)
+the facts may come from.
+Quantifier scope is part of the meaning of the check,
+not an implementation detail of the fold.
+
+This decision is the report-file instantiation of the general
+witness model specified in
+[`design/witness/spec.md`](../witness/spec.md)
+(Property W1: same-witness discharge),
+where witnesses may also be prover obligations;
+see [`design/witness/decisions.md`](../witness/decisions.md)
+for that feature's design record.
