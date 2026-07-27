@@ -857,8 +857,11 @@ the verdict over those witnesses is now universal).
 - **Retrofit pass over the pre-existing annotations** (after the
   feature lands): the old `type=implication` annotations on
   `duvet-coverage`'s Phase 1–3 proofs predate any discharge
-  mechanism; revisit which can be upgraded to test/implementation
-  pairs discharged by this feature's own machinery,
-  and whether the coverage-model spec's requirements can be bound
-  further. A conversation, then work — deliberately deferred
-  until the feature is committed.
+  mechanism; they could be split into separated
+  test/implementation elements discharged by this feature's
+  machinery.
+  Deliberately a subsequent PR, and possibly not worth it:
+  the feature's own confidence already comes from the golden
+  corpus tests and the dogfooded witness spec —
+  retrofitting the old annotations would add confidence to the
+  *rest of the codebase*, a different goal on its own timeline.

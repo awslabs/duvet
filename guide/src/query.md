@@ -46,7 +46,7 @@ $ duvet query -c coverage \
     --coverage-format jacoco-xml
 ```
 
-Both flags are required for coverage checks. `--coverage-report` (short: `-r`) accepts a glob and may be repeated. `--coverage-format` (short: `-f`) currently supports `jacoco-xml`.
+Coverage checks need at least one coverage source. `--coverage-report` (short: `-r`) accepts a glob and may be repeated; `--coverage-format` (short: `-f`) currently supports `jacoco-xml`. Prover logs are declared separately with `--coverage-source` (see [Coverage witnesses from provers](#coverage-witnesses-from-provers)); any combination of sources may be supplied in one invocation.
 
 For each test annotation in scope, duvet determines which lines were executed during the run, finds the implementation annotations that cover those lines, and reports whether the test's claimed implementations were actually exercised.
 
@@ -71,6 +71,81 @@ Coverage model: 12 file(s) language-aware (verified), 3 file(s) degraded — no 
   degraded (no classifier, verified): src/main/c/parser.c
   degraded (no classifier, verified): src/main/rust/lib.rs
 ```
+
+## Coverage witnesses from provers
+
+Coverage evidence does not have to come from running tests.
+A successful Verus verification leaves an elaboration record — the
+source spans of everything the verifier consulted — and duvet can
+use that record the same way it uses a runtime coverage report: a
+`type=test` annotation on a proof is discharged when the proof's
+elaboration actually reaches the paired `type=implementation`
+annotation.
+
+### Producing the prover logs
+
+Run Verus with SST logging enabled:
+
+```console
+$ cargo verus build -p <your-crate> -- --log vir-sst --log-dir target/verus-logs
+```
+
+This writes one `<module>-sst.vir` file per module. The files may
+be gzipped (`*-sst.vir.gz`) to save space; duvet reads both forms
+identically. Only *successful* verification runs are useful —
+verification failures are loud on their own and produce no
+witnesses.
+
+### Declaring coverage sources
+
+Prover logs are declared with `--coverage-source PRODUCER=PATH`,
+which is repeatable and composes with runtime reports in the same
+invocation:
+
+```console
+$ duvet query -c coverage \
+    -r 'target/jacoco/*.xml' -f jacoco-xml \
+    --coverage-source verus-sst=target/verus-logs
+```
+
+Runtime and prover evidence union in one run: a pair may be
+discharged by a test execution, by a proof, or checked against
+both.
+
+### How discharge works
+
+Each piece of evidence is a **witness** — the record of one act of
+checking (one test's run, one proof obligation's verification). A
+test annotation *binds* the witnesses that belong to it: a runtime
+witness by evidence (the test's own lines are executed in it — so
+produce one report per test, not one aggregate report for the
+whole suite), a proof witness by construction (it was built from
+the annotation's position). A pair is discharged only when the
+test binds at least one witness and **every** witness it binds
+reached the implementation. One bound witness that never touches
+the implementation fails the pair — the goal is that no test
+annotation makes a claim it cannot back. Failures list every bound
+witness with its per-witness result, so the failing claim is
+identifiable.
+
+Two placement rules for proof annotations:
+
+- Put `type=test` annotations on *proof elements* (a proof fn or
+  lemma header, an `ensures` clause). A test annotation on an
+  executable body line is not proof-testable — body lines are
+  proof ingredients, not claims — and is reported as such
+  (a runtime producer can still witness it in a mixed run).
+- A proof witness records what elaboration *consulted*
+  (strength `consulted` in the output), which is exactly as strong
+  as line coverage — not a claim that the proof would fail if the
+  implementation changed.
+
+The semantics are specified in
+[`design/witness/spec.md`](https://github.com/awslabs/duvet/blob/main/design/witness/spec.md),
+with design rationale in
+[`design/witness/decisions.md`](https://github.com/awslabs/duvet/blob/main/design/witness/decisions.md).
+The discharge verdict logic is proven correct with Verus in the
+`duvet-coverage` crate.
 
 ## Verbose output
 
