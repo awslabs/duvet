@@ -2,5 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod jacoco;
+pub mod verus_sst;
 
 pub use jacoco::JacocoParser;
