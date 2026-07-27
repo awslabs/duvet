@@ -1,0 +1,169 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r report.xml -f jacoco-xml --coverage-source verus-sst=../../../duvet/src/query/parsers/verus_sst/testdata/vacuity --verbose"]
+report_output = false
+
+# Mixed-provenance run (decisions.md Decision 8, Decision 10): one runtime
+# producer (the -r/-f shorthand, the one-source degenerate case) and one
+# prover producer (--coverage-source verus-sst=...), one engine, one
+# report. The runtime pair discharges via the JaCoCo witness at strength
+# EXECUTED; the proof pair discharges via the Verus obligation witness at
+# strength CONSULTED. The verbose verdict must show both provenances
+# ("discharged by report.xml (executed)" vs "discharged by
+# vacuity::honest_proof (consulted)") so a reader can judge each claim
+# (spec §3, Decision 7).
+#
+# PASS is the correct verdict under Decision 14's universal discharge, and
+# this fixture pins WHY: each test annotation binds exactly ONE witness.
+# The Java test binds only the JaCoCo witness (ByExecution — its lines
+# never appear in the SST log), and the Rust test binds only the
+# honest_proof witness (ByRootSpan in vacuity.rs — not executed in
+# report.xml). Each singleton bound set satisfies the ∀-clause by its one
+# member reaching the implementation. This is NOT the masking case
+# (one test bound by multiple witnesses that disagree); that case is
+# pinned as a FAIL by query-witness-universal-disagreement.toml and
+# query-coverage-multi-report-or.toml.
+#
+# vacuity.rs is the checked-in SST golden fixture's source with
+# line-count-preserving annotation swaps; see
+# query-witness-verus-discharge.toml for the constraint.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "*.rs"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "vacuity.rs"
+contents = """
+use vstd::prelude::*;
+
+verus! {
+
+//= spec.md#add-one
+//# Adding one MUST produce the successor
+pub open spec fn spec_add_one(x: int) -> int {
+    x + 1
+}
+
+pub fn add_one(x: u32) -> (r: u32)
+    requires x < 1000,
+    ensures r == spec_add_one(x as int),
+{
+    let r = x + 1;
+    r
+}
+
+//= spec.md#add-one
+//= type=test
+//# Adding one MUST produce the successor
+pub proof fn honest_proof()
+    ensures forall|x: int| spec_add_one(x) == x + 1,
+{
+}
+
+// ---- Scenario B: vacuous proof, never mentions the impl ------------
+// requires false; ensures something absurd. Never references add_one.
+// Expected (user hypothesis, case 1): tiny closure, no impl spans.
+pub proof fn vacuous_proof(x: int)
+    requires x != x,
+    ensures x == x + 1,
+{
+}
+
+// ---- Scenario B2: vacuous proof that MENTIONS the impl -------------
+// requires false, but the ensures references spec_add_one.
+// Discriminates elaboration-record vs needed-record semantics:
+// if SST records what elaboration touched, spec_add_one appears here
+// even though the solver needed nothing.
+pub proof fn vacuous_proof_mentioning(x: int)
+    requires x != x,
+    ensures spec_add_one(x) == x - 100,
+{
+}
+
+// ---- Scenario C: the user's scenario --------------------------------
+// Impl annotation inside THIS function's body (line with `let y`);
+// test annotation on the vacuously-true ensures.
+// Question: does the fn-level witness closure include its own body
+// (self-inclusion), discharging the pair despite vacuity?
+pub fn self_contained(x: u32) -> (r: u32)
+    ensures x != x ==> r == 999,
+{
+    let y = x;
+    y
+}
+
+} // verus!
+
+fn main() {}
+"""
+
+[[file]]
+path = "src/main/java/com/example/Impl.java"
+contents = """
+package com.example;
+
+public class Impl {
+    public void doThing() {
+        //= spec.md#section-1
+        //= type=implementation
+        //# This MUST do the thing
+        run();
+    }
+}
+"""
+
+[[file]]
+path = "src/test/java/com/example/ImplTest.java"
+contents = """
+package com.example;
+
+public class ImplTest {
+    public void testThing() {
+        //= spec.md#section-1
+        //= type=test
+        //# This MUST do the thing
+        new Impl().doThing();
+    }
+}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+
+## Add one
+
+Adding one MUST produce the successor
+"""
+
+[[file]]
+path = "report.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="A">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""

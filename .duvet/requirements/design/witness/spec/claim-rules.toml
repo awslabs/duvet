@@ -1,0 +1,42 @@
+target = "design/witness/spec.md#claim-rules"
+
+# 1.5 Claim rules and binding
+#
+# A test annotation must find *its own* witness.
+# Each witness carries one claim rule;
+# `binds` is total over (annotation, witness) pairs:
+# 
+# ```
+# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
+# 
+# binds(T, w)  ⟺  match w.claim:
+#     ByExecution        → executed(T, w)
+#     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
+#                           within r in file f
+# ```
+# 
+# An annotation with no resolved target (e.g. a Structural
+# annotation) binds no ByRootSpan witness —
+# empty-target containment MUST NOT bind vacuously.
+# (Resolution yields at most one target line in the current model,
+# so containment is membership of that single line;
+# found during Phase 4 formalization, 2026-07-27.)
+# 
+# `ByExecution` is the runtime rule:
+# the report cannot record which test produced it,
+# so the test claims the witness by evidence —
+# its own lines are executed in it.
+# This rule is sound only under witness individuation (§4.2).
+# 
+# `ByRootSpan` is the prover rule:
+# the witness was constructed from the annotation's own position
+# (§5), so ownership is positional and holds by construction.
+
+[[spec]]
+level = "MUST"
+quote = '''
+a Structural
+annotation) binds no ByRootSpan witness —
+empty-target containment MUST NOT bind vacuously.
+'''
+

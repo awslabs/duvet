@@ -4,7 +4,7 @@
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
     comment::Pattern,
-    query::coverage::ExecutionStatus,
+    query::{coverage::ExecutionStatus, witness::{PairWitnessResult, WitnessRef}},
 };
 use duvet_core::{error, info};
 use serde::{Deserialize, Serialize};
@@ -70,6 +70,13 @@ pub struct CoverageResult {
     /// annotation anywhere (design §2.4). Reported as failures distinct from
     /// "test ran, implementation did not".
     pub missing_implementation: Vec<Arc<Annotation>>,
+    //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
+    //= type=implementation
+    //# The engine MUST report every test annotation for which no
+    //# delivered witness binds it —
+    //# across ALL configured producers —
+    //# as a failure, never silently
+    pub unwitnessed: Vec<UnwitnessedTestAnnotation>,
     pub verbose: bool,
 }
 
@@ -141,14 +148,42 @@ impl AnnotationCoverage {
 pub struct CoveredTestAnnotation {
     pub test: Arc<Annotation>,
     pub test_execution_status: ExecutionStatus,
+    /// The witnesses bound to this test. The verdict for each covering
+    /// implementation is universal over this set (Decision 14).
+    pub bound_witnesses: Vec<WitnessRef>,
+    /// Implementations every bound witness executed (discharged).
     pub executed_implementations: Vec<Arc<Annotation>>,
     pub not_executed_implementations: Vec<NotExecutedAnnotation>,
 }
 
+//= design/witness/spec.md#verdict-output
+//= type=implementation
+//# For every pair that fails because a bound witness did not execute
+//# the implementation (W1's universal clause), the output MUST list
+//# **every** bound witness with its per-witness result
+//# (executed I / did not execute I) and strength,
+//# so the failing claim is identifiable
 #[derive(Debug)]
 pub struct NotExecutedAnnotation {
     pub annotation: Arc<Annotation>,
     pub status: ExecutionStatus,
+    /// Every bound witness's result for this pair, in bound order
+    /// (already computed to evaluate the verdict — surfaced, never
+    /// silent).
+    pub per_witness: Vec<PairWitnessResult>,
+}
+
+//= design/witness/spec.md#verdict-output
+//= type=implementation
+//# For every unwitnessed test annotation (W6), the output MUST
+//# identify the annotation and state that no configured producer
+//# yielded a witness for it.
+#[derive(Debug)]
+pub struct UnwitnessedTestAnnotation {
+    pub test: Arc<Annotation>,
+    /// The test's own execution status folded across all delivered
+    /// witnesses — diagnostic detail only (Unknown carries a line).
+    pub diagnostic_status: ExecutionStatus,
 }
 
 impl fmt::Display for QueryResult {
@@ -394,6 +429,7 @@ impl fmt::Display for CoverageResult {
         let successful = self.successful.len();
         let failed = self.failed.len();
         let missing_implementation = self.missing_implementation.len();
+        let unwitnessed = self.unwitnessed.len();
 
         writeln!(f, "  Coverage reports checked: {reports_count}")?;
         writeln!(f, "  Executed tests: {executed_tests}")?;
@@ -404,7 +440,43 @@ impl fmt::Display for CoverageResult {
             f,
             "  Tests with no implementation: {missing_implementation}"
         )?;
+        writeln!(f, "  Unwitnessed tests: {unwitnessed}")?;
         writeln!(f)?;
+
+        // Test annotations no configured coverage source yielded a witness
+        // for (spec W6): reported distinctly from bound-but-not-discharged,
+        // never silently. With multiple producers configured, "unwitnessed"
+        // means unwitnessed by ALL of them (Decision 8).
+        if unwitnessed > 0 {
+            for entry in &self.unwitnessed {
+                let detail = match entry.diagnostic_status {
+                    ExecutionStatus::Executed => unreachable!("an executed test is bound"),
+                    ExecutionStatus::NotExecuted => "Not executed test",
+                    ExecutionStatus::Structural => {
+                        "Test target is purely declarative; no executable code to verify"
+                    }
+                    ExecutionStatus::Unknown { .. } => {
+                        "Not executed because of an unknown not executable line."
+                    }
+                };
+                let mut error = error!("Unwitnessed test annotation")
+                    .with_source_slice(entry.test.original_text.clone(), detail);
+                if let ExecutionStatus::Unknown { line_number } = entry.diagnostic_status {
+                    if let Some(line_slice) = get_line_slice(&entry.test, line_number) {
+                        error = error.with_related_source_slice(line_slice, "Problematic line");
+                    }
+                }
+                error = error.with_help(
+                    "No configured coverage source yielded a witness for this \
+                     test annotation (design/witness/spec.md, property W6). If \
+                     its checking act runs under a producer not configured in \
+                     this invocation, add that coverage source; otherwise this \
+                     annotation points at behavior nothing checked.",
+                );
+                writeln!(f, "{error:?}")?;
+            }
+            writeln!(f)?;
+        }
 
         // Tests that cite a spec section nobody implements (design §2.4).
         if missing_implementation > 0 {
@@ -473,6 +545,37 @@ impl fmt::Display for CoverageResult {
                     },
                 );
 
+                // Spec §3 (Decision 14): for every failing pair, list
+                // EVERY bound witness with its per-witness result and
+                // strength — the verdict is universal, and the
+                // disagreement must never be silent. ✓/✗ per witness,
+                // in bound order, per failing implementation.
+                let mut help_lines: Vec<String> = Vec::new();
+                for not_executed in &correlation.not_executed_implementations {
+                    for result in &not_executed.per_witness {
+                        help_lines.push(format!(
+                            "{} {} ({}): {}",
+                            if result.executed { "✓" } else { "✗" },
+                            result.witness.label,
+                            result.witness.strength,
+                            if result.executed {
+                                "executed the implementation"
+                            } else {
+                                "did not execute the implementation"
+                            },
+                        ));
+                    }
+                }
+                if !help_lines.is_empty() {
+                    error = error.with_help(format!(
+                        "Every witness bound to this test, with its \
+                         per-witness result (a pair is discharged only when \
+                         ALL bound witnesses executed the implementation — \
+                         design/witness/decisions.md, Decision 14):\n{}",
+                        help_lines.join("\n")
+                    ));
+                }
+
                 writeln!(f, "{error:?}")?;
             }
             writeln!(f)?;
@@ -492,6 +595,17 @@ impl fmt::Display for CoverageResult {
                     &correlation.executed_implementations,
                     "Executed implementation",
                 );
+
+                // Spec §3 (Decision 14): for every discharged pair, name
+                // EVERY bound witness (label + strength) — the discharge
+                // claim is that all of them executed the implementation.
+                let discharged_by = correlation
+                    .bound_witnesses
+                    .iter()
+                    .map(|w| format!("discharged by {} ({})", w.label, w.strength))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                info = info.with_help(discharged_by);
 
                 // correlation in successful ==>
                 //  correlation.test_execution_status == ExecutionStatus::Executed ==>

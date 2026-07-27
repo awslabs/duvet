@@ -1,27 +1,18 @@
 source = { local = true }
-cmd = ["duvet query -c coverage -r report-a.xml -r report-b.xml -f jacoco-xml"]
+cmd = ["duvet query -c coverage -r report-a.xml -r report-b.xml -f jacoco-xml --verbose"]
 report_output = false
 
-# EXPECTATION FLIPPED by Decision 14 (design/witness/decisions.md;
-# spec §1.6/W1 universal discharge). Fixture data unchanged.
+# Decision 14 universal discharge, agreement side (spec §1.6, W1).
 #
-# One implementation + one test annotate the same spec text. Two reports both
-# show the test executed; report A shows the implementation executed, report B
-# shows it missed. The test therefore BINDS both witnesses, and the verdict is
-# universal: every bound witness must execute the implementation. Report B is
-# a bound claim that never reached the implementation — a per-run vacuity —
-# so the pair must FAIL, and the output must show the per-witness
-# disagreement (✓ report-a / ✗ report-b), never silently.
+# One test annotation bound by TWO witnesses (its lines execute in both
+# reports), and the implementation executes in BOTH. The ∀-clause holds:
+# every bound witness saw both sides, the pair is discharged, and the
+# verbose verdict names EVERY bound witness with its strength (spec §3:
+# "the output MUST name every bound witness").
 #
-# Under the previous ∃-semantics (report A alone discharges; extra reports
-# cannot cause failure) this test pinned a PASS. Decision 14 rejects exactly
-# that masking: a passing witness must not outvote a bound witness that
-# failed. The old concern this test guarded — double-counting one test into
-# both `successful` and `failed` — remains pinned: the test appears exactly
-# once, as one failed correlation.
-#
-# Contrast with query-coverage-cross-report-pair.toml, where NO single report
-# witnesses both sides and the check must also fail.
+# The disagreement side of the same shape — one of the two bound
+# witnesses missing the implementation — is pinned as a FAIL by
+# query-witness-universal-disagreement.toml.
 [[file]]
 path = ".duvet/config.toml"
 contents = """
@@ -74,7 +65,7 @@ contents = """
 This MUST do the thing
 """
 
-# report A: implementation line (Impl.java:8) executed; test line executed
+# report A: test executed, implementation executed
 [[file]]
 path = "report-a.xml"
 contents = """
@@ -92,7 +83,7 @@ contents = """
 </report>
 """
 
-# report B: implementation line MISSED; test line executed
+# report B: test executed, implementation executed
 [[file]]
 path = "report-b.xml"
 contents = """
@@ -101,7 +92,7 @@ contents = """
 <report name="B">
     <package name="com/example">
         <sourcefile name="Impl.java">
-            <line nr="8" mi="3" ci="0" mb="0" cb="0"/>
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
         </sourcefile>
         <sourcefile name="ImplTest.java">
             <line nr="8" mi="0" ci="3" mb="0" cb="0"/>

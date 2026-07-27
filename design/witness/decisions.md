@@ -45,11 +45,16 @@ These terms are used throughout; the decisions are stated in them.
 - **binds(T, w)** — w is *T's own act*.
   How a test annotation claims a witness; see Decision 3.
 - **Discharge** — the obligation a test annotation carries is
-  *discharged* when one single witness both belongs to the test and
-  executed the implementation:
+  *discharged* when the test binds at least one witness and
+  **every** witness it binds executed the implementation
+  (each witness individually must see both sides;
+  quantifier set by Decision 14):
 
   ```
-  discharged(T, I)  ⟺  ∃w : binds(T, w) ∧ executed(I, w)
+  witnesses_for(T)  =  { w : binds(T, w) }
+
+  discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
+                        ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
   ```
 
   Discharge is duvet's bookkeeping claim and nothing more:
@@ -114,7 +119,7 @@ Merge everything, then check both sides in the union.
 - Pro: The discharge claim means what users think it means.
 - Con: Pairs that only ever passed via aggregate unions will fail.
 
-### Decision: Option C
+### Decision: Option C *(quantifier amended by Decision 14: within `witnesses_for(T)`, discharge is universal, not existential)*
 
 Global properties ("every implementation annotation is executed by
 *something*") remain independent existentials over witnesses and
@@ -215,11 +220,15 @@ the load-bearing quantifiers above it were informal.
 Stated over witnesses only — no formats in the vocabulary:
 
 ```
-P1  discharged(T, I)  ⟺  ∃w : binds(T, w) ∧ executed(I, w)
+P1  discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
+                          ∧ ∀w ∈ witnesses_for(T) : executed(I, w)
+    where witnesses_for(T) = { w : binds(T, w) }
+    (quantifier set by Decision 14; originally stated as ∃)
 P2  test_executed(T)  ⟺  ∃w : binds(T, w)
 P3  ever_executed(I)  ⟺  ∃w : executed(I, w)      (global; no correlation)
-P4  Monotonicity: adding a witness never un-discharges a pair;
-    removing one never discharges a pair.
+P4  Monotonicity (inverted by Decision 14): adding a witness never
+    flips a failing pair to passing; it may newly fail a pair —
+    that is the vacuity being caught.
 P5  binds(T, w) under ByExecution ⟹ executed(T, w)
     (tentative — may be difficult to prove as stated;
     if it resists, it may be restated or demoted to a tested
@@ -541,6 +550,263 @@ not a rider on this one.
 
 ---
 
+## Decision 12: Ambiguous discharge-unit attribution yields ALL candidate witnesses {#decision-12}
+
+**Context:** Empirical (Verus SST corpus, milestone 1):
+attribution of a test annotation's position to a discharge unit is
+not always unique.
+Verus generates obligations for derived/accessor code and stamps
+them with the source range of the declaration they were generated
+from — e.g. the `ExecutionStatus` enum declaration
+(`types.rs:154–166`) roots two generated field-accessor
+obligations with byte-identical extents.
+Extent containment fails there (heads are signature-only),
+and own-span ownership finds two owners.
+*(Correction, post-Decision 13: the two-owner tie sits on the
+extent lines 154–166; the closing line 167 was only reachable
+through the deleted own-span step and is not proof-testable.)*
+What should the producer do with N > 1 candidates?
+
+### Option A: Pick one
+
+- Con: A coin flip between obligations whose closures may differ —
+  the pair's verdict becomes arbitrary. Rejected outright.
+
+### Option B: Refuse; construct no witness
+
+- Pro: Never guesses; matches the path-matching refusal posture.
+- Con: The analogy to path-matching fails: there, choosing wrong
+  scores against the wrong file's data; here every candidate is a
+  genuine obligation yielding an individually honest witness.
+- Con: Conflates two different situations under one W6 report —
+  "no obligation exists at this position" and
+  "two obligations exist here" — the worst diagnostics of the
+  three options. Succeeds at doing nothing.
+
+### Option C: Deliver one witness per owning obligation
+
+- Pro: The model already handles it: `witnesses_for(T)` is
+  set-valued, discharge is ∃w, and runtime binding already allows
+  multiple witnesses per test. Individuation (A2) holds per
+  witness — this is N honest witnesses, not one merged map.
+- Pro: Best diagnostics of the three outcomes:
+  discharged → provenance names which obligation discharged
+  (visible if it wasn't the intended one);
+  bound-but-not-discharged → report lists the bound obligations by
+  name, none of which executed the implementation;
+  zero owners → W6 "unwitnessed" now unambiguously means
+  "no obligation exists at this position."
+- Con: A pair can discharge via an obligation the author did not
+  intend (e.g. a generated accessor). Accepted: the claim is
+  honest under consulted semantics and the provenance in the
+  verdict makes it inspectable.
+
+### Decision: Option C *(attribution rule amended by Decision 13; verdict over the N witnesses made universal by Decision 14 — all rooting obligations' witnesses must reach I)*
+
+Producer attribution rule (Verus, generalizable):
+all obligations **rooted at** the position — Decision 13's
+`dom(du)` — are the discharge units, one witness each;
+producers MUST NOT select arbitrarily among owners.
+Zero rooted obligations means no proof witness;
+Decision 13 defines how that is reported.
+The original step-2 fallback (own-span ownership) is deleted:
+it attributed body lines to the enclosing obligation,
+conflating "consulted by" (the impl-side relation) with
+"dischargeable at" (the test-side relation),
+and produced witnesses their own annotations could not bind.
+
+---
+
+## Decision 13: Proof witnesses exist only at dischargeable positions {#decision-13}
+
+**Context:** Empirical (milestone 1 integration):
+Verus stamps many obligations with signature-only extents,
+so a test annotation on a line inside a function *body*
+falls inside no obligation's extent.
+The step-2 fallback (own-span ownership) attributed such a line to
+the enclosing obligation and constructed a witness from it —
+but that witness's `ByRootSpan` claim region (the extent)
+did not contain the annotation's position,
+so the annotation could not bind the very witness built for it:
+a dead witness, and a W6 report while the producer held the act of
+checking in its hand.
+Two geometries — one for materialization, one for binding —
+gave contradictory answers about the same obligation.
+
+The deeper diagnosis: a `type=test` annotation on an executable
+body line is not a proof-world test at all.
+Body lines are proof *ingredients* — the material consulted to
+discharge the ensures — not claims.
+Nothing dischargeable is rooted there.
+It is the exact analog of a runtime test annotation placed outside
+any test runner: there is nothing testable about that position.
+
+### Option A: Widen the claim region to the ownership region
+
+Make `ByRootSpan` carry extent ∪ own-file spans so the dead
+witness becomes bindable.
+
+- Pro: Dissolves the geometry mismatch mechanically.
+- Con: Ratifies the wrong semantics.
+  It patches the two geometries into agreement by adopting the
+  *impl-side* relation ("consulted by") as the test-side binding
+  rule, letting a test annotation on arbitrary body code claim the
+  enclosing obligation as "its" test. Rejected.
+
+### Option B: Restrict witness construction to dischargeable roots
+
+A source position is **proof-testable** iff at least one
+obligation is *rooted* there — iff it is in `dom(du)`.
+
+```
+dom(du) = proof-element positions only:
+          fn/lemma headers (obligation extents),
+          ensures clauses,
+          loop invariants,
+          proof asserts.
+Executable body lines ∉ dom(du).
+```
+
+A test annotation whose resolved target is outside `dom(du)` gets
+zero proof witnesses **by definition, not by machinery failure**,
+and the report says so explicitly:
+"this position is not proof-testable;
+it can only be witnessed by an execution-style producer" —
+distinct from W6's "no obligation exists at this position."
+Such an annotation is picked up normally by runtime producers in a
+mixed run (Decision 8's machinery, unchanged).
+
+- Pro: Construction domain = binding domain, by definition.
+  Dead witnesses and phantom binds become unrepresentable rather
+  than fixed.
+- Pro: `dom(du)` is read from the prover's artifact itself
+  (extents, `:enss` clause spans, `LoopInv` spans),
+  not inferred by source-language cleverness;
+  the classifier stays dumb — it resolves annotation → target and
+  nothing more.
+- Con: Positions the old fallback silently attributed now refuse.
+  Accepted: those attributions were the bug.
+
+### Decision: Option B
+
+Impl annotations are unaffected — body lines remain exactly right
+as *implementation* targets, because `executed(I, w)` is
+membership in a consulted closure and body lines are what closures
+contain. The asymmetry is test-side only,
+matching the semantics: tests are claims, implementations are
+material.
+
+Loop headers: deliberately **excluded** from `dom(du)` for now.
+The artifact would support inclusion
+(Verus isolates loops — `Loop :loop_isolation true`, own id —
+so "this loop's invariants are preserved" is a genuine obligation),
+but annotating the loop header rather than a specific invariant
+adds cleverness ahead of need. Revisitable with evidence.
+
+Supersedes: Decision 12's step-2 own-span fallback (deleted);
+the claim-region proposal (Option A above), considered and
+rejected in review.
+
+---
+
+## Decision 14: Discharge is universal over bound witnesses {#decision-14}
+
+**Context:** Decisions 1–13 stated pair discharge as an
+existential: `∃w : binds(T, w) ∧ executed(I, w)`.
+Two late findings exposed the quantifier as wrong.
+First, dual-domain positions exist — an exec fn's contract header
+is both dischargeable (roots the fn's obligation) and executable
+(runtime coverage records it) — so one T can bind both a proof
+witness and a runtime witness, and they can disagree:
+the proof consults a callee's contract while the runtime executes
+its body.
+Under ∃, adding a runtime producer could mask a proof-side
+failure at the verdict level — a vacuous proof laundered behind a
+passing test, which is the disease this feature exists to catch.
+Second, the feature's goal was never
+"at least one executed test annotation";
+it is "**no vacuous test annotations**."
+Every act of checking that a test annotation claims must actually
+reach the implementation it is paired with.
+
+### Option A: Existential discharge (∃), disagreement surfaced as diagnostics
+
+The pair discharges if any bound witness reached I;
+the report lists every bound witness with its per-witness verdict
+so ✓/✗ splits are visible.
+
+- Pro: Monotone in delivered witnesses (the original P4/W4).
+- Pro: Ambiguity and dual-domain splits never fail CI.
+- Con: Detection is visible but non-failing.
+  A bound witness that never reaches I — a vacuous claim — is a
+  footnote on a pass. Adding producers can weaken effective
+  checking. Encodes "at least one," which is not the property.
+
+### Option B: Universal discharge over bound witnesses (∀ + nonempty)
+
+```
+discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
+                      ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
+```
+
+- Pro: No vacuous claims. Every witness T binds is held to the
+  pair; one bound witness that never reaches I fails the pair —
+  and the CI run.
+- Pro: Dissolves the dual-domain masking problem outright:
+  runtime ✓ / proof ✗ is now a failure, and adding a producer can
+  only strengthen checking. The "declared expectation" escape
+  hatch (per-annotation intent syntax) becomes unnecessary.
+- Pro: Same-witness discipline (Decision 1) is preserved and
+  strengthened: each witness individually must see both sides.
+- Con: Monotonicity inverts — adding a witness can newly fail a
+  pair. Deliberate: that is the vacuity being caught.
+  The sound direction survives as the new monotonicity:
+  adding a witness can never flip a failing pair to passing.
+- Con: Failures at multi-obligation positions (Decision 12) can
+  be hard to read until the report can identify which obligation
+  is which (see Open Question 2).
+
+### Decision: Option B
+
+Ambiguous positions are held to **all** their rooting
+obligations: if a position roots N obligations, all N witnesses
+must reach I. Failing there is correct pressure, not a spurious
+failure — the remediation is to make the position unambiguous.
+The canonical case: one `ensures A && B && C && D` clause when
+the claim is about C alone is ambiguous by construction;
+splitting it into four `ensures` clauses and annotating the C
+clause is the fix, exactly parallel to the
+"move your annotation" UX of Decision 13's not-proof-testable
+bucket.
+Failing without perfect legibility is the floor;
+we do not convert a confusing failure into a pass.
+Improving identification of which obligation failed is follow-up
+work (Open Question 2), never a reason to weaken the verdict.
+
+Consequences:
+- P1/W1 restated with the universal quantifier;
+  P4/W4 (monotonicity) restated in the inverted direction;
+  the Phase 4 proofs are redone against the new statements.
+- Per-witness ✓/✗ reporting (formerly proposed as a footnote on
+  ∃-passes) becomes the **diagnosis attached to failures**:
+  the report MUST list every bound witness with its per-witness
+  result and strength.
+- Duplicate annotation instances (two tests carrying the same
+  citation) were already independent Ts and already failed
+  individually; this decision governs the one-T-many-witnesses
+  cases: dual-domain positions, one test in multiple reports,
+  and Decision 12's multi-obligation positions.
+- A test annotation executed in multiple runtime reports where
+  only some reached I now fails: a per-run vacuity, reported as
+  such.
+
+Supersedes: the quantifier in Decision 1's Option C statement,
+P1/P4 in Decision 4, and the ∃-verdict sentence in Decision 12
+(Option C's structure — all owners, one witness each — stands;
+the verdict over those witnesses is now universal).
+
+---
+
 ## Open questions (not decided) {#open-questions}
 
 1. **The exact closure definition.**
@@ -553,6 +819,20 @@ not a rider on this one.
    Resolution path: not further discussion —
    build the first Verus producer prototype and inspect what the
    artifact actually supports.
+
+2. **Identifying which obligation is which in failure reports.**
+   Under Decision 14, a multi-witness failure lists the bound
+   witnesses that did not reach I — but at ambiguous positions
+   (generated obligations with byte-identical source ranges,
+   conjunct-level obligations) the labels alone may not tell the
+   user *which* claim at their position failed or how to move the
+   annotation to disambiguate.
+   Failing is the floor and is settled (Decision 14);
+   how to make the failure legible — obligation labels,
+   source-range breakdowns, remediation hints
+   ("split the conjuncts") — is the open design.
+   The mandatory per-witness result list (label, strength,
+   per-witness ✓/✗) is the starting point, already normative.
 
 ## Work items (not questions — known work) {#work-items}
 
@@ -574,3 +854,11 @@ not a rider on this one.
 - Amending `design/query/decisions.md` and spec §5.2 to state the
   original per-witness intent (scoped to the correlation-fix work
   stream).
+- **Retrofit pass over the pre-existing annotations** (after the
+  feature lands): the old `type=implication` annotations on
+  `duvet-coverage`'s Phase 1–3 proofs predate any discharge
+  mechanism; revisit which can be upgraded to test/implementation
+  pairs discharged by this feature's own machinery,
+  and whether the coverage-model spec's requirements can be bound
+  further. A conversation, then work — deliberately deferred
+  until the feature is committed.

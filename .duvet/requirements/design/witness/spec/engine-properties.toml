@@ -1,0 +1,27 @@
+target = "design/witness/spec.md#engine-properties"
+
+# 2. Engine properties
+#
+# These properties MUST be proven with Verus,
+# as a new phase of the verified coverage model
+# (the quantifier layer over the existing per-annotation cells).
+# The Verus proof files MUST carry duvet annotations citing the
+# anchors in this section.
+# The properties are stated over witnesses only;
+# no producer or format appears in their vocabulary.
+
+[[spec]]
+level = "MUST"
+quote = '''
+These properties MUST be proven with Verus,
+as a new phase of the verified coverage model
+(the quantifier layer over the existing per-annotation cells).
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The Verus proof files MUST carry duvet annotations citing the
+anchors in this section.
+'''
+

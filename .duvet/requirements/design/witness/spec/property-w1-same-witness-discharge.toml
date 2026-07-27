@@ -1,0 +1,39 @@
+target = "design/witness/spec.md#property-w1-same-witness-discharge"
+
+# Property W1: Universal Same-Witness Discharge
+#
+# The implementation MUST prove that it reports a pair (T, I)
+# discharged if and only if at least one delivered witness binds T
+# and every delivered witness that binds T executed I:
+# 
+# ```
+# report_discharged(T, I, witnesses) = true
+#     ⟺  (∃ w ∈ witnesses : binds(T, w))
+#         ∧ (∀ w ∈ witnesses : binds(T, w) ⟹ executed(I, w))
+# ```
+# 
+# No pair is discharged without a common witness, and no pair is
+# discharged while any witness bound to its test failed to reach
+# its implementation.
+# Evidence assembled from two different witnesses
+# (T bound by one, I executed by another) MUST NOT discharge;
+# a bound witness that did not execute I MUST fail the pair
+# (decisions.md, Decision 14).
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that it reports a pair (T, I)
+discharged if and only if at least one delivered witness binds T
+and every delivered witness that binds T executed I:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Evidence assembled from two different witnesses
+(T bound by one, I executed by another) MUST NOT discharge;
+a bound witness that did not execute I MUST fail the pair
+(decisions.md, Decision 14).
+'''
+

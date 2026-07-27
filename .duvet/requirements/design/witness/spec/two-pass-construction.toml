@@ -1,0 +1,64 @@
+target = "design/witness/spec.md#two-pass-construction"
+
+# 5.2 Two-pass construction
+#
+# A prover producer MUST parse its artifact once into a structure
+# of obligation nodes and reference edges,
+# and derive both of the following from it:
+# 
+# 1. **Pass 1 — liveness.** An *aggregate executability map*
+#    (every line the verifier elaborated),
+#    used with the existing resolve/classify/score machinery to
+#    determine which witnessable annotations are live.
+# 2. **Pass 2 — construction.** For each live annotation:
+#    its discharge unit (§5.3), that unit's closure (§5.4),
+#    and from the closure one witness with claim rule
+#    `ByRootSpan(discharge unit's extent)`.
+# 
+# The aggregate executability map MUST NOT be delivered as a
+# witness: it is many obligations wearing one map,
+# and delivering it would violate §4.2 by construction.
+# 
+# A source position is **proof-testable** iff at least one
+# obligation is rooted there — iff it is in the domain of the
+# discharge-unit map (§5.3).
+# If a live annotation's resolved target is not proof-testable,
+# the producer MUST deliver no witness for it,
+# and the report MUST identify the annotation as
+# *not proof-testable* ("this position carries no dischargeable
+# obligation; it can only be witnessed by an execution-style
+# producer") — a report distinct from Property W6's
+# "no witness from any configured producer."
+# In a mixed run such an annotation binds runtime witnesses
+# normally.
+
+[[spec]]
+level = "MUST"
+quote = '''
+A prover producer MUST parse its artifact once into a structure
+of obligation nodes and reference edges,
+and derive both of the following from it:
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The aggregate executability map MUST NOT be delivered as a
+witness: it is many obligations wearing one map,
+and delivering it would violate §4.2 by construction.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+If a live annotation's resolved target is not proof-testable,
+the producer MUST deliver no witness for it,
+and the report MUST identify the annotation as
+*not proof-testable* ("this position carries no dischargeable
+obligation; it can only be witnessed by an execution-style
+producer") — a report distinct from Property W6's
+"no witness from any configured producer."
+In a mixed run such an annotation binds runtime witnesses
+normally.
+'''
+

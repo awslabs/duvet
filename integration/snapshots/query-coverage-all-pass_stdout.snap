@@ -27,6 +27,7 @@ Coverage: ✓ PASS
   Successful correlations: 2
   Failed correlations: 0
   Tests with no implementation: 0
+  Unwitnessed tests: 0
 
   ☞ Successful correlation
     ╭─[src/test/java/com/example/StackingTestTest.java:14:13]
@@ -37,6 +38,7 @@ Coverage: ✓ PASS
     · ╰──── Test annotation
  17 │             
     ╰────
+  help: discharged by jacoco-coverage-testGenerateKey.xml (executed)
 
 Advice: 
   ☞ Related context for:
@@ -59,6 +61,7 @@ Advice:
     · ╰──── Test annotation
  29 │             
     ╰────
+  help: discharged by jacoco-coverage-testGenerateKeyExactSize.xml (executed)
 
 Advice: 
   ☞ Related context for:

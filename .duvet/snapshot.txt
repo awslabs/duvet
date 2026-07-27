@@ -143,3 +143,192 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
   SECTION: [8.3 Escalation](#escalation)
     TEXT[!MUST]: When `report` consumes coverage, a defeated commitment MUST be a hard
     TEXT[!MUST]: error there, because `report` is the authoritative artifact.
+
+SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
+  SECTION: [Duvet Witness: Formal Specification](#duvet-witness-formal-specification)
+    TEXT[!MUST]: The requirement keywords MUST, MUST NOT, SHOULD, and MAY are to be
+    TEXT[!MUST]: interpreted as described in RFC 2119.
+
+  SECTION: [1.2 Witness](#witness)
+    TEXT[!MUST]: A witness's `files` maps MUST be **closed**:
+    TEXT[!MUST]: they contain every line the act touched,
+    TEXT[!MUST]: under the producer's reachability relation
+    TEXT[!MUST]: (execution for runtime producers,
+    TEXT[!MUST]: obligation-graph closure for prover producers).
+
+  SECTION: [1.3 Provenance](#provenance)
+    TEXT[!MUST]: Verdict output MUST report every bound witness's label and
+    TEXT[!MUST]: strength with its per-witness result (§3), so a reader can judge
+    TEXT[!MUST]: each claim
+    TEXT[!MUST]: (decisions.md, Decisions 7 and 14).
+
+  SECTION: [1.5 Claim rules and binding](#claim-rules)
+    TEXT[!MUST]: a Structural
+    TEXT[!MUST]: annotation) binds no ByRootSpan witness —
+    TEXT[!MUST]: empty-target containment MUST NOT bind vacuously.
+
+  SECTION: [1.7 Producer](#producer)
+    TEXT[!MAY]: Runtime producers MAY ignore the `annotations` argument
+    TEXT[!MAY]: (their witnesses pre-exist in the artifact).
+    TEXT[!MUST]: The producer-internal artifact format MUST NOT escape the
+    TEXT[!MUST]: producer; the engine consumes only `Vec<Witness>`.
+    TEXT[!MUST]: Normatively: every delivered witness MUST be a function of
+    TEXT[!MUST]: (artifact, obligation) only — identical regardless of which
+    TEXT[!MUST]: annotation caused its materialization, carrying no annotation
+    TEXT[!MUST]: identity — and the filtering MUST be sound:
+    TEXT[!MUST]: for every requested annotation, binding and discharge verdicts
+    TEXT[!MUST]: over the materialized set MUST equal the verdicts over the full
+    TEXT[!MUST]: universe.
+
+  SECTION: [2. Engine properties](#engine-properties)
+    TEXT[!MUST]: These properties MUST be proven with Verus,
+    TEXT[!MUST]: as a new phase of the verified coverage model
+    TEXT[!MUST]: (the quantifier layer over the existing per-annotation cells).
+    TEXT[!MUST]: The Verus proof files MUST carry duvet annotations citing the
+    TEXT[!MUST]: anchors in this section.
+
+  SECTION: [Property W1: Universal Same-Witness Discharge](#property-w1-same-witness-discharge)
+    TEXT[!MUST,test]: The implementation MUST prove that it reports a pair (T, I)
+    TEXT[!MUST,test]: discharged if and only if at least one delivered witness binds T
+    TEXT[!MUST,test]: and every delivered witness that binds T executed I:
+    TEXT[!MUST]: Evidence assembled from two different witnesses
+    TEXT[!MUST]: (T bound by one, I executed by another) MUST NOT discharge;
+    TEXT[!MUST]: a bound witness that did not execute I MUST fail the pair
+    TEXT[!MUST]: (decisions.md, Decision 14).
+
+  SECTION: [Property W2: Test Execution](#property-w2-test-execution)
+    TEXT[!MUST,test]: The implementation MUST prove that a test annotation is reported
+    TEXT[!MUST,test]: executed if and only if some delivered witness binds it:
+
+  SECTION: [Property W3: Global Execution](#property-w3-global-execution)
+    TEXT[!MUST,test]: The implementation MUST prove that an implementation annotation is
+    TEXT[!MUST,test]: reported ever-executed if and only if some delivered witness
+    TEXT[!MUST,test]: executed it:
+    TEXT[!MUST]: This is a global property requiring no correlation;
+    TEXT[!MUST]: it is deliberately weaker than W1 and MUST NOT be used to
+    TEXT[!MUST]: discharge pairs.
+
+  SECTION: [Property W4: Failure Monotonicity](#property-w4-monotonicity)
+    TEXT[!MUST,test]: The implementation MUST prove that adding a witness never flips a
+    TEXT[!MUST,test]: failing pair to passing:
+    TEXT[!MAY]: Adding a witness MAY newly fail a previously-discharged pair —
+    TEXT[!MAY]: that is deliberate: the added witness is a claim T now makes, and
+    TEXT[!MAY]: if it does not reach I it is the vacuity being caught
+    TEXT[!MAY]: (decisions.md, Decision 14; this inverts the direction of the
+    TEXT[!MAY]: original monotonicity property).
+
+  SECTION: [Property W5: Claim Refinement](#property-w5-claim-refinement)
+    TEXT[!MUST,test]: The implementation MUST prove that binding under `ByExecution`
+    TEXT[!MUST,test]: implies execution of the test in the same witness:
+
+  SECTION: [Property W6: Unwitnessed Test Annotations Are Failures](#property-w6-unwitnessed-test-annotations)
+    TEXT[!MUST,test]: The engine MUST report every test annotation for which no
+    TEXT[!MUST,test]: delivered witness binds it —
+    TEXT[!MUST,test]: across ALL configured producers —
+    TEXT[!MUST,test]: as a failure, never silently:
+    TEXT[!MAY]: Consequence (intended): running a subset of producers MAY fail a
+    TEXT[!MAY]: test annotation that the full set passes;
+    TEXT[!MAY]: that behavior is correct
+    TEXT[!MAY]: (decisions.md, Decision 8).
+
+  SECTION: [3. Verdict output requirements](#verdict-output)
+    TEXT[!MUST]: For every discharged pair, the output MUST name every bound
+    TEXT[!MUST]: witness (its label) and its strength (§1.3).
+    TEXT[!MUST]: For every pair that fails because a bound witness did not execute
+    TEXT[!MUST]: the implementation (W1's universal clause), the output MUST list
+    TEXT[!MUST]: **every** bound witness with its per-witness result
+    TEXT[!MUST]: (executed I / did not execute I) and strength,
+    TEXT[!MUST]: so the failing claim is identifiable —
+    TEXT[!MUST]: the engine computes all of these to evaluate the verdict,
+    TEXT[!MUST]: and the disagreement MUST never be silent
+    TEXT[!MUST]: (decisions.md, Decision 14; legibility improvements are tracked
+    TEXT[!MUST]: as Open Question 2 and never weaken the verdict).
+    TEXT[!MUST]: For every unwitnessed test annotation (W6), the output MUST
+    TEXT[!MUST]: identify the annotation and state that no configured producer
+    TEXT[!MUST]: yielded a witness for it.
+
+  SECTION: [4. Producer obligations and trusted base](#producer-obligations)
+    TEXT[!MUST]: Where an obligation cannot be proven, it is a **named axiom** of
+    TEXT[!MUST]: the trusted base and MUST be recorded as such.
+
+  SECTION: [4.1 Closedness](#obligation-closedness)
+    TEXT[!MUST]: Every delivered `files` map MUST be closed under the producer's
+    TEXT[!MUST]: reachability relation (§1.2).
+    TEXT[!SHOULD]: - Prover producers: closedness splits into
+    TEXT[!SHOULD]:   (a) the verifier's record faithfully reflects what elaboration
+    TEXT[!SHOULD]:   consulted — **axiom**, same category as trusting the verifier
+    TEXT[!SHOULD]:   itself — and
+    TEXT[!SHOULD]:   (b) the closure computation over that record is correct —
+    TEXT[!SHOULD]:   our code, which SHOULD be verified in `duvet-coverage`
+    TEXT[!SHOULD]:   (it is a pure graph fixpoint).
+
+  SECTION: [4.2 Individuation](#obligation-individuation)
+    TEXT[!MUST]: Every delivered witness MUST be the record of exactly one act of
+    TEXT[!MUST]: checking.
+
+  SECTION: [4.3 Producer testing](#obligation-testing)
+    TEXT[!MUST]: Each producer MUST be unit-tested against golden artifacts
+    TEXT[!MUST]: (a real report file; a real prover log),
+    TEXT[!MUST]: since producers are unverified glue at the trust boundary.
+
+  SECTION: [5.1 Witnessable annotations](#witnessable-annotations)
+    TEXT[!MUST]: Prover producers MUST construct witnesses for `type=test`
+    TEXT[!MUST]: annotations only
+    TEXT[!MUST]: (decisions.md, Decision 6;
+    TEXT[!MUST]: self-discharging implication annotations are a deferred separate
+    TEXT[!MUST]: feature).
+
+  SECTION: [5.2 Two-pass construction](#two-pass-construction)
+    TEXT[!MUST]: A prover producer MUST parse its artifact once into a structure
+    TEXT[!MUST]: of obligation nodes and reference edges,
+    TEXT[!MUST]: and derive both of the following from it:
+    TEXT[!MUST]: The aggregate executability map MUST NOT be delivered as a
+    TEXT[!MUST]: witness: it is many obligations wearing one map,
+    TEXT[!MUST]: and delivering it would violate §4.2 by construction.
+    TEXT[!MUST]: If a live annotation's resolved target is not proof-testable,
+    TEXT[!MUST]: the producer MUST deliver no witness for it,
+    TEXT[!MUST]: and the report MUST identify the annotation as
+    TEXT[!MUST]: *not proof-testable* ("this position carries no dischargeable
+    TEXT[!MUST]: obligation; it can only be witnessed by an execution-style
+    TEXT[!MUST]: producer") — a report distinct from Property W6's
+    TEXT[!MUST]: "no witness from any configured producer."
+    TEXT[!MUST]: In a mixed run such an annotation binds runtime witnesses
+    TEXT[!MUST]: normally.
+
+  SECTION: [5.3 Discharge unit](#discharge-unit)
+    TEXT[!MUST]: Its domain (`dom(du)`) MUST contain only positions where an
+    TEXT[!MUST]: obligation is *rooted* — proof-element positions:
+    TEXT[!MUST]: fn/lemma headers, ensures clauses, loop invariants, proof asserts.
+    TEXT[!MUST]: Executable body lines MUST NOT be in the domain:
+    TEXT[!MUST]: they are proof ingredients (consulted material), not claims,
+    TEXT[!MUST]: and a test annotation there is not a proof-world test
+    TEXT[!MUST]: (decisions.md, Decision 13).
+    TEXT[!MAY]: Attribution MAY be ambiguous *within the domain*: provers stamp
+    TEXT[!MAY]: generated obligations with the source range of the declaration
+    TEXT[!MAY]: they were generated from,
+    TEXT[!MAY]: so one proof-testable position can root several obligations.
+    TEXT[!MUST]: When N obligations root a position, the producer MUST deliver one
+    TEXT[!MUST]: witness per rooting obligation and MUST NOT select among them
+    TEXT[!MUST]: (decisions.md, Decision 12).
+
+  SECTION: [5.4 Closure](#closure)
+    TEXT[!MUST]: A constructed witness's `files` maps MUST equal the source spans
+    TEXT[!MUST]: of the downward reachable set of the prover's obligation graph,
+    TEXT[!MUST]: starting from the discharge unit.
+    TEXT[!MUST]: The precision of "reachable" is bounded by the granularity of the
+    TEXT[!MUST]: prover's graph and is not yet fully specified
+    TEXT[!MUST]: (decisions.md, Open Question 1);
+    TEXT[!MUST]: what is normative now:
+    TEXT[!MUST]: the closure MUST be a fixpoint (no truncation at a depth bound),
+    TEXT[!MUST]: and the semantics is *consulted* (strength `Consulted`, §1.3),
+    TEXT[!MUST]: not load-bearing dependency.
+
+  SECTION: [5.5 The Verus producer](#verus-producer)
+    TEXT[!MUST]: A flat span inventory of one block covers essentially
+    TEXT[!MUST]:   only its own extent, which is why §5.2's parse-into-structure
+    TEXT[!MUST]:   requirement is a MUST and not an optimization.
+    TEXT[!MUST]: - The Verus producer MUST treat `FunctionSst` blocks as nodes and
+    TEXT[!MUST]:   `Fun :path` references as edges,
+    TEXT[!MUST]:   and MUST support whole-proof-fn discharge units in its first
+    TEXT[!MUST]:   version.
+    TEXT[!MAY]: Finer units MAY follow.

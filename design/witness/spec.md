@@ -75,9 +75,10 @@ Provenance = {
 `strength` records what kind of claim the witness supports:
 `Executed` (a runtime act ran these lines) or
 `Consulted` (a prover's elaboration reached these lines).
-Verdict output MUST report the discharging witness's label and
-strength, so a reader can judge the claim
-(decisions.md, Decision 7).
+Verdict output MUST report every bound witness's label and
+strength with its per-witness result (§3), so a reader can judge
+each claim
+(decisions.md, Decisions 7 and 14).
 
 ### 1.4 Executed {#executed}
 
@@ -93,6 +94,15 @@ This is exactly the existing verified Phases 1–3
 applied to one witness's coverage maps.
 This specification adds no new per-annotation scoring semantics.
 
+If w's `files` contains no map for X's file at all,
+`executed(X, w)` is false.
+Under §1.6's universal discharge this is verdict-determining, not
+merely credit-withholding: a bound witness whose act never touched
+the implementation's *file* is a failing vote on the pair — a
+vacuous claim, per Decision 14 — never a skipped one.
+(Surfaced during Phase 4 verification, 2026-07-27;
+pinned by the verified layer's Decision-14 test.)
+
 ### 1.5 Claim rules and binding {#claim-rules}
 
 A test annotation must find *its own* witness.
@@ -104,8 +114,16 @@ ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
 
 binds(T, w)  ⟺  match w.claim:
     ByExecution        → executed(T, w)
-    ByRootSpan(f, r)   → T's resolved target lines ⊆ r in file f
+    ByRootSpan(f, r)   → T's resolved target EXISTS and falls
+                          within r in file f
 ```
+
+An annotation with no resolved target (e.g. a Structural
+annotation) binds no ByRootSpan witness —
+empty-target containment MUST NOT bind vacuously.
+(Resolution yields at most one target line in the current model,
+so containment is membership of that single line;
+found during Phase 4 formalization, 2026-07-27.)
 
 `ByExecution` is the runtime rule:
 the report cannot record which test produced it,
@@ -120,18 +138,26 @@ the witness was constructed from the annotation's own position
 ### 1.6 Discharge {#discharge}
 
 ```
-discharged(T, I)  ⟺  ∃w : binds(T, w) ∧ executed(I, w)
+witnesses_for(T)  =  { w ∈ delivered : binds(T, w) }
+
+discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
+                      ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
 ```
 
-In words: a pair (T, I) is discharged when one single witness both
-belongs to the test and executed the implementation.
+In words: a pair (T, I) is discharged when the test binds at
+least one witness and **every** witness it binds executed the
+implementation. Each bound witness individually must see both
+sides; one bound witness that never reaches the implementation is
+a vacuous claim and fails the pair
+(decisions.md, Decision 14 — the goal is no vacuous test
+annotations, not at least one executed test annotation).
 
 Discharge is a bookkeeping claim and nothing more:
-the annotations bind to a real act of checking that actually
+the annotations bind to real acts of checking that actually
 reached the annotated implementation.
 It is NOT a claim that the test is a good test or the proof a
 meaningful proof;
-vacuity auditing (`assume`, `external_body`,
+vacuity auditing of proof *content* (`assume`, `external_body`,
 trivially-true assertions) is out of scope.
 
 ### 1.7 Producer {#producer}
@@ -148,6 +174,25 @@ Prover producers use it to construct witnesses (§5).
 The producer-internal artifact format MUST NOT escape the
 producer; the engine consumes only `Vec<Witness>`.
 
+The `annotations` argument is a **semantically inert
+optimization**, never a semantic input.
+The witness universe is defined by the artifact alone —
+conceptually one potential witness per obligation —
+and the argument only selects which members are materialized,
+so that producers need not close every obligation to serve a few
+annotations.
+Normatively: every delivered witness MUST be a function of
+(artifact, obligation) only — identical regardless of which
+annotation caused its materialization, carrying no annotation
+identity — and the filtering MUST be sound:
+for every requested annotation, binding and discharge verdicts
+over the materialized set MUST equal the verdicts over the full
+universe.
+(The filter only removes witnesses binding no requested
+annotation; W1, W2, and W6 quantify only over witnesses binding
+the annotation in question, so soundness follows.
+W3 quantifies over delivered witnesses by definition.)
+
 ---
 
 ## 2. Engine properties {#engine-properties}
@@ -160,20 +205,25 @@ anchors in this section.
 The properties are stated over witnesses only;
 no producer or format appears in their vocabulary.
 
-### Property W1: Same-Witness Discharge {#property-w1-same-witness-discharge}
+### Property W1: Universal Same-Witness Discharge {#property-w1-same-witness-discharge}
 
 The implementation MUST prove that it reports a pair (T, I)
-discharged if and only if some single delivered witness both
-binds T and executed I:
+discharged if and only if at least one delivered witness binds T
+and every delivered witness that binds T executed I:
 
 ```
 report_discharged(T, I, witnesses) = true
-    ⟺  ∃ w ∈ witnesses : binds(T, w) ∧ executed(I, w)
+    ⟺  (∃ w ∈ witnesses : binds(T, w))
+        ∧ (∀ w ∈ witnesses : binds(T, w) ⟹ executed(I, w))
 ```
 
-No pair is discharged without a single common witness.
+No pair is discharged without a common witness, and no pair is
+discharged while any witness bound to its test failed to reach
+its implementation.
 Evidence assembled from two different witnesses
-(T bound by one, I executed by another) MUST NOT discharge.
+(T bound by one, I executed by another) MUST NOT discharge;
+a bound witness that did not execute I MUST fail the pair
+(decisions.md, Decision 14).
 
 ### Property W2: Test Execution {#property-w2-test-execution}
 
@@ -200,16 +250,27 @@ This is a global property requiring no correlation;
 it is deliberately weaker than W1 and MUST NOT be used to
 discharge pairs.
 
-### Property W4: Monotonicity {#property-w4-monotonicity}
+### Property W4: Failure Monotonicity {#property-w4-monotonicity}
 
-The implementation MUST prove that adding a witness never
-un-discharges a pair, and removing a witness never discharges one:
+The implementation MUST prove that adding a witness never flips a
+failing pair to passing:
 
 ```
 witnesses ⊆ witnesses'  ⟹
-    (report_discharged(T, I, witnesses)
-        ⟹ report_discharged(T, I, witnesses'))
+    (report_discharged(T, I, witnesses')
+        ⟹ report_discharged(T, I, witnesses)
+           ∨ ¬∃ w ∈ witnesses : binds(T, w))
 ```
+
+Adding a witness MAY newly fail a previously-discharged pair —
+that is deliberate: the added witness is a claim T now makes, and
+if it does not reach I it is the vacuity being caught
+(decisions.md, Decision 14; this inverts the direction of the
+original monotonicity property).
+The only way adding witnesses turns a non-discharged pair into a
+discharged one is by witnessing a previously *unwitnessed* test
+(the `witnesses_for(T) = ∅` case), never by outvoting a bound
+witness that failed.
 
 ### Property W5: Claim Refinement {#property-w5-claim-refinement}
 
@@ -246,8 +307,17 @@ that behavior is correct
 
 ## 3. Verdict output requirements {#verdict-output}
 
-For every discharged pair, the output MUST name the discharging
+For every discharged pair, the output MUST name every bound
 witness (its label) and its strength (§1.3).
+For every pair that fails because a bound witness did not execute
+the implementation (W1's universal clause), the output MUST list
+**every** bound witness with its per-witness result
+(executed I / did not execute I) and strength,
+so the failing claim is identifiable —
+the engine computes all of these to evaluate the verdict,
+and the disagreement MUST never be silent
+(decisions.md, Decision 14; legibility improvements are tracked
+as Open Question 2 and never weaken the verdict).
 For every unwitnessed test annotation (W6), the output MUST
 identify the annotation and state that no configured producer
 yielded a witness for it.
@@ -260,6 +330,13 @@ The engine properties in §2 hold only relative to the following
 producer obligations.
 Where an obligation cannot be proven, it is a **named axiom** of
 the trusted base and MUST be recorded as such.
+
+One invariant frames all of them:
+**producers deliver facts and never render verdicts.**
+Delivering zero witnesses for an annotation is a fact
+(possibly with a reason attached, §5.2's not-proof-testable),
+not a failure; every failure — unwitnessed (W6),
+undischarged (W1) — is an engine verdict over the delivered set.
 
 ### 4.1 Closedness {#obligation-closedness}
 
@@ -329,9 +406,18 @@ The aggregate executability map MUST NOT be delivered as a
 witness: it is many obligations wearing one map,
 and delivering it would violate §4.2 by construction.
 
-If no discharge unit contains a live annotation's resolved target,
-the producer MUST deliver no witness for it;
-the annotation then surfaces through Property W6.
+A source position is **proof-testable** iff at least one
+obligation is rooted there — iff it is in the domain of the
+discharge-unit map (§5.3).
+If a live annotation's resolved target is not proof-testable,
+the producer MUST deliver no witness for it,
+and the report MUST identify the annotation as
+*not proof-testable* ("this position carries no dischargeable
+obligation; it can only be witnessed by an execution-style
+producer") — a report distinct from Property W6's
+"no witness from any configured producer."
+In a mixed run such an annotation binds runtime witnesses
+normally.
 
 ### 5.3 Discharge unit {#discharge-unit}
 
@@ -340,9 +426,32 @@ obligation that certifies that position
 (the proof-world analog of "the test containing this annotation").
 The mapping from position to unit is prover-specific and lives
 inside each producer (decisions.md, Decision 9).
+Its domain (`dom(du)`) MUST contain only positions where an
+obligation is *rooted* — proof-element positions:
+fn/lemma headers, ensures clauses, loop invariants, proof asserts.
+Executable body lines MUST NOT be in the domain:
+they are proof ingredients (consulted material), not claims,
+and a test annotation there is not a proof-world test
+(decisions.md, Decision 13).
 Witness granularity is the image of the annotation's resolved
 position under this mapping,
 at the finest granularity the producer declares it supports.
+
+Attribution MAY be ambiguous *within the domain*: provers stamp
+generated obligations with the source range of the declaration
+they were generated from,
+so one proof-testable position can root several obligations.
+When N obligations root a position, the producer MUST deliver one
+witness per rooting obligation and MUST NOT select among them
+(decisions.md, Decision 12).
+Under Decision 14 the annotation is held to **all** of them:
+every delivered witness at that position must execute I for the
+pair to discharge, and the verdict's per-witness results name
+which obligation(s) failed.
+An ambiguous position that fails is correct pressure to
+disambiguate — e.g. splitting a conjoined
+`ensures A && B && C && D` into separate clauses and annotating
+the intended one.
 
 ### 5.4 Closure {#closure}
 
@@ -381,6 +490,17 @@ Grounded empirically (2026-07-26, Verus 0.2026.05.24.ecee80a,
   `Fun :path` references as edges,
   and MUST support whole-proof-fn discharge units in its first
   version. Finer units MAY follow.
+  Its attribution rule: an obligation is a discharge unit for a
+  position iff it is *rooted* there —
+  extent containment, plus proof-element spans
+  (`:enss` clauses, `LoopInv` nodes, proof asserts) as they are
+  supported; all rooting obligations, one witness each
+  (§5.3, Decisions 12 and 13).
+  Own-span (body-line) ownership is NOT attribution:
+  executable body lines are outside `dom(du)`.
+  Loop header lines are excluded from `dom(du)` initially
+  (the artifact would support them via loop isolation;
+  deliberately deferred).
 
 ---
 

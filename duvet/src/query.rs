@@ -12,7 +12,9 @@ pub mod result;
 
 mod checks;
 mod engine;
+pub mod producers;
 mod requirements;
+pub mod witness;
 
 use checks::coverage::CoverageFormat;
 use requirements::RequirementMode;
@@ -31,13 +33,22 @@ pub struct Query {
     #[clap(short = 'q', long)]
     pub quote: Option<Vec<String>>,
 
-    /// Coverage report path(s), supports globs (required for coverage checks)
-    #[clap(short = 'r', long, required_if_eq_any([("check", "coverage"), ("check", "executed-coverage")]))]
+    /// Coverage report path(s), supports globs (with --coverage-format, the
+    /// one-source shorthand for coverage checks)
+    #[clap(short = 'r', long)]
     pub coverage_report: Option<Vec<String>>,
 
-    /// Coverage format (required for coverage checks)
-    #[clap(short = 'f', long, required_if_eq_any([("check", "coverage"), ("check", "executed-coverage")]))]
+    /// Coverage format (applies to every --coverage-report path)
+    #[clap(short = 'f', long)]
     pub coverage_format: Option<CoverageFormat>,
+
+    /// Coverage source as PRODUCER=PATH_OR_GLOB (repeatable; Decision 10:
+    /// each source pairs a producer with its artifacts, N sources per
+    /// invocation). Producers: `jacoco-xml` (report files), `verus-sst`
+    /// (Verus `--log vir-sst` log directories). Combines with the
+    /// -r/-f shorthand.
+    #[clap(long, value_parser = parse_coverage_source)]
+    pub coverage_source: Option<Vec<crate::query::producers::CoverageSource>>,
 
     /// Enable verbose output
     #[clap(short = 'v', long)]
@@ -157,6 +168,28 @@ This is helpful for quick on-off checking of a single test.
     Duplicates,
 }
 
+/// Parse a `--coverage-source` value: `PRODUCER=PATH_OR_GLOB`.
+fn parse_coverage_source(s: &str) -> Result<crate::query::producers::CoverageSource, String> {
+    let Some((producer, path)) = s.split_once('=') else {
+        return Err(format!(
+            "expected PRODUCER=PATH_OR_GLOB (e.g. jacoco-xml=target/site/jacoco.xml \
+             or verus-sst=target/verus-logs), got '{s}'"
+        ));
+    };
+    let Some(producer) = crate::query::producers::CoverageProducer::parse(producer) else {
+        return Err(format!(
+            "unknown coverage producer '{producer}' (expected jacoco-xml or verus-sst)"
+        ));
+    };
+    if path.is_empty() {
+        return Err("coverage source path must not be empty".to_string());
+    }
+    Ok(crate::query::producers::CoverageSource {
+        producer,
+        globs: vec![path.to_string()],
+    })
+}
+
 impl Query {
     pub async fn exec(&self) -> Result {
         let progress = progress!("Starting duvet in query mode...");
@@ -180,6 +213,7 @@ impl Query {
                     &checks,
                     self.coverage_report.as_ref(),
                     self.coverage_format.as_ref(),
+                    self.coverage_source.as_deref().unwrap_or(&[]),
                     self.verbose,
                 )
                 .await

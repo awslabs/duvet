@@ -2,7 +2,7 @@
 source: xtask/src/tests.rs
 expression: stderr
 ---
-$ duvet query -c coverage -r report-b.xml -r report-a.xml -f jacoco-xml
+$ duvet query -c coverage -r report-a.xml -r report-b.xml -r report-c.xml -f jacoco-xml
 EXIT: Some(1)
     Starting duvet in query mode...
   Extracting requirements
@@ -19,7 +19,7 @@ EXIT: Some(1)
   
 Coverage: ✗ FAIL
 
-  Coverage reports checked: 2
+  Coverage reports checked: 3
   Executed tests: 1
   Executed implementations: 1
   Successful correlations: 0
@@ -39,7 +39,9 @@ Coverage: ✗ FAIL
   help: Every witness bound to this test, with its per-witness result (a pair
         is discharged only when ALL bound witnesses executed the
         implementation — design/witness/decisions.md, Decision 14):
+        ✓ report-a.xml (executed): executed the implementation
         ✗ report-b.xml (executed): did not execute the implementation
+        ✓ report-c.xml (executed): executed the implementation
 
 Advice: 
   ☞ Related context for:

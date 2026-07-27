@@ -1,0 +1,70 @@
+target = "design/witness/spec.md#discharge-unit"
+
+# 5.3 Discharge unit
+#
+# The discharge unit of an annotation position is the prover
+# obligation that certifies that position
+# (the proof-world analog of "the test containing this annotation").
+# The mapping from position to unit is prover-specific and lives
+# inside each producer (decisions.md, Decision 9).
+# Its domain (`dom(du)`) MUST contain only positions where an
+# obligation is *rooted* — proof-element positions:
+# fn/lemma headers, ensures clauses, loop invariants, proof asserts.
+# Executable body lines MUST NOT be in the domain:
+# they are proof ingredients (consulted material), not claims,
+# and a test annotation there is not a proof-world test
+# (decisions.md, Decision 13).
+# Witness granularity is the image of the annotation's resolved
+# position under this mapping,
+# at the finest granularity the producer declares it supports.
+# 
+# Attribution MAY be ambiguous *within the domain*: provers stamp
+# generated obligations with the source range of the declaration
+# they were generated from,
+# so one proof-testable position can root several obligations.
+# When N obligations root a position, the producer MUST deliver one
+# witness per rooting obligation and MUST NOT select among them
+# (decisions.md, Decision 12).
+# Under Decision 14 the annotation is held to **all** of them:
+# every delivered witness at that position must execute I for the
+# pair to discharge, and the verdict's per-witness results name
+# which obligation(s) failed.
+# An ambiguous position that fails is correct pressure to
+# disambiguate — e.g. splitting a conjoined
+# `ensures A && B && C && D` into separate clauses and annotating
+# the intended one.
+
+[[spec]]
+level = "MUST"
+quote = '''
+Its domain (`dom(du)`) MUST contain only positions where an
+obligation is *rooted* — proof-element positions:
+fn/lemma headers, ensures clauses, loop invariants, proof asserts.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Executable body lines MUST NOT be in the domain:
+they are proof ingredients (consulted material), not claims,
+and a test annotation there is not a proof-world test
+(decisions.md, Decision 13).
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+Attribution MAY be ambiguous *within the domain*: provers stamp
+generated obligations with the source range of the declaration
+they were generated from,
+so one proof-testable position can root several obligations.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+When N obligations root a position, the producer MUST deliver one
+witness per rooting obligation and MUST NOT select among them
+(decisions.md, Decision 12).
+'''
+

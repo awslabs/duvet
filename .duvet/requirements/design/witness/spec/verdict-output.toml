@@ -1,0 +1,50 @@
+target = "design/witness/spec.md#verdict-output"
+
+# 3. Verdict output requirements
+#
+# For every discharged pair, the output MUST name every bound
+# witness (its label) and its strength (§1.3).
+# For every pair that fails because a bound witness did not execute
+# the implementation (W1's universal clause), the output MUST list
+# **every** bound witness with its per-witness result
+# (executed I / did not execute I) and strength,
+# so the failing claim is identifiable —
+# the engine computes all of these to evaluate the verdict,
+# and the disagreement MUST never be silent
+# (decisions.md, Decision 14; legibility improvements are tracked
+# as Open Question 2 and never weaken the verdict).
+# For every unwitnessed test annotation (W6), the output MUST
+# identify the annotation and state that no configured producer
+# yielded a witness for it.
+# 
+# ---
+
+[[spec]]
+level = "MUST"
+quote = '''
+For every discharged pair, the output MUST name every bound
+witness (its label) and its strength (§1.3).
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+For every pair that fails because a bound witness did not execute
+the implementation (W1's universal clause), the output MUST list
+**every** bound witness with its per-witness result
+(executed I / did not execute I) and strength,
+so the failing claim is identifiable —
+the engine computes all of these to evaluate the verdict,
+and the disagreement MUST never be silent
+(decisions.md, Decision 14; legibility improvements are tracked
+as Open Question 2 and never weaken the verdict).
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+For every unwitnessed test annotation (W6), the output MUST
+identify the annotation and state that no configured producer
+yielded a witness for it.
+'''
+

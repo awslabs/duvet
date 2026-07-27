@@ -1,0 +1,39 @@
+target = "design/witness/spec.md#obligation-closedness"
+
+# 4.1 Closedness
+#
+# Every delivered `files` map MUST be closed under the producer's
+# reachability relation (§1.2).
+# 
+# - Runtime producers: closedness is delegated to the external tool
+#   (the runtime physically performed the closure).
+#   Instrumentation gaps under-close the map;
+#   the failure direction is withheld credit (false failure),
+#   never false discharge. **Axiom.**
+# - Prover producers: closedness splits into
+#   (a) the verifier's record faithfully reflects what elaboration
+#   consulted — **axiom**, same category as trusting the verifier
+#   itself — and
+#   (b) the closure computation over that record is correct —
+#   our code, which SHOULD be verified in `duvet-coverage`
+#   (it is a pure graph fixpoint).
+
+[[spec]]
+level = "MUST"
+quote = '''
+Every delivered `files` map MUST be closed under the producer's
+reachability relation (§1.2).
+'''
+
+[[spec]]
+level = "SHOULD"
+quote = '''
+- Prover producers: closedness splits into
+(a) the verifier's record faithfully reflects what elaboration
+consulted — **axiom**, same category as trusting the verifier
+itself — and
+(b) the closure computation over that record is correct —
+our code, which SHOULD be verified in `duvet-coverage`
+(it is a pure graph fixpoint).
+'''
+

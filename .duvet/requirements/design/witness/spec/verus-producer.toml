@@ -1,0 +1,61 @@
+target = "design/witness/spec.md#verus-producer"
+
+# 5.5 The Verus producer
+#
+# Grounded empirically (2026-07-26, Verus 0.2026.05.24.ecee80a,
+# `cargo verus build -p duvet-coverage -- --log vir-sst`):
+# 
+# - The artifact is per-module `*-sst.vir` S-expression files.
+#   Top-level `FunctionSst` blocks carry a fully-qualified name
+#   (`Fun :path`) and their own source extent — these are the
+#   obligation nodes.
+# - Cross-obligation references appear as symbolic
+#   `(Fun :path ...)` forms, not inlined spans — these are the
+#   edges. A flat span inventory of one block covers essentially
+#   only its own extent, which is why §5.2's parse-into-structure
+#   requirement is a MUST and not an optimization.
+# - Sub-function structure (`:enss` clause lists,
+#   `LoopInv` nodes) exists in the artifact;
+#   finer-than-function discharge units are therefore expressible
+#   later without a format change.
+# - The Verus producer MUST treat `FunctionSst` blocks as nodes and
+#   `Fun :path` references as edges,
+#   and MUST support whole-proof-fn discharge units in its first
+#   version. Finer units MAY follow.
+#   Its attribution rule: an obligation is a discharge unit for a
+#   position iff it is *rooted* there —
+#   extent containment, plus proof-element spans
+#   (`:enss` clauses, `LoopInv` nodes, proof asserts) as they are
+#   supported; all rooting obligations, one witness each
+#   (§5.3, Decisions 12 and 13).
+#   Own-span (body-line) ownership is NOT attribution:
+#   executable body lines are outside `dom(du)`.
+#   Loop header lines are excluded from `dom(du)` initially
+#   (the artifact would support them via loop isolation;
+#   deliberately deferred).
+# 
+# ---
+
+[[spec]]
+level = "MUST"
+quote = '''
+A flat span inventory of one block covers essentially
+only its own extent, which is why §5.2's parse-into-structure
+requirement is a MUST and not an optimization.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- The Verus producer MUST treat `FunctionSst` blocks as nodes and
+`Fun :path` references as edges,
+and MUST support whole-proof-fn discharge units in its first
+version.
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+Finer units MAY follow.
+'''
+

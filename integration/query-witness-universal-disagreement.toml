@@ -1,27 +1,23 @@
 source = { local = true }
-cmd = ["duvet query -c coverage -r report-a.xml -r report-b.xml -f jacoco-xml"]
+cmd = ["duvet query -c coverage -r report-a.xml -r report-b.xml -r report-c.xml -f jacoco-xml"]
 report_output = false
 
-# EXPECTATION FLIPPED by Decision 14 (design/witness/decisions.md;
-# spec §1.6/W1 universal discharge). Fixture data unchanged.
+# Decision 14 universal discharge, disagreement side (spec §1.6, W1).
 #
-# One implementation + one test annotate the same spec text. Two reports both
-# show the test executed; report A shows the implementation executed, report B
-# shows it missed. The test therefore BINDS both witnesses, and the verdict is
-# universal: every bound witness must execute the implementation. Report B is
-# a bound claim that never reached the implementation — a per-run vacuity —
-# so the pair must FAIL, and the output must show the per-witness
-# disagreement (✓ report-a / ✗ report-b), never silently.
+# One test annotation bound by THREE witnesses (its lines execute in all
+# three reports); the implementation executes in A and C but NOT in B.
+# The ∀-clause fails: report B is a bound claim that never reached the
+# implementation — the per-run vacuity Decision 14 exists to catch — so
+# the pair FAILS even though two of the three bound witnesses saw both
+# sides (bound witnesses are never outvoted). Per spec §3 the output
+# MUST list EVERY bound witness with its per-witness result, so this
+# snapshot pins the visible disagreement:
+#   ✓ report-a.xml ... executed the implementation
+#   ✗ report-b.xml ... did not execute the implementation
+#   ✓ report-c.xml ... executed the implementation
 #
-# Under the previous ∃-semantics (report A alone discharges; extra reports
-# cannot cause failure) this test pinned a PASS. Decision 14 rejects exactly
-# that masking: a passing witness must not outvote a bound witness that
-# failed. The old concern this test guarded — double-counting one test into
-# both `successful` and `failed` — remains pinned: the test appears exactly
-# once, as one failed correlation.
-#
-# Contrast with query-coverage-cross-report-pair.toml, where NO single report
-# witnesses both sides and the check must also fail.
+# The agreement side of the same shape is pinned as a PASS by
+# query-witness-universal-agreement.toml.
 [[file]]
 path = ".duvet/config.toml"
 contents = """
@@ -74,7 +70,7 @@ contents = """
 This MUST do the thing
 """
 
-# report A: implementation line (Impl.java:8) executed; test line executed
+# report A: test executed, implementation executed
 [[file]]
 path = "report-a.xml"
 contents = """
@@ -92,7 +88,7 @@ contents = """
 </report>
 """
 
-# report B: implementation line MISSED; test line executed
+# report B: test executed, implementation MISSED (the failing bound claim)
 [[file]]
 path = "report-b.xml"
 contents = """
@@ -102,6 +98,24 @@ contents = """
     <package name="com/example">
         <sourcefile name="Impl.java">
             <line nr="8" mi="3" ci="0" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""
+
+# report C: test executed, implementation executed
+[[file]]
+path = "report-c.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="C">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
         </sourcefile>
         <sourcefile name="ImplTest.java">
             <line nr="8" mi="0" ci="3" mb="0" cb="0"/>

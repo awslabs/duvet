@@ -1,0 +1,129 @@
+---
+source: xtask/src/tests.rs
+expression: stdout
+---
+$ duvet query -c coverage -r report.xml -f jacoco-xml --coverage-source verus-sst=../../../duvet/src/query/parsers/verus_sst/testdata/vacuity --verbose
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 5 sources 
+     Parsing annotations
+      Parsed 6 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 2 sections 
+    Matching references
+     Matched 6 references 
+     Running test execution correlation check...
+    Coverage model: 2 file(s) language-aware (verified), 1 file(s) degraded — no classifier (verified)
+              degraded (no classifier, verified): vacuity.rs
+  
+Coverage: ✓ PASS
+
+  Coverage reports checked: 2
+  Executed tests: 2
+  Executed implementations: 2
+  Successful correlations: 2
+  Failed correlations: 0
+  Tests with no implementation: 0
+  Unwitnessed tests: 0
+
+  ☞ Successful correlation
+   ╭─[src/test/java/com/example/ImplTest.java:5:13]
+ 4 │         public void testThing() {
+ 5 │ ╭─▶         //= spec.md#section-1
+ 6 │ │           //= type=test
+ 7 │ ├─▶         //# This MUST do the thing
+   · ╰──── Test annotation
+ 8 │             new Impl().doThing();
+   ╰────
+  help: discharged by report.xml (executed)
+
+Advice: 
+  ☞ Related context for:
+  │  Successful correlation
+   ╭─[src/main/java/com/example/Impl.java:5:13]
+ 4 │         public void doThing() {
+ 5 │ ╭─▶         //= spec.md#section-1
+ 6 │ │           //= type=implementation
+ 7 │ ├─▶         //# This MUST do the thing
+   · ╰──── Executed implementation
+ 8 │             run();
+   ╰────
+
+  ☞ Successful correlation
+    ╭─[vacuity.rs:19:5]
+ 18 │     
+ 19 │ ╭─▶ //= spec.md#add-one
+ 20 │ │   //= type=test
+ 21 │ ├─▶ //# Adding one MUST produce the successor
+    · ╰──── Test annotation
+ 22 │     pub proof fn honest_proof()
+    ╰────
+  help: discharged by vacuity::honest_proof (consulted)
+
+Advice: 
+  ☞ Related context for:
+  │  Successful correlation
+   ╭─[vacuity.rs:5:5]
+ 4 │     
+ 5 │ ╭─▶ //= spec.md#add-one
+ 6 │ ├─▶ //# Adding one MUST produce the successor
+   · ╰──── Executed implementation
+ 7 │     pub open spec fn spec_add_one(x: int) -> int {
+   ╰────
+
+  ☞ Executed annotations
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+   ╭─[src/test/java/com/example/ImplTest.java:5:13]
+ 4 │         public void testThing() {
+ 5 │ ╭─▶         //= spec.md#section-1
+ 6 │ │           //= type=test
+ 7 │ ├─▶         //# This MUST do the thing
+   · ╰──── Executed test
+ 8 │             new Impl().doThing();
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+    ╭─[vacuity.rs:19:5]
+ 18 │     
+ 19 │ ╭─▶ //= spec.md#add-one
+ 20 │ │   //= type=test
+ 21 │ ├─▶ //# Adding one MUST produce the successor
+    · ╰──── Executed test
+ 22 │     pub proof fn honest_proof()
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+   ╭─[src/main/java/com/example/Impl.java:5:13]
+ 4 │         public void doThing() {
+ 5 │ ╭─▶         //= spec.md#section-1
+ 6 │ │           //= type=implementation
+ 7 │ ├─▶         //# This MUST do the thing
+   · ╰──── Executed implementation
+ 8 │             run();
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Executed annotations
+   ╭─[vacuity.rs:5:5]
+ 4 │     
+ 5 │ ╭─▶ //= spec.md#add-one
+ 6 │ ├─▶ //# Adding one MUST produce the successor
+   · ╰──── Executed implementation
+ 7 │     pub open spec fn spec_add_one(x: int) -> int {
+   ╰────
+
+
+
+Overall: ✓ PASS

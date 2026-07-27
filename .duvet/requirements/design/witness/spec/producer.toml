@@ -1,0 +1,63 @@
+target = "design/witness/spec.md#producer"
+
+# 1.7 Producer
+#
+# A producer maps declared artifacts to witnesses:
+# 
+# ```
+# produce : (artifacts, annotations) → Vec<Witness>
+# ```
+# 
+# Runtime producers MAY ignore the `annotations` argument
+# (their witnesses pre-exist in the artifact).
+# Prover producers use it to construct witnesses (§5).
+# The producer-internal artifact format MUST NOT escape the
+# producer; the engine consumes only `Vec<Witness>`.
+# 
+# The `annotations` argument is a **semantically inert
+# optimization**, never a semantic input.
+# The witness universe is defined by the artifact alone —
+# conceptually one potential witness per obligation —
+# and the argument only selects which members are materialized,
+# so that producers need not close every obligation to serve a few
+# annotations.
+# Normatively: every delivered witness MUST be a function of
+# (artifact, obligation) only — identical regardless of which
+# annotation caused its materialization, carrying no annotation
+# identity — and the filtering MUST be sound:
+# for every requested annotation, binding and discharge verdicts
+# over the materialized set MUST equal the verdicts over the full
+# universe.
+# (The filter only removes witnesses binding no requested
+# annotation; W1, W2, and W6 quantify only over witnesses binding
+# the annotation in question, so soundness follows.
+# W3 quantifies over delivered witnesses by definition.)
+# 
+# ---
+
+[[spec]]
+level = "MAY"
+quote = '''
+Runtime producers MAY ignore the `annotations` argument
+(their witnesses pre-exist in the artifact).
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The producer-internal artifact format MUST NOT escape the
+producer; the engine consumes only `Vec<Witness>`.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Normatively: every delivered witness MUST be a function of
+(artifact, obligation) only — identical regardless of which
+annotation caused its materialization, carrying no annotation
+identity — and the filtering MUST be sound:
+for every requested annotation, binding and discharge verdicts
+over the materialized set MUST equal the verdicts over the full
+universe.
+'''
+
