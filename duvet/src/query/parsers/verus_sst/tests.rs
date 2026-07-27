@@ -46,17 +46,18 @@ const LEMMA: &str = "duvet_coverage::proofs::lemma_no_cross_scope_leakage";
 const EXECUTED: &str = "duvet_coverage::proofs::executed_annotation_has_no_cross_scope_leakage";
 
 fn corpus_dir() -> PathBuf {
+    // Override for validating against freshly generated logs
+    // (e.g. after a Verus version bump):
+    //   DUVET_SST_LOG_DIR=/path/to/logs cargo test
     if let Ok(dir) = std::env::var("DUVET_SST_LOG_DIR") {
         return PathBuf::from(dir);
     }
-    let home = std::env::var("HOME").expect("HOME not set");
-    let dir = PathBuf::from(home).join("shared/kiroom/duvet/logs/sst-poc");
-    assert!(
-        dir.is_dir(),
-        "real SST corpus not found at {dir:?}; set DUVET_SST_LOG_DIR \
-         (fixture check-in strategy is decided at PR time)"
-    );
-    dir
+    // Default: the checked-in gzipped corpus (load_dir reads
+    // *-sst.vir.gz transparently), generated 2026-07-26 from
+    //   cargo verus build -p duvet-coverage -- --log vir-sst
+    // (Verus 0.2026.05.24.ecee80a). Regenerate with:
+    //   gzip -9 -c <log>/<m>-sst.vir > testdata/corpus/<m>-sst.vir.gz
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("src/query/parsers/verus_sst/testdata/corpus")
 }
 
 fn corpus() -> &'static ObligationGraph {
@@ -86,10 +87,20 @@ fn corpus_node_counts() {
     let mut raw_blocks = 0usize;
     for entry in std::fs::read_dir(corpus_dir()).unwrap() {
         let path = entry.unwrap().path();
-        if path.to_str().is_some_and(|p| p.ends_with("-sst.vir")) {
-            let text = std::fs::read_to_string(&path).unwrap();
-            raw_blocks += parse_module(&text).unwrap().len();
-        }
+        let Some(p) = path.to_str() else { continue };
+        let text = if p.ends_with("-sst.vir") {
+            std::fs::read_to_string(&path).unwrap()
+        } else if p.ends_with("-sst.vir.gz") {
+            use std::io::Read;
+            let mut text = String::new();
+            flate2::read::GzDecoder::new(std::fs::File::open(&path).unwrap())
+                .read_to_string(&mut text)
+                .unwrap();
+            text
+        } else {
+            continue;
+        };
+        raw_blocks += parse_module(&text).unwrap().len();
     }
     assert_eq!(raw_blocks, 1065, "top-level FunctionSst blocks, 10 files");
 

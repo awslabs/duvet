@@ -30,7 +30,13 @@ pub mod witness;
 use std::path::Path;
 use structure::{ObligationGraph, StructureError};
 
-/// Load and merge every `*-sst.vir` module log in a directory.
+/// Load and merge every `*-sst.vir` (or gzipped `*-sst.vir.gz`)
+/// module log in a directory.
+///
+/// Gzip support exists so the golden corpus can be checked into the
+/// repository compactly (~21:1 on real SST text) and so users may
+/// compress large log directories; the two forms are semantically
+/// identical.
 ///
 /// Synchronous `std::fs` on purpose: the async/vfs decision belongs
 /// to engine wiring (milestone 2), and the golden tests want a
@@ -41,12 +47,20 @@ pub fn load_dir(dir: &Path) -> Result<ObligationGraph, LoadError> {
     for entry in entries {
         let entry = entry.map_err(|e| LoadError::Io(dir.display().to_string(), e))?;
         let path = entry.path();
-        if path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(|n| n.ends_with("-sst.vir"))
-        {
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if name.ends_with("-sst.vir") {
             let text = std::fs::read_to_string(&path)
+                .map_err(|e| LoadError::Io(path.display().to_string(), e))?;
+            sources.push((path.display().to_string(), text));
+        } else if name.ends_with("-sst.vir.gz") {
+            use std::io::Read;
+            let file = std::fs::File::open(&path)
+                .map_err(|e| LoadError::Io(path.display().to_string(), e))?;
+            let mut text = String::new();
+            flate2::read::GzDecoder::new(file)
+                .read_to_string(&mut text)
                 .map_err(|e| LoadError::Io(path.display().to_string(), e))?;
             sources.push((path.display().to_string(), text));
         }
