@@ -1,0 +1,849 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+//! Phase 4: Witness Quantifier Layer (design/witness/spec.md Section 2).
+//!
+//! The quantifier layer over the existing per-annotation cells: Phases 1–3
+//! score ONE annotation against ONE coverage map (`is_annotation_executed`);
+//! this phase states and proves the load-bearing quantifiers over a set of
+//! delivered witnesses — universal same-witness discharge (W1), test
+//! execution (W2), global execution (W3), failure monotonicity (W4), claim
+//! refinement (W5), and the
+//! unwitnessed predicate behind W6. `executed(X, w)` is exactly the existing
+//! verified scoring applied to w's map for X's file (spec §1.4); nothing in
+//! Phases 1–3 is re-specified here.
+//!
+//! Named glue assumptions (trusted base, NOT verified here):
+//!
+//! - **G1 (file identity):** the engine adapter maps file paths to opaque
+//!   `u64` file ids injectively and consistently across all annotations and
+//!   witnesses in one run, and delivers each witness's `files` vector with
+//!   duplicate-free file ids. (The proofs do not *need* uniqueness — lookup
+//!   is first-match, documented on `witness_file_lookup` — but a duplicate
+//!   id would mean the engine constructed a witness whose later map for the
+//!   same file is silently dead, so G1 forbids it.)
+//! - **G2 (call obligation):** the engine's verdicts are computed by calling
+//!   `report_discharged` / `report_test_executed` / `report_ever_executed` /
+//!   `is_unwitnessed` below — discharged via the dogfood loop (the engine's
+//!   `type=implementation` annotations checked by the coverage run).
+//! - Producer obligations A1 (closedness) and A2 (individuation) per spec §4.
+//!
+//! The `requires` on the report functions (coverage keys within
+//! classification bounds; scope line bounds) are the engine adapter's
+//! obligation to establish at the trust boundary — filter/degrade before
+//! calling, never assume (milestone 2 degrades to `Unknown` there today).
+
+use crate::{
+    annotation_execution::is_annotation_executed, target_resolution::annotation_target, types::*,
+};
+// Ghost-only imports: spec twins referenced from spec fns and `ensures`.
+#[cfg(verus_keep_ghost)]
+use crate::annotation_execution::execution_status_of;
+#[cfg(verus_keep_ghost)]
+use crate::target_resolution::annotation_target_spec;
+use vstd::prelude::*;
+
+verus! {
+
+/// How a test annotation claims a witness (spec §1.5).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClaimRule {
+    /// Runtime rule: T claims w by evidence — T's own lines are executed
+    /// in w. Sound only under witness individuation (spec §4.2, axiom A2).
+    ByExecution,
+    /// Prover rule: ownership is positional — T's resolved target falls
+    /// within the discharge unit's extent. File identity is an opaque id
+    /// (glue assumption G1); the line range is inclusive.
+    ByRootSpan { file_id: u64, start_line: u64, end_line: u64 },
+}
+
+/// The record of ONE act of checking (spec §1.2), verified-model projection:
+/// claim rule plus per-file coverage. Label and provenance are engine
+/// concerns and deliberately absent. `files` maps an opaque file id (G1) to
+/// the existing verified `CoverageReport` type; the multi-file map lives
+/// INSIDE the verified witness so that W1's same-witness conjunction is over
+/// one object — projecting per-file in glue would reintroduce the
+/// correlation bug's shape (decisions.md, Relationship section).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Witness {
+    pub claim: ClaimRule,
+    pub files: Vec<(u64, CoverageReport)>,
+}
+
+// ---------------------------------------------------------------------------
+// Spec vocabulary (spec §1.4–§1.6, in Verus)
+// ---------------------------------------------------------------------------
+
+/// Spec: first-match lookup of `file_id` in a witness's files vector,
+/// scanning from index `i`. FIRST-MATCH SEMANTICS: if the vector held a
+/// duplicate file id (forbidden by G1), the earliest entry wins and later
+/// entries are dead. `None` when no entry matches.
+pub open spec fn witness_file_lookup_from(
+    files: Seq<(u64, CoverageReport)>,
+    file_id: u64,
+    i: int,
+) -> Option<CoverageReport>
+    decreases files.len() - i,
+{
+    if i < 0 || i >= files.len() {
+        None
+    } else if files[i].0 == file_id {
+        Some(files[i].1)
+    } else {
+        witness_file_lookup_from(files, file_id, i + 1)
+    }
+}
+
+/// Spec: the coverage report a witness carries for `file_id`, if any.
+/// First-match semantics (see `witness_file_lookup_from`).
+pub open spec fn witness_file_lookup(
+    files: Seq<(u64, CoverageReport)>,
+    file_id: u64,
+) -> Option<CoverageReport> {
+    witness_file_lookup_from(files, file_id, 0)
+}
+
+/// Spec §1.4: `executed(X, w)` — the coverage model scores X's resolved
+/// target Executed against w's map for X's file. This is EXACTLY the
+/// existing verified Phases 1–3 (`execution_status_of`, the proven spec twin
+/// of `is_annotation_executed`) applied to one witness's coverage map; this
+/// phase adds no per-annotation scoring semantics.
+///
+/// A witness with no map for X's file cannot have executed X: `Executed`
+/// requires a Hit line, and an absent map carries none, so `None => false`
+/// coincides with scoring against an empty report (definitional choice,
+/// recorded here).
+pub open spec fn executed_by(
+    file_id: u64,
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    file_length: u64,
+    w: Witness,
+) -> bool {
+    match witness_file_lookup(w.files@, file_id) {
+        None => false,
+        Some(cov) => execution_status_of(
+            annotation_target_spec(annotation, classifications, file_length),
+            classifications,
+            scopes,
+            &cov,
+        ) == ExecutionStatus::Executed,
+    }
+}
+
+/// Spec §1.5: `binds(T, w)` — total over (annotation, witness) pairs.
+///
+/// - `ByExecution` → `executed(T, w)` (the runtime evidence rule).
+/// - `ByRootSpan(f, r)` → T's resolved target EXISTS and falls within r in
+///   file f. An annotation with no resolved target binds no ByRootSpan
+///   witness — empty-target containment MUST NOT bind vacuously (spec §1.5).
+///   Resolution yields at most one target line in the current model, so
+///   containment is membership of that single line.
+pub open spec fn binds(
+    file_id: u64,
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    file_length: u64,
+    w: Witness,
+) -> bool {
+    match w.claim {
+        ClaimRule::ByExecution => executed_by(
+            file_id, annotation, classifications, scopes, file_length, w,
+        ),
+        ClaimRule::ByRootSpan { file_id: span_file, start_line, end_line } => {
+            let target = annotation_target_spec(annotation, classifications, file_length);
+            &&& file_id == span_file
+            &&& target.is_some()
+            &&& start_line <= target.unwrap() <= end_line
+        },
+    }
+}
+
+/// Spec §1.6 (Decision 14): `witnesses_for(T) = { w ∈ delivered : binds(T, w) }`,
+/// and
+///
+/// `discharged(T, I) ⟺ witnesses_for(T) ≠ ∅ ∧ ∀w ∈ witnesses_for(T) : executed(I, w)`
+///
+/// The test binds at least one witness and EVERY witness it binds executed
+/// the implementation. Each bound witness individually must see both sides;
+/// one bound witness that never reaches I is a vacuous claim and fails the
+/// pair (the goal is no vacuous test annotations, not at least one executed
+/// test annotation).
+pub open spec fn discharged(
+    t_file_id: u64,
+    t_annotation: &AnnotationSpan,
+    t_classifications: &[Option<LineClass>],
+    t_scopes: &[Scope],
+    t_file_length: u64,
+    i_file_id: u64,
+    i_annotation: &AnnotationSpan,
+    i_classifications: &[Option<LineClass>],
+    i_scopes: &[Scope],
+    i_file_length: u64,
+    witnesses: Seq<Witness>,
+) -> bool {
+    &&& exists|k: int|
+        0 <= k < witnesses.len()
+        && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            #[trigger] witnesses[k])
+    &&& forall|k: int|
+        0 <= k < witnesses.len()
+        && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            #[trigger] witnesses[k])
+        ==> executed_by(i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
+            witnesses[k])
+}
+
+// ---------------------------------------------------------------------------
+// Well-formedness preconditions (engine adapter obligations, visible in
+// signatures — zero `assume`)
+// ---------------------------------------------------------------------------
+
+/// The bounds `is_annotation_executed` requires of one annotation's scoring
+/// context (annotation span headroom; scope line bounds).
+pub open spec fn scoring_ctx_wf(annotation: &AnnotationSpan, scopes: &[Scope]) -> bool {
+    &&& annotation.end_line < u64::MAX
+    &&& forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX
+    &&& forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1
+}
+
+/// Every key of `cov` is a line within `classifications`' bounds — the
+/// coverage precondition of `is_annotation_executed`, verbatim.
+pub open spec fn coverage_in_bounds(
+    cov: CoverageReport,
+    classifications: &[Option<LineClass>],
+) -> bool {
+    forall|line: u64| cov@.contains_key(line)
+        ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len()
+}
+
+/// The witness's map for `file_id` (if any) is within `classifications`'
+/// bounds. Maps for other files are unconstrained — they are never scored
+/// against these classifications.
+pub open spec fn witness_coverage_in_bounds(
+    w: Witness,
+    file_id: u64,
+    classifications: &[Option<LineClass>],
+) -> bool {
+    match witness_file_lookup(w.files@, file_id) {
+        None => true,
+        Some(cov) => coverage_in_bounds(cov, classifications),
+    }
+}
+
+/// `witness_coverage_in_bounds` lifted over a delivered witness set.
+pub open spec fn witnesses_coverage_in_bounds(
+    ws: Seq<Witness>,
+    file_id: u64,
+    classifications: &[Option<LineClass>],
+) -> bool {
+    forall|k: int| 0 <= k < ws.len()
+        ==> witness_coverage_in_bounds(#[trigger] ws[k], file_id, classifications)
+}
+
+// ---------------------------------------------------------------------------
+// Executable layer: per-witness cells
+// ---------------------------------------------------------------------------
+
+/// First-match lookup of a witness's coverage report for `file_id`,
+/// proven equivalent to `witness_file_lookup`.
+fn witness_coverage<'a>(w: &'a Witness, file_id: u64) -> (result: Option<&'a CoverageReport>)
+    ensures
+        result.is_some() <==> witness_file_lookup(w.files@, file_id).is_some(),
+        result.is_some() ==> witness_file_lookup(w.files@, file_id) == Some(*result.unwrap()),
+{
+    let mut k: usize = 0;
+    while k < w.files.len()
+        invariant
+            0 <= k <= w.files@.len(),
+            witness_file_lookup(w.files@, file_id)
+                == witness_file_lookup_from(w.files@, file_id, k as int),
+        decreases w.files@.len() - k,
+    {
+        if w.files[k].0 == file_id {
+            return Some(&w.files[k].1);
+        }
+        k = k + 1;
+    }
+    None
+}
+
+/// `executed(X, w)` as executable code: the existing verified scoring
+/// (`is_annotation_executed`) applied to w's map for X's file, proven
+/// equivalent to the `executed_by` spec.
+pub fn is_executed_by(
+    file_id: u64,
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    file_length: u64,
+    w: &Witness,
+) -> (result: bool)
+    requires
+        scoring_ctx_wf(annotation, scopes),
+        witness_coverage_in_bounds(*w, file_id, classifications),
+    ensures
+        result <==> executed_by(file_id, annotation, classifications, scopes, file_length, *w),
+{
+    match witness_coverage(w, file_id) {
+        None => false,
+        Some(cov) => {
+            let status = is_annotation_executed(annotation, classifications, scopes, cov, file_length);
+            proof {
+                // The looked-up spec value is the map we scored against, so
+                // the spec-side status (over `&lookup.unwrap()`) equals the
+                // exec-side status (over `cov`) by congruence.
+                assert(witness_file_lookup(w.files@, file_id).unwrap() == *cov);
+            }
+            match status {
+                ExecutionStatus::Executed => true,
+                _ => false,
+            }
+        },
+    }
+}
+
+/// `binds(T, w)` as executable code, proven equivalent to the `binds` spec.
+pub fn is_bound_by(
+    file_id: u64,
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    file_length: u64,
+    w: &Witness,
+) -> (result: bool)
+    requires
+        scoring_ctx_wf(annotation, scopes),
+        witness_coverage_in_bounds(*w, file_id, classifications),
+    ensures
+        result <==> binds(file_id, annotation, classifications, scopes, file_length, *w),
+{
+    match &w.claim {
+        ClaimRule::ByExecution => {
+            is_executed_by(file_id, annotation, classifications, scopes, file_length, w)
+        },
+        ClaimRule::ByRootSpan { file_id: span_file, start_line, end_line } => {
+            if file_id != *span_file {
+                return false;
+            }
+            // Resolved-target existence and membership (spec §1.5: no
+            // vacuous empty-target binding).
+            match annotation_target(annotation, classifications, file_length) {
+                None => false,
+                Some(t) => *start_line <= t.line_number && t.line_number <= *end_line,
+            }
+        },
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The report functions: Properties W1, W2, W3, W6
+// ---------------------------------------------------------------------------
+
+//= design/witness/spec.md#property-w1-same-witness-discharge
+//= type=test
+//# The implementation MUST prove that it reports a pair (T, I)
+//# discharged if and only if at least one delivered witness binds T
+//# and every delivered witness that binds T executed I:
+/// Property W1: Universal Same-Witness Discharge (Decision 14 form).
+///
+/// `binds(T, w)` and `executed(I, w)` are evaluated against the SAME loop
+/// element `w`, so the per-witness correlation holds by construction, and
+/// the iff `ensures` certifies the universal form: no pair is discharged
+/// without a common witness, and no pair is discharged while ANY witness
+/// bound to its test failed to reach its implementation. A bound witness
+/// that did not execute I fails the pair (early `false` return).
+pub fn report_discharged(
+    t_file_id: u64,
+    t_annotation: &AnnotationSpan,
+    t_classifications: &[Option<LineClass>],
+    t_scopes: &[Scope],
+    t_file_length: u64,
+    i_file_id: u64,
+    i_annotation: &AnnotationSpan,
+    i_classifications: &[Option<LineClass>],
+    i_scopes: &[Scope],
+    i_file_length: u64,
+    witnesses: &[Witness],
+) -> (result: bool)
+    requires
+        scoring_ctx_wf(t_annotation, t_scopes),
+        scoring_ctx_wf(i_annotation, i_scopes),
+        witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
+        witnesses_coverage_in_bounds(witnesses@, i_file_id, i_classifications),
+    ensures
+        result <==> discharged(
+            t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
+            witnesses@),
+{
+    let mut any_bound = false;
+    let mut k: usize = 0;
+    while k < witnesses.len()
+        invariant
+            0 <= k <= witnesses@.len(),
+            scoring_ctx_wf(t_annotation, t_scopes),
+            scoring_ctx_wf(i_annotation, i_scopes),
+            witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
+            witnesses_coverage_in_bounds(witnesses@, i_file_id, i_classifications),
+            // Some witness so far binds T <==> any_bound.
+            any_bound <==> exists|j: int| 0 <= j < k
+                && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+                    #[trigger] witnesses@[j]),
+            // Every bound witness so far executed I (else we returned false).
+            forall|j: int| 0 <= j < k
+                && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+                    #[trigger] witnesses@[j])
+                ==> executed_by(i_file_id, i_annotation, i_classifications, i_scopes,
+                    i_file_length, witnesses@[j]),
+        decreases witnesses@.len() - k,
+    {
+        let w = &witnesses[k];
+        if is_bound_by(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length, w) {
+            if !is_executed_by(i_file_id, i_annotation, i_classifications, i_scopes,
+                i_file_length, w)
+            {
+                // Witness k binds T and did not execute I: the universal
+                // conjunct of `discharged` is violated by witness k.
+                return false;
+            }
+            any_bound = true;
+        }
+        k = k + 1;
+    }
+    any_bound
+}
+
+//= design/witness/spec.md#property-w2-test-execution
+//= type=test
+//# The implementation MUST prove that a test annotation is reported
+//# executed if and only if some delivered witness binds it:
+/// Property W2: Test Execution.
+pub fn report_test_executed(
+    t_file_id: u64,
+    t_annotation: &AnnotationSpan,
+    t_classifications: &[Option<LineClass>],
+    t_scopes: &[Scope],
+    t_file_length: u64,
+    witnesses: &[Witness],
+) -> (result: bool)
+    requires
+        scoring_ctx_wf(t_annotation, t_scopes),
+        witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
+    ensures
+        result <==> exists|k: int| 0 <= k < witnesses@.len()
+            && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+                #[trigger] witnesses@[k]),
+{
+    let mut k: usize = 0;
+    while k < witnesses.len()
+        invariant
+            0 <= k <= witnesses@.len(),
+            scoring_ctx_wf(t_annotation, t_scopes),
+            witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
+            forall|j: int| 0 <= j < k ==> !binds(
+                t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+                #[trigger] witnesses@[j]),
+        decreases witnesses@.len() - k,
+    {
+        if is_bound_by(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            &witnesses[k])
+        {
+            return true;
+        }
+        k = k + 1;
+    }
+    false
+}
+
+//= design/witness/spec.md#property-w3-global-execution
+//= type=test
+//# The implementation MUST prove that an implementation annotation is
+//# reported ever-executed if and only if some delivered witness
+//# executed it:
+/// Property W3: Global Execution. Deliberately weaker than W1 (no
+/// correlation, no `binds`); MUST NOT be used to discharge pairs.
+pub fn report_ever_executed(
+    i_file_id: u64,
+    i_annotation: &AnnotationSpan,
+    i_classifications: &[Option<LineClass>],
+    i_scopes: &[Scope],
+    i_file_length: u64,
+    witnesses: &[Witness],
+) -> (result: bool)
+    requires
+        scoring_ctx_wf(i_annotation, i_scopes),
+        witnesses_coverage_in_bounds(witnesses@, i_file_id, i_classifications),
+    ensures
+        result <==> exists|k: int| 0 <= k < witnesses@.len()
+            && executed_by(i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
+                #[trigger] witnesses@[k]),
+{
+    let mut k: usize = 0;
+    while k < witnesses.len()
+        invariant
+            0 <= k <= witnesses@.len(),
+            scoring_ctx_wf(i_annotation, i_scopes),
+            witnesses_coverage_in_bounds(witnesses@, i_file_id, i_classifications),
+            forall|j: int| 0 <= j < k ==> !executed_by(
+                i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
+                #[trigger] witnesses@[j]),
+        decreases witnesses@.len() - k,
+    {
+        if is_executed_by(i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
+            &witnesses[k])
+        {
+            return true;
+        }
+        k = k + 1;
+    }
+    false
+}
+
+//= design/witness/spec.md#property-w6-unwitnessed-test-annotations
+//= type=test
+//# The engine MUST report every test annotation for which no
+//# delivered witness binds it —
+//# across ALL configured producers —
+//# as a failure, never silently:
+/// Property W6, verified half: the unwitnessed predicate. True iff NO
+/// delivered witness binds T (exactly ¬W2). The reporting obligation —
+/// surfacing every unwitnessed test annotation as a failure, never
+/// silently — is engine behavior (glue assumption G2 names the engine's
+/// duty to call this predicate for its verdicts).
+pub fn is_unwitnessed(
+    t_file_id: u64,
+    t_annotation: &AnnotationSpan,
+    t_classifications: &[Option<LineClass>],
+    t_scopes: &[Scope],
+    t_file_length: u64,
+    witnesses: &[Witness],
+) -> (result: bool)
+    requires
+        scoring_ctx_wf(t_annotation, t_scopes),
+        witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
+    ensures
+        result <==> !exists|k: int| 0 <= k < witnesses@.len()
+            && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+                #[trigger] witnesses@[k]),
+{
+    !report_test_executed(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+        witnesses)
+}
+
+// ---------------------------------------------------------------------------
+// Properties W4 and W5
+// ---------------------------------------------------------------------------
+
+/// Spec: every witness of `ws` occurs (as an equal value) in `ws2`.
+/// Witness sets are `Seq`-valued with no uniqueness assumption
+/// (decisions.md, Decision 12): duplicates and multiple witnesses per
+/// annotation are allowed, and membership is all the ∃-quantified
+/// properties ever inspect.
+pub open spec fn witness_subset(ws: Seq<Witness>, ws2: Seq<Witness>) -> bool {
+    forall|k: int| 0 <= k < ws.len()
+        ==> exists|j: int| 0 <= j < ws2.len() && ws2[j] == #[trigger] ws[k]
+}
+
+//= design/witness/spec.md#property-w4-monotonicity
+//= type=test
+//# The implementation MUST prove that adding a witness never flips a
+//# failing pair to passing:
+/// Property W4: Failure Monotonicity (Decision 14 form — this INVERTS the
+/// original monotonicity direction; the old "adding never un-discharges" is
+/// now false by design, since an added witness that binds T but misses I is
+/// exactly the vacuity being caught).
+///
+/// Statement: `ws ⊆ ws' ⟹ (discharged(ws') ⟹ discharged(ws) ∨ T unwitnessed
+/// in ws)`. Equivalently (the form proved here, by case split on whether T
+/// is witnessed in ws): the only way adding witnesses turns a non-discharged
+/// pair into a discharged one is by witnessing a previously *unwitnessed*
+/// test — never by outvoting a bound witness that failed.
+///
+/// Proof shape (falls out of the ∀, as the design analysis predicted): if T
+/// is witnessed in `ws` and the pair fails in `ws`, the failure is some
+/// bound witness in `ws` that did not execute I (the ∃-conjunct holds, so
+/// the ∀-conjunct must be what failed). That witness transports into `ws'`
+/// by subset, still binds, still misses I — so it violates `ws'`'s
+/// ∀-conjunct too, and the pair fails in `ws'`.
+pub proof fn failure_monotonicity(
+    t_file_id: u64,
+    t_annotation: &AnnotationSpan,
+    t_classifications: &[Option<LineClass>],
+    t_scopes: &[Scope],
+    t_file_length: u64,
+    i_file_id: u64,
+    i_annotation: &AnnotationSpan,
+    i_classifications: &[Option<LineClass>],
+    i_scopes: &[Scope],
+    i_file_length: u64,
+    ws: Seq<Witness>,
+    ws2: Seq<Witness>,
+)
+    requires
+        witness_subset(ws, ws2),
+        discharged(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            i_file_id, i_annotation, i_classifications, i_scopes, i_file_length, ws2),
+    ensures
+        discharged(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            i_file_id, i_annotation, i_classifications, i_scopes, i_file_length, ws)
+        || !exists|k: int| 0 <= k < ws.len()
+            && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+                #[trigger] ws[k]),
+{
+    if exists|k: int| 0 <= k < ws.len()
+        && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            #[trigger] ws[k])
+    {
+        // T is witnessed in ws: show discharged(ws). The ∃-conjunct holds by
+        // hypothesis; for the ∀-conjunct, every bound witness of ws occurs
+        // (as an equal value) in ws2, where discharged(ws2)'s ∀-conjunct
+        // forces it to have executed I.
+        assert forall|k: int|
+            0 <= k < ws.len()
+            && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+                #[trigger] ws[k])
+        implies executed_by(i_file_id, i_annotation, i_classifications, i_scopes,
+            i_file_length, ws[k])
+        by {
+            // Transport ws[k] into ws2 via the subset hypothesis.
+            assert(exists|j: int| 0 <= j < ws2.len() && ws2[j] == ws[k]);
+            let j = choose|j: int| 0 <= j < ws2.len() && ws2[j] == ws[k];
+            // ws2[j] binds T (substitution), so ws2's ∀-conjunct applies.
+            assert(binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+                ws2[j]));
+            assert(executed_by(i_file_id, i_annotation, i_classifications, i_scopes,
+                i_file_length, ws2[j]));
+        }
+    }
+}
+
+//= design/witness/spec.md#property-w5-claim-refinement
+//= type=test
+//# The implementation MUST prove that binding under `ByExecution`
+//# implies execution of the test in the same witness:
+/// Property W5: Claim Refinement.
+///
+/// DEFINITIONAL in this formalization, trivially true: `binds` under
+/// `ByExecution` is *defined as* `executed_by` (spec §1.5's match arm,
+/// transcribed). The proof is a one-line unfold. Stated anyway as a
+/// REGRESSION TRIPWIRE: if `binds`'s `ByExecution` arm ever changes so that
+/// positional claiming stops being a refinement of evidence claiming, this
+/// proof breaks loudly instead of the property silently weakening.
+pub proof fn by_execution_binding_implies_executed(
+    file_id: u64,
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    file_length: u64,
+    w: Witness,
+)
+    requires
+        w.claim == ClaimRule::ByExecution,
+        binds(file_id, annotation, classifications, scopes, file_length, w),
+    ensures
+        executed_by(file_id, annotation, classifications, scopes, file_length, w),
+{
+    // Definitional: with `w.claim == ByExecution`, `binds` unfolds to
+    // `executed_by` — nothing to prove beyond the unfold.
+}
+
+} // verus!
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::*;
+
+    fn s(props: &[LineProperty]) -> Option<LineClass> {
+        Some(line_class(props))
+    }
+    fn cov_hit(lines: &[u64]) -> CoverageReport {
+        lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
+    }
+
+    // File 1 (the test annotation's file):
+    //   1: Annotation, 2: Annotation, 3: Statement  <- T's target
+    const T_FILE: u64 = 1;
+    fn t_classifications() -> Vec<Option<LineClass>> {
+        vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Statement]),
+        ]
+    }
+    fn t_annotation() -> AnnotationSpan {
+        AnnotationSpan { start_line: 1, end_line: 2 }
+    }
+
+    // File 2 (the implementation annotation's file):
+    //   1: Annotation, 2: Statement  <- I's target
+    const I_FILE: u64 = 2;
+    fn i_classifications() -> Vec<Option<LineClass>> {
+        vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Statement])]
+    }
+    fn i_annotation() -> AnnotationSpan {
+        AnnotationSpan { start_line: 1, end_line: 1 }
+    }
+
+    fn w_both() -> Witness {
+        Witness {
+            claim: ClaimRule::ByExecution,
+            files: vec![(T_FILE, cov_hit(&[3])), (I_FILE, cov_hit(&[2]))],
+        }
+    }
+    fn w_t_only() -> Witness {
+        Witness { claim: ClaimRule::ByExecution, files: vec![(T_FILE, cov_hit(&[3]))] }
+    }
+    fn w_i_only() -> Witness {
+        Witness { claim: ClaimRule::ByExecution, files: vec![(I_FILE, cov_hit(&[2]))] }
+    }
+
+    fn discharged_verdict(witnesses: &[Witness]) -> bool {
+        report_discharged(
+            T_FILE, &t_annotation(), &t_classifications(), &[], 3,
+            I_FILE, &i_annotation(), &i_classifications(), &[], 2,
+            witnesses,
+        )
+    }
+
+    /// W1 (universal form, Decision 14): one bound witness that executes I
+    /// discharges; evidence split across two witnesses does NOT; and a
+    /// bound witness that misses I fails the pair even when another bound
+    /// witness covers it — no outvoting.
+    #[test]
+    fn w1_universal_same_witness_discharge() {
+        assert!(discharged_verdict(&[w_both()]));
+        // Split evidence: w_t_only binds T but never reaches I.
+        assert!(!discharged_verdict(&[w_t_only(), w_i_only()]));
+        // Unwitnessed T.
+        assert!(!discharged_verdict(&[]));
+        // The new behavior the quantifier flip exists for: adding a bound
+        // witness that misses I fails a pair that w_both alone discharged.
+        assert!(discharged_verdict(&[w_both()]));
+        assert!(!discharged_verdict(&[w_both(), w_t_only()]));
+    }
+
+    /// W3 is deliberately weaker than W1: the split-witness set that fails
+    /// discharge still reports I as ever-executed.
+    #[test]
+    fn w3_global_execution_no_correlation() {
+        let ws = [w_t_only(), w_i_only()];
+        assert!(!discharged_verdict(&ws));
+        assert!(report_ever_executed(
+            I_FILE, &i_annotation(), &i_classifications(), &[], 2, &ws,
+        ));
+        assert!(!report_ever_executed(
+            I_FILE, &i_annotation(), &i_classifications(), &[], 2, &[w_t_only()],
+        ));
+    }
+
+    /// W2 / W6: bound iff some witness binds; unwitnessed is the negation.
+    #[test]
+    fn w2_w6_test_execution_and_unwitnessed() {
+        let t = t_annotation();
+        let c = t_classifications();
+        assert!(report_test_executed(T_FILE, &t, &c, &[], 3, &[w_t_only()]));
+        assert!(!report_test_executed(T_FILE, &t, &c, &[], 3, &[w_i_only()]));
+        assert!(is_unwitnessed(T_FILE, &t, &c, &[], 3, &[]));
+        assert!(is_unwitnessed(T_FILE, &t, &c, &[], 3, &[w_i_only()]));
+        assert!(!is_unwitnessed(T_FILE, &t, &c, &[], 3, &[w_t_only()]));
+    }
+
+    /// ByRootSpan binds iff the resolved target exists, the file matches,
+    /// and the target falls within the (inclusive) range.
+    #[test]
+    fn by_root_span_binding() {
+        let t = t_annotation();
+        let c = t_classifications();
+        let root = |file_id, start_line, end_line| Witness {
+            claim: ClaimRule::ByRootSpan { file_id, start_line, end_line },
+            files: vec![(I_FILE, cov_hit(&[2]))],
+        };
+        // T's target is line 3 in file 1.
+        assert!(report_test_executed(T_FILE, &t, &c, &[], 3, &[root(T_FILE, 2, 4)]));
+        assert!(report_test_executed(T_FILE, &t, &c, &[], 3, &[root(T_FILE, 3, 3)]));
+        // Outside the range, or wrong file: no bind.
+        assert!(!report_test_executed(T_FILE, &t, &c, &[], 3, &[root(T_FILE, 4, 9)]));
+        assert!(!report_test_executed(T_FILE, &t, &c, &[], 3, &[root(I_FILE, 2, 4)]));
+        // A ByRootSpan witness carrying I's coverage discharges the pair
+        // (prover-shaped witness: positional claim + closure map).
+        assert!(report_discharged(
+            T_FILE, &t, &c, &[], 3,
+            I_FILE, &i_annotation(), &i_classifications(), &[], 2,
+            &[root(T_FILE, 2, 4)],
+        ));
+    }
+
+    /// Spec §1.5 no-vacuous-binding: an annotation with no resolved target
+    /// (pure scope-close follows it) binds NO ByRootSpan witness, even one
+    /// whose range would contain the annotation's own lines.
+    #[test]
+    fn by_root_span_never_binds_empty_target() {
+        // 1: Annotation, 2: pure ScopeClose -> no resolved target.
+        let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::ScopeClose])];
+        let t = AnnotationSpan { start_line: 1, end_line: 1 };
+        let w = Witness {
+            claim: ClaimRule::ByRootSpan { file_id: T_FILE, start_line: 1, end_line: 100 },
+            files: vec![],
+        };
+        assert!(!report_test_executed(T_FILE, &t, &c, &[], 2, &[w]));
+    }
+
+    /// W4 (Failure Monotonicity, Decision 14): adding a witness that does
+    /// NOT bind T preserves discharge; adding one that binds T and misses I
+    /// deliberately fails the pair (the inversion of the old property); and
+    /// the only pass-creating addition is witnessing a previously
+    /// unwitnessed T. The general theorem is `failure_monotonicity`
+    /// (proof fn); this exercises the concrete report path.
+    #[test]
+    fn w4_failure_monotonicity() {
+        // Non-binding additions never flip the verdict.
+        assert!(discharged_verdict(&[w_both()]));
+        assert!(discharged_verdict(&[w_both(), w_i_only()]));
+        // A binding addition that misses I fails the pair — by design.
+        assert!(!discharged_verdict(&[w_both(), w_t_only()]));
+        // A failing-but-witnessed pair stays failing in every superset.
+        assert!(!discharged_verdict(&[w_t_only()]));
+        assert!(!discharged_verdict(&[w_t_only(), w_both(), w_i_only()]));
+        // The one legitimate fail->pass transition: T was unwitnessed.
+        assert!(!discharged_verdict(&[w_i_only()]));
+        assert!(discharged_verdict(&[w_i_only(), w_both()]));
+    }
+
+    /// Decision 14 ambiguity ruling: at a position rooting N obligations
+    /// (N ByRootSpan witnesses binding the same T), ALL N must execute I —
+    /// no best-of-N.
+    #[test]
+    fn decision_14_all_bound_root_span_witnesses_must_execute() {
+        let root_with_i = Witness {
+            claim: ClaimRule::ByRootSpan { file_id: T_FILE, start_line: 2, end_line: 4 },
+            files: vec![(I_FILE, cov_hit(&[2]))],
+        };
+        let root_without_i = Witness {
+            claim: ClaimRule::ByRootSpan { file_id: T_FILE, start_line: 2, end_line: 4 },
+            files: vec![],
+        };
+        // One bound obligation-witness reaching I: discharged.
+        assert!(discharged_verdict(&[root_with_i.clone()]));
+        // Two obligations own the position; only one reaches I: FAILS.
+        assert!(!discharged_verdict(&[root_with_i, root_without_i]));
+    }
+
+    /// First-match lookup: the earliest entry for a file id wins. (G1
+    /// forbids duplicates; this pins the documented semantics if one ever
+    /// slips through — the later map is dead, so T scores against the
+    /// first, empty map and is NOT executed.)
+    #[test]
+    fn duplicate_file_id_first_match_wins() {
+        let w = Witness {
+            claim: ClaimRule::ByExecution,
+            files: vec![(T_FILE, CoverageReport::new()), (T_FILE, cov_hit(&[3]))],
+        };
+        assert!(!report_test_executed(
+            T_FILE, &t_annotation(), &t_classifications(), &[], 3, &[w],
+        ));
+    }
+}

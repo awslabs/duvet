@@ -73,3 +73,4 @@ pub mod proofs;
 pub mod scopes;
 pub mod target_resolution;
 pub mod types;
+pub mod witness;
