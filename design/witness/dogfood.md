@@ -36,7 +36,7 @@ For each property section below:
 | property-2 (discrimination control — **test fixture only, never annotated in the tree**) | same impl | `proofs::lemma_no_cross_scope_leakage` | NOT discharged — closure never reaches annotation_execution.rs (POC-confirmed). Lives as a producer/engine test asserting non-discharge; the shipped tree only carries annotations we believe true |
 | property-3-conservative-fallback | `annotation_execution.rs` | `proofs::executed_annotation_conservative_fallback` | DISCHARGED (same family) |
 | property-4-monotonicity | `annotation_execution.rs` | `proofs::executed_annotation_monotonic` | DISCHARGED (same family) |
-| property-9-execution-set-containment | `execution_propagation.rs` (the propagation walk) | existing runtime test + a proof-side annotation TBD | runtime witness needed; proof side TBD |
+| property-9-execution-set-containment | `execution_propagation.rs` (the propagation walk) | **DEFERRED to the LCOV dogfood session**: runtime half awaits the LCOV producer; proof-side annotation target chosen then | deferred (declared, not silently half-done) |
 
 The discrimination control is a test, not an annotation:
 duvet never ships a pair expected to fail.
@@ -192,3 +192,29 @@ runtime pairs in the same invocation. Known follow-up: 14 older
 resolve to comment lines under degraded resolution; harmless today
 (implication coverers are not scored by proof witnesses in these
 runs) but they should be re-placed in the optional retrofit pass.
+
+## CI staging (decided 2026-07-28)
+
+The full proof-only run exits 1 on the 10 unwitnessed runtime
+test annotations — Decision 8 working as designed, but not a
+gateable state. Staging decision:
+
+- The 10 runtime `type=test` annotations are **disabled** (the
+  annotation comment broken deliberately) with one grep-able
+  marker token — `DUVET-DISABLED-AWAITING-LCOV` — on each, so the
+  full proof-only run exits 0 and **CI gates on it from day one**.
+  The marker is mechanically findable: re-enabling is a search,
+  not a memory.
+- The next dogfood session adds Rust runtime coverage
+  (the `cargo llvm-cov` per-test harness, Decision 16's first
+  example project); its opening move is re-enabling the marked
+  annotations, and its exit criterion is the mixed run green with
+  all pairs discharged — the full decision-4 goal.
+- No asserted-failure wrapper is built for the proof-only red
+  state: it is meant to be temporary, and the sliced-run
+  regression coverage plus Decision 8's unit tests already pin
+  the subset-of-producers behavior.
+- The per-test harness requirement (one coverage invocation per
+  test, one report = one witness) is Decision 16; the mixed run
+  MUST NOT use an aggregate suite report — that would put an A2
+  violation at the center of the feature's own demo.

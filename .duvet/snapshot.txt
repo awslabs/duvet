@@ -333,8 +333,20 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: A constructed witness's `files` maps MUST equal the source spans
     TEXT[!MUST]: of the downward reachable set of the prover's obligation graph,
     TEXT[!MUST]: starting from the discharge unit.
-    TEXT[!MUST]: The precision of "reachable" is bounded by the granularity of the
-    TEXT[!MUST]: prover's graph and is not yet fully specified
+    TEXT[!MUST]: The closure MUST be **reflexive**: it includes the discharge
+    TEXT[!MUST]: unit's own root span (`root ∈ closure(root)`), so that a witness
+    TEXT[!MUST]: always scores its own annotation as executed and `ByRootSpan`
+    TEXT[!MUST]: binding implies execution (§1.5's claim rules are thereby
+    TEXT[!MUST]: instances of one predicate; Property W5's refinement claim
+    TEXT[!MUST]: depends on this).
+    TEXT[!MUST]: Producers MUST carry a unit test asserting reflexivity for every
+    TEXT[!MUST]: constructed witness.
+    TEXT[!MUST]: The closure MUST be computed at the finest granularity the
+    TEXT[!MUST]: artifact demonstrably supports
+    TEXT[!MUST]: (decisions.md, Decision 17 — deferral is legitimate only where
+    TEXT[!MUST]: the artifact itself is the limit);
+    TEXT[!MUST]: the precision of "reachable" is bounded by the granularity of the
+    TEXT[!MUST]: prover's graph and its finer levels are not yet fully specified
     TEXT[!MUST]: (decisions.md, Open Question 1);
     TEXT[!MUST]: what is normative now:
     TEXT[!MUST]: the closure MUST be a fixpoint (no truncation at a depth bound),

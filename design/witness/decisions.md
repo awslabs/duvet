@@ -114,12 +114,20 @@ Merge everything, then check both sides in the union.
 
 ### Option C: Same-witness discharge
 
-`discharged(T, I) ⟺ ∃w : binds(T, w) ∧ executed(I, w)`
+No pair discharges without a common witness:
+a single witness that both binds T and executed I.
 
 - Pro: The discharge claim means what users think it means.
 - Con: Pairs that only ever passed via aggregate unions will fail.
 
-### Decision: Option C *(quantifier amended by Decision 14: within `witnesses_for(T)`, discharge is universal, not existential)*
+### Decision: Option C
+
+This decision fixes the same-witness requirement only:
+every act of evidence credited to a pair must see both sides.
+It deliberately does not settle the quantifier over a test's
+bound witnesses — whether one common witness suffices or every
+bound witness is held to the pair is a further question,
+left open here (taken up in Decision 14).
 
 Global properties ("every implementation annotation is executed by
 *something*") remain independent existentials over witnesses and
@@ -195,9 +203,19 @@ Executed in it.
 
 ### Decision: Option C, closed set for now
 
-`ByExecution` claiming implies T executed in w,
-so both rules are instances of one predicate and root-claiming is a
-refinement, never a loophole.
+`ByExecution` claiming implies T executed in w by definition.
+For `ByRootSpan` the same implication is a construction
+requirement: a constructed witness's closure is **reflexive** —
+it includes the discharge unit's own root span
+(`root ∈ closure(root)`, a normative constraint on the closure
+definition, Open Question 1) — so a witness always scores its own
+annotation as executed, and binding implies execution under both
+rules. Both rules are therefore instances of one predicate and
+root-claiming is a refinement, never a loophole.
+The reflexivity requirement is guarded by a producer unit test
+(every constructed witness contains its own root span),
+in the same spirit as the dogfood plan's discrimination control:
+it tests the relation most likely to silently regress.
 The witness object is the "by" in "I executed by T";
 there is no separate connectedness relation.
 A third claim rule is not currently nameable across
@@ -217,22 +235,31 @@ the load-bearing quantifiers above it were informal.
 
 ### Decision: The property inventory is the verified boundary
 
-Stated over witnesses only — no formats in the vocabulary:
+Stated over witnesses only — no formats in the vocabulary.
+The quantifier in P1 is universal over a test's bound witnesses;
+the reasoning that settles it is Decision 14's.
 
 ```
 P1  discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
                           ∧ ∀w ∈ witnesses_for(T) : executed(I, w)
     where witnesses_for(T) = { w : binds(T, w) }
-    (quantifier set by Decision 14; originally stated as ∃)
 P2  test_executed(T)  ⟺  ∃w : binds(T, w)
 P3  ever_executed(I)  ⟺  ∃w : executed(I, w)      (global; no correlation)
-P4  Monotonicity (inverted by Decision 14): adding a witness never
-    flips a failing pair to passing; it may newly fail a pair —
-    that is the vacuity being caught.
+P4  Monotonicity, two separately-provable facts
+    (discharged is their conjunction and has no single direction):
+    P4a  Nonemptiness is monotone increasing: adding witnesses
+         never falsifies test_executed(T) — the fail→pass
+         transition at the empty boundary is "evidence was found"
+         and is the only fail→pass transition there is.
+    P4b  The universal clause is monotone decreasing: over an
+         already-nonempty witnesses_for(T), adding a witness never
+         flips a failing pair to passing; it may newly fail a
+         passing pair — that is the vacuity being caught.
+    The load-bearing safety statement is P4b. Spec W4 states the
+    conjunction in implication form and is proven in that form.
 P5  binds(T, w) under ByExecution ⟹ executed(T, w)
-    (tentative — may be difficult to prove as stated;
-    if it resists, it may be restated or demoted to a tested
-    property without weakening P1–P4)
+    (for ByRootSpan the same implication holds by the reflexive
+    closure requirement, Decision 3 / Open Question 1)
 ```
 
 These become a verified "Phase 4" in `duvet-coverage`
@@ -243,29 +270,49 @@ The engine implementation is scaffolding and may be rewritten
 freely; the invariant is that the properties stay proven,
 not that the pipeline stays the same.
 
-Named axioms (trusted base, per producer family):
+The trusted base — one ledger, per producer family.
+Each entry is named and carries a status:
+**irreducible** (an axiom proper; will never be discharged by us)
+or **dischargeable** (our pure code, trusted today, with a stated
+mitigation and a verification target; when discharged it leaves
+the ledger and joins the property inventory).
+"Axiom" is reserved for the irreducible entries:
+a debt that can be proven was never an axiom,
+and labeling debts as axioms makes the irreducible ones look
+negotiable.
 
 ```
 A1  Closedness: every delivered coverage map is closed under the
     producer's reachability (CPU execution / obligation-graph
     closure).
+    - runtime: instrumentation fidelity — IRREDUCIBLE.
+    - prover (a): verifier faithfulness — IRREDUCIBLE
+      (same category as trusting the verifier itself).
+    - prover (b): closure computation — DISCHARGEABLE.
+      Mitigation: golden-corpus tests + the reflexivity test
+      (Decision 3). Target: Verus proof in duvet-coverage
+      (a pure graph fixpoint).
 A2  Individuation: each witness is the record of ONE act of
     checking (one test run, one obligation discharge).
+    - runtime: the user's operational discipline; the artifact
+      does not record how it was produced — IRREDUCIBLE.
+      Transferred by worked example (per-test harness example
+      projects), not by normative spec text; duvet does not
+      attempt detection (Decision 11).
+    - prover: holds by construction — no entry needed.
+F1  Artifact-structure fidelity: the parse of the prover artifact
+    into extents, ensures-clause spans, and loop-invariant spans
+    defines dom(du) (Decision 13) and position→obligation
+    attribution (Decision 12), including that binds reports only
+    genuine rooting obligations — DISCHARGEABLE.
+    Mitigation: golden-corpus producer tests (spec §4.3).
+    Target: verification candidate in duvet-coverage.
+    Failure direction under universal discharge (Decision 14):
+    a spurious bind that misses I manufactures a FALSE FAILURE,
+    never a false pass — the safe direction for this feature.
 ```
 
-Asymmetry, recorded deliberately:
-runtime A1 and A2 are axiomatic
-(A1: instrumentation fidelity; A2: the user's operational
-discipline — the artifact does not record how it was produced).
-Prover A1 splits into
-(a) verifier faithfulness — irreducibly axiomatic — and
-(b) closure computation — our pure code, provable,
-a verification candidate in `duvet-coverage`.
-Prover A2 holds by construction.
-Duvet does not attempt to detect runtime A2 violations
-(considered and set aside; see Decision 11).
-
-These properties and axioms must be consolidated into the
+These properties and this ledger must be consolidated into the
 specification proper (not live only in this decision record),
 and dogfooded: duvet's own spec annotations already sit on proof
 elements inside `duvet-coverage`,
@@ -586,7 +633,8 @@ What should the producer do with N > 1 candidates?
 ### Option C: Deliver one witness per owning obligation
 
 - Pro: The model already handles it: `witnesses_for(T)` is
-  set-valued, discharge is ∃w, and runtime binding already allows
+  set-valued, the pair verdict is a quantifier over that set, and
+  runtime binding already allows
   multiple witnesses per test. Individuation (A2) holds per
   witness — this is N honest witnesses, not one merged map.
 - Pro: Best diagnostics of the three outcomes:
@@ -601,7 +649,11 @@ What should the producer do with N > 1 candidates?
   honest under consulted semantics and the provenance in the
   verdict makes it inspectable.
 
-### Decision: Option C *(attribution rule amended by Decision 13; verdict over the N witnesses made universal by Decision 14 — all rooting obligations' witnesses must reach I)*
+### Decision: Option C
+
+This decision fixes the structure — all rooting obligations, one
+witness each — and deliberately leaves the verdict over those N
+witnesses to the quantifier question (Decision 14).
 
 Producer attribution rule (Verus, generalizable):
 all obligations **rooted at** the position — Decision 13's
@@ -783,10 +835,26 @@ we do not convert a confusing failure into a pass.
 Improving identification of which obligation failed is follow-up
 work (Open Question 2), never a reason to weaken the verdict.
 
+**The boundary of the claim, stated so it is not over-read:**
+discharge under this decision eliminates vacuity at **witness
+granularity** — every act of checking T claims must reach I.
+Vacuity *below* witness granularity is not caught at Consulted
+strength: Decision 7's running example (T on ensures #2, I inside
+loop 1's body) passes, because the whole obligation's elaboration
+consults the entire body. What P1 delivers is precisely
+"no test annotation binds a witness whose consulted closure
+misses I" — and the gap between that and full "no vacuous
+pairings" is the gap the `strength` field reserves room for
+(needed-semantics, Decision 7 Option B, deferred).
+The feature ships with this boundary documented rather than
+blocking on closing it.
+
 Consequences:
-- P1/W1 restated with the universal quantifier;
-  P4/W4 (monotonicity) restated in the inverted direction;
-  the Phase 4 proofs are redone against the new statements.
+- P1/W1 carry the universal quantifier;
+  P4/W4 (monotonicity) is stated as the two facts in Decision 4
+  (nonemptiness monotone increasing, universal clause monotone
+  decreasing); the Phase 4 proofs are done against those
+  statements.
 - Per-witness ✓/✗ reporting (formerly proposed as a footnote on
   ∃-passes) becomes the **diagnosis attached to failures**:
   the report MUST list every bound witness with its per-witness
@@ -800,10 +868,8 @@ Consequences:
   only some reached I now fails: a per-run vacuity, reported as
   such.
 
-Supersedes: the quantifier in Decision 1's Option C statement,
-P1/P4 in Decision 4, and the ∃-verdict sentence in Decision 12
-(Option C's structure — all owners, one witness each — stands;
-the verdict over those witnesses is now universal).
+Settles: the quantifier left open in Decision 1 (Option C) and
+the verdict over Decision 12's N-witness positions.
 
 ---
 
@@ -859,18 +925,106 @@ spec semantics.
 
 ---
 
+## Decision 16: Runtime individuation is achieved by a per-test harness, transferred by example {#decision-16}
+
+**Context:** Runtime coverage tools (JaCoCo, `cargo llvm-cov`,
+grcov) produce **one aggregate report per suite run** by default —
+many tests, one file. Feeding such a report to duvet satisfies
+`ByExecution` claiming for every test annotation in it and
+silently weakens every discharge that flows through it: an A2
+violation by default, which Decision 11 deliberately does not
+detect. The same problem was solved for JaCoCo before this
+feature existed; the pattern is known.
+
+### Option A: Normative spec text (a producer-obligation MUST on the user)
+
+- Con: Duvet cannot check it and the user cannot be held to it
+  mechanically — a MUST without an enforcer dresses an
+  operational assumption as a requirement.
+
+### Option B: Worked example projects, per tool
+
+One example project per coverage tool demonstrating the harness
+pattern: an outer harness enumerates the tests and runs **one
+coverage invocation per test**, each producing one report file —
+one report = one witness (Decision 2's degenerate case), witness
+identity riding the artifact (name report files after tests).
+
+- Pro: The discipline transfers by demonstration, which is the
+  only mechanism available for an assumption duvet cannot verify.
+- Con: Slower than a suite run. Accepted: per-test isolation is
+  the cost of honest witnesses; there is no good simple answer.
+
+### Decision: Option B
+
+A2's runtime half remains what Decision 4's ledger says it is —
+irreducible, the user's operational discipline — now with a
+demonstrated path per tool instead of a commandment.
+The untangling machinery (one artifact → many witnesses) remains
+reserved for producers whose artifacts genuinely contain many
+acts of checking (per-test formats, prover logs);
+the LCOV/JaCoCo producers stay dumb on purpose.
+Example projects are written as each runtime producer lands,
+starting with `cargo llvm-cov` for the Rust dogfood.
+
+---
+
+## Decision 17: The granularity floor is the artifact's provable maximum {#decision-17}
+
+**Context:** Two different deferrals hide inside "ship now,
+improve later," and only one is acceptable.
+Deferring **strength** (Consulted → Needed, Decision 7) defers
+evidence that does not exist yet: unsat cores, feasibility
+unproven, possibly prover changes. Deferring **granularity the
+artifact already records** would be self-imposed weakening:
+the report contains finer structure and the producer parses it as
+a blob, shipping below the evidence in hand while claiming the
+posture of iteration.
+
+### Decision: Consume the artifact's demonstrated maximum from day one
+
+A prover producer MUST consume its artifact at the maximum
+granularity the artifact **provably supports** — where "provably
+supports" means demonstrated by inspection of real artifacts, not
+assumed. The Open Question 1 investigation is therefore
+normative, not exploratory: whatever discharge-unit and closure
+fineness the artifact demonstrably records sets the shipped
+floor. Only what would require new evidence sources or prover
+changes may be deferred.
+
+Applied to Verus SST (spec §5.5, inspected 2026-07-28):
+obligation **nodes** carry sub-function structure
+(`:enss` clause lists, `LoopInv` nodes),
+but the **edges** observed so far are function-level
+(`Fun :path` references).
+Whole-function closure is therefore the current demonstrated
+maximum for the *closure*;
+whether clause- or invariant-level closure is recoverable —
+i.e. whether the artifact's edge structure can attribute a
+dependency to a specific clause rather than its enclosing
+function — is exactly the open investigation
+(Open Question 1's finer half, and the
+"finer-than-function discharge units" work item).
+If that investigation shows the artifact supports finer closure,
+shipping without it would violate this decision;
+if it shows the artifact cannot, the deferral is legitimate and
+this decision is satisfied at function granularity.
+
+---
+
 ## Open questions (not decided) {#open-questions}
 
 1. **The exact closure definition.**
    A constructed witness's contents are the downward reachable set
    of the prover's dependency graph from the discharge unit —
    to be stated exactly, per prover.
+   Two constraints are settled and normative:
+   the closure is **reflexive** (`root ∈ closure(root)`,
+   Decision 3 — binding must imply execution) and it is consumed
+   at the artifact's demonstrated maximum granularity
+   (Decision 17).
    Precision is bounded by the graph's granularity
-   (five invariants on one loop: five nodes or one?),
-   which is unexplored for every prover, Verus included.
-   Resolution path: not further discussion —
-   build the first Verus producer prototype and inspect what the
-   artifact actually supports.
+   (five invariants on one loop: five nodes or one?).
    *Status (2026-07-28): the first Verus producer is built and the
    artifact inspected (spec §5.5). Nodes and edges are
    function-level (`FunctionSst` blocks, `Fun :path` references),
@@ -878,7 +1032,9 @@ spec semantics.
    functions, not the exact lines a proof consulted. The question
    stays open at the finer level: whether and how clause- or
    invariant-level closure precision is recoverable from the
-   artifact. Flagged for return at the 2026-07-28 PR review.*
+   artifact — under Decision 17 this investigation is normative
+   (its answer sets the shipped floor), not optional polish.
+   Flagged for return at the 2026-07-28 PR review.*
 
 2. **Identifying which obligation is which in failure reports.**
    Under Decision 14, a multi-witness failure lists the bound
@@ -896,13 +1052,26 @@ spec semantics.
 
 ## Work items (not questions — known work) {#work-items}
 
-- **Finer-than-function discharge units.** The SST artifact carries
-  sub-function structure (`:enss` clause lists, `LoopInv` nodes),
-  so clause- and invariant-level discharge units are expressible
-  without a format change (spec §5.5). The first version ships
-  whole-proof-fn units only. Revisit after the feature lands —
-  flagged for return at the 2026-07-28 PR review, alongside Open
-  Question 1's closure-granularity half.
+- **Finer-than-function discharge units and closure — the
+  Decision 17 investigation.** The SST artifact carries
+  sub-function node structure (`:enss` clause lists, `LoopInv`
+  nodes), so clause- and invariant-level discharge units are
+  expressible without a format change (spec §5.5); whether the
+  artifact's *edge* structure supports clause-level closure is
+  unknown. Under Decision 17 this investigation is normative: its
+  answer sets the shipped granularity floor. Deliverable: a
+  written determination (in spec §5.5) of the artifact's
+  demonstrated maximum for both discharge units and closure,
+  with the producer brought up to that maximum or the limit
+  recorded as the artifact's ceiling.
+- **Reflexivity check and guard (Decision 3).** One-time check
+  against the existing SST run's constructed witnesses that every
+  witness contains its own root span, plus the permanent producer
+  unit test asserting `root ∈ closure(root)`.
+- **Per-tool harness example projects (Decision 16).** First:
+  `cargo llvm-cov` one-invocation-per-test example for the Rust
+  dogfood's mixed run; JaCoCo example documents the
+  already-solved pattern.
 - Enumerate the Verus `du` map: annotation position → discharge
   unit, case by case (whole proof fn / lemma; ensures of an exec
   fn; single ensures clause; single conjunct) — inside the Verus

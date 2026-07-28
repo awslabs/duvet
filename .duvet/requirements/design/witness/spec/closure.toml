@@ -5,10 +5,22 @@ target = "design/witness/spec.md#closure"
 # A constructed witness's `files` maps MUST equal the source spans
 # of the downward reachable set of the prover's obligation graph,
 # starting from the discharge unit.
+# The closure MUST be **reflexive**: it includes the discharge
+# unit's own root span (`root ∈ closure(root)`), so that a witness
+# always scores its own annotation as executed and `ByRootSpan`
+# binding implies execution (§1.5's claim rules are thereby
+# instances of one predicate; Property W5's refinement claim
+# depends on this).
+# Producers MUST carry a unit test asserting reflexivity for every
+# constructed witness.
 # Only reachable nodes contribute;
 # nothing outside the reachable set may be included.
-# The precision of "reachable" is bounded by the granularity of the
-# prover's graph and is not yet fully specified
+# The closure MUST be computed at the finest granularity the
+# artifact demonstrably supports
+# (decisions.md, Decision 17 — deferral is legitimate only where
+# the artifact itself is the limit);
+# the precision of "reachable" is bounded by the granularity of the
+# prover's graph and its finer levels are not yet fully specified
 # (decisions.md, Open Question 1);
 # what is normative now:
 # the closure MUST be a fixpoint (no truncation at a depth bound),
@@ -26,8 +38,30 @@ starting from the discharge unit.
 [[spec]]
 level = "MUST"
 quote = '''
-The precision of "reachable" is bounded by the granularity of the
-prover's graph and is not yet fully specified
+The closure MUST be **reflexive**: it includes the discharge
+unit's own root span (`root ∈ closure(root)`), so that a witness
+always scores its own annotation as executed and `ByRootSpan`
+binding implies execution (§1.5's claim rules are thereby
+instances of one predicate; Property W5's refinement claim
+depends on this).
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Producers MUST carry a unit test asserting reflexivity for every
+constructed witness.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The closure MUST be computed at the finest granularity the
+artifact demonstrably supports
+(decisions.md, Decision 17 — deferral is legitimate only where
+the artifact itself is the limit);
+the precision of "reachable" is bounded by the granularity of the
+prover's graph and its finer levels are not yet fully specified
 (decisions.md, Open Question 1);
 what is normative now:
 the closure MUST be a fixpoint (no truncation at a depth bound),
