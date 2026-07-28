@@ -1,0 +1,33 @@
+[package]
+name = "duvet-coverage"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Coverage model types and algorithms for duvet"
+publish = false
+
+[dependencies]
+# vstd ships only as date-pinned pre-release versions on crates.io, and the
+# verus binary and vstd are released in lockstep — the version here MUST match
+# the Verus release verified against (VERUS_VERSION in
+# .github/workflows/ci.yml). Cargo.lock is gitignored, so a floating
+# requirement would let CI resolve a newer vstd than the pinned verus and fail
+# spuriously; an exact `=` pin keeps local and CI reproducible. Bump this
+# together with VERUS_VERSION. publish = false, so it is not propagated into
+# the published duvet artifact.
+vstd = "=0.0.0-2026-05-24-0157"
+
+[dev-dependencies]
+# Property-based testing harness, pinned to the same major as the `duvet` crate
+# (which already uses bolero in `query/classify/java.rs`). Used to exercise the
+# `ensures` of the trusted `#[verifier::external_body]` leaves against an
+# independent oracle, so a body/spec drift in an axiom fails a test instead of
+# silently passing verification. Dev-only: `cargo verus build` compiles the lib,
+# not tests, so this never touches the verified build or any published artifact.
+bolero = "0.13"
+
+[package.metadata.verus]
+verify = true
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(verus_keep_ghost)'] }

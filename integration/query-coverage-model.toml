@@ -1,0 +1,281 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r *.xml -f jacoco-xml --verbose"]
+report_output = false
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# V2 Coverage Model Test Specification
+
+## Section 1
+
+This MUST be implemented in the method body
+
+## Section 2
+
+This MUST define the keyring interface
+
+## Section 3
+
+This MUST declare the variable
+
+## Section 4
+
+This MUST not leak across methods
+
+## Section 5
+
+This MUST be stacked annotation A
+
+## Section 6
+
+This MUST be stacked annotation B
+
+## Section 7
+
+This MUST skip comments
+
+## Section 8
+
+This MUST handle unknown lines
+
+"""
+
+# Test 1: Annotation before method signature → Executed
+# The annotation is above `public void foo() {`, JaCoCo reports the first
+# statement inside the method as Hit. With v2, backward propagation from
+# the executed statement reaches the method signature.
+[[file]]
+path = "src/main/java/com/example/MethodSigTest.java"
+contents = """
+package com.example;
+
+public class MethodSigTest {
+
+    //= spec.md#section-1
+    //= type=implementation
+    //# This MUST be implemented in the method body
+    public void foo() {
+        doX();
+    }
+}
+"""
+
+# Test 1 test annotation
+[[file]]
+path = "src/test/java/com/example/MethodSigTestTest.java"
+contents = """
+package com.example;
+
+public class MethodSigTestTest {
+
+    //= spec.md#section-1
+    //= type=test
+    //# This MUST be implemented in the method body
+    public void testFoo() {
+        new MethodSigTest().foo();
+    }
+}
+"""
+
+# Test 5+6: Stacked annotations across declaration → both Executed
+[[file]]
+path = "src/main/java/com/example/StackedTest.java"
+contents = """
+package com.example;
+
+public class StackedTest {
+
+    public void bar() {
+        //= spec.md#section-5
+        //= type=implementation
+        //# This MUST be stacked annotation A
+        //= spec.md#section-6
+        //= type=implementation
+        //# This MUST be stacked annotation B
+        doXandY();
+    }
+}
+"""
+
+# Test 5+6 test annotations
+[[file]]
+path = "src/test/java/com/example/StackedTestTest.java"
+contents = """
+package com.example;
+
+public class StackedTestTest {
+
+    //= spec.md#section-5
+    //= type=test
+    //# This MUST be stacked annotation A
+    public void testA() {
+        new StackedTest().bar();
+    }
+
+    //= spec.md#section-6
+    //= type=test
+    //# This MUST be stacked annotation B
+    public void testB() {
+        new StackedTest().bar();
+    }
+}
+"""
+
+# Test 7: Comment between annotation and target → Executed
+[[file]]
+path = "src/main/java/com/example/CommentTest.java"
+contents = """
+package com.example;
+
+public class CommentTest {
+
+    public void baz() {
+        //= spec.md#section-7
+        //= type=implementation
+        //# This MUST skip comments
+        // This is a regular comment that should be skipped
+        doZ();
+    }
+}
+"""
+
+# Test 7 test annotation
+[[file]]
+path = "src/test/java/com/example/CommentTestTest.java"
+contents = """
+package com.example;
+
+public class CommentTestTest {
+
+    //= spec.md#section-7
+    //= type=test
+    //# This MUST skip comments
+    public void testBaz() {
+        new CommentTest().baz();
+    }
+}
+"""
+
+# JaCoCo coverage for MethodSigTest: line 9 (doX()) is Hit
+[[file]]
+path = "jacoco-coverage-method-sig.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="V2 Coverage Model Test">
+    <sessioninfo id="test-session" start="1642000000000" dump="1642000001000"/>
+    <package name="com/example">
+        <class name="com/example/MethodSigTest" sourcefilename="MethodSigTest.java">
+            <method name="foo" desc="()V" line="9">
+                <counter type="INSTRUCTION" missed="0" covered="5"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="0" covered="5"/>
+            <counter type="LINE" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        <class name="com/example/MethodSigTestTest" sourcefilename="MethodSigTestTest.java">
+            <method name="testFoo" desc="()V" line="9">
+                <counter type="INSTRUCTION" missed="0" covered="5"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="0" covered="5"/>
+            <counter type="LINE" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        <class name="com/example/StackedTest" sourcefilename="StackedTest.java">
+            <method name="bar" desc="()V" line="12">
+                <counter type="INSTRUCTION" missed="0" covered="5"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="0" covered="5"/>
+            <counter type="LINE" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        <class name="com/example/StackedTestTest" sourcefilename="StackedTestTest.java">
+            <method name="testA" desc="()V" line="9">
+                <counter type="INSTRUCTION" missed="0" covered="5"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <method name="testB" desc="()V" line="16">
+                <counter type="INSTRUCTION" missed="0" covered="5"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="0" covered="10"/>
+            <counter type="LINE" missed="0" covered="2"/>
+            <counter type="METHOD" missed="0" covered="2"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        <class name="com/example/CommentTest" sourcefilename="CommentTest.java">
+            <method name="baz" desc="()V" line="10">
+                <counter type="INSTRUCTION" missed="0" covered="5"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="0" covered="5"/>
+            <counter type="LINE" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        <class name="com/example/CommentTestTest" sourcefilename="CommentTestTest.java">
+            <method name="testBaz" desc="()V" line="9">
+                <counter type="INSTRUCTION" missed="0" covered="5"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="0" covered="5"/>
+            <counter type="LINE" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        <sourcefile name="MethodSigTest.java">
+            <line nr="9" mi="0" ci="5" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="MethodSigTestTest.java">
+            <line nr="9" mi="0" ci="5" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="StackedTest.java">
+            <line nr="12" mi="0" ci="5" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="StackedTestTest.java">
+            <line nr="9" mi="0" ci="5" mb="0" cb="0"/>
+            <line nr="16" mi="0" ci="5" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="CommentTest.java">
+            <line nr="10" mi="0" ci="5" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="CommentTestTest.java">
+            <line nr="9" mi="0" ci="5" mb="0" cb="0"/>
+        </sourcefile>
+        <counter type="INSTRUCTION" missed="0" covered="35"/>
+        <counter type="LINE" missed="0" covered="7"/>
+        <counter type="METHOD" missed="0" covered="7"/>
+        <counter type="CLASS" missed="0" covered="6"/>
+    </package>
+    <counter type="INSTRUCTION" missed="0" covered="35"/>
+    <counter type="LINE" missed="0" covered="7"/>
+    <counter type="METHOD" missed="0" covered="7"/>
+    <counter type="CLASS" missed="0" covered="6"/>
+</report>
+"""

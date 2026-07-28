@@ -1,0 +1,42 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c coverage -r cov.xml -f jacoco-xml
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 2 sources 
+     Parsing annotations
+      Parsed 2 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 2 references 
+  
+Coverage: ✗ FAIL
+
+  Coverage reports checked: 1
+  Executed tests: 0
+  Executed implementations: 0
+  Successful correlations: 0
+  Failed correlations: 0
+  Tests with no implementation: 1
+
+  × Test has no correlated implementation
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# This MUST do X
+   · ╰──── Test annotation
+   ╰────
+  help: This test cites a specification section that no implementation/
+        citation annotation references. Add an implementation annotation for
+        the same section, or fix the test's target.
+
+
+
+Overall: ✗ FAIL

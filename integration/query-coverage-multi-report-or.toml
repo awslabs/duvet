@@ -1,0 +1,100 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r report-a.xml -r report-b.xml -f jacoco-xml"]
+report_output = false
+
+# Regression test for multi-report OR semantics (design 5.2).
+#
+# One implementation + one test annotate the same spec text. Two reports both
+# show the test executed; report A shows the implementation executed, report B
+# shows it missed. The correlation verdict must OR execution across reports
+# *before* deciding pass/fail, so the test is a single successful correlation.
+# The old per-report verdict pushed the same test into both `successful`
+# (report A) and `failed` (report B), double-counting it and failing the check
+# even though report A proves full coverage.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/main/java/com/example/Impl.java"
+contents = """
+package com.example;
+
+public class Impl {
+    public void doThing() {
+        //= spec.md#section-1
+        //= type=implementation
+        //# This MUST do the thing
+        run();
+    }
+}
+"""
+
+[[file]]
+path = "src/test/java/com/example/ImplTest.java"
+contents = """
+package com.example;
+
+public class ImplTest {
+    public void testThing() {
+        //= spec.md#section-1
+        //= type=test
+        //# This MUST do the thing
+        new Impl().doThing();
+    }
+}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+"""
+
+# report A: implementation line (Impl.java:8) executed; test line executed
+[[file]]
+path = "report-a.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="A">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""
+
+# report B: implementation line MISSED; test line executed
+[[file]]
+path = "report-b.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="B">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="3" ci="0" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""
