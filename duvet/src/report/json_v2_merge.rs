@@ -274,14 +274,17 @@ fn merge_annotations(
 /// `spc-` IDs hash `(source_id, start, end)`, so `source` equality is
 /// implied by ID equality. `title` and `format` aren't hashed — they
 /// reflect parser metadata that can legitimately differ (and that we treat
-/// as semantically load-bearing, hence hard errors on mismatch).
+/// as semantically load-bearing, hence hard errors on mismatch). `url` is
+/// also out-of-hash structural, but uses Some-beats-None semantics so a
+/// path-backed input can merge cleanly with a URL-backed input for the
+/// same content; a `Some/Some` mismatch is still a hard error.
 fn merge_specification(
     out: &mut BTreeMap<String, SpecificationAnnotation>,
     id: String,
     anno: SpecificationAnnotation,
     idx: usize,
 ) -> crate::Result {
-    match out.get(&id) {
+    match out.get_mut(&id) {
         Some(existing) => {
             if existing.title != anno.title {
                 return Err(duvet_core::error!(
@@ -300,6 +303,16 @@ fn merge_specification(
                     "internal invariant violation: input #{} has specification '{}' with source differing from previously seen; likely hash collision or producer bug -- this is rare; please file a bug with both input reports attached.",
                     idx, id
                 ));
+            }
+            match (&existing.url, &anno.url) {
+                (Some(a), Some(b)) if a != b => {
+                    return Err(duvet_core::error!(
+                        "input #{} has specification annotation '{}' with url {:?} conflicting with previously seen {:?} (likely a producer bug or accidental content collision; spc- IDs do not hash url)",
+                        idx, id, anno.url, existing.url
+                    ));
+                }
+                (None, Some(_)) => existing.url = anno.url,
+                _ => {}
             }
         }
         None => {
@@ -752,6 +765,7 @@ mod tests {
                 },
                 title: Some("A".to_string()),
                 format: "markdown".to_string(),
+                url: None,
             },
         );
         let b = empty();
@@ -766,6 +780,7 @@ mod tests {
                 },
                 title: Some("C".to_string()),
                 format: "markdown".to_string(),
+                url: None,
             },
         );
 
@@ -789,6 +804,7 @@ mod tests {
                 },
                 title: Some("A".to_string()),
                 format: "markdown".to_string(),
+                url: None,
             },
         );
         let mut b = empty();
@@ -802,12 +818,96 @@ mod tests {
                 },
                 title: Some("B".to_string()),
                 format: "markdown".to_string(),
+                url: None,
             },
         );
         let err = merge_reports(vec![a, b]).unwrap_err();
         let msg = format!("{err}");
         assert!(msg.contains("spc-1"), "msg = {msg}");
         assert!(msg.contains("title"), "msg = {msg}");
+    }
+
+    fn spec_with_url(url: Option<&str>) -> SpecificationAnnotation {
+        SpecificationAnnotation {
+            source: SourceRef {
+                src: "src-x".to_string(),
+                start: 0,
+                end: 1,
+            },
+            title: Some("RFC 9000".to_string()),
+            format: "ietf".to_string(),
+            url: url.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn merge_specs_same_url_ok() {
+        let mut a = empty();
+        a.annotations.specification.insert(
+            "spc-1".to_string(),
+            spec_with_url(Some("https://www.rfc-editor.org/rfc/rfc9000.txt")),
+        );
+        let b = a.clone();
+        let merged = merge_reports(vec![a, b]).unwrap();
+        assert_eq!(
+            merged.annotations.specification["spc-1"].url.as_deref(),
+            Some("https://www.rfc-editor.org/rfc/rfc9000.txt")
+        );
+    }
+
+    #[test]
+    fn merge_specs_some_beats_none_left_first() {
+        let mut a = empty();
+        a.annotations.specification.insert(
+            "spc-1".to_string(),
+            spec_with_url(Some("https://www.rfc-editor.org/rfc/rfc9000.txt")),
+        );
+        let mut b = empty();
+        b.annotations
+            .specification
+            .insert("spc-1".to_string(), spec_with_url(None));
+        let merged = merge_reports(vec![a, b]).unwrap();
+        assert_eq!(
+            merged.annotations.specification["spc-1"].url.as_deref(),
+            Some("https://www.rfc-editor.org/rfc/rfc9000.txt")
+        );
+    }
+
+    #[test]
+    fn merge_specs_some_beats_none_right_first() {
+        let mut a = empty();
+        a.annotations
+            .specification
+            .insert("spc-1".to_string(), spec_with_url(None));
+        let mut b = empty();
+        b.annotations.specification.insert(
+            "spc-1".to_string(),
+            spec_with_url(Some("https://www.rfc-editor.org/rfc/rfc9000.txt")),
+        );
+        let merged = merge_reports(vec![a, b]).unwrap();
+        assert_eq!(
+            merged.annotations.specification["spc-1"].url.as_deref(),
+            Some("https://www.rfc-editor.org/rfc/rfc9000.txt")
+        );
+    }
+
+    #[test]
+    fn merge_specs_url_mismatch_errors() {
+        let mut a = empty();
+        a.annotations.specification.insert(
+            "spc-1".to_string(),
+            spec_with_url(Some("https://www.rfc-editor.org/rfc/rfc9000.txt")),
+        );
+        let mut b = empty();
+        b.annotations.specification.insert(
+            "spc-1".to_string(),
+            spec_with_url(Some("https://www.rfc-editor.org/rfc/rfc9001.txt")),
+        );
+        let err = merge_reports(vec![a, b]).unwrap_err();
+        let msg = format!("{err}");
+        assert!(msg.contains("spc-1"), "msg = {msg}");
+        assert!(msg.contains("url"), "msg = {msg}");
+        assert!(msg.contains("input #1"), "msg = {msg}");
     }
 
     #[test]

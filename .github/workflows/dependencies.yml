@@ -32,4 +32,9 @@ jobs:
 
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          command: check --config .github/config/cargo-deny.toml
+          # `--config` and `--all-features` are cargo-deny *common* options and
+          # must precede the subcommand. The action assembles them from the
+          # `arguments` input (placed before `command`); appending `--config`
+          # after `check` fails with "unexpected argument '--config'".
+          command: check
+          arguments: --all-features --config .github/config/cargo-deny.toml

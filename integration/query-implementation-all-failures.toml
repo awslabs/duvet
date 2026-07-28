@@ -1,0 +1,73 @@
+source = { local = true }
+cmd = ["duvet query --check implementation --verbose"]
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+
+// Note: section1 has no implementation annotations
+
+//= spec.md#section-2
+//= type=implementation
+//# This MUST be incomplete
+
+//= spec.md#section-3
+//= type=todo
+//# This MUST be todo and will fail
+
+//= spec.md#section-4
+//= type=implementation
+//# This MUST be duplicated as a todo and implementation and will fail
+
+//= spec.md#section-4
+//= type=todo
+//# This MUST be duplicated as a todo and implementation and will fail
+
+//= spec.md#section-5
+//= type=implementation
+//# This MUST be duplicated as a todo and incomplete
+
+//= spec.md#section-5
+//= type=todo
+//# This MUST be duplicated as a todo and incomplete implementation and will fail
+
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST be missing and will fail
+
+## Section 2  
+
+This MUST be incomplete and will fail
+
+## Section 3
+
+This MUST be todo and will fail
+
+## Section 4
+
+This MUST be duplicated as a todo and implementation and will fail
+
+## Section 5
+
+This MUST be duplicated as a todo and incomplete implementation and will fail
+
+"""

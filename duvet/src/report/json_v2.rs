@@ -177,6 +177,8 @@ pub struct SpecificationAnnotation {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     pub format: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -524,6 +526,13 @@ fn build_spec_and_section_annotations(
             })
             .unwrap_or(0);
 
+        let url = match &target.path {
+            crate::target::TargetPath::Url(u) => {
+                Some(crate::target::TargetPath::canonical_url(u.as_str()).into_owned())
+            }
+            crate::target::TargetPath::Path(_) => None,
+        };
+
         let spc_anno_id = ids::spc_id(src_id, 0, file_len);
         let new_spec = SpecificationAnnotation {
             source: SourceRef {
@@ -533,6 +542,7 @@ fn build_spec_and_section_annotations(
             },
             title: target_report.specification.title.clone(),
             format: target_report.specification.format.to_string(),
+            url,
         };
         if let Some(existing) = spec_annotations.get(&spc_anno_id) {
             debug_assert_eq!(
@@ -975,6 +985,7 @@ mod tests {
                 },
                 title: Some("Spec".to_string()),
                 format: "markdown".to_string(),
+                url: Some("https://www.rfc-editor.org/rfc/rfc9000.txt".to_string()),
             },
         );
         report.annotations.section.insert(
@@ -1030,6 +1041,29 @@ mod tests {
         let json = serde_json::to_string_pretty(&report).unwrap();
         let deserialized: ReportV2 = serde_json::from_str(&json).unwrap();
         assert_eq!(report, deserialized);
+    }
+
+    #[test]
+    fn spec_url_none_is_omitted_in_json() {
+        let mut report = empty_report();
+        report.annotations.specification.insert(
+            "spc-001".to_string(),
+            SpecificationAnnotation {
+                source: SourceRef {
+                    src: "src-x".to_string(),
+                    start: 0,
+                    end: 1,
+                },
+                title: Some("Spec".to_string()),
+                format: "markdown".to_string(),
+                url: None,
+            },
+        );
+        let json = serde_json::to_string(&report).unwrap();
+        assert!(
+            !json.contains("\"url\""),
+            "url key should be omitted when None: {json}"
+        );
     }
 
     #[test]

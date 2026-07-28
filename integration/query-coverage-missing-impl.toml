@@ -1,0 +1,51 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r cov.xml -f jacoco-xml"]
+report_output = false
+
+# Regression test for design §2.4: a test that cites a spec section with no
+# correlated implementation annotation must be reported as a failure, not
+# silently dropped. Before the fix this printed "Successful: 0, Failed: 0,
+# ✓ PASS", hiding the gap until the duvet report CI gate.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# This MUST do X
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do X
+"""
+
+[[file]]
+path = "cov.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="X">
+    <package name="p">
+        <sourcefile name="Other.rs">
+            <line nr="1" mi="0" ci="1" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""

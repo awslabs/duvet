@@ -1,0 +1,27 @@
+target = "design/query/coverage-model-spec.md#trust-taxonomy"
+
+# 8.2 Trust Taxonomy and Response
+#
+# A file's classification can fail in three ways,
+# and the response depends on *which* trust was lost:
+# 
+# - **Abstention** — no classifier exists for the extension.
+#   duvet made no commitment, so it routes the file to the coarse degraded model
+#   (§7) automatically. This is expected, not an error.
+# - **Defeated commitment** — a classifier was selected but could not produce a
+#   trustworthy classification: the parser reported a syntax error, or the
+#   classified `ScopeOpen`/`ScopeClose` stream is unbalanced (§1.5). The cause —
+#   the file is not this language, or the classifier has a gap — is undecidable by
+#   the tool. duvet MUST NOT silently substitute the coarse model or score against
+#   the collapsed scope tree; it MUST escalate, reporting each located issue.
+# - **Drift** — coverage refers to a line outside the classified source (a coverage
+#   key past end of file). Every model reads coverage, so no model can be trusted;
+#   duvet reports `Unknown`.
+
+[[spec]]
+level = "MUST"
+quote = '''
+duvet MUST NOT silently substitute the coarse model or score against
+the collapsed scope tree; it MUST escalate, reporting each located issue.
+'''
+
