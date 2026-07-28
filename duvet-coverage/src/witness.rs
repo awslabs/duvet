@@ -197,6 +197,10 @@ pub open spec fn executed_by(
 ///   containment is membership of that single line. An `Unscorable`
 ///   annotation has no trustworthy resolution and binds nothing (either
 ///   arm): the ByRootSpan conjunct makes the refusal explicit.
+//= design/witness/spec.md#property-w5-claim-refinement
+//= type=implementation
+//# The implementation MUST prove that binding under `ByExecution`
+//# implies execution of the test in the same witness:
 pub open spec fn binds(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -230,6 +234,10 @@ pub open spec fn binds(
 /// one bound witness that never reaches I is a vacuous claim and fails the
 /// pair (the goal is no vacuous test annotations, not at least one executed
 /// test annotation).
+//= design/witness/spec.md#property-w4-monotonicity
+//= type=implementation
+//# The implementation MUST prove that adding a witness never flips a
+//# failing pair to passing:
 pub open spec fn discharged(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -457,11 +465,6 @@ pub fn is_bound_by(
 // The report functions: Properties W1, W2, W3, W6
 // ---------------------------------------------------------------------------
 
-//= design/witness/spec.md#property-w1-same-witness-discharge
-//= type=test
-//# The implementation MUST prove that it reports a pair (T, I)
-//# discharged if and only if at least one delivered witness binds T
-//# and every delivered witness that binds T executed I:
 /// Property W1: Universal Same-Witness Discharge (Decision 14 form).
 ///
 /// `binds(T, w)` and `executed(I, w)` are evaluated against the SAME loop
@@ -470,6 +473,16 @@ pub fn is_bound_by(
 /// without a common witness, and no pair is discharged while ANY witness
 /// bound to its test failed to reach its implementation. A bound witness
 /// that did not execute I fails the pair (early `false` return).
+//
+// Placement: the annotation block is the LAST comment block before the fn
+// header so its resolved target is the header (this file has no language
+// classifier; comment lines are unclassified in degraded resolution and
+// would otherwise become the target — see spec §1.1's placement note).
+//= design/witness/spec.md#property-w1-same-witness-discharge
+//= type=test
+//# The implementation MUST prove that it reports a pair (T, I)
+//# discharged if and only if at least one delivered witness binds T
+//# and every delivered witness that binds T executed I:
 pub fn report_discharged(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -496,6 +509,11 @@ pub fn report_discharged(
             i_file_id, i_annotation, i_mode, i_classifications, i_scopes, i_file_length,
             witnesses@),
 {
+    //= design/witness/spec.md#property-w1-same-witness-discharge
+    //= type=implementation
+    //# The implementation MUST prove that it reports a pair (T, I)
+    //# discharged if and only if at least one delivered witness binds T
+    //# and every delivered witness that binds T executed I:
     let mut any_bound = false;
     let mut k: usize = 0;
     while k < witnesses.len()
@@ -535,11 +553,11 @@ pub fn report_discharged(
     any_bound
 }
 
+/// Property W2: Test Execution.
 //= design/witness/spec.md#property-w2-test-execution
 //= type=test
 //# The implementation MUST prove that a test annotation is reported
 //# executed if and only if some delivered witness binds it:
-/// Property W2: Test Execution.
 pub fn report_test_executed(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -557,6 +575,10 @@ pub fn report_test_executed(
             && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
                 #[trigger] witnesses@[k]),
 {
+    //= design/witness/spec.md#property-w2-test-execution
+    //= type=implementation
+    //# The implementation MUST prove that a test annotation is reported
+    //# executed if and only if some delivered witness binds it:
     let mut k: usize = 0;
     while k < witnesses.len()
         invariant
@@ -578,13 +600,13 @@ pub fn report_test_executed(
     false
 }
 
+/// Property W3: Global Execution. Deliberately weaker than W1 (no
+/// correlation, no `binds`); MUST NOT be used to discharge pairs.
 //= design/witness/spec.md#property-w3-global-execution
 //= type=test
 //# The implementation MUST prove that an implementation annotation is
 //# reported ever-executed if and only if some delivered witness
 //# executed it:
-/// Property W3: Global Execution. Deliberately weaker than W1 (no
-/// correlation, no `binds`); MUST NOT be used to discharge pairs.
 pub fn report_ever_executed(
     i_file_id: u64,
     i_annotation: &AnnotationSpan,
@@ -602,6 +624,11 @@ pub fn report_ever_executed(
             && executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
                 i_file_length, #[trigger] witnesses@[k]),
 {
+    //= design/witness/spec.md#property-w3-global-execution
+    //= type=implementation
+    //# The implementation MUST prove that an implementation annotation is
+    //# reported ever-executed if and only if some delivered witness
+    //# executed it:
     let mut k: usize = 0;
     while k < witnesses.len()
         invariant
@@ -623,17 +650,17 @@ pub fn report_ever_executed(
     false
 }
 
+/// Property W6, verified half: the unwitnessed predicate. True iff NO
+/// delivered witness binds T (exactly ¬W2). The reporting obligation —
+/// surfacing every unwitnessed test annotation as a failure, never
+/// silently — is engine behavior (glue assumption G2 names the engine's
+/// duty to call this predicate for its verdicts).
 //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
 //= type=test
 //# The engine MUST report every test annotation for which no
 //# delivered witness binds it —
 //# across ALL configured producers —
 //# as a failure, never silently:
-/// Property W6, verified half: the unwitnessed predicate. True iff NO
-/// delivered witness binds T (exactly ¬W2). The reporting obligation —
-/// surfacing every unwitnessed test annotation as a failure, never
-/// silently — is engine behavior (glue assumption G2 names the engine's
-/// duty to call this predicate for its verdicts).
 pub fn is_unwitnessed(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -651,6 +678,12 @@ pub fn is_unwitnessed(
             && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
                 #[trigger] witnesses@[k]),
 {
+    //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
+    //= type=implementation
+    //# The engine MUST report every test annotation for which no
+    //# delivered witness binds it —
+    //# across ALL configured producers —
+    //# as a failure, never silently:
     !report_test_executed(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
         t_file_length, witnesses)
 }
@@ -669,10 +702,6 @@ pub open spec fn witness_subset(ws: Seq<Witness>, ws2: Seq<Witness>) -> bool {
         ==> exists|j: int| 0 <= j < ws2.len() && ws2[j] == #[trigger] ws[k]
 }
 
-//= design/witness/spec.md#property-w4-monotonicity
-//= type=test
-//# The implementation MUST prove that adding a witness never flips a
-//# failing pair to passing:
 /// Property W4: Failure Monotonicity (Decision 14 form — this INVERTS the
 /// original monotonicity direction; the old "adding never un-discharges" is
 /// now false by design, since an added witness that binds T but misses I is
@@ -690,6 +719,10 @@ pub open spec fn witness_subset(ws: Seq<Witness>, ws2: Seq<Witness>) -> bool {
 /// the ∀-conjunct must be what failed). That witness transports into `ws'`
 /// by subset, still binds, still misses I — so it violates `ws'`'s
 /// ∀-conjunct too, and the pair fails in `ws'`.
+//= design/witness/spec.md#property-w4-monotonicity
+//= type=test
+//# The implementation MUST prove that adding a witness never flips a
+//# failing pair to passing:
 pub proof fn failure_monotonicity(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -744,10 +777,6 @@ pub proof fn failure_monotonicity(
     }
 }
 
-//= design/witness/spec.md#property-w5-claim-refinement
-//= type=test
-//# The implementation MUST prove that binding under `ByExecution`
-//# implies execution of the test in the same witness:
 /// Property W5: Claim Refinement.
 ///
 /// DEFINITIONAL in this formalization, trivially true: `binds` under
@@ -756,6 +785,10 @@ pub proof fn failure_monotonicity(
 /// REGRESSION TRIPWIRE: if `binds`'s `ByExecution` arm ever changes so that
 /// positional claiming stops being a refinement of evidence claiming, this
 /// proof breaks loudly instead of the property silently weakening.
+//= design/witness/spec.md#property-w5-claim-refinement
+//= type=test
+//# The implementation MUST prove that binding under `ByExecution`
+//# implies execution of the test in the same witness:
 pub proof fn by_execution_binding_implies_executed(
     file_id: u64,
     annotation: &AnnotationSpan,

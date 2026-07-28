@@ -52,6 +52,11 @@ verus! {
 /// cannot be a scope delimiter). On unbalanced input the tree collapses to a
 /// single file-level scope spanning the whole file — see the trust-boundary note
 /// at the fallback below for why that is a deliberate, if lossy, choice.
+//= design/query/coverage-model-spec.md#scopes
+//= type=implementation
+//# A scope is a contiguous range of lines
+//# delimited by `ScopeOpen` and `ScopeClose` properties.
+//# Scopes nest.
 pub fn build_scope_tree(events: &[ScopeEvent], file_length: u64) -> (scopes: Vec<Scope>)
     requires
         file_length < u64::MAX,
@@ -84,6 +89,10 @@ pub fn build_scope_tree(events: &[ScopeEvent], file_length: u64) -> (scopes: Vec
     // runs the verified `scope_imbalance_site` on this same event stream first
     // and escalates to `DefeatedClassification`, so a spurious whole-file
     // collapse from a dropped brace is no longer possible (spec §1.5).
+    //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+    //= type=implementation
+    //# A stream with no scope delimiters is balanced, and its whole-file scope is
+    //# legitimate.
     if pairs.len() == 0 {
         if file_length >= 1 {
             let s = vec![Scope { open_line: 1, close_line: file_length, parent: None, children: vec![] }];

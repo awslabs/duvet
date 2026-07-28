@@ -87,6 +87,9 @@ pub(crate) fn execution_set(
         forall|line: u64| validly_in_exec_set(line, classifications, scopes, coverage)
             ==> result@.contains(line),
 {
+    //= design/query/coverage-model-spec.md#property-9-execution-set-containment
+    //= type=implementation
+    //# The execution set always contains all directly-hit lines.
     let directly_executed = collect_hit_lines(coverage);
 
     let mut result: BTreeSet<u64> = directly_executed.clone();

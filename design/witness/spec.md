@@ -33,6 +33,14 @@ model's target resolution
 (coverage-model-spec §2, including the degraded path).
 Nothing in this specification depends on *how* resolution happens,
 only that every annotation has a resolved target.
+Placement note (degraded files): in a file with no language
+classifier, resolution cannot recognize comment lines as skippable —
+only blank lines and annotation lines are skipped — so an annotation
+(stacked or not) MUST be the last comment block above the code it
+targets; an intervening ordinary comment (e.g. a doc comment between
+the annotation and a proof fn header) becomes the resolved target
+itself, which a prover producer sees as an unelaborated position
+(Property W6).
 
 ### 1.2 Witness {#witness}
 

@@ -828,4 +828,126 @@ public class Two {
             "forward walk lands on line 3 (Miss)"
         );
     }
+
+    /// Ground truth for degraded target resolution over the two shapes the
+    /// dogfood run exercises in Rust sources (no Rust classifier -> degraded
+    /// path), pinned end-to-end through the REAL pipeline: comment parser ->
+    /// `classify_file` (annotation-override stamping) -> `resolve_target_line`.
+    ///
+    /// Shape 1 — stacked annotations (`proofs.rs` mod tests shape): two
+    /// back-to-back `//=` blocks above one `#[test]` fn. Both annotations'
+    /// lines are stamped `{Annotation}` (skippable), so BOTH resolve past the
+    /// stack to the first non-annotation, non-blank line below it. Stacking
+    /// works; the walk does NOT stop on a later annotation's comment lines.
+    ///
+    /// Shape 2 — doc comments between the annotation and the fn header
+    /// (`witness.rs` proof-fn shape): `///` lines have no classifier in
+    /// degraded mode (-> None = unclassified), are NOT skippable, and become
+    /// the resolved target. The annotation therefore resolves to the doc
+    /// comment, not the fn header below it — so a prover producer sees an
+    /// Unelaborated position and constructs no witness (plain W6, not
+    /// not-proof-testable). This is the classified-vs-degraded divergence:
+    /// the Java classifier marks comments skippable; the degraded projection
+    /// cannot. Placement rule that follows: in degraded files, a test
+    /// annotation must be the LAST comment block before the code it targets.
+    #[tokio::test]
+    async fn degraded_resolution_stacked_annotations_and_doc_comments() {
+        use crate::comment;
+
+        // 1-based layout mirroring the real shapes:
+        //  1  //= spec.md#a
+        //  2  //= type=test
+        //  3  //# quote a
+        //  4  //= spec.md#b
+        //  5  //= type=test
+        //  6  //# quote b
+        //  7  #[test]                  <- shape-1 target (unclassified)
+        //  8  fn t() {}
+        //  9  (blank)
+        // 10  //= spec.md#c
+        // 11  //= type=test
+        // 12  //# quote c
+        // 13  /// doc comment          <- shape-2 target (unclassified!)
+        // 14  /// more doc
+        // 15  pub fn real_target() {}
+        let content = "\
+//= spec.md#a
+//= type=test
+//# quote a
+//= spec.md#b
+//= type=test
+//# quote b
+#[test]
+fn t() {}
+
+//= spec.md#c
+//= type=test
+//# quote c
+/// doc comment
+/// more doc
+pub fn real_target() {}
+";
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "duvet_degraded_shapes_{}_{}.rs",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::write(&path, content).unwrap();
+
+        // Rust has no classifier: these files take the degraded path. If a
+        // Rust classifier ever lands, this test's premise changes — fail
+        // loudly here rather than silently testing the wrong path.
+        assert!(
+            classifier_for_path(&path).is_none(),
+            ".rs must have no classifier for the degraded premise to hold"
+        );
+
+        // Real comment parser produces the annotation set (line_range is the
+        // parser's, not hand-built).
+        let source = duvet_core::file::SourceFile::new(path.clone(), content).unwrap();
+        let (annotations, errors) = comment::extract(
+            &source,
+            &comment::Pattern::default(),
+            crate::annotation::AnnotationType::Citation,
+            None,
+        );
+        assert!(errors.is_empty(), "parser errors: {errors:?}");
+        assert_eq!(annotations.len(), 3, "three annotations parsed");
+
+        let classification = classify_file(&path, &annotations).await.unwrap();
+        let _ = std::fs::remove_file(&path);
+
+        let mut targets: Vec<(String, Option<u64>)> = annotations
+            .iter()
+            .map(|a| (a.target.clone(), resolve_target_line(a, &classification)))
+            .collect();
+        targets.sort();
+
+        // Shape 1: both stacked annotations resolve THROUGH the stack to the
+        // `#[test]` attribute line (7) — never to the sibling annotation's
+        // comment lines (4-6).
+        assert_eq!(
+            targets[0],
+            ("spec.md#a".to_string(), Some(7)),
+            "first stacked annotation skips the second's lines and lands on line 7"
+        );
+        assert_eq!(
+            targets[1],
+            ("spec.md#b".to_string(), Some(7)),
+            "second stacked annotation lands on line 7"
+        );
+
+        // Shape 2: the doc comment line (13) is unclassified in degraded mode
+        // and becomes the target — NOT the fn header (15).
+        assert_eq!(
+            targets[2],
+            ("spec.md#c".to_string(), Some(13)),
+            "doc comments are not skippable in degraded mode: the annotation \
+             resolves to line 13 (the doc comment), not 15 (the fn header)"
+        );
+    }
 }

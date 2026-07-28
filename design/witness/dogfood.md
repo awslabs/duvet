@@ -93,3 +93,102 @@ closure predictions with the corrected parser as soon as thread 3's
 parser exists — do the pilot (property-2 pair, both rows) first
 and validate placement against real target resolution before
 bulk-annotating.
+
+## Live run results (2026-07-28)
+
+The self-hosting demo ran live: `duvet query -c coverage` over
+duvet-coverage's own annotations, with fresh proof witnesses.
+
+### Command sequence
+
+```
+cargo verus build -p duvet-coverage -- --log vir-sst --log-dir /tmp/sst-final
+    # 65 verified, 0 errors, 11 module logs
+
+# Direction 1 — full proof-only run (Decision 8 exercised):
+cargo run -p duvet -- query -c coverage --coverage-source verus-sst=/tmp/sst-final
+    # exit 1 (deliberate, see below)
+
+# Direction 2 — sliced to the witness spec's proof-side properties:
+cargo run -p duvet -- query -c coverage --coverage-source verus-sst=/tmp/sst-final \
+    -s "design/witness/spec.md#property-w1-same-witness-discharge,...w2,...w3,...w4,...w5,...w6"
+    # exit 0
+```
+
+### Verdict summary
+
+- **6 of 6 W-property pairs DISCHARGED** (W1–W6), each with
+  provenance naming its obligation and strength `consulted`:
+  `report_discharged` (W1), `report_test_executed` (W2),
+  `report_ever_executed` (W3), `failure_monotonicity` (W4),
+  `by_execution_binding_implies_executed` (W5),
+  `is_unwitnessed` (W6). Failed correlations: 0.
+  Tests with no implementation: 0.
+- **Full run exits 1 with exactly 10 unwitnessed test
+  annotations** — all of them runtime `#[test]` annotations
+  (proofs.rs property-2..6 + correctness-properties,
+  execution_propagation.rs property-3 and property-9,
+  scopes.rs scopes and property-11). This is Decision 8's
+  subset-of-producers behavior, on purpose: a proof-only run
+  must fail runtime-witnessed-only annotations, never silently.
+  The failure output identifies each annotation and states that
+  no configured producer yielded a witness (spec §3).
+- **Sliced run (proof-side sections only) exits 0** with the same
+  6 discharged pairs and 0 unwitnessed — the green direction.
+
+### What the diagnosis found (placement, not engine bug)
+
+The pre-fix run's 7 "plain W6" reports had two distinct causes,
+both pinned by a new regression test
+(`degraded_resolution_stacked_annotations_and_doc_comments`,
+duvet/src/query/checks/coverage.rs):
+
+1. **Stacked annotations resolve correctly.** Annotation lines are
+   stamped `{Annotation}` (skippable), so every annotation in a
+   stack resolves through the stack to the first real line below
+   it. The stacking hypothesis was disconfirmed by instrumentation.
+2. **Doc comments break degraded resolution.** `.rs` files have no
+   classifier; in degraded mode a `///` line is unclassified and
+   becomes the resolved target. The six witness.rs proof-fn test
+   annotations had doc comments between the `//=` block and the fn
+   header, so they resolved to comment lines — unelaborated in the
+   SST artifact, hence plain W6 rather than not-proof-testable.
+   Correct-but-surprising classifier-less behavior (the Java path
+   avoids it only because its classifier marks comments skippable);
+   fixed by placement, not by weakening dom(du) or NPT semantics:
+   each annotation block moved below its docs, and spec §1.1 now
+   carries a one-sentence placement note.
+
+### Annotation placements added (the 9 missing pairs)
+
+- W1/W2/W3/W6 → `type=implementation` on the bodies of the verified
+  report fns themselves (the algorithm the ensures quantify over).
+- W4 → on the `discharged` spec fn; W5 → on the `binds` spec fn —
+  the functions those lemmas quantify over, and the lines their
+  proof closures actually consult. No pair was forced: every
+  placement is on lines genuinely implementing the cited property,
+  and all six discharge as property-style pairs (no lemma-style
+  expected-failure pair ships, per this plan's own rule).
+- property-9 → the `collect_hit_lines` seed in `execution_set`;
+  scopes → `build_scope_tree`; property-11 → its whole-file-scope
+  branch. Their tests are runtime `#[test]`s: correctly unwitnessed
+  in a proof-only run (Decision 8), pairing satisfied (no
+  missing-implementation reports remain).
+
+### Gates at completion
+
+Verus 65 verified / 0 errors; `cargo test -p duvet query::`
+125 passed (baseline 124 + the new regression test);
+`cargo test -p duvet-coverage` 73 passed;
+`cargo xtask checks --rustfmt-toolchain nightly-2025-11-09` exit 0;
+`duvet report --ci true` exit 0 after snapshot regeneration
+(snapshot delta: +29/−22 lines — the three retrofit quotes gained
+`implementation` refs, witness.rs annotation blocks moved/added).
+
+Remaining for the full decision-4 goal: a runtime (LCOV-family)
+producer for Rust coverage, so the mixed run can discharge the 10
+runtime pairs in the same invocation. Known follow-up: 14 older
+`type=implication` annotations (predicates.rs, proofs.rs) also
+resolve to comment lines under degraded resolution; harmless today
+(implication coverers are not scored by proof witnesses in these
+runs) but they should be re-placed in the optional retrofit pass.
