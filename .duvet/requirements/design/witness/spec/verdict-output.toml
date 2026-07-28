@@ -2,8 +2,12 @@ target = "design/witness/spec.md#verdict-output"
 
 # 3. Verdict output requirements
 #
-# For every discharged pair, the output MUST name every bound
-# witness (its label) and its strength (§1.3).
+# For every discharged pair, the output MUST name, in verbose
+# output, every bound witness (its label) and its strength (§1.3).
+# (Scoped to verbose output, 2026-07-27: a run at real scale
+# discharges hundreds of pairs, and naming every witness for each of
+# them by default would bury the failure reports this check exists
+# to surface. Failure output is never verbose-gated.)
 # For every pair that fails because a bound witness did not execute
 # the implementation (W1's universal clause), the output MUST list
 # **every** bound witness with its per-witness result
@@ -22,13 +26,14 @@ target = "design/witness/spec.md#verdict-output"
 [[spec]]
 level = "MUST"
 quote = '''
-For every discharged pair, the output MUST name every bound
-witness (its label) and its strength (§1.3).
+For every discharged pair, the output MUST name, in verbose
+output, every bound witness (its label) and its strength (§1.3).
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
+Failure output is never verbose-gated.)
 For every pair that fails because a bound witness did not execute
 the implementation (W1's universal clause), the output MUST list
 **every** bound witness with its per-witness result

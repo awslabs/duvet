@@ -15,35 +15,79 @@
 //!
 //! Named glue assumptions (trusted base, NOT verified here):
 //!
-//! - **G1 (file identity):** the engine adapter maps file paths to opaque
-//!   `u64` file ids injectively and consistently across all annotations and
-//!   witnesses in one run, and delivers each witness's `files` vector with
-//!   duplicate-free file ids. (The proofs do not *need* uniqueness — lookup
-//!   is first-match, documented on `witness_file_lookup` — but a duplicate
-//!   id would mean the engine constructed a witness whose later map for the
-//!   same file is silently dead, so G1 forbids it.)
-//! - **G2 (call obligation):** the engine's verdicts are computed by calling
-//!   `report_discharged` / `report_test_executed` / `report_ever_executed` /
-//!   `is_unwitnessed` below — discharged via the dogfood loop (the engine's
-//!   `type=implementation` annotations checked by the coverage run).
+//! - **G1 (file identity):** the engine adapter (`VerifiedVerdicts` in
+//!   `duvet/src/query/witness.rs`) maps file paths to opaque `u64` file ids
+//!   injectively and consistently across all annotations and witnesses in
+//!   one run, and delivers each witness's `files` vector with
+//!   duplicate-free file ids. The adapter keys ids by absolute project
+//!   path (injective by construction of the map) and refuses — rather than
+//!   selects among — ambiguous producer-path suffix matches (spec §1.5's
+//!   bind-time refusal). What remains axiomatic: an absolute path is a
+//!   faithful file identity (e.g. no two distinct absolute paths alias one
+//!   file), and the adapter's translation is faithful (unit-tested glue).
+//! - **G2 (call obligation):** the engine computes its verdicts — pair
+//!   discharge (W1), test witnessed/unwitnessed (W2/W6), ever-executed
+//!   (W3) — by calling `report_discharged` / `is_unwitnessed` /
+//!   `report_ever_executed` below through the adapter, and derives
+//!   per-witness failure diagnostics from the same `is_bound_by` /
+//!   `is_executed_by` cells; the engine-side mirror of these quantifiers
+//!   was deleted so no parallel verdict computation exists. G2 is a
+//!   trusted-base item, not a proven property: a coverage run checks
+//!   annotation execution, not call graphs, so the dogfood loop cannot
+//!   discharge it. It is enforced by the deletion, by review, and by the
+//!   engine's test suite exercising verdicts end to end.
+//! - **G3 (mode routing):** the engine's per-file classifier routing is
+//!   reproduced in the model as [`ScoringMode`]: `Classified` files score
+//!   through the two-phase model, `Degraded` files through the verified
+//!   degraded path, and trust-boundary refusals (defeated classification,
+//!   ill-formed annotation ranges, unclassified files) enter as
+//!   `Unscorable`, which binds nothing and executes nothing. That the
+//!   adapter assigns each annotation the mode its file's classification
+//!   actually selected is adapter glue (unit-tested), not proven here.
 //! - Producer obligations A1 (closedness) and A2 (individuation) per spec §4.
 //!
 //! The `requires` on the report functions (coverage keys within
-//! classification bounds; scope line bounds) are the engine adapter's
-//! obligation to establish at the trust boundary — filter/degrade before
-//! calling, never assume (milestone 2 degrades to `Unknown` there today).
+//! classification bounds for `Classified`-mode scoring; scope line bounds)
+//! are the engine adapter's obligation to establish at the trust boundary —
+//! filter/degrade before calling, never assume (the adapter drops a
+//! witness's out-of-bounds map for a classified file, which coincides with
+//! the engine's `Unknown`-refusal on the same input: both verdict `false`).
 
 use crate::{
-    annotation_execution::is_annotation_executed, target_resolution::annotation_target, types::*,
+    annotation_execution::is_annotation_executed, degraded::degraded_execution_status,
+    target_resolution::annotation_target, types::*,
 };
 // Ghost-only imports: spec twins referenced from spec fns and `ensures`.
 #[cfg(verus_keep_ghost)]
 use crate::annotation_execution::execution_status_of;
 #[cfg(verus_keep_ghost)]
+use crate::degraded::degraded_status_of;
+#[cfg(verus_keep_ghost)]
 use crate::target_resolution::annotation_target_spec;
 use vstd::prelude::*;
 
 verus! {
+
+/// Which verified scoring path the engine's per-file classifier routing
+/// selected for an annotation's file (glue assumption G3, made explicit in
+/// the model so the quantifier layer quantifies over the cell the engine
+/// actually ships, not only the classified path):
+///
+/// - `Classified` — the language-aware two-phase model
+///   (`is_annotation_executed`), for files with a classifier.
+/// - `Degraded` — the verified classifier-less path
+///   (`degraded_execution_status`), for files without one.
+/// - `Unscorable` — the engine's trust-boundary refusals (defeated
+///   classification, `end_line == u64::MAX`, unclassified file): the
+///   annotation resolves nothing, so it executes in no witness and binds no
+///   witness (its `Unknown` diagnostic is engine reporting; the verdict
+///   contribution is uniformly `false`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScoringMode {
+    Classified,
+    Degraded,
+    Unscorable,
+}
 
 /// How a test annotation claims a witness (spec §1.5).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -104,10 +148,13 @@ pub open spec fn witness_file_lookup(
 }
 
 /// Spec §1.4: `executed(X, w)` — the coverage model scores X's resolved
-/// target Executed against w's map for X's file. This is EXACTLY the
-/// existing verified Phases 1–3 (`execution_status_of`, the proven spec twin
-/// of `is_annotation_executed`) applied to one witness's coverage map; this
-/// phase adds no per-annotation scoring semantics.
+/// target Executed against w's map for X's file, through the scoring path
+/// the engine's routing selected for that file ([`ScoringMode`], G3):
+/// the existing verified Phases 1–3 (`execution_status_of`, the proven spec
+/// twin of `is_annotation_executed`) for classified files, the verified
+/// degraded path (`degraded_status_of`) for classifier-less files. This
+/// phase adds no per-annotation scoring semantics; `Unscorable` is the
+/// trust-boundary refusal and never executes.
 ///
 /// A witness with no map for X's file cannot have executed X: `Executed`
 /// requires a Hit line, and an absent map carries none, so `None => false`
@@ -116,6 +163,7 @@ pub open spec fn witness_file_lookup(
 pub open spec fn executed_by(
     file_id: u64,
     annotation: &AnnotationSpan,
+    mode: ScoringMode,
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
     file_length: u64,
@@ -123,12 +171,19 @@ pub open spec fn executed_by(
 ) -> bool {
     match witness_file_lookup(w.files@, file_id) {
         None => false,
-        Some(cov) => execution_status_of(
-            annotation_target_spec(annotation, classifications, file_length),
-            classifications,
-            scopes,
-            &cov,
-        ) == ExecutionStatus::Executed,
+        Some(cov) => match mode {
+            ScoringMode::Classified => execution_status_of(
+                annotation_target_spec(annotation, classifications, file_length),
+                classifications,
+                scopes,
+                &cov,
+            ) == ExecutionStatus::Executed,
+            ScoringMode::Degraded => degraded_status_of(
+                annotation_target_spec(annotation, classifications, file_length),
+                &cov,
+            ) == ExecutionStatus::Executed,
+            ScoringMode::Unscorable => false,
+        },
     }
 }
 
@@ -139,10 +194,13 @@ pub open spec fn executed_by(
 ///   file f. An annotation with no resolved target binds no ByRootSpan
 ///   witness — empty-target containment MUST NOT bind vacuously (spec §1.5).
 ///   Resolution yields at most one target line in the current model, so
-///   containment is membership of that single line.
+///   containment is membership of that single line. An `Unscorable`
+///   annotation has no trustworthy resolution and binds nothing (either
+///   arm): the ByRootSpan conjunct makes the refusal explicit.
 pub open spec fn binds(
     file_id: u64,
     annotation: &AnnotationSpan,
+    mode: ScoringMode,
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
     file_length: u64,
@@ -150,10 +208,11 @@ pub open spec fn binds(
 ) -> bool {
     match w.claim {
         ClaimRule::ByExecution => executed_by(
-            file_id, annotation, classifications, scopes, file_length, w,
+            file_id, annotation, mode, classifications, scopes, file_length, w,
         ),
         ClaimRule::ByRootSpan { file_id: span_file, start_line, end_line } => {
             let target = annotation_target_spec(annotation, classifications, file_length);
+            &&& !(mode is Unscorable)
             &&& file_id == span_file
             &&& target.is_some()
             &&& start_line <= target.unwrap() <= end_line
@@ -174,11 +233,13 @@ pub open spec fn binds(
 pub open spec fn discharged(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
+    t_mode: ScoringMode,
     t_classifications: &[Option<LineClass>],
     t_scopes: &[Scope],
     t_file_length: u64,
     i_file_id: u64,
     i_annotation: &AnnotationSpan,
+    i_mode: ScoringMode,
     i_classifications: &[Option<LineClass>],
     i_scopes: &[Scope],
     i_file_length: u64,
@@ -186,14 +247,14 @@ pub open spec fn discharged(
 ) -> bool {
     &&& exists|k: int|
         0 <= k < witnesses.len()
-        && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+        && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
             #[trigger] witnesses[k])
     &&& forall|k: int|
         0 <= k < witnesses.len()
-        && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+        && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
             #[trigger] witnesses[k])
-        ==> executed_by(i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
-            witnesses[k])
+        ==> executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
+            i_file_length, witnesses[k])
 }
 
 // ---------------------------------------------------------------------------
@@ -201,12 +262,21 @@ pub open spec fn discharged(
 // signatures — zero `assume`)
 // ---------------------------------------------------------------------------
 
-/// The bounds `is_annotation_executed` requires of one annotation's scoring
-/// context (annotation span headroom; scope line bounds).
-pub open spec fn scoring_ctx_wf(annotation: &AnnotationSpan, scopes: &[Scope]) -> bool {
-    &&& annotation.end_line < u64::MAX
-    &&& forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX
-    &&& forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1
+/// The bounds the selected scorer requires of one annotation's scoring
+/// context (annotation span headroom; scope line bounds). `Unscorable`
+/// scores nothing, so it demands nothing — the engine routes ill-formed
+/// contexts (e.g. `end_line == u64::MAX`) there instead of asserting
+/// well-formedness it cannot establish.
+pub open spec fn scoring_ctx_wf(
+    mode: ScoringMode,
+    annotation: &AnnotationSpan,
+    scopes: &[Scope],
+) -> bool {
+    mode is Unscorable || {
+        &&& annotation.end_line < u64::MAX
+        &&& forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX
+        &&& forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1
+    }
 }
 
 /// Every key of `cov` is a line within `classifications`' bounds — the
@@ -220,14 +290,18 @@ pub open spec fn coverage_in_bounds(
 }
 
 /// The witness's map for `file_id` (if any) is within `classifications`'
-/// bounds. Maps for other files are unconstrained — they are never scored
-/// against these classifications.
+/// bounds — required only for `Classified`-mode scoring (the two-phase
+/// model's precondition). The degraded scorer reads the target line
+/// directly and needs no bounds; `Unscorable` reads nothing. Maps for
+/// other files are unconstrained — they are never scored against these
+/// classifications.
 pub open spec fn witness_coverage_in_bounds(
     w: Witness,
     file_id: u64,
+    mode: ScoringMode,
     classifications: &[Option<LineClass>],
 ) -> bool {
-    match witness_file_lookup(w.files@, file_id) {
+    mode is Classified ==> match witness_file_lookup(w.files@, file_id) {
         None => true,
         Some(cov) => coverage_in_bounds(cov, classifications),
     }
@@ -237,10 +311,11 @@ pub open spec fn witness_coverage_in_bounds(
 pub open spec fn witnesses_coverage_in_bounds(
     ws: Seq<Witness>,
     file_id: u64,
+    mode: ScoringMode,
     classifications: &[Option<LineClass>],
 ) -> bool {
     forall|k: int| 0 <= k < ws.len()
-        ==> witness_coverage_in_bounds(#[trigger] ws[k], file_id, classifications)
+        ==> witness_coverage_in_bounds(#[trigger] ws[k], file_id, mode, classifications)
 }
 
 // ---------------------------------------------------------------------------
@@ -270,37 +345,66 @@ fn witness_coverage<'a>(w: &'a Witness, file_id: u64) -> (result: Option<&'a Cov
     None
 }
 
-/// `executed(X, w)` as executable code: the existing verified scoring
-/// (`is_annotation_executed`) applied to w's map for X's file, proven
-/// equivalent to the `executed_by` spec.
+/// `executed(X, w)` as executable code: the verified scorer the file's
+/// routing selected (`is_annotation_executed` for classified files,
+/// `degraded_execution_status` for classifier-less ones) applied to w's map
+/// for X's file, proven equivalent to the `executed_by` spec.
 pub fn is_executed_by(
     file_id: u64,
     annotation: &AnnotationSpan,
+    mode: ScoringMode,
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
     file_length: u64,
     w: &Witness,
 ) -> (result: bool)
     requires
-        scoring_ctx_wf(annotation, scopes),
-        witness_coverage_in_bounds(*w, file_id, classifications),
+        scoring_ctx_wf(mode, annotation, scopes),
+        witness_coverage_in_bounds(*w, file_id, mode, classifications),
     ensures
-        result <==> executed_by(file_id, annotation, classifications, scopes, file_length, *w),
+        result <==> executed_by(file_id, annotation, mode, classifications, scopes, file_length,
+            *w),
 {
-    match witness_coverage(w, file_id) {
-        None => false,
-        Some(cov) => {
-            let status = is_annotation_executed(annotation, classifications, scopes, cov, file_length);
+    match mode {
+        ScoringMode::Unscorable => {
+            // Spec `executed_by` is false in this mode whether or not the
+            // witness carries a map for the file.
             proof {
-                // The looked-up spec value is the map we scored against, so
-                // the spec-side status (over `&lookup.unwrap()`) equals the
-                // exec-side status (over `cov`) by congruence.
-                assert(witness_file_lookup(w.files@, file_id).unwrap() == *cov);
+                assert(!executed_by(
+                    file_id, annotation, mode, classifications, scopes, file_length, *w));
             }
-            match status {
-                ExecutionStatus::Executed => true,
-                _ => false,
-            }
+            false
+        },
+        ScoringMode::Classified => match witness_coverage(w, file_id) {
+            None => false,
+            Some(cov) => {
+                let status = is_annotation_executed(
+                    annotation, classifications, scopes, cov, file_length);
+                proof {
+                    // The looked-up spec value is the map we scored against, so
+                    // the spec-side status (over `&lookup.unwrap()`) equals the
+                    // exec-side status (over `cov`) by congruence.
+                    assert(witness_file_lookup(w.files@, file_id).unwrap() == *cov);
+                }
+                match status {
+                    ExecutionStatus::Executed => true,
+                    _ => false,
+                }
+            },
+        },
+        ScoringMode::Degraded => match witness_coverage(w, file_id) {
+            None => false,
+            Some(cov) => {
+                let status = degraded_execution_status(
+                    annotation, classifications, cov, file_length);
+                proof {
+                    assert(witness_file_lookup(w.files@, file_id).unwrap() == *cov);
+                }
+                match status {
+                    ExecutionStatus::Executed => true,
+                    _ => false,
+                }
+            },
         },
     }
 }
@@ -309,22 +413,33 @@ pub fn is_executed_by(
 pub fn is_bound_by(
     file_id: u64,
     annotation: &AnnotationSpan,
+    mode: ScoringMode,
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
     file_length: u64,
     w: &Witness,
 ) -> (result: bool)
     requires
-        scoring_ctx_wf(annotation, scopes),
-        witness_coverage_in_bounds(*w, file_id, classifications),
+        scoring_ctx_wf(mode, annotation, scopes),
+        witness_coverage_in_bounds(*w, file_id, mode, classifications),
     ensures
-        result <==> binds(file_id, annotation, classifications, scopes, file_length, *w),
+        result <==> binds(file_id, annotation, mode, classifications, scopes, file_length, *w),
 {
     match &w.claim {
         ClaimRule::ByExecution => {
-            is_executed_by(file_id, annotation, classifications, scopes, file_length, w)
+            is_executed_by(file_id, annotation, mode, classifications, scopes, file_length, w)
         },
         ClaimRule::ByRootSpan { file_id: span_file, start_line, end_line } => {
+            // Unscorable annotations bind nothing (spec §1.5 refusal); the
+            // guard also stands in front of `annotation_target`, whose
+            // precondition (`end_line < u64::MAX`) only holds for scorable
+            // contexts.
+            match mode {
+                ScoringMode::Unscorable => {
+                    return false;
+                },
+                _ => {},
+            }
             if file_id != *span_file {
                 return false;
             }
@@ -358,25 +473,27 @@ pub fn is_bound_by(
 pub fn report_discharged(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
+    t_mode: ScoringMode,
     t_classifications: &[Option<LineClass>],
     t_scopes: &[Scope],
     t_file_length: u64,
     i_file_id: u64,
     i_annotation: &AnnotationSpan,
+    i_mode: ScoringMode,
     i_classifications: &[Option<LineClass>],
     i_scopes: &[Scope],
     i_file_length: u64,
     witnesses: &[Witness],
 ) -> (result: bool)
     requires
-        scoring_ctx_wf(t_annotation, t_scopes),
-        scoring_ctx_wf(i_annotation, i_scopes),
-        witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
-        witnesses_coverage_in_bounds(witnesses@, i_file_id, i_classifications),
+        scoring_ctx_wf(t_mode, t_annotation, t_scopes),
+        scoring_ctx_wf(i_mode, i_annotation, i_scopes),
+        witnesses_coverage_in_bounds(witnesses@, t_file_id, t_mode, t_classifications),
+        witnesses_coverage_in_bounds(witnesses@, i_file_id, i_mode, i_classifications),
     ensures
         result <==> discharged(
-            t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
-            i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
+            t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
+            i_file_id, i_annotation, i_mode, i_classifications, i_scopes, i_file_length,
             witnesses@),
 {
     let mut any_bound = false;
@@ -384,25 +501,27 @@ pub fn report_discharged(
     while k < witnesses.len()
         invariant
             0 <= k <= witnesses@.len(),
-            scoring_ctx_wf(t_annotation, t_scopes),
-            scoring_ctx_wf(i_annotation, i_scopes),
-            witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
-            witnesses_coverage_in_bounds(witnesses@, i_file_id, i_classifications),
+            scoring_ctx_wf(t_mode, t_annotation, t_scopes),
+            scoring_ctx_wf(i_mode, i_annotation, i_scopes),
+            witnesses_coverage_in_bounds(witnesses@, t_file_id, t_mode, t_classifications),
+            witnesses_coverage_in_bounds(witnesses@, i_file_id, i_mode, i_classifications),
             // Some witness so far binds T <==> any_bound.
             any_bound <==> exists|j: int| 0 <= j < k
-                && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
-                    #[trigger] witnesses@[j]),
+                && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                    t_file_length, #[trigger] witnesses@[j]),
             // Every bound witness so far executed I (else we returned false).
             forall|j: int| 0 <= j < k
-                && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
-                    #[trigger] witnesses@[j])
-                ==> executed_by(i_file_id, i_annotation, i_classifications, i_scopes,
+                && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                    t_file_length, #[trigger] witnesses@[j])
+                ==> executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
                     i_file_length, witnesses@[j]),
         decreases witnesses@.len() - k,
     {
         let w = &witnesses[k];
-        if is_bound_by(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length, w) {
-            if !is_executed_by(i_file_id, i_annotation, i_classifications, i_scopes,
+        if is_bound_by(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+            t_file_length, w)
+        {
+            if !is_executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
                 i_file_length, w)
             {
                 // Witness k binds T and did not execute I: the universal
@@ -424,32 +543,33 @@ pub fn report_discharged(
 pub fn report_test_executed(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
+    t_mode: ScoringMode,
     t_classifications: &[Option<LineClass>],
     t_scopes: &[Scope],
     t_file_length: u64,
     witnesses: &[Witness],
 ) -> (result: bool)
     requires
-        scoring_ctx_wf(t_annotation, t_scopes),
-        witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
+        scoring_ctx_wf(t_mode, t_annotation, t_scopes),
+        witnesses_coverage_in_bounds(witnesses@, t_file_id, t_mode, t_classifications),
     ensures
         result <==> exists|k: int| 0 <= k < witnesses@.len()
-            && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
                 #[trigger] witnesses@[k]),
 {
     let mut k: usize = 0;
     while k < witnesses.len()
         invariant
             0 <= k <= witnesses@.len(),
-            scoring_ctx_wf(t_annotation, t_scopes),
-            witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
+            scoring_ctx_wf(t_mode, t_annotation, t_scopes),
+            witnesses_coverage_in_bounds(witnesses@, t_file_id, t_mode, t_classifications),
             forall|j: int| 0 <= j < k ==> !binds(
-                t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+                t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
                 #[trigger] witnesses@[j]),
         decreases witnesses@.len() - k,
     {
-        if is_bound_by(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
-            &witnesses[k])
+        if is_bound_by(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+            t_file_length, &witnesses[k])
         {
             return true;
         }
@@ -468,32 +588,33 @@ pub fn report_test_executed(
 pub fn report_ever_executed(
     i_file_id: u64,
     i_annotation: &AnnotationSpan,
+    i_mode: ScoringMode,
     i_classifications: &[Option<LineClass>],
     i_scopes: &[Scope],
     i_file_length: u64,
     witnesses: &[Witness],
 ) -> (result: bool)
     requires
-        scoring_ctx_wf(i_annotation, i_scopes),
-        witnesses_coverage_in_bounds(witnesses@, i_file_id, i_classifications),
+        scoring_ctx_wf(i_mode, i_annotation, i_scopes),
+        witnesses_coverage_in_bounds(witnesses@, i_file_id, i_mode, i_classifications),
     ensures
         result <==> exists|k: int| 0 <= k < witnesses@.len()
-            && executed_by(i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
-                #[trigger] witnesses@[k]),
+            && executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
+                i_file_length, #[trigger] witnesses@[k]),
 {
     let mut k: usize = 0;
     while k < witnesses.len()
         invariant
             0 <= k <= witnesses@.len(),
-            scoring_ctx_wf(i_annotation, i_scopes),
-            witnesses_coverage_in_bounds(witnesses@, i_file_id, i_classifications),
+            scoring_ctx_wf(i_mode, i_annotation, i_scopes),
+            witnesses_coverage_in_bounds(witnesses@, i_file_id, i_mode, i_classifications),
             forall|j: int| 0 <= j < k ==> !executed_by(
-                i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
+                i_file_id, i_annotation, i_mode, i_classifications, i_scopes, i_file_length,
                 #[trigger] witnesses@[j]),
         decreases witnesses@.len() - k,
     {
-        if is_executed_by(i_file_id, i_annotation, i_classifications, i_scopes, i_file_length,
-            &witnesses[k])
+        if is_executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
+            i_file_length, &witnesses[k])
         {
             return true;
         }
@@ -516,21 +637,22 @@ pub fn report_ever_executed(
 pub fn is_unwitnessed(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
+    t_mode: ScoringMode,
     t_classifications: &[Option<LineClass>],
     t_scopes: &[Scope],
     t_file_length: u64,
     witnesses: &[Witness],
 ) -> (result: bool)
     requires
-        scoring_ctx_wf(t_annotation, t_scopes),
-        witnesses_coverage_in_bounds(witnesses@, t_file_id, t_classifications),
+        scoring_ctx_wf(t_mode, t_annotation, t_scopes),
+        witnesses_coverage_in_bounds(witnesses@, t_file_id, t_mode, t_classifications),
     ensures
         result <==> !exists|k: int| 0 <= k < witnesses@.len()
-            && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
                 #[trigger] witnesses@[k]),
 {
-    !report_test_executed(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
-        witnesses)
+    !report_test_executed(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+        t_file_length, witnesses)
 }
 
 // ---------------------------------------------------------------------------
@@ -571,11 +693,13 @@ pub open spec fn witness_subset(ws: Seq<Witness>, ws2: Seq<Witness>) -> bool {
 pub proof fn failure_monotonicity(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
+    t_mode: ScoringMode,
     t_classifications: &[Option<LineClass>],
     t_scopes: &[Scope],
     t_file_length: u64,
     i_file_id: u64,
     i_annotation: &AnnotationSpan,
+    i_mode: ScoringMode,
     i_classifications: &[Option<LineClass>],
     i_scopes: &[Scope],
     i_file_length: u64,
@@ -584,17 +708,17 @@ pub proof fn failure_monotonicity(
 )
     requires
         witness_subset(ws, ws2),
-        discharged(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
-            i_file_id, i_annotation, i_classifications, i_scopes, i_file_length, ws2),
+        discharged(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
+            i_file_id, i_annotation, i_mode, i_classifications, i_scopes, i_file_length, ws2),
     ensures
-        discharged(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
-            i_file_id, i_annotation, i_classifications, i_scopes, i_file_length, ws)
+        discharged(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
+            i_file_id, i_annotation, i_mode, i_classifications, i_scopes, i_file_length, ws)
         || !exists|k: int| 0 <= k < ws.len()
-            && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
                 #[trigger] ws[k]),
 {
     if exists|k: int| 0 <= k < ws.len()
-        && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+        && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
             #[trigger] ws[k])
     {
         // T is witnessed in ws: show discharged(ws). The ∃-conjunct holds by
@@ -603,18 +727,18 @@ pub proof fn failure_monotonicity(
         // forces it to have executed I.
         assert forall|k: int|
             0 <= k < ws.len()
-            && binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
+            && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
                 #[trigger] ws[k])
-        implies executed_by(i_file_id, i_annotation, i_classifications, i_scopes,
+        implies executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
             i_file_length, ws[k])
         by {
             // Transport ws[k] into ws2 via the subset hypothesis.
             assert(exists|j: int| 0 <= j < ws2.len() && ws2[j] == ws[k]);
             let j = choose|j: int| 0 <= j < ws2.len() && ws2[j] == ws[k];
             // ws2[j] binds T (substitution), so ws2's ∀-conjunct applies.
-            assert(binds(t_file_id, t_annotation, t_classifications, t_scopes, t_file_length,
-                ws2[j]));
-            assert(executed_by(i_file_id, i_annotation, i_classifications, i_scopes,
+            assert(binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                t_file_length, ws2[j]));
+            assert(executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
                 i_file_length, ws2[j]));
         }
     }
@@ -635,6 +759,7 @@ pub proof fn failure_monotonicity(
 pub proof fn by_execution_binding_implies_executed(
     file_id: u64,
     annotation: &AnnotationSpan,
+    mode: ScoringMode,
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
     file_length: u64,
@@ -642,12 +767,13 @@ pub proof fn by_execution_binding_implies_executed(
 )
     requires
         w.claim == ClaimRule::ByExecution,
-        binds(file_id, annotation, classifications, scopes, file_length, w),
+        binds(file_id, annotation, mode, classifications, scopes, file_length, w),
     ensures
-        executed_by(file_id, annotation, classifications, scopes, file_length, w),
+        executed_by(file_id, annotation, mode, classifications, scopes, file_length, w),
 {
     // Definitional: with `w.claim == ByExecution`, `binds` unfolds to
-    // `executed_by` — nothing to prove beyond the unfold.
+    // `executed_by` — nothing to prove beyond the unfold. Mode-uniform:
+    // the refinement holds under every scoring mode.
 }
 
 } // verus!
@@ -703,8 +829,8 @@ mod tests {
 
     fn discharged_verdict(witnesses: &[Witness]) -> bool {
         report_discharged(
-            T_FILE, &t_annotation(), &t_classifications(), &[], 3,
-            I_FILE, &i_annotation(), &i_classifications(), &[], 2,
+            T_FILE, &t_annotation(), ScoringMode::Classified, &t_classifications(), &[], 3,
+            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2,
             witnesses,
         )
     }
@@ -733,10 +859,10 @@ mod tests {
         let ws = [w_t_only(), w_i_only()];
         assert!(!discharged_verdict(&ws));
         assert!(report_ever_executed(
-            I_FILE, &i_annotation(), &i_classifications(), &[], 2, &ws,
+            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2, &ws,
         ));
         assert!(!report_ever_executed(
-            I_FILE, &i_annotation(), &i_classifications(), &[], 2, &[w_t_only()],
+            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2, &[w_t_only()],
         ));
     }
 
@@ -745,11 +871,11 @@ mod tests {
     fn w2_w6_test_execution_and_unwitnessed() {
         let t = t_annotation();
         let c = t_classifications();
-        assert!(report_test_executed(T_FILE, &t, &c, &[], 3, &[w_t_only()]));
-        assert!(!report_test_executed(T_FILE, &t, &c, &[], 3, &[w_i_only()]));
-        assert!(is_unwitnessed(T_FILE, &t, &c, &[], 3, &[]));
-        assert!(is_unwitnessed(T_FILE, &t, &c, &[], 3, &[w_i_only()]));
-        assert!(!is_unwitnessed(T_FILE, &t, &c, &[], 3, &[w_t_only()]));
+        assert!(report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[w_t_only()]));
+        assert!(!report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[w_i_only()]));
+        assert!(is_unwitnessed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[]));
+        assert!(is_unwitnessed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[w_i_only()]));
+        assert!(!is_unwitnessed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[w_t_only()]));
     }
 
     /// ByRootSpan binds iff the resolved target exists, the file matches,
@@ -763,16 +889,16 @@ mod tests {
             files: vec![(I_FILE, cov_hit(&[2]))],
         };
         // T's target is line 3 in file 1.
-        assert!(report_test_executed(T_FILE, &t, &c, &[], 3, &[root(T_FILE, 2, 4)]));
-        assert!(report_test_executed(T_FILE, &t, &c, &[], 3, &[root(T_FILE, 3, 3)]));
+        assert!(report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[root(T_FILE, 2, 4)]));
+        assert!(report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[root(T_FILE, 3, 3)]));
         // Outside the range, or wrong file: no bind.
-        assert!(!report_test_executed(T_FILE, &t, &c, &[], 3, &[root(T_FILE, 4, 9)]));
-        assert!(!report_test_executed(T_FILE, &t, &c, &[], 3, &[root(I_FILE, 2, 4)]));
+        assert!(!report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[root(T_FILE, 4, 9)]));
+        assert!(!report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[root(I_FILE, 2, 4)]));
         // A ByRootSpan witness carrying I's coverage discharges the pair
         // (prover-shaped witness: positional claim + closure map).
         assert!(report_discharged(
-            T_FILE, &t, &c, &[], 3,
-            I_FILE, &i_annotation(), &i_classifications(), &[], 2,
+            T_FILE, &t, ScoringMode::Classified, &c, &[], 3,
+            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2,
             &[root(T_FILE, 2, 4)],
         ));
     }
@@ -789,7 +915,7 @@ mod tests {
             claim: ClaimRule::ByRootSpan { file_id: T_FILE, start_line: 1, end_line: 100 },
             files: vec![],
         };
-        assert!(!report_test_executed(T_FILE, &t, &c, &[], 2, &[w]));
+        assert!(!report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 2, &[w]));
     }
 
     /// W4 (Failure Monotonicity, Decision 14): adding a witness that does
@@ -843,7 +969,71 @@ mod tests {
             files: vec![(T_FILE, CoverageReport::new()), (T_FILE, cov_hit(&[3]))],
         };
         assert!(!report_test_executed(
-            T_FILE, &t_annotation(), &t_classifications(), &[], 3, &[w],
+            T_FILE, &t_annotation(), ScoringMode::Classified, &t_classifications(), &[], 3, &[w],
+        ));
+    }
+
+    /// G3 mode routing, degraded arm: a file with no classifier scores
+    /// through the verified degraded path (forward-nearest governance).
+    /// The same witness set that discharges under Classified discharges
+    /// under Degraded when the coverage hits the forward-nearest lines,
+    /// and the split-evidence case still fails (the quantifier layer is
+    /// mode-uniform).
+    #[test]
+    fn degraded_mode_scores_via_the_degraded_path() {
+        // Degraded classification: annotation lines known, code lines None.
+        let t_c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), None];
+        let i_c = vec![s(&[LineProperty::Annotation]), None];
+        let verdict = |witnesses: &[Witness]| {
+            report_discharged(
+                T_FILE, &t_annotation(), ScoringMode::Degraded, &t_c, &[], 3,
+                I_FILE, &i_annotation(), ScoringMode::Degraded, &i_c, &[], 2,
+                witnesses,
+            )
+        };
+        assert!(verdict(&[w_both()]));
+        assert!(!verdict(&[w_t_only(), w_i_only()]));
+        assert!(!verdict(&[w_both(), w_t_only()]));
+        // A miss on the forward-nearest line is a direct-observation
+        // NotExecuted: binds nothing under ByExecution.
+        let w_miss = Witness {
+            claim: ClaimRule::ByExecution,
+            files: vec![(T_FILE, [(3u64, CoverageStatus::Miss)].into_iter().collect())],
+        };
+        assert!(is_unwitnessed(
+            T_FILE, &t_annotation(), ScoringMode::Degraded, &t_c, &[], 3, &[w_miss],
+        ));
+    }
+
+    /// G3 mode routing, unscorable arm: the trust-boundary refusal binds
+    /// nothing and executes nothing — even when the witness carries a map
+    /// for the file or a root span that would otherwise contain the
+    /// target. The verdict contribution is uniformly false; the pair is
+    /// unwitnessed, never discharged.
+    #[test]
+    fn unscorable_binds_nothing_and_executes_nothing() {
+        let root = Witness {
+            claim: ClaimRule::ByRootSpan { file_id: T_FILE, start_line: 1, end_line: 100 },
+            files: vec![(I_FILE, cov_hit(&[2]))],
+        };
+        assert!(is_unwitnessed(
+            T_FILE, &t_annotation(), ScoringMode::Unscorable, &[], &[], 0,
+            &[w_both(), root.clone()],
+        ));
+        assert!(!report_discharged(
+            T_FILE, &t_annotation(), ScoringMode::Unscorable, &[], &[], 0,
+            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2,
+            &[w_both(), root],
+        ));
+        // Unscorable on the implementation side: a bound witness can never
+        // execute I, so the pair fails.
+        assert!(!report_discharged(
+            T_FILE, &t_annotation(), ScoringMode::Classified, &t_classifications(), &[], 3,
+            I_FILE, &i_annotation(), ScoringMode::Unscorable, &[], &[], 0,
+            &[w_both()],
+        ));
+        assert!(!report_ever_executed(
+            I_FILE, &i_annotation(), ScoringMode::Unscorable, &[], &[], 0, &[w_both()],
         ));
     }
 }

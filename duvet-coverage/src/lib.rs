@@ -27,6 +27,14 @@
 //     (if_same_then_else)
 //   - Explicit lifetimes that look elidable but help Verus's spec impls
 //     (needless_lifetimes)
+//   - `match x { Variant => .., _ => .. }` where clippy suggests
+//     `matches!` / `if`: macros don't expand inside the `verus!` block,
+//     so explicit matches are the only spelling
+//     (match_like_matches_macro, single_match)
+//   - Verified fns whose signatures thread full scoring contexts (file
+//     id, annotation, mode, classifications, scopes, length) per side —
+//     the parameters ARE the specification vocabulary
+//     (too_many_arguments)
 // Suppress these crate-wide; the proof patterns must remain as-is for
 // `cargo verus build` to verify the algorithms.
 #![allow(
@@ -34,7 +42,10 @@
     clippy::len_zero,
     clippy::useless_vec,
     clippy::if_same_then_else,
-    clippy::needless_lifetimes
+    clippy::needless_lifetimes,
+    clippy::match_like_matches_macro,
+    clippy::single_match,
+    clippy::too_many_arguments
 )]
 
 // The Verus proofs assume that u64-to-usize casts are lossless (usize >= 64 bits).

@@ -185,6 +185,21 @@ impl SourceIndex {
             .map(|(_, abs)| abs.as_str())
     }
 
+    /// Every project source with its absolute path, in build order. The
+    /// witness adapter enumerates these to translate producer-recorded
+    /// paths into file identities (and to refuse ambiguous matches).
+    pub fn entries(&self) -> &[(PathBuf, String)] {
+        &self.entries
+    }
+
+    /// Test-only constructor from explicit (project path, absolute path)
+    /// pairs, so adapter tests can pin path-identity behavior without
+    /// touching the filesystem.
+    #[cfg(test)]
+    pub fn from_entries(entries: Vec<(PathBuf, String)>) -> Self {
+        Self { entries }
+    }
+
     /// Whether a producer-recorded path refers to any project source
     /// (the `project` predicate for prover-producer closures).
     pub fn matches_any(&self, coverage_path: &str) -> bool {

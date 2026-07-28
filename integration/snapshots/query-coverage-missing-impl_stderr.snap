@@ -36,7 +36,9 @@ Coverage: ✗ FAIL
    ╰────
   help: This test cites a specification section that no implementation/
         citation annotation references. Add an implementation annotation for
-        the same section, or fix the test's target.
+        the same section, or fix the test's target. Additionally, no
+        configured coverage source yielded a witness for this test annotation
+        (design/witness/spec.md, property W6).
 
 
 

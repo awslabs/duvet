@@ -78,6 +78,34 @@ pub struct RequestedPosition {
     pub line: u64,
 }
 
+/// What one declared source produced: its witnesses, plus the
+/// pass-1 facts that are not witnesses (spec §4: producers deliver
+/// facts and never render verdicts — "zero witnesses, with a reason
+/// attached" is such a fact).
+#[derive(Debug, Default)]
+pub struct Produced {
+    pub witnesses: Vec<Witness>,
+    //= design/witness/spec.md#two-pass-construction
+    //= type=implementation
+    //# If a live annotation's resolved target is not proof-testable,
+    //# the producer MUST deliver no witness for it,
+    //# and the report MUST identify the annotation as
+    //# *not proof-testable*
+    /// Requested positions a prover artifact elaborated but which
+    /// root no obligation (Decision 13): proof ingredients, not
+    /// claims. No witness exists for them by definition; the report
+    /// identifies them distinctly from Property W6's "no witness
+    /// from any configured producer."
+    pub not_proof_testable: Vec<RequestedPosition>,
+}
+
+impl Produced {
+    fn merge(&mut self, other: Produced) {
+        self.witnesses.extend(other.witnesses);
+        self.not_proof_testable.extend(other.not_proof_testable);
+    }
+}
+
 /// Expand artifact globs to concrete paths, preserving declaration
 /// order (glob results are sorted within each pattern).
 pub fn expand_globs(patterns: &[String]) -> Result<Vec<String>> {
@@ -105,7 +133,7 @@ pub async fn produce(
     positions: &[RequestedPosition],
     path_matches: impl Fn(&str, &str) -> bool,
     project: impl Fn(&str) -> bool,
-) -> Result<Vec<Witness>> {
+) -> Result<Produced> {
     let artifacts = expand_globs(&source.globs)?;
     if artifacts.is_empty() {
         return Err(duvet_core::error!(
@@ -116,18 +144,18 @@ pub async fn produce(
     }
     match source.producer {
         CoverageProducer::JacocoXml => {
-            let mut witnesses = Vec::new();
+            let mut produced = Produced::default();
             for artifact in &artifacts {
-                witnesses.push(jacoco_witness(artifact).await?);
+                produced.witnesses.push(jacoco_witness(artifact).await?);
             }
-            Ok(witnesses)
+            Ok(produced)
         }
         CoverageProducer::VerusSst => {
-            let mut witnesses = Vec::new();
+            let mut produced = Produced::default();
             for artifact in &artifacts {
                 let graph = verus_sst::load_dir(std::path::Path::new(artifact))
                     .map_err(|e| duvet_core::error!("verus-sst: {e}"))?;
-                witnesses.extend(verus_witnesses_from_graph(
+                produced.merge(verus_witnesses_from_graph(
                     &graph,
                     artifact,
                     positions,
@@ -135,7 +163,7 @@ pub async fn produce(
                     &project,
                 )?);
             }
-            Ok(witnesses)
+            Ok(produced)
         }
     }
 }
@@ -170,14 +198,19 @@ async fn jacoco_witness(artifact: &str) -> Result<Witness> {
 }
 
 /// Materialize witnesses for the requested positions from a parsed
-/// obligation graph (spec §5.2 pass 2, via the producer's public
-/// `construct_witnesses`).
+/// obligation graph (spec §5.2, via the producer's public
+/// `classify_position` and `construct_witnesses`).
 ///
-/// Pass 1's aggregate-map liveness screen is deliberately skipped:
-/// `construct_witnesses` yields nothing for a position no discharge
-/// unit certifies, so verdicts are identical (spec §1.7: the
-/// annotations argument is a semantically inert optimization) and
-/// the screen is an optimization this wrapper does not need yet.
+/// Pass 1 (spec §5.2) here is `classify_position` per requested
+/// position: `Rooted` positions get witnesses (pass 2),
+/// `NotProofTestable` positions are reported as such — elaborated
+/// but rooting nothing dischargeable, so no witness exists for them
+/// by definition (Decision 13) — and `Unelaborated` positions get
+/// nothing (they surface through Property W6 if no other producer
+/// witnesses them). The aggregate-map liveness screen as a
+/// *pre-filter* is deliberately skipped: verdicts are identical
+/// (spec §1.7: the annotations argument is a semantically inert
+/// optimization).
 ///
 /// Witnesses are deduplicated by obligation: two positions owned by
 /// the same discharge unit yield one witness, which is well-defined
@@ -190,7 +223,7 @@ fn verus_witnesses_from_graph(
     positions: &[RequestedPosition],
     path_matches: impl Fn(&str, &str) -> bool,
     project: impl Fn(&str) -> bool,
-) -> Result<Vec<Witness>> {
+) -> Result<Produced> {
     // Every file string the artifact mentions, for translating an
     // engine (absolute) position into artifact coordinates.
     let mut graph_files: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
@@ -202,6 +235,7 @@ fn verus_witnesses_from_graph(
     }
 
     let mut by_label: BTreeMap<String, Witness> = BTreeMap::new();
+    let mut not_proof_testable: Vec<RequestedPosition> = Vec::new();
     for position in positions {
         let Ok(line) = u32::try_from(position.line) else {
             continue; // no real file has 2^32 lines; no witness (W6)
@@ -228,6 +262,18 @@ fn verus_witnesses_from_graph(
                 ));
             }
         };
+        // Pass 1 (spec §5.2, Decision 13): what is this position to
+        // the discharge-unit map? `Rooted` falls through to witness
+        // construction; `NotProofTestable` is a fact the report must
+        // carry (distinct from W6); `Unelaborated` feeds W6.
+        match verus_sst::witness::classify_position(graph, file, line) {
+            verus_sst::witness::PositionKind::Rooted(_) => {}
+            verus_sst::witness::PositionKind::NotProofTestable => {
+                not_proof_testable.push(position.clone());
+                continue;
+            }
+            verus_sst::witness::PositionKind::Unelaborated => continue,
+        }
         for vw in verus_sst::witness::construct_witnesses(graph, file, line, artifact, &project) {
             by_label.entry(vw.label.clone()).or_insert_with(|| {
                 let verus_sst::witness::ClaimRule::ByRootSpan(span) = &vw.claim;
@@ -270,7 +316,10 @@ fn verus_witnesses_from_graph(
             });
         }
     }
-    Ok(by_label.into_values().collect())
+    Ok(Produced {
+        witnesses: by_label.into_values().collect(),
+        not_proof_testable,
+    })
 }
 
 #[cfg(test)]
@@ -354,7 +403,8 @@ mod tests {
             suffix_matches,
             |f| f.starts_with("src/"),
         )
-        .unwrap();
+        .unwrap()
+        .witnesses;
         let [w] = ws.as_slice() else {
             panic!("expected one witness, got {}", ws.len())
         };
@@ -384,7 +434,8 @@ mod tests {
             suffix_matches,
             |f| f.starts_with("src/"),
         )
-        .unwrap();
+        .unwrap()
+        .witnesses;
         assert_eq!(
             ws.iter().map(|w| w.label.as_str()).collect::<Vec<_>>(),
             ["c::caller"],
@@ -395,7 +446,7 @@ mod tests {
     #[test]
     fn position_no_obligation_certifies_yields_no_witness() {
         let g = graph();
-        let ws = verus_witnesses_from_graph(
+        let produced = verus_witnesses_from_graph(
             &g,
             "logs/",
             &[position("/proj/src/a.rs", 999), position("/proj/nope.rs", 1)],
@@ -403,7 +454,52 @@ mod tests {
             |_| true,
         )
         .unwrap();
-        assert!(ws.is_empty(), "zero discharge units → zero witnesses (feeds W6)");
+        assert!(
+            produced.witnesses.is_empty(),
+            "zero discharge units → zero witnesses (feeds W6)"
+        );
+        assert!(
+            produced.not_proof_testable.is_empty(),
+            "unelaborated positions are W6's, not the producer's fact to report"
+        );
+    }
+
+    #[test]
+    fn elaborated_unrooted_position_is_reported_not_proof_testable() {
+        // Line 25 is elaborated (a `@@` sub-span of c::caller's body)
+        // but outside every obligation extent: a proof ingredient, not
+        // a claim (spec §5.2 pass 1, Decision 13). The producer
+        // delivers no witness for it and reports the position as not
+        // proof-testable — a fact, never a verdict (spec §4).
+        const BODY_SPAN: &str = r#"
+(@ "src/a.rs:10:1: 20:2 (#0)"
+ (FunctionSst :name (Fun :path c::caller) :body
+  (@@ "src/a.rs:25:5: 26:9 (#0)" (Exp))))
+"#;
+        let g = ObligationGraph::merge([parse_module(BODY_SPAN).unwrap()]).unwrap();
+        let produced = verus_witnesses_from_graph(
+            &g,
+            "logs/",
+            &[position("/proj/src/a.rs", 25), position("/proj/src/a.rs", 15)],
+            suffix_matches,
+            |f| f.starts_with("src/"),
+        )
+        .unwrap();
+        assert_eq!(
+            produced.not_proof_testable,
+            [position("/proj/src/a.rs", 25)],
+            "elaborated-but-unrooted position must be reported not proof-testable"
+        );
+        // The rooted position still gets its witness; NPT never leaks
+        // into the witness set.
+        assert_eq!(
+            produced
+                .witnesses
+                .iter()
+                .map(|w| w.label.as_str())
+                .collect::<Vec<_>>(),
+            ["c::caller"]
+        );
     }
 
     #[test]

@@ -19,6 +19,13 @@ target = "design/witness/spec.md#two-pass-construction"
 # witness: it is many obligations wearing one map,
 # and delivering it would violate §4.2 by construction.
 # 
+# If the producer cannot unambiguously translate an annotation's
+# position into artifact coordinates (e.g. the source path matches
+# several artifact paths), it MUST abort the run with the ambiguity
+# rather than skip the position: silently dropping a position would
+# convert a configuration defect into a missing-witness verdict.
+# This is a deliberate posture, not an accident of implementation.
+# 
 # A source position is **proof-testable** iff at least one
 # obligation is rooted there — iff it is in the domain of the
 # discharge-unit map (§5.3).
@@ -46,6 +53,15 @@ quote = '''
 The aggregate executability map MUST NOT be delivered as a
 witness: it is many obligations wearing one map,
 and delivering it would violate §4.2 by construction.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+the source path matches
+several artifact paths), it MUST abort the run with the ambiguity
+rather than skip the position: silently dropping a position would
+convert a configuration defect into a missing-witness verdict.
 '''
 
 [[spec]]

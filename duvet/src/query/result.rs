@@ -4,7 +4,11 @@
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
     comment::Pattern,
-    query::{coverage::ExecutionStatus, witness::{PairWitnessResult, WitnessRef}},
+    query::{
+        coverage::ExecutionStatus,
+        parsers::verus_sst::witness::NOT_PROOF_TESTABLE,
+        witness::{PairWitnessResult, WitnessRef},
+    },
 };
 use duvet_core::{error, info};
 use serde::{Deserialize, Serialize};
@@ -69,7 +73,7 @@ pub struct CoverageResult {
     /// Tests whose covered spec text has no correlated implementation
     /// annotation anywhere (design §2.4). Reported as failures distinct from
     /// "test ran, implementation did not".
-    pub missing_implementation: Vec<Arc<Annotation>>,
+    pub missing_implementation: Vec<MissingImplementationTest>,
     //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
     //= type=implementation
     //# The engine MUST report every test annotation for which no
@@ -184,6 +188,31 @@ pub struct UnwitnessedTestAnnotation {
     /// The test's own execution status folded across all delivered
     /// witnesses — diagnostic detail only (Unknown carries a line).
     pub diagnostic_status: ExecutionStatus,
+    /// A prover producer elaborated this test's resolved target but no
+    /// obligation is rooted there (spec §5.2, Decision 13): no proof
+    /// witness can exist for it by definition. Refines the report —
+    /// distinct from W6's "no configured producer yielded a witness" —
+    /// never the verdict.
+    pub not_proof_testable: bool,
+}
+
+//= design/witness/spec.md#property-w6-unwitnessed-test-annotations
+//= type=implementation
+//# The engine MUST report every test annotation for which no
+//# delivered witness binds it —
+//# across ALL configured producers —
+//# as a failure, never silently
+/// A test annotation reported under "no correlated implementation"
+/// (design §2.4). W6 quantifies over EVERY test annotation, including
+/// these — they fail before reaching the unwitnessed check, so the
+/// "no producer witnessed this" fact rides on this report rather
+/// than being lost.
+#[derive(Debug)]
+pub struct MissingImplementationTest {
+    pub test: Arc<Annotation>,
+    /// No delivered witness binds this test either (property W6):
+    /// carried as a fact on this report, not a separate category.
+    pub unwitnessed: bool,
 }
 
 impl fmt::Display for QueryResult {
@@ -449,14 +478,26 @@ impl fmt::Display for CoverageResult {
         // means unwitnessed by ALL of them (Decision 8).
         if unwitnessed > 0 {
             for entry in &self.unwitnessed {
-                let detail = match entry.diagnostic_status {
-                    ExecutionStatus::Executed => unreachable!("an executed test is bound"),
-                    ExecutionStatus::NotExecuted => "Not executed test",
-                    ExecutionStatus::Structural => {
-                        "Test target is purely declarative; no executable code to verify"
-                    }
-                    ExecutionStatus::Unknown { .. } => {
-                        "Not executed because of an unknown not executable line."
+                let detail = if entry.not_proof_testable {
+                    "Not proof-testable test target"
+                } else {
+                    match entry.diagnostic_status {
+                        // Not a contradiction: coverage of the test's LINES is
+                        // evidence-claiming (ByExecution) only. A prover
+                        // witness bound elsewhere routinely consults these
+                        // lines in its closure without binding this
+                        // annotation — binding for ByRootSpan witnesses is
+                        // positional (spec §1.5).
+                        ExecutionStatus::Executed => {
+                            "Test lines reached only by witnesses bound elsewhere"
+                        }
+                        ExecutionStatus::NotExecuted => "Not executed test",
+                        ExecutionStatus::Structural => {
+                            "Test target is purely declarative; no executable code to verify"
+                        }
+                        ExecutionStatus::Unknown { .. } => {
+                            "Not executed because of an unknown not executable line."
+                        }
                     }
                 };
                 let mut error = error!("Unwitnessed test annotation")
@@ -466,13 +507,31 @@ impl fmt::Display for CoverageResult {
                         error = error.with_related_source_slice(line_slice, "Problematic line");
                     }
                 }
-                error = error.with_help(
-                    "No configured coverage source yielded a witness for this \
-                     test annotation (design/witness/spec.md, property W6). If \
-                     its checking act runs under a producer not configured in \
-                     this invocation, add that coverage source; otherwise this \
-                     annotation points at behavior nothing checked.",
-                );
+                //= design/witness/spec.md#two-pass-construction
+                //= type=implementation
+                //# the report MUST identify the annotation as
+                //# *not proof-testable* ("this position carries no dischargeable
+                //# obligation; it can only be witnessed by an execution-style
+                //# producer") — a report distinct from Property W6's
+                //# "no witness from any configured producer."
+                if entry.not_proof_testable {
+                    error = error.with_help(format!(
+                        "A prover elaborated this annotation's target, but \
+                         {NOT_PROOF_TESTABLE} (design/witness/spec.md §5.2). \
+                         Move the annotation to a proof-element position \
+                         (fn/lemma header, ensures clause, loop invariant, \
+                         proof assert), or configure an execution-style \
+                         coverage source that runs this code.",
+                    ));
+                } else {
+                    error = error.with_help(
+                        "No configured coverage source yielded a witness for this \
+                         test annotation (design/witness/spec.md, property W6). If \
+                         its checking act runs under a producer not configured in \
+                         this invocation, add that coverage source; otherwise this \
+                         annotation points at behavior nothing checked.",
+                    );
+                }
                 writeln!(f, "{error:?}")?;
             }
             writeln!(f)?;
@@ -480,15 +539,26 @@ impl fmt::Display for CoverageResult {
 
         // Tests that cite a spec section nobody implements (design §2.4).
         if missing_implementation > 0 {
-            for test in &self.missing_implementation {
+            for entry in &self.missing_implementation {
+                const MISSING_IMPL_HELP: &str =
+                    "This test cites a specification section that no \
+                     implementation/citation annotation references. Add an \
+                     implementation annotation for the same section, or fix \
+                     the test's target.";
                 let error = error!("Test has no correlated implementation")
-                    .with_source_slice(test.original_text.clone(), "Test annotation")
-                    .with_help(
-                        "This test cites a specification section that no \
-                         implementation/citation annotation references. Add an \
-                         implementation annotation for the same section, or fix \
-                         the test's target.",
-                    );
+                    .with_source_slice(entry.test.original_text.clone(), "Test annotation");
+                // Spec W6 quantifies over every test annotation: the
+                // unwitnessed fact is stated here rather than lost to the
+                // missing-implementation failure.
+                let error = if entry.unwitnessed {
+                    error.with_help(format!(
+                        "{MISSING_IMPL_HELP} Additionally, no configured \
+                         coverage source yielded a witness for this test \
+                         annotation (design/witness/spec.md, property W6)."
+                    ))
+                } else {
+                    error.with_help(MISSING_IMPL_HELP)
+                };
                 writeln!(f, "{error:?}")?;
             }
             writeln!(f)?;
@@ -599,6 +669,8 @@ impl fmt::Display for CoverageResult {
                 // Spec §3 (Decision 14): for every discharged pair, name
                 // EVERY bound witness (label + strength) — the discharge
                 // claim is that all of them executed the implementation.
+                // Scoped to verbose output by §3 (amended 2026-07-27):
+                // success detail is verbose-gated; failure detail never is.
                 let discharged_by = correlation
                     .bound_witnesses
                     .iter()

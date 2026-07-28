@@ -31,6 +31,16 @@ target = "design/witness/spec.md#claim-rules"
 # `ByRootSpan` is the prover rule:
 # the witness was constructed from the annotation's own position
 # (§5), so ownership is positional and holds by construction.
+# Positional comparison requires file identity: if the engine's
+# path-matching relation associates an annotation's file with more
+# than one witness file (or one witness file with more than one
+# source file), the engine MUST refuse the bind and report the
+# ambiguity rather than select — the same posture the producer takes
+# when translating positions into artifact coordinates.
+# Suffix matching that silently crosses two files ending in the same
+# path is a G1 (file-identity injectivity) violation and can
+# manufacture both false failures and, when closures overlap, false
+# discharges.
 
 [[spec]]
 level = "MUST"
@@ -38,5 +48,16 @@ quote = '''
 a Structural
 annotation) binds no ByRootSpan witness —
 empty-target containment MUST NOT bind vacuously.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Positional comparison requires file identity: if the engine's
+path-matching relation associates an annotation's file with more
+than one witness file (or one witness file with more than one
+source file), the engine MUST refuse the bind and report the
+ambiguity rather than select — the same posture the producer takes
+when translating positions into artifact coordinates.
 '''
 

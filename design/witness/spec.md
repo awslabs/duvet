@@ -134,6 +134,16 @@ This rule is sound only under witness individuation (§4.2).
 `ByRootSpan` is the prover rule:
 the witness was constructed from the annotation's own position
 (§5), so ownership is positional and holds by construction.
+Positional comparison requires file identity: if the engine's
+path-matching relation associates an annotation's file with more
+than one witness file (or one witness file with more than one
+source file), the engine MUST refuse the bind and report the
+ambiguity rather than select — the same posture the producer takes
+when translating positions into artifact coordinates.
+Suffix matching that silently crosses two files ending in the same
+path is a G1 (file-identity injectivity) violation and can
+manufacture both false failures and, when closures overlap, false
+discharges.
 
 ### 1.6 Discharge {#discharge}
 
@@ -307,8 +317,12 @@ that behavior is correct
 
 ## 3. Verdict output requirements {#verdict-output}
 
-For every discharged pair, the output MUST name every bound
-witness (its label) and its strength (§1.3).
+For every discharged pair, the output MUST name, in verbose
+output, every bound witness (its label) and its strength (§1.3).
+(Scoped to verbose output, 2026-07-27: a run at real scale
+discharges hundreds of pairs, and naming every witness for each of
+them by default would bury the failure reports this check exists
+to surface. Failure output is never verbose-gated.)
 For every pair that fails because a bound witness did not execute
 the implementation (W1's universal clause), the output MUST list
 **every** bound witness with its per-witness result
@@ -405,6 +419,13 @@ and derive both of the following from it:
 The aggregate executability map MUST NOT be delivered as a
 witness: it is many obligations wearing one map,
 and delivering it would violate §4.2 by construction.
+
+If the producer cannot unambiguously translate an annotation's
+position into artifact coordinates (e.g. the source path matches
+several artifact paths), it MUST abort the run with the ambiguity
+rather than skip the position: silently dropping a position would
+convert a configuration defect into a missing-witness verdict.
+This is a deliberate posture, not an accident of implementation.
 
 A source position is **proof-testable** iff at least one
 obligation is rooted there — iff it is in the domain of the

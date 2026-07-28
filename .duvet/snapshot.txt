@@ -166,6 +166,12 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: a Structural
     TEXT[!MUST]: annotation) binds no ByRootSpan witness —
     TEXT[!MUST]: empty-target containment MUST NOT bind vacuously.
+    TEXT[!MUST]: Positional comparison requires file identity: if the engine's
+    TEXT[!MUST]: path-matching relation associates an annotation's file with more
+    TEXT[!MUST]: than one witness file (or one witness file with more than one
+    TEXT[!MUST]: source file), the engine MUST refuse the bind and report the
+    TEXT[!MUST]: ambiguity rather than select — the same posture the producer takes
+    TEXT[!MUST]: when translating positions into artifact coordinates.
 
   SECTION: [1.7 Producer](#producer)
     TEXT[!MAY]: Runtime producers MAY ignore the `annotations` argument
@@ -232,8 +238,9 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MAY]: (decisions.md, Decision 8).
 
   SECTION: [3. Verdict output requirements](#verdict-output)
-    TEXT[!MUST]: For every discharged pair, the output MUST name every bound
-    TEXT[!MUST]: witness (its label) and its strength (§1.3).
+    TEXT[!MUST]: For every discharged pair, the output MUST name, in verbose
+    TEXT[!MUST]: output, every bound witness (its label) and its strength (§1.3).
+    TEXT[!MUST]: Failure output is never verbose-gated.)
     TEXT[!MUST]: For every pair that fails because a bound witness did not execute
     TEXT[!MUST]: the implementation (W1's universal clause), the output MUST list
     TEXT[!MUST]: **every** bound witness with its per-witness result
@@ -285,6 +292,10 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: The aggregate executability map MUST NOT be delivered as a
     TEXT[!MUST]: witness: it is many obligations wearing one map,
     TEXT[!MUST]: and delivering it would violate §4.2 by construction.
+    TEXT[!MUST]: the source path matches
+    TEXT[!MUST]: several artifact paths), it MUST abort the run with the ambiguity
+    TEXT[!MUST]: rather than skip the position: silently dropping a position would
+    TEXT[!MUST]: convert a configuration defect into a missing-witness verdict.
     TEXT[!MUST]: If a live annotation's resolved target is not proof-testable,
     TEXT[!MUST]: the producer MUST deliver no witness for it,
     TEXT[!MUST]: and the report MUST identify the annotation as

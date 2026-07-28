@@ -145,7 +145,10 @@ The semantics are specified in
 with design rationale in
 [`design/witness/decisions.md`](https://github.com/awslabs/duvet/blob/main/design/witness/decisions.md).
 The discharge verdict logic is proven correct with Verus in the
-`duvet-coverage` crate.
+`duvet-coverage` crate, and the engine computes its verdicts by
+calling those verified functions; the remaining glue between them —
+translating file paths into the model's file identities — is
+unit-tested and refuses ambiguous path matches rather than guessing.
 
 ## Verbose output
 

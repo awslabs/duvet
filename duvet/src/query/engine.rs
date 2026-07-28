@@ -15,10 +15,10 @@ use super::{
     requirements::RequirementMode,
     result::{
         AnnotationCoverage, CheckResult, CoverageResult, CoveredTestAnnotation,
-        Duplicates, DuplicatesResult, ImplementationResult,
+        Duplicates, DuplicatesResult, ImplementationResult, MissingImplementationTest,
         NotExecutedAnnotation, QueryResult, QueryStatus, TestResult, UnwitnessedTestAnnotation,
     },
-    witness::{bound_witnesses, discharge_verdict, witness_refs, ResolvedTarget, Witness},
+    witness::{ResolvedTarget, VerifiedVerdicts, Witness},
     CheckType,
 };
 use crate::{
@@ -364,6 +364,11 @@ async fn execute_test_check(
 /// index (absolute paths for suffix matching).
 struct WitnessLoad {
     witnesses: Vec<Witness>,
+    /// Positions a prover producer elaborated but which root no
+    /// obligation (spec §5.2, Decision 13): delivered as a fact by
+    /// `produce`, consumed here only to refine the *report* for
+    /// unwitnessed annotations — never the verdict.
+    not_proof_testable: Vec<RequestedPosition>,
     classification: ClassificationMap,
     index: SourceIndex,
 }
@@ -421,17 +426,19 @@ async fn load_witnesses(
     }
 
     let mut witnesses = Vec::new();
+    let mut not_proof_testable = Vec::new();
     for source in sources {
-        witnesses.extend(
-            produce(source, &positions, coverage_path_matches, |file| {
-                index.matches_any(file)
-            })
-            .await?,
-        );
+        let produced = produce(source, &positions, coverage_path_matches, |file| {
+            index.matches_any(file)
+        })
+        .await?;
+        witnesses.extend(produced.witnesses);
+        not_proof_testable.extend(produced.not_proof_testable);
     }
 
     Ok(WitnessLoad {
         witnesses,
+        not_proof_testable,
         classification,
         index,
     })
@@ -472,6 +479,7 @@ async fn execute_coverage_check(
 
     let WitnessLoad {
         witnesses,
+        not_proof_testable,
         mut classification,
         index,
     } = load;
@@ -565,10 +573,12 @@ async fn execute_coverage_check(
         }
     }
 
-    // The executed(X, w) cell (spec §1.4): the existing verified Phases 1-3
-    // scored against one witness's maps. Everything above this line is
-    // per-file and witness-invariant; everything below quantifies over
-    // witnesses (the shape milestone 3 verifies as Phase 4).
+    // The executed(X, w) cell (spec §1.4) in DIAGNOSTIC form: the existing
+    // verified Phases 1-3 scored against one witness's maps, with `Unknown`
+    // carrying line detail. Verdicts do not flow through this closure — they
+    // are computed by the verified Phase 4 quantifier layer through the
+    // adapter below; this cell only feeds report detail and the
+    // executed-tests-only mode filter.
     let cell = |annotation: &Arc<Annotation>, witness_index: usize| -> ExecutionStatus {
         let path = annotation.source.to_path_buf();
         executed_status(
@@ -592,9 +602,14 @@ async fn execute_coverage_check(
         })
     };
 
-    // Witnesses carried with their index so the cell matrix and the pure
-    // quantifier layer (witness.rs) run over the same carrier.
-    let indexed: Vec<(usize, &Witness)> = witnesses.iter().enumerate().collect();
+    // The G1 adapter: witnesses and annotation scoring contexts translated
+    // into the verified model's vocabulary (injective file ids, scoring
+    // modes). All verdicts below — pair discharge (W1), witnessed/
+    // unwitnessed (W2/W6), ever-executed (W3) — are computed by calling
+    // the verified quantifier layer through it (glue obligation G2).
+    // Translation refuses ambiguous root-span path matches (spec §1.5)
+    // rather than selecting.
+    let adapter = VerifiedVerdicts::build(&witnesses, &matched, &classification, &index)?;
 
     let mut test_annotations: Vec<_> = Vec::new();
     let mut implementation_annotations: Vec<_> = Vec::new();
@@ -642,7 +657,12 @@ async fn execute_coverage_check(
     // annotation anywhere (design §2.4). In executed-coverage mode a
     // NotExecuted such test is skipped, consistent with that mode ignoring
     // tests that did not run.
-    let mut missing_implementation: Vec<Arc<Annotation>> = Vec::new();
+    //
+    // Spec W6 quantifies over EVERY test annotation, these included: they
+    // fail before reaching the unwitnessed check below, so the boundness
+    // fact is computed here (same pure quantifier layer, reporting only —
+    // the failure verdict is already decided by the missing implementation).
+    let mut missing_implementation: Vec<MissingImplementationTest> = Vec::new();
     for test in &no_coverage {
         if coverage_check_executed_tests_only
             && matches!(
@@ -652,7 +672,13 @@ async fn execute_coverage_check(
         {
             continue;
         }
-        missing_implementation.push(test.clone());
+        missing_implementation.push(MissingImplementationTest {
+            test: test.clone(),
+            // Verified W6 verdict through the adapter (reporting refinement
+            // here — the failure is already decided by the missing
+            // implementation).
+            unwitnessed: adapter.is_unwitnessed(test),
+        });
     }
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
@@ -660,15 +686,12 @@ async fn execute_coverage_check(
         //= type=implementation
         //# A test annotation must find *its own* witness.
         let resolved_target = resolve(&test.target);
-        let bound = bound_witnesses(
-            &indexed,
-            |carrier: &(usize, &Witness)| carrier.1,
-            |carrier: &(usize, &Witness)| cell(&test.target, carrier.0),
-            resolved_target.as_ref(),
-            coverage_path_matches,
-        );
+        // Verified W2/W6 verdict and the bound-witness detail, both through
+        // the adapter (the same verified `binds` cell decides both).
+        let test_is_unwitnessed = adapter.is_unwitnessed(&test.target);
+        let bound = adapter.bound_witnesses(&test.target);
 
-        if !bound.is_empty() {
+        if !test_is_unwitnessed {
             // The test is witnessed (Property W2). Evaluate each covering
             // implementation against EVERY bound witness: the verdict is
             // universal (Decision 14) — one bound witness that did not
@@ -685,11 +708,11 @@ async fn execute_coverage_check(
             let mut not_executed_implementations = Vec::new();
 
             for annotation in &test.covering_annotations {
-                let verdict = discharge_verdict(
-                    &bound,
-                    |carrier: &(usize, &Witness)| carrier.1,
-                    |carrier| cell(annotation, carrier.0),
-                );
+                // Verified W1 verdict; the diagnostic closure only feeds the
+                // per-witness `status` detail (`Unknown` line numbers).
+                let verdict = adapter.discharge_verdict(&test.target, annotation, &bound, |wi| {
+                    cell(annotation, wi)
+                });
                 if verdict.discharged {
                     executed_implementations.push(annotation.clone());
                 } else {
@@ -714,7 +737,7 @@ async fn execute_coverage_check(
             let result = CoveredTestAnnotation {
                 test: test.target.clone(),
                 test_execution_status: ExecutionStatus::Executed,
-                bound_witnesses: witness_refs(&bound, |carrier| carrier.1),
+                bound_witnesses: adapter.witness_refs(&bound),
                 executed_implementations,
                 not_executed_implementations,
             };
@@ -746,6 +769,22 @@ async fn execute_coverage_check(
             unwitnessed.push(UnwitnessedTestAnnotation {
                 test: test.target.clone(),
                 diagnostic_status,
+                //= design/witness/spec.md#two-pass-construction
+                //= type=implementation
+                //# the report MUST identify the annotation as
+                //# *not proof-testable* ("this position carries no dischargeable
+                //# obligation; it can only be witnessed by an execution-style
+                //# producer") — a report distinct from Property W6's
+                //# "no witness from any configured producer."
+                //
+                // Reporting refinement only: the annotation is unwitnessed
+                // either way (the verdict above is unchanged); this names the
+                // producer-delivered reason when there is one.
+                not_proof_testable: resolved_target.as_ref().is_some_and(|target| {
+                    not_proof_testable
+                        .iter()
+                        .any(|p| p.absolute_file == target.absolute_file && p.line == target.line)
+                }),
             });
         }
     }
@@ -767,16 +806,14 @@ async fn execute_coverage_check(
     //= type=implementation
     //# report_ever_executed(I, witnesses) = true
     //#     ⟺  ∃ w ∈ witnesses : executed(I, w)
+    //
+    // Verified W3 verdict through the adapter. The union with discharged
+    // implementations is subsumed by W1 ⟹ W3 (a discharged pair's bound
+    // witness executed I), kept for report-shape stability.
     let executed_implementations = implementation_annotations
         .iter()
         .filter(|annotation| {
-            if executed_from_tests.contains(annotation) {
-                true
-            } else {
-                (0..witnesses.len()).any(|wi| {
-                    matches!(cell(annotation, wi), ExecutionStatus::Executed)
-                })
-            }
+            executed_from_tests.contains(annotation) || adapter.ever_executed(annotation)
         })
         .cloned()
         .collect::<BTreeSet<_>>()

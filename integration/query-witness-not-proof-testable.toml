@@ -1,0 +1,125 @@
+source = { local = true }
+cmd = ["duvet query -c coverage --coverage-source verus-sst=../../../duvet/src/query/parsers/verus_sst/testdata/vacuity"]
+report_output = false
+
+# The mixed-provenance matrix row that used to panic (review Finding 1),
+# and the not-proof-testable report it becomes (spec §5.2, Decision 13;
+# review Finding 3).
+#
+# Proof-only run over the checked-in SST golden fixture. Two test
+# annotations sit on `self_contained`:
+#
+#   - line 49 (the fn header): rooted — `vacuity::self_contained` is its
+#     discharge unit, so it binds that witness positionally and the pair
+#     fails honestly (the closure never reaches `add_one`).
+#   - line 53 (a body line, `let y = x;` under the annotation): the
+#     prover ELABORATED that line — it is inside the bound-elsewhere
+#     witness's closure, so the test's own lines score Executed — but no
+#     obligation is rooted there, so NO witness binds it (binding for
+#     ByRootSpan is positional, spec §1.5). Executed-yet-unbound is
+#     exactly the state the old `unreachable!("an executed test is
+#     bound")` arm in result.rs declared impossible: that comment encoded
+#     ByExecution logic (executed ⟹ bound), false for ByRootSpan.
+#
+# The verdict for line 53's annotation is still W6-unwitnessed (FAIL) —
+# only the report is refined: it must carry the producer's
+# not-proof-testable fact, verbatim ("this position carries no
+# dischargeable obligation; it can only be witnessed by an
+# execution-style producer"), distinct from plain W6's "no configured
+# coverage source yielded a witness" (that wording is pinned by
+# query-witness-w6-unwitnessed.toml).
+#
+# vacuity.rs below is the checked-in SST golden fixture's source with
+# line-count-preserving annotation swaps; see
+# query-witness-verus-discharge.toml for the constraint.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "vacuity.rs"
+contents = """
+use vstd::prelude::*;
+
+verus! {
+
+//= spec.md#add-one
+//# Adding one MUST produce the successor
+pub open spec fn spec_add_one(x: int) -> int {
+    x + 1
+}
+
+pub fn add_one(x: u32) -> (r: u32)
+    requires x < 1000,
+    ensures r == spec_add_one(x as int),
+{
+    let r = x + 1;
+    r
+}
+
+//= spec.md#add-one
+//= type=test
+//# Adding one MUST produce the successor
+pub proof fn honest_proof()
+    ensures forall|x: int| spec_add_one(x) == x + 1,
+{
+}
+
+//= spec.md#body
+//# The body MUST assign
+//
+pub proof fn vacuous_proof(x: int)
+    requires x != x,
+    ensures x == x + 1,
+{
+}
+
+// ---- Scenario B2: vacuous proof that MENTIONS the impl -------------
+// requires false, but the ensures references spec_add_one.
+// Discriminates elaboration-record vs needed-record semantics:
+// if SST records what elaboration touched, spec_add_one appears here
+// even though the solver needed nothing.
+pub proof fn vacuous_proof_mentioning(x: int)
+    requires x != x,
+    ensures spec_add_one(x) == x - 100,
+{
+}
+
+// ---- Scenario C ------------------------------------------------------
+//
+//= spec.md#add-one
+//= type=test
+//# Adding one MUST produce the successor
+pub fn self_contained(x: u32) -> (r: u32)
+//= spec.md#body
+//= type=test
+    let y = x;
+    y
+}
+
+} // verus!
+
+fn main() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Add one
+
+Adding one MUST produce the successor
+
+## Body
+
+The body MUST assign
+"""
