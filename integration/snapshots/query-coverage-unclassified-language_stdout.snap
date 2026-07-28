@@ -1,0 +1,29 @@
+---
+source: xtask/src/tests.rs
+expression: stdout
+---
+$ duvet query -c coverage -r cov.xml -f jacoco-xml
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 2 sources 
+     Parsing annotations
+      Parsed 2 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 2 references 
+  
+Coverage: ✓ PASS
+
+  Coverage reports checked: 1
+  Executed tests: 0
+  Executed implementations: 1
+  Successful correlations: 0
+  Failed correlations: 0
+  Tests with no implementation: 0
+
+
+Overall: ✓ PASS
