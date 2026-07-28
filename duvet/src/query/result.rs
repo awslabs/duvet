@@ -540,8 +540,7 @@ impl fmt::Display for CoverageResult {
         // Tests that cite a spec section nobody implements (design §2.4).
         if missing_implementation > 0 {
             for entry in &self.missing_implementation {
-                const MISSING_IMPL_HELP: &str =
-                    "This test cites a specification section that no \
+                const MISSING_IMPL_HELP: &str = "This test cites a specification section that no \
                      implementation/citation annotation references. Add an \
                      implementation annotation for the same section, or fix \
                      the test's target.";

@@ -430,7 +430,10 @@ mod tests {
         let ws = verus_witnesses_from_graph(
             &g,
             "logs/",
-            &[position("/proj/src/a.rs", 12), position("/proj/src/a.rs", 15)],
+            &[
+                position("/proj/src/a.rs", 12),
+                position("/proj/src/a.rs", 15),
+            ],
             suffix_matches,
             |f| f.starts_with("src/"),
         )
@@ -449,7 +452,10 @@ mod tests {
         let produced = verus_witnesses_from_graph(
             &g,
             "logs/",
-            &[position("/proj/src/a.rs", 999), position("/proj/nope.rs", 1)],
+            &[
+                position("/proj/src/a.rs", 999),
+                position("/proj/nope.rs", 1),
+            ],
             suffix_matches,
             |_| true,
         )
@@ -480,7 +486,10 @@ mod tests {
         let produced = verus_witnesses_from_graph(
             &g,
             "logs/",
-            &[position("/proj/src/a.rs", 25), position("/proj/src/a.rs", 15)],
+            &[
+                position("/proj/src/a.rs", 25),
+                position("/proj/src/a.rs", 15),
+            ],
             suffix_matches,
             |f| f.starts_with("src/"),
         )

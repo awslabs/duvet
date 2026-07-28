@@ -16,8 +16,10 @@
 //! (`:enss` clauses, `LoopInv` nodes) exist in the artifact and may
 //! follow without a format change.
 
-use super::closure::{closure, FileLines};
-use super::structure::{ObligationGraph, ObligationNode, Span};
+use super::{
+    closure::{closure, FileLines},
+    structure::{ObligationGraph, ObligationNode, Span},
+};
 
 /// How a test annotation claims this witness (spec §1.5).
 ///
@@ -189,8 +191,8 @@ fn witness_for_unit(
     artifact: &str,
     project: impl Fn(&str) -> bool,
 ) -> VerusWitness {
-    let closure = closure(graph, &unit.name, project)
-        .expect("unit came from this graph; root must exist");
+    let closure =
+        closure(graph, &unit.name, project).expect("unit came from this graph; root must exist");
     VerusWitness {
         label: unit.name.clone(),
         claim: ClaimRule::ByRootSpan(unit.extent.clone()),
@@ -345,8 +347,14 @@ mod tests {
   ((@ "src/a.rs:30:1: 31:2 (#0)" (Consulted)))))
 "#;
         for modules in [
-            [parse_module(f_first).unwrap(), parse_module(g_first).unwrap()],
-            [parse_module(g_first).unwrap(), parse_module(f_first).unwrap()],
+            [
+                parse_module(f_first).unwrap(),
+                parse_module(g_first).unwrap(),
+            ],
+            [
+                parse_module(g_first).unwrap(),
+                parse_module(f_first).unwrap(),
+            ],
         ] {
             let g = ObligationGraph::merge(modules).unwrap();
             assert_eq!(
@@ -421,9 +429,7 @@ mod tests {
     #[test]
     fn witness_carries_root_span_closure_and_provenance() {
         let g = graph();
-        let ws = construct_witnesses(&g, "src/a.rs", 15, "logs/", |f| {
-            f.starts_with("src/")
-        });
+        let ws = construct_witnesses(&g, "src/a.rs", 15, "logs/", |f| f.starts_with("src/"));
         let [w] = ws.as_slice() else {
             panic!("expected exactly one witness, got {}", ws.len())
         };

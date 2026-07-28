@@ -801,17 +801,26 @@ mod tests {
         ]
     }
     fn t_annotation() -> AnnotationSpan {
-        AnnotationSpan { start_line: 1, end_line: 2 }
+        AnnotationSpan {
+            start_line: 1,
+            end_line: 2,
+        }
     }
 
     // File 2 (the implementation annotation's file):
     //   1: Annotation, 2: Statement  <- I's target
     const I_FILE: u64 = 2;
     fn i_classifications() -> Vec<Option<LineClass>> {
-        vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Statement])]
+        vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Statement]),
+        ]
     }
     fn i_annotation() -> AnnotationSpan {
-        AnnotationSpan { start_line: 1, end_line: 1 }
+        AnnotationSpan {
+            start_line: 1,
+            end_line: 1,
+        }
     }
 
     fn w_both() -> Witness {
@@ -821,16 +830,32 @@ mod tests {
         }
     }
     fn w_t_only() -> Witness {
-        Witness { claim: ClaimRule::ByExecution, files: vec![(T_FILE, cov_hit(&[3]))] }
+        Witness {
+            claim: ClaimRule::ByExecution,
+            files: vec![(T_FILE, cov_hit(&[3]))],
+        }
     }
     fn w_i_only() -> Witness {
-        Witness { claim: ClaimRule::ByExecution, files: vec![(I_FILE, cov_hit(&[2]))] }
+        Witness {
+            claim: ClaimRule::ByExecution,
+            files: vec![(I_FILE, cov_hit(&[2]))],
+        }
     }
 
     fn discharged_verdict(witnesses: &[Witness]) -> bool {
         report_discharged(
-            T_FILE, &t_annotation(), ScoringMode::Classified, &t_classifications(), &[], 3,
-            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2,
+            T_FILE,
+            &t_annotation(),
+            ScoringMode::Classified,
+            &t_classifications(),
+            &[],
+            3,
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Classified,
+            &i_classifications(),
+            &[],
+            2,
             witnesses,
         )
     }
@@ -859,10 +884,22 @@ mod tests {
         let ws = [w_t_only(), w_i_only()];
         assert!(!discharged_verdict(&ws));
         assert!(report_ever_executed(
-            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2, &ws,
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Classified,
+            &i_classifications(),
+            &[],
+            2,
+            &ws,
         ));
         assert!(!report_ever_executed(
-            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2, &[w_t_only()],
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Classified,
+            &i_classifications(),
+            &[],
+            2,
+            &[w_t_only()],
         ));
     }
 
@@ -871,11 +908,51 @@ mod tests {
     fn w2_w6_test_execution_and_unwitnessed() {
         let t = t_annotation();
         let c = t_classifications();
-        assert!(report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[w_t_only()]));
-        assert!(!report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[w_i_only()]));
-        assert!(is_unwitnessed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[]));
-        assert!(is_unwitnessed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[w_i_only()]));
-        assert!(!is_unwitnessed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[w_t_only()]));
+        assert!(report_test_executed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[w_t_only()]
+        ));
+        assert!(!report_test_executed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[w_i_only()]
+        ));
+        assert!(is_unwitnessed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[]
+        ));
+        assert!(is_unwitnessed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[w_i_only()]
+        ));
+        assert!(!is_unwitnessed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[w_t_only()]
+        ));
     }
 
     /// ByRootSpan binds iff the resolved target exists, the file matches,
@@ -885,20 +962,66 @@ mod tests {
         let t = t_annotation();
         let c = t_classifications();
         let root = |file_id, start_line, end_line| Witness {
-            claim: ClaimRule::ByRootSpan { file_id, start_line, end_line },
+            claim: ClaimRule::ByRootSpan {
+                file_id,
+                start_line,
+                end_line,
+            },
             files: vec![(I_FILE, cov_hit(&[2]))],
         };
         // T's target is line 3 in file 1.
-        assert!(report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[root(T_FILE, 2, 4)]));
-        assert!(report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[root(T_FILE, 3, 3)]));
+        assert!(report_test_executed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[root(T_FILE, 2, 4)]
+        ));
+        assert!(report_test_executed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[root(T_FILE, 3, 3)]
+        ));
         // Outside the range, or wrong file: no bind.
-        assert!(!report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[root(T_FILE, 4, 9)]));
-        assert!(!report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 3, &[root(I_FILE, 2, 4)]));
+        assert!(!report_test_executed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[root(T_FILE, 4, 9)]
+        ));
+        assert!(!report_test_executed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[root(I_FILE, 2, 4)]
+        ));
         // A ByRootSpan witness carrying I's coverage discharges the pair
         // (prover-shaped witness: positional claim + closure map).
         assert!(report_discharged(
-            T_FILE, &t, ScoringMode::Classified, &c, &[], 3,
-            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2,
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Classified,
+            &i_classifications(),
+            &[],
+            2,
             &[root(T_FILE, 2, 4)],
         ));
     }
@@ -909,13 +1032,31 @@ mod tests {
     #[test]
     fn by_root_span_never_binds_empty_target() {
         // 1: Annotation, 2: pure ScopeClose -> no resolved target.
-        let c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::ScopeClose])];
-        let t = AnnotationSpan { start_line: 1, end_line: 1 };
+        let c = vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::ScopeClose]),
+        ];
+        let t = AnnotationSpan {
+            start_line: 1,
+            end_line: 1,
+        };
         let w = Witness {
-            claim: ClaimRule::ByRootSpan { file_id: T_FILE, start_line: 1, end_line: 100 },
+            claim: ClaimRule::ByRootSpan {
+                file_id: T_FILE,
+                start_line: 1,
+                end_line: 100,
+            },
             files: vec![],
         };
-        assert!(!report_test_executed(T_FILE, &t, ScoringMode::Classified, &c, &[], 2, &[w]));
+        assert!(!report_test_executed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            2,
+            &[w]
+        ));
     }
 
     /// W4 (Failure Monotonicity, Decision 14): adding a witness that does
@@ -945,11 +1086,19 @@ mod tests {
     #[test]
     fn decision_14_all_bound_root_span_witnesses_must_execute() {
         let root_with_i = Witness {
-            claim: ClaimRule::ByRootSpan { file_id: T_FILE, start_line: 2, end_line: 4 },
+            claim: ClaimRule::ByRootSpan {
+                file_id: T_FILE,
+                start_line: 2,
+                end_line: 4,
+            },
             files: vec![(I_FILE, cov_hit(&[2]))],
         };
         let root_without_i = Witness {
-            claim: ClaimRule::ByRootSpan { file_id: T_FILE, start_line: 2, end_line: 4 },
+            claim: ClaimRule::ByRootSpan {
+                file_id: T_FILE,
+                start_line: 2,
+                end_line: 4,
+            },
             files: vec![],
         };
         // One bound obligation-witness reaching I: discharged.
@@ -969,7 +1118,13 @@ mod tests {
             files: vec![(T_FILE, CoverageReport::new()), (T_FILE, cov_hit(&[3]))],
         };
         assert!(!report_test_executed(
-            T_FILE, &t_annotation(), ScoringMode::Classified, &t_classifications(), &[], 3, &[w],
+            T_FILE,
+            &t_annotation(),
+            ScoringMode::Classified,
+            &t_classifications(),
+            &[],
+            3,
+            &[w],
         ));
     }
 
@@ -982,12 +1137,26 @@ mod tests {
     #[test]
     fn degraded_mode_scores_via_the_degraded_path() {
         // Degraded classification: annotation lines known, code lines None.
-        let t_c = vec![s(&[LineProperty::Annotation]), s(&[LineProperty::Annotation]), None];
+        let t_c = vec![
+            s(&[LineProperty::Annotation]),
+            s(&[LineProperty::Annotation]),
+            None,
+        ];
         let i_c = vec![s(&[LineProperty::Annotation]), None];
         let verdict = |witnesses: &[Witness]| {
             report_discharged(
-                T_FILE, &t_annotation(), ScoringMode::Degraded, &t_c, &[], 3,
-                I_FILE, &i_annotation(), ScoringMode::Degraded, &i_c, &[], 2,
+                T_FILE,
+                &t_annotation(),
+                ScoringMode::Degraded,
+                &t_c,
+                &[],
+                3,
+                I_FILE,
+                &i_annotation(),
+                ScoringMode::Degraded,
+                &i_c,
+                &[],
+                2,
                 witnesses,
             )
         };
@@ -1001,7 +1170,13 @@ mod tests {
             files: vec![(T_FILE, [(3u64, CoverageStatus::Miss)].into_iter().collect())],
         };
         assert!(is_unwitnessed(
-            T_FILE, &t_annotation(), ScoringMode::Degraded, &t_c, &[], 3, &[w_miss],
+            T_FILE,
+            &t_annotation(),
+            ScoringMode::Degraded,
+            &t_c,
+            &[],
+            3,
+            &[w_miss],
         ));
     }
 
@@ -1013,27 +1188,62 @@ mod tests {
     #[test]
     fn unscorable_binds_nothing_and_executes_nothing() {
         let root = Witness {
-            claim: ClaimRule::ByRootSpan { file_id: T_FILE, start_line: 1, end_line: 100 },
+            claim: ClaimRule::ByRootSpan {
+                file_id: T_FILE,
+                start_line: 1,
+                end_line: 100,
+            },
             files: vec![(I_FILE, cov_hit(&[2]))],
         };
         assert!(is_unwitnessed(
-            T_FILE, &t_annotation(), ScoringMode::Unscorable, &[], &[], 0,
+            T_FILE,
+            &t_annotation(),
+            ScoringMode::Unscorable,
+            &[],
+            &[],
+            0,
             &[w_both(), root.clone()],
         ));
         assert!(!report_discharged(
-            T_FILE, &t_annotation(), ScoringMode::Unscorable, &[], &[], 0,
-            I_FILE, &i_annotation(), ScoringMode::Classified, &i_classifications(), &[], 2,
+            T_FILE,
+            &t_annotation(),
+            ScoringMode::Unscorable,
+            &[],
+            &[],
+            0,
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Classified,
+            &i_classifications(),
+            &[],
+            2,
             &[w_both(), root],
         ));
         // Unscorable on the implementation side: a bound witness can never
         // execute I, so the pair fails.
         assert!(!report_discharged(
-            T_FILE, &t_annotation(), ScoringMode::Classified, &t_classifications(), &[], 3,
-            I_FILE, &i_annotation(), ScoringMode::Unscorable, &[], &[], 0,
+            T_FILE,
+            &t_annotation(),
+            ScoringMode::Classified,
+            &t_classifications(),
+            &[],
+            3,
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Unscorable,
+            &[],
+            &[],
+            0,
             &[w_both()],
         ));
         assert!(!report_ever_executed(
-            I_FILE, &i_annotation(), ScoringMode::Unscorable, &[], &[], 0, &[w_both()],
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Unscorable,
+            &[],
+            &[],
+            0,
+            &[w_both()],
         ));
     }
 }

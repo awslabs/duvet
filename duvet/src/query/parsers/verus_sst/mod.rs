@@ -43,7 +43,8 @@ use structure::{ObligationGraph, StructureError};
 /// plain entry point.
 pub fn load_dir(dir: &Path) -> Result<ObligationGraph, LoadError> {
     let mut sources = Vec::new();
-    let entries = std::fs::read_dir(dir).map_err(|e| LoadError::Io(dir.display().to_string(), e))?;
+    let entries =
+        std::fs::read_dir(dir).map_err(|e| LoadError::Io(dir.display().to_string(), e))?;
     for entry in entries {
         let entry = entry.map_err(|e| LoadError::Io(dir.display().to_string(), e))?;
         let path = entry.path();

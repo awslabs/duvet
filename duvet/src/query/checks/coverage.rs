@@ -172,7 +172,10 @@ impl SourceIndex {
                     duvet_path.display()
                 )
             })?;
-            entries.push((duvet_path.to_path_buf(), absolute.to_string_lossy().into_owned()));
+            entries.push((
+                duvet_path.to_path_buf(),
+                absolute.to_string_lossy().into_owned(),
+            ));
         }
         Ok(Self { entries })
     }
@@ -296,7 +299,7 @@ pub fn executed_status(
                 start_line,
                 end_line,
             };
-            // Trust boundary: see `executed_status_for` / 
+            // Trust boundary: see `executed_status_for` /
             // `classified_preconditions_hold` for why ill-formed inputs
             // fall back to `Unknown` rather than reaching the verified fn.
             if !classified_preconditions_hold(end_line, coverage, classifications.len()) {
@@ -509,8 +512,10 @@ fn classified_preconditions_hold(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::classify::{java::JavaClassifier, Classification, LineClassifier};
-    use crate::query::coverage::FileCoverage;
+    use crate::query::{
+        classify::{java::JavaClassifier, Classification, LineClassifier},
+        coverage::FileCoverage,
+    };
     use duvet_coverage::types::{CoverageStatus, LineProperty};
 
     fn coverage_with_keys(keys: &[u64]) -> CoverageReportMap {

@@ -240,8 +240,8 @@ mod tests {
     fn exotic_atom_characters() {
         // Every character class observed outside strings in the SST
         // corpus: & % ! $ > - : _ @
-        let parsed = parse_all("(vstd::seq::impl&%0::spec_index classifications!$0 -> :name)")
-            .unwrap();
+        let parsed =
+            parse_all("(vstd::seq::impl&%0::spec_index classifications!$0 -> :name)").unwrap();
         assert_eq!(
             parsed,
             vec![Sexpr::List(vec![

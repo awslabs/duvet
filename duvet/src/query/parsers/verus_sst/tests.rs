@@ -32,15 +32,19 @@
 //! segmentation) before pinning (2026-07-27); the two agree
 //! exactly on all counts.
 
-use super::closure::{aggregate_map, closure, Closure};
-use super::structure::{parse_module, ObligationGraph};
-use super::witness::{
-    classify_position, construct_witnesses, materialize_all, ClaimRule, PositionKind, Strength,
+use super::{
+    closure::{aggregate_map, closure, Closure},
+    load_dir,
+    structure::{parse_module, ObligationGraph},
+    witness::{
+        classify_position, construct_witnesses, materialize_all, ClaimRule, PositionKind, Strength,
+    },
 };
-use super::load_dir;
-use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::{
+    collections::BTreeSet,
+    path::{Path, PathBuf},
+    sync::OnceLock,
+};
 
 const LEMMA: &str = "duvet_coverage::proofs::lemma_no_cross_scope_leakage";
 const EXECUTED: &str = "duvet_coverage::proofs::executed_annotation_has_no_cross_scope_leakage";
@@ -151,7 +155,8 @@ fn discrimination_lemma_closure_never_reaches_the_algorithm() {
     // The property (normative): a test annotation on this lemma must
     // never discharge a pair against the algorithm's implementation.
     assert!(
-        !c.files.contains_key("duvet-coverage/src/annotation_execution.rs"),
+        !c.files
+            .contains_key("duvet-coverage/src/annotation_execution.rs"),
         "lemma closure must not reach annotation_execution.rs"
     );
 
@@ -174,7 +179,8 @@ fn discrimination_executed_variant_reaches_the_algorithm() {
 
     // The property (normative).
     assert!(
-        c.files.contains_key("duvet-coverage/src/annotation_execution.rs"),
+        c.files
+            .contains_key("duvet-coverage/src/annotation_execution.rs"),
         "executed-annotation closure must reach annotation_execution.rs"
     );
 
@@ -236,7 +242,13 @@ fn witness_for_annotation_inside_lemma() {
     let graph = corpus();
     // An annotation resolved to proofs.rs:57 — inside the lemma's
     // extent (54..=61). Containment: exactly one witness.
-    let ws = construct_witnesses(graph, "duvet-coverage/src/proofs.rs", 57, "sst-poc", is_project);
+    let ws = construct_witnesses(
+        graph,
+        "duvet-coverage/src/proofs.rs",
+        57,
+        "sst-poc",
+        is_project,
+    );
     let [w] = ws.as_slice() else {
         panic!("expected exactly one witness, got {}", ws.len())
     };
@@ -257,8 +269,7 @@ fn no_discharge_unit_no_witness() {
     // configured producer"), distinct from not-proof-testable.
     let graph = corpus();
     assert!(
-        construct_witnesses(graph, "duvet-coverage/src/proofs.rs", 1, "x", is_project)
-            .is_empty()
+        construct_witnesses(graph, "duvet-coverage/src/proofs.rs", 1, "x", is_project).is_empty()
     );
     assert_eq!(
         classify_position(graph, "duvet-coverage/src/proofs.rs", 1),
@@ -295,7 +306,10 @@ fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
         "all rooting obligations, deterministic order"
     );
     for w in &ws {
-        assert_eq!(w.provenance.discharge_unit.as_deref(), Some(w.label.as_str()));
+        assert_eq!(
+            w.provenance.discharge_unit.as_deref(),
+            Some(w.label.as_str())
+        );
         assert_eq!(
             w.files,
             closure(graph, &w.label, is_project).unwrap().files,
@@ -398,8 +412,20 @@ fn annotation_independence_same_obligation_identical_witness() {
     let graph = corpus();
     // proofs.rs:55 and proofs.rs:60 — distinct positions, both
     // inside the lemma's extent (54..=61).
-    let a = construct_witnesses(graph, "duvet-coverage/src/proofs.rs", 55, "sst-poc", is_project);
-    let b = construct_witnesses(graph, "duvet-coverage/src/proofs.rs", 60, "sst-poc", is_project);
+    let a = construct_witnesses(
+        graph,
+        "duvet-coverage/src/proofs.rs",
+        55,
+        "sst-poc",
+        is_project,
+    );
+    let b = construct_witnesses(
+        graph,
+        "duvet-coverage/src/proofs.rs",
+        60,
+        "sst-poc",
+        is_project,
+    );
     assert_eq!(a.len(), 1);
     assert_eq!(a, b, "same obligation → byte-identical witnesses");
     assert_eq!(a[0].label, LEMMA);
@@ -424,7 +450,11 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
     //      for types.rs lines 154..=166).
     let graph = corpus();
     let universe = materialize_all(graph, "sst-poc", is_project);
-    assert_eq!(universe.len(), graph.nodes.len(), "one witness per obligation");
+    assert_eq!(
+        universe.len(),
+        graph.nodes.len(),
+        "one witness per obligation"
+    );
     let by_label: std::collections::BTreeMap<&str, &super::witness::VerusWitness> =
         universe.iter().map(|w| (w.label.as_str(), w)).collect();
     assert_eq!(by_label.len(), universe.len(), "labels are unique");
@@ -439,8 +469,7 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
     let agg = aggregate_map(graph, is_project);
     for (file, lines) in &agg.0 {
         for &line in lines {
-            let materialized =
-                construct_witnesses(graph, file, line, "sst-poc", is_project);
+            let materialized = construct_witnesses(graph, file, line, "sst-poc", is_project);
             for w in &materialized {
                 assert_eq!(
                     Some(w),

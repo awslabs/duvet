@@ -357,7 +357,11 @@ impl<'a> VerifiedVerdicts<'a> {
         };
 
         let path = annotation.source.to_path_buf();
-        let file_id = match self.index.absolute_of(&path).and_then(|abs| self.ids.get(abs)) {
+        let file_id = match self
+            .index
+            .absolute_of(&path)
+            .and_then(|abs| self.ids.get(abs))
+        {
             Some(&id) => id,
             None => return unscorable(NO_FILE),
         };
@@ -643,10 +647,7 @@ mod tests {
     /// degraded verdicts.
     #[test]
     fn out_of_bounds_coverage_dropped_only_for_classified_files() {
-        let idx = index(&[
-            ("c.java", "/proj/c.java"),
-            ("d.rs", "/proj/d.rs"),
-        ]);
+        let idx = index(&[("c.java", "/proj/c.java"), ("d.rs", "/proj/d.rs")]);
         let mut classification = ClassificationMap::default();
         classification.insert(
             PathBuf::from("c.java"),
@@ -683,9 +684,13 @@ mod tests {
 
         let witnesses = [witness];
         let matched = vec![m];
-        let adapter = VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx)
-            .expect("builds");
-        let ids: Vec<u64> = adapter.verified[0].files.iter().map(|(id, _)| *id).collect();
+        let adapter =
+            VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx).expect("builds");
+        let ids: Vec<u64> = adapter.verified[0]
+            .files
+            .iter()
+            .map(|(id, _)| *id)
+            .collect();
         assert_eq!(
             ids,
             vec![1],
@@ -715,7 +720,9 @@ mod tests {
                 PathBuf::from(p),
                 FileClassification::Degraded {
                     classifications: vec![
-                        Some(duvet_coverage::types::line_class(&[LineProperty::Annotation])),
+                        Some(duvet_coverage::types::line_class(&[
+                            LineProperty::Annotation,
+                        ])),
                         None,
                     ],
                     file_length: 2,

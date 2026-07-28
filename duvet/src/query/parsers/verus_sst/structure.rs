@@ -28,8 +28,10 @@
 //! identity unsound, so it is an error rather than a warning.
 
 use super::sexpr::{parse_all, Sexpr, SexprError};
-use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt,
+};
 
 /// A source extent: file plus inclusive line range.
 ///
@@ -108,7 +110,10 @@ pub enum StructureError {
     /// A `FunctionSst` block whose head span string does not parse.
     /// Every node needs an extent (spec §5.5); the golden corpus has
     /// none of these, so hitting one means the format changed.
-    MissingExtent { name: String, head: String },
+    MissingExtent {
+        name: String,
+        head: String,
+    },
     /// The same fully-qualified name with two different extents.
     ExtentConflict {
         name: String,
@@ -306,9 +311,7 @@ fn as_fun_path<'a>(list: &[Sexpr<'a>]) -> Option<&'a str> {
 
 /// Find `:name (Fun :path X)` in a `FunctionSst` item list.
 fn function_name<'a>(items: &[Sexpr<'a>]) -> Option<&'a str> {
-    let pos = items
-        .iter()
-        .position(|e| e.as_atom() == Some(":name"))?;
+    let pos = items.iter().position(|e| e.as_atom() == Some(":name"))?;
     as_fun_path(items.get(pos + 1)?.as_list()?)
 }
 
@@ -366,10 +369,7 @@ mod tests {
         let expected: BTreeSet<u32> = (10..=20).chain(25..=26).chain([30]).collect();
         assert_eq!(alpha.spans["src/a.rs"], expected);
         // Self-reference excluded; beta edge captured.
-        assert_eq!(
-            alpha.edges,
-            BTreeSet::from(["crate::beta".to_string()])
-        );
+        assert_eq!(alpha.edges, BTreeSet::from(["crate::beta".to_string()]));
 
         assert_eq!(nodes[1].name, "crate::beta");
         assert!(nodes[1].edges.is_empty());

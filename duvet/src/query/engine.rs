@@ -14,9 +14,9 @@ use super::{
     producers::{produce, CoverageProducer, CoverageSource, RequestedPosition},
     requirements::RequirementMode,
     result::{
-        AnnotationCoverage, CheckResult, CoverageResult, CoveredTestAnnotation,
-        Duplicates, DuplicatesResult, ImplementationResult, MissingImplementationTest,
-        NotExecutedAnnotation, QueryResult, QueryStatus, TestResult, UnwitnessedTestAnnotation,
+        AnnotationCoverage, CheckResult, CoverageResult, CoveredTestAnnotation, Duplicates,
+        DuplicatesResult, ImplementationResult, MissingImplementationTest, NotExecutedAnnotation,
+        QueryResult, QueryStatus, TestResult, UnwitnessedTestAnnotation,
     },
     witness::{ResolvedTarget, VerifiedVerdicts, Witness},
     CheckType,
@@ -710,9 +710,8 @@ async fn execute_coverage_check(
             for annotation in &test.covering_annotations {
                 // Verified W1 verdict; the diagnostic closure only feeds the
                 // per-witness `status` detail (`Unknown` line numbers).
-                let verdict = adapter.discharge_verdict(&test.target, annotation, &bound, |wi| {
-                    cell(annotation, wi)
-                });
+                let verdict = adapter
+                    .discharge_verdict(&test.target, annotation, &bound, |wi| cell(annotation, wi));
                 if verdict.discharged {
                     executed_implementations.push(annotation.clone());
                 } else {
@@ -754,7 +753,8 @@ async fn execute_coverage_check(
             // Diagnostic detail: fold the test's own execution status across
             // ALL witnesses (Unknown is preferred over Structural /
             // NotExecuted because it carries line information).
-            let diagnostic_status = fold_statuses((0..witnesses.len()).map(|wi| cell(&test.target, wi)));
+            let diagnostic_status =
+                fold_statuses((0..witnesses.len()).map(|wi| cell(&test.target, wi)));
 
             // Unknown tests are NOT skipped in executed-coverage mode: they
             // represent annotation placement errors that must be fixed
@@ -979,4 +979,3 @@ fn deduplicate_annotation_coverage(
 
     result
 }
-
