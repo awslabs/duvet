@@ -8,9 +8,9 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MUST]: remove `Statement` and `Declaration` from its property set.
 
   SECTION: [1.5 Scopes](#scopes)
-    TEXT[test]: A scope is a contiguous range of lines
-    TEXT[test]: delimited by `ScopeOpen` and `ScopeClose` properties.
-    TEXT[test]: Scopes nest.
+    TEXT[implementation,test]: A scope is a contiguous range of lines
+    TEXT[implementation,test]: delimited by `ScopeOpen` and `ScopeClose` properties.
+    TEXT[implementation,test]: Scopes nest.
     TEXT[!MUST]: **Scope Balance Contract:** {#scope-balance-contract}
     TEXT[!MUST]: A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
     TEXT[!MUST]: matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
@@ -95,7 +95,7 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[implication]:   No partial overlaps.
 
   SECTION: [Property 9: Execution Set Containment](#property-9-execution-set-containment)
-    TEXT[test]: The execution set always contains all directly-hit lines.
+    TEXT[implementation,test]: The execution set always contains all directly-hit lines.
     TEXT[implication]: If `coverage[line] == Hit`,
     TEXT[implication]: then `line ∈ execution_set(classifications, scopes, coverage)`.
 
@@ -108,8 +108,8 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MUST,implementation]: only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
     TEXT[!MUST,implementation]: no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
     TEXT[!MUST,implementation]: end of file.
-    TEXT[test]: A stream with no scope delimiters is balanced, and its whole-file scope is
-    TEXT[test]: legitimate.
+    TEXT[implementation,test]: A stream with no scope delimiters is balanced, and its whole-file scope is
+    TEXT[implementation,test]: legitimate.
 
   SECTION: [7.4 Properties](#degraded-properties)
     TEXT[!MUST]: These properties MUST be proven with Verus for the degraded path,
@@ -148,6 +148,13 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
   SECTION: [Duvet Witness: Formal Specification](#duvet-witness-formal-specification)
     TEXT[!MUST]: The requirement keywords MUST, MUST NOT, SHOULD, and MAY are to be
     TEXT[!MUST]: interpreted as described in RFC 2119.
+
+  SECTION: [1.1 Test and implementation annotations](#annotations)
+    TEXT[!MUST]: Placement note (degraded files): in a file with no language
+    TEXT[!MUST]: classifier, resolution cannot recognize comment lines as skippable —
+    TEXT[!MUST]: only blank lines and annotation lines are skipped — so an annotation
+    TEXT[!MUST]: (stacked or not) MUST be the last comment block above the code it
+    TEXT[!MUST]: targets; an intervening ordinary comment (e.g.
 
   SECTION: [1.2 Witness](#witness)
     TEXT[!MUST]: A witness's `files` maps MUST be **closed**:
@@ -194,29 +201,29 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: anchors in this section.
 
   SECTION: [Property W1: Universal Same-Witness Discharge](#property-w1-same-witness-discharge)
-    TEXT[!MUST,test]: The implementation MUST prove that it reports a pair (T, I)
-    TEXT[!MUST,test]: discharged if and only if at least one delivered witness binds T
-    TEXT[!MUST,test]: and every delivered witness that binds T executed I:
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that it reports a pair (T, I)
+    TEXT[!MUST,implementation,test]: discharged if and only if at least one delivered witness binds T
+    TEXT[!MUST,implementation,test]: and every delivered witness that binds T executed I:
     TEXT[!MUST]: Evidence assembled from two different witnesses
     TEXT[!MUST]: (T bound by one, I executed by another) MUST NOT discharge;
     TEXT[!MUST]: a bound witness that did not execute I MUST fail the pair
     TEXT[!MUST]: (decisions.md, Decision 14).
 
   SECTION: [Property W2: Test Execution](#property-w2-test-execution)
-    TEXT[!MUST,test]: The implementation MUST prove that a test annotation is reported
-    TEXT[!MUST,test]: executed if and only if some delivered witness binds it:
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that a test annotation is reported
+    TEXT[!MUST,implementation,test]: executed if and only if some delivered witness binds it:
 
   SECTION: [Property W3: Global Execution](#property-w3-global-execution)
-    TEXT[!MUST,test]: The implementation MUST prove that an implementation annotation is
-    TEXT[!MUST,test]: reported ever-executed if and only if some delivered witness
-    TEXT[!MUST,test]: executed it:
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that an implementation annotation is
+    TEXT[!MUST,implementation,test]: reported ever-executed if and only if some delivered witness
+    TEXT[!MUST,implementation,test]: executed it:
     TEXT[!MUST]: This is a global property requiring no correlation;
     TEXT[!MUST]: it is deliberately weaker than W1 and MUST NOT be used to
     TEXT[!MUST]: discharge pairs.
 
   SECTION: [Property W4: Failure Monotonicity](#property-w4-monotonicity)
-    TEXT[!MUST,test]: The implementation MUST prove that adding a witness never flips a
-    TEXT[!MUST,test]: failing pair to passing:
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that adding a witness never flips a
+    TEXT[!MUST,implementation,test]: failing pair to passing:
     TEXT[!MAY]: Adding a witness MAY newly fail a previously-discharged pair —
     TEXT[!MAY]: that is deliberate: the added witness is a claim T now makes, and
     TEXT[!MAY]: if it does not reach I it is the vacuity being caught
@@ -224,14 +231,14 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MAY]: original monotonicity property).
 
   SECTION: [Property W5: Claim Refinement](#property-w5-claim-refinement)
-    TEXT[!MUST,test]: The implementation MUST prove that binding under `ByExecution`
-    TEXT[!MUST,test]: implies execution of the test in the same witness:
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that binding under `ByExecution`
+    TEXT[!MUST,implementation,test]: implies execution of the test in the same witness:
 
   SECTION: [Property W6: Unwitnessed Test Annotations Are Failures](#property-w6-unwitnessed-test-annotations)
-    TEXT[!MUST,test]: The engine MUST report every test annotation for which no
-    TEXT[!MUST,test]: delivered witness binds it —
-    TEXT[!MUST,test]: across ALL configured producers —
-    TEXT[!MUST,test]: as a failure, never silently:
+    TEXT[!MUST,implementation,test]: The engine MUST report every test annotation for which no
+    TEXT[!MUST,implementation,test]: delivered witness binds it —
+    TEXT[!MUST,implementation,test]: across ALL configured producers —
+    TEXT[!MUST,implementation,test]: as a failure, never silently:
     TEXT[!MAY]: Consequence (intended): running a subset of producers MAY fail a
     TEXT[!MAY]: test annotation that the full set passes;
     TEXT[!MAY]: that behavior is correct

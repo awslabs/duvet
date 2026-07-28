@@ -101,6 +101,11 @@ This is exactly the existing verified Phases 1–3
 (`is_annotation_executed`, or the degraded path),
 applied to one witness's coverage maps.
 This specification adds no new per-annotation scoring semantics.
+The verified Phase 4 layer implements the "or" per file: a
+`ScoringMode` routes each file to the classified or the degraded
+scorer, and engine trust-boundary refusals are encoded as
+`Unscorable` — binds nothing, executes nothing
+(decisions.md, Decision 15).
 
 If w's `files` contains no map for X's file at all,
 `executed(X, w)` is false.

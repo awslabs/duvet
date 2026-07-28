@@ -807,6 +807,58 @@ the verdict over those witnesses is now universal).
 
 ---
 
+## Decision 15: Per-file scoring-mode routing in the verified witness layer {#decision-15}
+
+Spec §1.4 defines `executed(X, w)` as the coverage model's score —
+"`is_annotation_executed`, or the degraded path." The Phase 4
+formalization as first verified implemented only the first half: it
+hardwired the classified two-phase scorer for every file. The engine
+has always routed per file: the classified scorer where a language
+classifier exists (Java only, today), the verified degraded path
+(coverage-model-spec §7) where none does — every Rust file, including
+this repository's — and a trust-boundary refusal (`Unknown`) for
+defeated classification, `end_line == u64::MAX`, or an unclassified
+file. Wiring the engine's verdicts to the verified functions (PR
+review Finding 2, remediation rung 1) with that gap intact would have
+made the wiring real only for classified files: the
+proof-implementation divergence again, restricted to exactly the
+files the dogfood does not have.
+
+### Option A: Wire classified files only; keep the gap
+
+- G2 becomes true only where a classifier exists.
+- Two verdict paths persist for every degraded file — the finding's
+  shape, quieter.
+
+### Option B: Score every file with the degraded path
+
+- One path, but the verified layer and the engine now *disagree* on
+  classified files (comment-line skipping differs between scorers).
+- Discards verified precision the engine actually uses.
+
+### Option C: Route per file, inside the verified layer
+
+- Thread a `ScoringMode` (`Classified` / `Degraded` / `Unscorable`)
+  through the verified specs; route to the two already-verified
+  scorers at one leaf function. `Unscorable` encodes the engine's
+  refusals: such a file binds nothing and executes nothing — a
+  uniform `false` contribution, matching §1.4's vacuous-claim rule.
+
+### Decision: Option C
+
+The routing choice per file is glue (G3, named in
+`duvet-coverage/src/witness.rs`); both scorers on either side of it
+were verified before this decision (Phases 1–3). Proof structure
+unchanged; 65 verified, 0 errors.
+
+Process note: implemented 2026-07-28 during Finding 2 remediation,
+without prior review; explained and ratified after the fact — this
+record is that ratification. The gap was a Phase 4 formalization
+defect measured against the already-ratified §1.4, not a change in
+spec semantics.
+
+---
+
 ## Open questions (not decided) {#open-questions}
 
 1. **The exact closure definition.**
@@ -819,6 +871,14 @@ the verdict over those witnesses is now universal).
    Resolution path: not further discussion —
    build the first Verus producer prototype and inspect what the
    artifact actually supports.
+   *Status (2026-07-28): the first Verus producer is built and the
+   artifact inspected (spec §5.5). Nodes and edges are
+   function-level (`FunctionSst` blocks, `Fun :path` references),
+   so the shipped closure is the spans of whole reachable
+   functions, not the exact lines a proof consulted. The question
+   stays open at the finer level: whether and how clause- or
+   invariant-level closure precision is recoverable from the
+   artifact. Flagged for return at the 2026-07-28 PR review.*
 
 2. **Identifying which obligation is which in failure reports.**
    Under Decision 14, a multi-witness failure lists the bound
@@ -836,6 +896,13 @@ the verdict over those witnesses is now universal).
 
 ## Work items (not questions — known work) {#work-items}
 
+- **Finer-than-function discharge units.** The SST artifact carries
+  sub-function structure (`:enss` clause lists, `LoopInv` nodes),
+  so clause- and invariant-level discharge units are expressible
+  without a format change (spec §5.5). The first version ships
+  whole-proof-fn units only. Revisit after the feature lands —
+  flagged for return at the 2026-07-28 PR review, alongside Open
+  Question 1's closure-granularity half.
 - Enumerate the Verus `du` map: annotation position → discharge
   unit, case by case (whole proof fn / lemma; ensures of an exec
   fn; single ensures clause; single conjunct) — inside the Verus
