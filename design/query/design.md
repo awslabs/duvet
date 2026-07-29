@@ -425,13 +425,50 @@ and the coverage model figures out that the method was executed.
 The `--coverage-report` flag accepts multiple paths
 (with glob expansion).
 When multiple reports are provided,
-they are parsed in parallel and checked independently.
-An annotation is considered executed
-if ANY report shows it as executed
-(OR semantics across reports).
+they are parsed in parallel,
+and each report is a potential *witness* —
+a single measurement of what executed together.
+
+For a test annotation T:
+
+```
+witnesses_for(T)  = { report r : T executed in r }
+test_executed(T)  = witnesses_for(T) ≠ ∅
+```
+
+A correlated pair (test T, implementation I) is *discharged*
+only when a single witness saw both sides executed:
+
+```
+discharged(T, I)  = ∃ w ∈ witnesses_for(T) : I executed in w
+```
+
+A test executed in one report
+and an implementation executed only in a different report
+do not correlate:
+no measurement demonstrates
+that the test exercised the implementation.
+This matters for one-report-per-test workflows;
+a single aggregate report behaves as before,
+since one report witnesses
+everything it shows executed.
+
+Two OR-semantics aggregates remain across all reports:
+an implementation is counted as executed in the summary
+if ANY report shows it executed,
+and a pair discharged by any one witness
+is never failed by another report that missed it.
+
+When no witness discharges a pair,
+the diagnostic status reported for the implementation
+is folded across the witnesses with the preference
+`Unknown` over `Structural` over `NotExecuted`,
+because `Unknown` carries line-level diagnostic information.
 
 This supports workflows where coverage data comes from
 multiple test runs or multiple coverage tools.
+See [Decision 6](decisions.md#decision-6)
+as refined by [Decision 13](decisions.md#decision-13).
 
 ## 6. CLI Interface {#cli-interface}
 
