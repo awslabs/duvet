@@ -469,8 +469,26 @@ Use unsat cores to include only what the solver required.
   join) — and the rewrites are exactly the glue where bugs
   migrate.
 - Con: Cores are not guaranteed minimal (degradation direction:
-  over-crediting, back toward Option A), and the runtime side has
-  no analog (its equivalent is mutation testing, also not built).
+  over-crediting, back toward Option A).
+- Con: No productionized runtime analog exists to pair with it.
+  The analog does exist in the research literature — *checked
+  coverage* (Schuler & Zeller, ICST 2011): the backward dynamic
+  slice from each test oracle, i.e. the lines whose values
+  actually flowed into an assertion, rather than the lines that
+  merely ran. That is the same start-from-the-check,
+  keep-what-mattered relation that unsat cores compute on the
+  proof side (Executed : Checked :: Consulted : Needed).
+  But the production coverage tools (JaCoCo, Cobertura, LCOV)
+  all emit executed-lines only, and the one published
+  implementation (JavaSlicer) is research-grade. So the honest
+  parity statement is: both worlds have a stronger rung in the
+  literature, and neither rung has a production producer today.
+  *(Amended 2026-07-29: this con originally claimed the runtime
+  side had no analog at all, naming mutation testing as its
+  nearest equivalent. That was a claim about the class of
+  techniques; the true claim is about the instances — nothing
+  productionized exists, which is the same status as unsat-core
+  extraction on the prover side.)*
 
 ### Decision: Option A, with Needed reachable but deliberately not consumed
 
@@ -1214,6 +1232,62 @@ An upstream Verus report is a work item.
    ("split the conjuncts") — is the open design.
    The mandatory per-witness result list (label, strength,
    per-witness ✓/✗) is the starting point, already normative.
+
+3. **The full strength lattice.**
+   The literature supplies two rungs per producer family, with an
+   exact cross-family correspondence:
+
+   | | weaker (presence) | stronger (influence) |
+   |---|---|---|
+   | runtime | `Executed` — the lines ran | `Checked` — the lines flowed into an assertion (backward dynamic slice from the oracle; Schuler & Zeller 2011) |
+   | prover | `Consulted` — the elaboration reached the lines | `Needed` — the solver required the lines (unsat core / inductive validity core; Ghassabani et al. 2016/2017, Tomb & Joshi 2025) |
+
+   Spec §1.3 currently names `Executed | Consulted` — the two
+   rungs producers can actually deliver today — and should not
+   name strengths nothing can produce. Open: whether and when to
+   extend the vocabulary to
+   `Executed | Checked | Consulted | Needed`, what report
+   information each new rung requires from producers, and how to
+   stage the consequence every rung up carries: a stronger
+   strength shrinks line sets and **newly fails pairs** that
+   passed at the weaker strength. That is Decision 14's inverted
+   monotonicity, deliberate — but it should be predicted in
+   writing before users hit it, per rung. This question is the
+   contribution guide for future producer authors: reports that
+   preserve per-check influence data (per-test slices, per-clause
+   cores) keep these rungs reachable.
+
+4. **Needed-semantics verdict soundness (pre-decision).**
+   Recorded now so a Decision-12-shaped mistake cannot be re-made
+   inside witness construction when a Needed producer is built.
+   Minimal proof cores are not unique: a property can hold via
+   many minimal cores, and an element can be *core-necessary*
+   (in every minimal core), *core-possible* (in some minimal
+   core but not all), or in none — Ghassabani et al.'s
+   MUST-COV/MAY-COV categories. (Those source terms are avoided
+   here: this document's MUST/MAY are RFC 2119 requirement
+   keywords, an unrelated meaning.)
+   The hazard: a solver returns *one* core. If I's lines are
+   core-possible but absent from the extracted core, the pair
+   fails — and which core the solver returned is arbitrary
+   (Jaccard distances up to 0.878 between cores from different
+   solvers/algorithms in Ghassabani's data). That is Decision
+   12's rejected Option A — "pick one; the verdict becomes
+   arbitrary" — resurfacing inside the witness's line sets.
+   Constraints for the future decision: verdict-determining
+   Needed semantics requires either core-possible membership
+   (all-minimal-cores computation, expensive) or an explicit
+   acknowledgment that failures are solver-dependent. Until
+   then, Needed ships as reported strength / diagnostic only,
+   never verdict-determining — a posture independently forced by
+   trigger-instantiation artifacts (Tomb & Joshi §III-F: elements
+   the SMT proof genuinely needed for quantifier triggering can
+   report as unused, which under universal discharge would be a
+   false CI failure). Two independent reasons, one posture.
+   Note the present semantics already resolves this soundly:
+   Consulted over-approximates even the core-possible set, so
+   its only verdict-determining failure is definite
+   irrelevance — over-crediting, never a false failure.
 
 ## Work items (not questions — known work) {#work-items}
 
