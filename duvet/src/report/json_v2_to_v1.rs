@@ -9,7 +9,8 @@ use super::{
         SpecificationV1,
     },
     json_v2::{
-        AnnotationLevel, AnnotationType, ByteRange, ReportV2, SourceRanges, SpecificationAnnotation,
+        AnnotationLevel, AnnotationType, ByteRange, ReportV2, RequirementAnnotation, SourceRanges,
+        SpecificationAnnotation,
     },
 };
 use crate::{
@@ -76,6 +77,12 @@ struct RangeReference {
 
 type RequirementIds = BTreeMap<String, Vec<String>>;
 
+struct ResolvedRequirement<'a> {
+    stable_id: &'a str,
+    requirement: &'a RequirementAnnotation,
+    spec: &'a ParsedSpecification,
+}
+
 #[derive(Clone)]
 struct CanonicalAnnotationMeta {
     anno_type: String,
@@ -112,7 +119,8 @@ pub fn convert(
     let parsed = parse_specifications(report)?;
     validate_sections(report, &parsed)?;
 
-    let (mut annotations, requirement_ids) = build_annotations(report, &parsed)?;
+    let (mut annotations, requirement_ids, resolved_requirements) =
+        build_annotations(report, &parsed)?;
     annotations.sort_by(|a, b| annotation_sort_key(a).cmp(&annotation_sort_key(b)));
 
     let stable_to_integer: HashMap<_, _> = annotations
@@ -122,7 +130,7 @@ pub fn convert(
         .collect();
 
     let ranges_by_source = build_range_references(&annotations);
-    let statuses = build_statuses(report, &stable_to_integer, &parsed)?;
+    let statuses = build_statuses(report, &resolved_requirements, &stable_to_integer)?;
     let specifications = build_v1_specifications(
         &parsed,
         &ranges_by_source,
@@ -323,12 +331,17 @@ fn validate_sections(
     Ok(())
 }
 
-fn build_annotations(
-    report: &ReportV2,
-    parsed: &BTreeMap<String, ParsedSpecification>,
-) -> crate::Result<(Vec<ConvertedAnnotation>, RequirementIds)> {
+fn build_annotations<'a>(
+    report: &'a ReportV2,
+    parsed: &'a BTreeMap<String, ParsedSpecification>,
+) -> crate::Result<(
+    Vec<ConvertedAnnotation>,
+    RequirementIds,
+    Vec<ResolvedRequirement<'a>>,
+)> {
     let mut annotations = Vec::new();
     let mut requirements: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut resolved_requirements = Vec::new();
 
     for (stable_id, requirement) in &report.annotations.requirement {
         let spec = parsed.get(&requirement.origin.src).ok_or_else(|| {
@@ -351,6 +364,11 @@ fn build_annotations(
         let (source, blob_link) =
             resolve_linked_source(report, &requirement.source.src, stable_id)?;
         let comment = join_range_text(&spec.file, &requirement.origin.ranges);
+        resolved_requirements.push(ResolvedRequirement {
+            stable_id,
+            requirement,
+            spec,
+        });
 
         requirements
             .entry(requirement.origin.src.clone())
@@ -419,7 +437,7 @@ fn build_annotations(
     for ids in requirements.values_mut() {
         ids.sort();
     }
-    Ok((annotations, requirements))
+    Ok((annotations, requirements, resolved_requirements))
 }
 
 fn annotation_sort_key(annotation: &ConvertedAnnotation) -> (&str, usize, &str, &str, &str, &str) {
@@ -464,15 +482,15 @@ fn build_range_references(
 
 fn build_statuses(
     report: &ReportV2,
+    requirements: &[ResolvedRequirement<'_>],
     stable_to_integer: &HashMap<String, usize>,
-    parsed: &BTreeMap<String, ParsedSpecification>,
 ) -> crate::Result<BTreeMap<usize, RequirementStatusV1>> {
     let mut statuses = BTreeMap::new();
 
-    for (requirement_id, requirement) in &report.annotations.requirement {
-        let spec = parsed
-            .get(&requirement.origin.src)
-            .expect("requirements were validated while building annotations");
+    for resolved in requirements {
+        let requirement_id = resolved.stable_id;
+        let requirement = resolved.requirement;
+        let spec = resolved.spec;
         let origins = normalize_ranges(&requirement.origin.ranges);
         let mut by_type: BTreeMap<&str, Vec<ByteRange>> = BTreeMap::new();
         let mut related = Vec::new();
