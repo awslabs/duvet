@@ -158,6 +158,9 @@ pub fn convert(
 }
 
 fn validate_top_level(report: &ReportV2) -> crate::Result {
+    // This is an exact wire-schema identifier, not package SemVer. Report
+    // reading and merging enforce the same revision so a future "2.1" cannot
+    // silently enter a converter that has not been checked against its schema.
     if report.version != "2.0" {
         return Err(duvet_core::error!(
             "unsupported report version '{}', expected '2.0'",
