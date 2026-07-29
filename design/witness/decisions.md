@@ -1334,6 +1334,11 @@ An upstream Verus report is a work item.
 - Amending `design/query/decisions.md` and spec §5.2 to state the
   original per-witness intent (scoped to the correlation-fix work
   stream).
+- **LCOV-family runtime producer + Decision 16 example project:
+  deferred together to the LCOV follow-up PR** (ruled 2026-07-29).
+  The per-test-harness example that transfers A2 discipline
+  (Decision 16) is documented alongside the runtime producer it
+  demonstrates, not before it exists.
 - **Retrofit pass over the pre-existing annotations** (after the
   feature lands): the old `type=implication` annotations on
   `duvet-coverage`'s Phase 1–3 proofs predate any discharge
