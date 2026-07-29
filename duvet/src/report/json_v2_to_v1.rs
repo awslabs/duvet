@@ -35,17 +35,43 @@ struct ConvertedAnnotation {
     source_id: String,
     ranges: Vec<ByteRange>,
     section: String,
-    anno_type: String,
-    level: String,
+    anno_type: ConvertedAnnotationType,
+    level: AnnotationLevel,
     annotation: AnnotationV1,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ConvertedAnnotationType {
+    Spec,
+    Cite(AnnotationType),
+}
+
+impl ConvertedAnnotationType {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Spec => "SPEC",
+            Self::Cite(anno_type) => annotation_type_name(anno_type),
+        }
+    }
+
+    fn status_bit(self) -> usize {
+        match self {
+            Self::Cite(AnnotationType::Todo) => 1,
+            Self::Cite(AnnotationType::Exception) => 2,
+            Self::Cite(AnnotationType::Test) => 4,
+            Self::Cite(AnnotationType::Implication) => 8,
+            Self::Cite(AnnotationType::Citation) => 16,
+            Self::Spec => 32,
+        }
+    }
 }
 
 #[derive(Clone)]
 struct RangeReference {
     annotation_id: usize,
     range: ByteRange,
-    anno_type: String,
-    level: String,
+    anno_type: ConvertedAnnotationType,
+    level: AnnotationLevel,
 }
 
 type RequirementIds = BTreeMap<String, Vec<String>>;
@@ -335,8 +361,8 @@ fn build_annotations(
             source_id: requirement.origin.src.clone(),
             ranges: sorted_ranges(&requirement.origin.ranges),
             section: section.id.clone(),
-            anno_type: "SPEC".to_string(),
-            level: level_name(requirement.level).to_string(),
+            anno_type: ConvertedAnnotationType::Spec,
+            level: requirement.level,
             annotation: AnnotationV1 {
                 source,
                 target_path: spec.identity.clone(),
@@ -366,20 +392,20 @@ fn build_annotations(
             &format!("cite '{stable_id}'"),
         )?;
         let (source, blob_link) = resolve_linked_source(report, &cite.source.src, stable_id)?;
-        let anno_type = annotation_type_name(cite.anno_type).to_string();
+        let anno_type = ConvertedAnnotationType::Cite(cite.anno_type);
         annotations.push(ConvertedAnnotation {
             stable_id: stable_id.clone(),
             source_id: cite.target.src.clone(),
             ranges: sorted_ranges(&cite.target.ranges),
             section: section.id.clone(),
-            anno_type: anno_type.clone(),
-            level: level_name(cite.level).to_string(),
+            anno_type,
+            level: cite.level,
             annotation: AnnotationV1 {
                 source,
                 target_path: spec.identity.clone(),
                 target_section: Some(section.id.clone()),
                 line: cite.source.line.unwrap_or(0),
-                anno_type,
+                anno_type: anno_type.name().to_string(),
                 level: level_name(cite.level).to_string(),
                 comment: cite.comment.clone(),
                 feature: cite.feature.clone(),
@@ -402,7 +428,7 @@ fn annotation_sort_key(annotation: &ConvertedAnnotation) -> (&str, usize, &str, 
         annotation.annotation.line,
         &annotation.annotation.target_path,
         &annotation.section,
-        &annotation.anno_type,
+        annotation.anno_type.name(),
         &annotation.stable_id,
     )
 }
@@ -419,8 +445,8 @@ fn build_range_references(
                 .push(RangeReference {
                     annotation_id,
                     range: range.clone(),
-                    anno_type: annotation.anno_type.clone(),
-                    level: annotation.level.clone(),
+                    anno_type: annotation.anno_type,
+                    level: annotation.level,
                 });
         }
     }
@@ -642,7 +668,7 @@ fn segment_line(
         let annotation_ids: Vec<_> = active
             .iter()
             .map(|reference| {
-                if reference.anno_type == "SPEC" {
+                if reference.anno_type == ConvertedAnnotationType::Spec {
                     requirements.insert(reference.annotation_id);
                 }
                 reference.annotation_id
@@ -692,16 +718,8 @@ fn ref_status_id(active: &[&RangeReference]) -> usize {
     let mut bits = 0;
     let mut level = 0;
     for reference in active {
-        bits |= match reference.anno_type.as_str() {
-            "TODO" => 1,
-            "EXCEPTION" => 2,
-            "TEST" => 4,
-            "IMPLICATION" => 8,
-            "CITATION" => 16,
-            "SPEC" => 32,
-            _ => 0,
-        };
-        level = level.max(level_index(&reference.level));
+        bits |= reference.anno_type.status_bit();
+        level = level.max(annotation_level_index(reference.level));
     }
     bits + level * 64
 }
@@ -921,6 +939,15 @@ fn level_name(level: AnnotationLevel) -> &'static str {
         AnnotationLevel::May => "MAY",
         AnnotationLevel::Should => "SHOULD",
         AnnotationLevel::Must => "MUST",
+    }
+}
+
+fn annotation_level_index(level: AnnotationLevel) -> usize {
+    match level {
+        AnnotationLevel::Auto => 0,
+        AnnotationLevel::May => 1,
+        AnnotationLevel::Should => 2,
+        AnnotationLevel::Must => 3,
     }
 }
 
