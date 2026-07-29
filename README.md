@@ -77,11 +77,12 @@ $ cargo xtask build
 $ cargo xtask test
 ```
 
-### Verifying the coverage model
+### Verifying formal models
 
-The two-phase coverage model in `duvet-coverage` is formally verified
-with [Verus](https://verus-lang.github.io/verus/guide/). CI runs the
-verifier on every push and PR. To verify locally:
+The coverage model in `duvet-coverage` and report canonicalization in
+`duvet-report` are formally verified with
+[Verus](https://verus-lang.github.io/verus/guide/). CI runs the verifier on
+every push and PR. To verify locally:
 
 1. **Download the pinned Verus release.** The version that matches
    `vstd` in `Cargo.lock` is in `.github/workflows/ci.yml` as
@@ -125,7 +126,7 @@ verifier on every push and PR. To verify locally:
 4. **Verify the proofs.**
 
    ```console
-   $ cargo verus build -p duvet-coverage
+   $ cargo verus build -p duvet-coverage -p duvet-report
    ```
 
    Expected output: `verified N functions, 0 errors`. A non-zero error
@@ -145,7 +146,7 @@ check — `vargo build` accepts `--no-solver-version-check`, and the verify
 step uses the `-V` form:
 
 ```console
-$ cargo verus build -p duvet-coverage -- -V no-solver-version-check
+$ cargo verus build -p duvet-coverage -p duvet-report -- -V no-solver-version-check
 ```
 
 Otherwise, rely on CI for verification.

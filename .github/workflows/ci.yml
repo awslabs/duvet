@@ -130,8 +130,8 @@ jobs:
         run: |
           cargo xtask test
 
-  verify: # verify the duvet-coverage Verus proofs
-    name: Verify duvet-coverage proofs
+  verify:
+    name: Verify Verus proofs
     runs-on: ubuntu-latest
     env:
       # Verus release pinned for reproducibility. Bump when the matching
@@ -185,8 +185,8 @@ jobs:
           echo "Installing Verus-required toolchain: $TOOLCHAIN"
           rustup toolchain install "$TOOLCHAIN"
 
-      - name: Verify duvet-coverage proofs
-        run: cargo verus build -p duvet-coverage
+      - name: Verify proofs
+        run: cargo verus build -p duvet-coverage -p duvet-report
 
   action: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest

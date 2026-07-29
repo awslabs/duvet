@@ -1,0 +1,18 @@
+[package]
+name = "duvet-report"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Verified report-model algorithms for duvet"
+publish = false
+
+[dependencies]
+# Keep this exact version aligned with VERUS_VERSION in CI. Verus and vstd are
+# released in lockstep.
+vstd = "=0.0.0-2026-05-24-0157"
+
+[package.metadata.verus]
+verify = true
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(verus_keep_ghost)'] }

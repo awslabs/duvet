@@ -18,6 +18,7 @@ use crate::{
     target::TargetPath,
 };
 use duvet_core::file::SourceFile;
+use duvet_report::{canonicalize_spans, SegmentSpan};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -106,11 +107,6 @@ struct CanonicalSection {
 struct CanonicalLine {
     text: String,
     overlays: Vec<(usize, usize, Vec<String>)>,
-}
-
-struct CanonicalSegment {
-    annotations: Vec<String>,
-    text: String,
 }
 
 /// Convert a v2 report to v1. The optional issue link overrides all links in
@@ -1436,7 +1432,9 @@ fn render_canonical_line(
         boundaries.insert(*end);
     }
     let boundaries: Vec<_> = boundaries.into_iter().collect();
-    let mut segments: Vec<CanonicalSegment> = Vec::new();
+    let mut annotation_labels = BTreeMap::new();
+    let mut annotations_by_label = Vec::new();
+    let mut spans = Vec::new();
     for window in boundaries.windows(2) {
         let start = window[0];
         let end = window[1];
@@ -1447,30 +1445,26 @@ fn render_canonical_line(
             }
         }
         let annotations: Vec<_> = annotations.into_iter().collect();
-        let text = &line.text[start..end];
-        if let Some(previous) = segments
-            .last_mut()
-            .filter(|previous| previous.annotations == annotations)
-        {
-            previous.text.push_str(text);
+        let label = if let Some(label) = annotation_labels.get(&annotations) {
+            *label
         } else {
-            segments.push(CanonicalSegment {
-                annotations,
-                text: text.to_string(),
-            });
-        }
+            let label = annotations_by_label.len();
+            annotation_labels.insert(annotations.clone(), label);
+            annotations_by_label.push(annotations);
+            label
+        };
+        spans.push(SegmentSpan { start, end, label });
     }
+    let spans = canonicalize_spans(&spans);
     Ok(Value::Array(
-        segments
+        spans
             .into_iter()
-            .map(|segment| {
+            .map(|span| {
+                let annotations = &annotations_by_label[span.label];
                 Ok(json!({
-                    "status": canonical_status_for_annotations(
-                        &segment.annotations,
-                        metadata,
-                    )?,
-                    "annotations": segment.annotations,
-                    "text": segment.text,
+                    "status": canonical_status_for_annotations(annotations, metadata)?,
+                    "annotations": annotations,
+                    "text": &line.text[span.start..span.end],
                 }))
             })
             .collect::<crate::Result<Vec<_>>>()?,
