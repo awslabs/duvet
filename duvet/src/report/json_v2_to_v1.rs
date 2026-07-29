@@ -1549,14 +1549,14 @@ mod tests {
             (vec![0], 16, " world".to_string()),
         ]));
         let converted = v1_segmentation_fixture(LineV1::Segments(vec![
-            (vec![0], 16, "hel".to_string()),
-            (vec![0], 16, "lo world".to_string()),
+            (vec![0], 16, "he".to_string()),
+            (vec![0], 16, "llo world".to_string()),
         ]));
         validate_semantics(&direct, &converted, true).unwrap();
 
         let changed_coverage = v1_segmentation_fixture(LineV1::Segments(vec![
-            (vec![0], 16, "hel".to_string()),
-            (Vec::new(), 0, "lo world".to_string()),
+            (vec![0], 16, "he".to_string()),
+            (Vec::new(), 0, "llo world".to_string()),
         ]));
         assert!(validate_semantics(&direct, &changed_coverage, true).is_err());
     }
