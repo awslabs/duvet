@@ -364,7 +364,7 @@ pub fn canonicalize_spans(input: &[SegmentSpan]) -> (output: Vec<SegmentSpan>)
         decreases input.len() - i,
     {
         let span = input[i];
-        if output.len() > 0 && output[output.len() - 1].label == span.label {
+        if !output.is_empty() && output[output.len() - 1].label == span.label {
             let last = output.len() - 1;
             output[last] = SegmentSpan {
                 start: output[last].start,
