@@ -108,6 +108,11 @@ struct CanonicalLine {
     overlays: Vec<(usize, usize, Vec<String>)>,
 }
 
+struct CanonicalSegment {
+    annotations: Vec<String>,
+    text: String,
+}
+
 /// Convert a v2 report to v1. The optional issue link overrides all links in
 /// the input. A warning is returned when a merged report has multiple links
 /// and no override.
@@ -1431,7 +1436,7 @@ fn render_canonical_line(
         boundaries.insert(*end);
     }
     let boundaries: Vec<_> = boundaries.into_iter().collect();
-    let mut segments = Vec::new();
+    let mut segments: Vec<CanonicalSegment> = Vec::new();
     for window in boundaries.windows(2) {
         let start = window[0];
         let end = window[1];
@@ -1442,13 +1447,34 @@ fn render_canonical_line(
             }
         }
         let annotations: Vec<_> = annotations.into_iter().collect();
-        segments.push(json!({
-            "status": canonical_status_for_annotations(&annotations, metadata)?,
-            "annotations": annotations,
-            "text": &line.text[start..end],
-        }));
+        let text = &line.text[start..end];
+        if let Some(previous) = segments
+            .last_mut()
+            .filter(|previous| previous.annotations == annotations)
+        {
+            previous.text.push_str(text);
+        } else {
+            segments.push(CanonicalSegment {
+                annotations,
+                text: text.to_string(),
+            });
+        }
     }
-    Ok(Value::Array(segments))
+    Ok(Value::Array(
+        segments
+            .into_iter()
+            .map(|segment| {
+                Ok(json!({
+                    "status": canonical_status_for_annotations(
+                        &segment.annotations,
+                        metadata,
+                    )?,
+                    "annotations": segment.annotations,
+                    "text": segment.text,
+                }))
+            })
+            .collect::<crate::Result<Vec<_>>>()?,
+    ))
 }
 
 fn first_difference(left: &Value, right: &Value, path: &str) -> String {
@@ -1517,6 +1543,25 @@ mod tests {
             ByteRange { start: 3, end: 8 },
         ]);
         assert_eq!(difference_len(&origin, &covered), 3);
+    }
+
+    #[test]
+    fn semantic_validation_ignores_segment_cuts_but_not_coverage() {
+        let direct = v1_segmentation_fixture(LineV1::Segments(vec![
+            (vec![0], 16, "hello".to_string()),
+            (vec![0], 16, " world".to_string()),
+        ]));
+        let converted = v1_segmentation_fixture(LineV1::Segments(vec![
+            (vec![0], 16, "hel".to_string()),
+            (vec![0], 16, "lo world".to_string()),
+        ]));
+        validate_semantics(&direct, &converted, true).unwrap();
+
+        let changed_coverage = v1_segmentation_fixture(LineV1::Segments(vec![
+            (vec![0], 16, "hel".to_string()),
+            (Vec::new(), 0, "lo world".to_string()),
+        ]));
+        assert!(validate_semantics(&direct, &changed_coverage, true).is_err());
     }
 
     #[test]
@@ -1772,6 +1817,34 @@ mod tests {
             Some("https://override.example")
         );
         assert!(warning.is_none());
+    }
+
+    fn v1_segmentation_fixture(line: LineV1) -> ReportV1 {
+        ReportV1 {
+            specifications: BTreeMap::from([(
+                "spec.md".to_string(),
+                SpecificationV1 {
+                    title: Some("Spec".to_string()),
+                    format: "markdown".to_string(),
+                    requirements: Vec::new(),
+                    sections: vec![SectionV1 {
+                        id: "section".to_string(),
+                        title: "Section".to_string(),
+                        lines: vec![line],
+                        requirements: Vec::new(),
+                    }],
+                },
+            )]),
+            annotations: vec![AnnotationV1 {
+                source: "src/lib.rs".to_string(),
+                target_path: "spec.md".to_string(),
+                target_section: Some("section".to_string()),
+                line: 1,
+                ..Default::default()
+            }],
+            refs: all_ref_statuses(),
+            ..Default::default()
+        }
     }
 
     fn fixture() -> ReportV2 {
