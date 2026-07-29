@@ -438,24 +438,56 @@ Exactly as strong as runtime coverage, no stronger.
   the whole obligation's elaboration consults the entire body,
   loop 1 included, so the mispaired annotations are credited.
 
-### Option B: Needed (load-bearing) semantics now
+### Option B: Needed (load-bearing) semantics
 
 Use unsat cores to include only what the solver required.
 
 - Pro: Would fail the running example — the verdict the user
   actually wants there.
-- Con: Feasibility unproven; cores are not guaranteed minimal
-  (degradation direction: over-crediting, back toward Option A);
-  cost unknown; and the runtime side has no analog
-  (its equivalent is mutation testing, also not built).
+- Feasibility: **demonstrated, not assumed**
+  (solver-replay spike, 2026-07-29).
+  Verus emits replayable solver queries (`--log smt`; measured
+  free — no verification slowdown), and each ensures clause is
+  guarded by a distinct `%%location_label%%N` constant — the same
+  machinery Verus uses to localize *failing* postconditions.
+  z3 replay with core extraction recovers per-clause needed sets,
+  verified in both directions by a strict deletion matrix on a
+  two-clause / disjoint-helpers probe
+  ("clause 1 needed `helper_a` and not `helper_b`"),
+  including the caller-side variant
+  ("the caller needed the callee's clause 1, not clause 2").
+- Con: The cost is not a bigger parse; it is a **new
+  evidence-production category**. The producer must *drive the
+  solver*: ~107 z3 invocations at duvet-coverage scale, two
+  rewrite transforms between Verus's output and the executed
+  queries (assert-naming, and an `ens%` guard rewrite validated
+  on one probe shape only), results contingent on solver version
+  and rlimit. Today's producer is a pure parser — artifact in,
+  witnesses out, deterministic, testable against pinned goldens.
+  A Needed producer is an experiment runner with its own trusted
+  base (a pinned z3, the unverified rewrites, the label↔span
+  join) — and the rewrites are exactly the glue where bugs
+  migrate.
+- Con: Cores are not guaranteed minimal (degradation direction:
+  over-crediting, back toward Option A), and the runtime side has
+  no analog (its equivalent is mutation testing, also not built).
 
-### Decision: Option A, with room reserved for strengthening
+### Decision: Option A, with Needed reachable but deliberately not consumed
 
 Same semantics as execution, now.
+Needed strength is **reachable but not consumed** — the deferral
+is an architectural boundary, chosen and named, not an artifact
+limitation: **duvet parses artifacts; it does not drive
+solvers.** Consuming Needed evidence would put a solver-execution
+harness and its unverified rewrites inside duvet's trusted base,
+and that trade is declined for now. Because the gap sits on the
+far side of a named boundary rather than one dug by
+under-consuming the artifact in hand, the deferral is legitimate
+under Decision 17.
 The witness's `strength` provenance field exists from day one so
-that stronger witnesses (needed-semantics, clause granularity)
-can be added later without changing the model —
-if a way is found, that is wonderful; it is not assumed.
+that stronger witnesses (needed-semantics) can be added later
+without changing the model — as a new producer category with its
+own trusted-base ledger entries, when the trade is worth making.
 The exact contents of a constructed witness are deferred to the
 closure definition (Open Question 1),
 with the intent stated here:
@@ -469,10 +501,8 @@ lines: an annotation on an irrelevant side effect in loop 1's body
 is not reachable and never enters;
 one on the lines that support the needed invariant is, and does.
 How precise this can be depends on the granularity of the prover's
-graph — if loop 1 carries five invariants and loop 2 needs one,
-whether only that one and its dependencies enter the closure
-depends on whether the five are five nodes or one —
-and that granularity is unexplored, for Verus included.
+graph — and for Verus that granularity is now known:
+see Decision 18.
 
 ---
 
@@ -656,8 +686,12 @@ witness each — and deliberately leaves the verdict over those N
 witnesses to the quantifier question (Decision 14).
 
 Producer attribution rule (Verus, generalizable):
-all obligations **rooted at** the position — Decision 13's
-`dom(du)` — are the discharge units, one witness each;
+this rule governs **ties** — N distinct obligations rooted at
+the position at the same specificity level. When units of
+different fineness nest around a position, rooting first
+resolves to the finest containing unit; the tie rule then
+applies among the obligations rooted at that level:
+all of them are the discharge units, one witness each;
 producers MUST NOT select arbitrarily among owners.
 Zero rooted obligations means no proof witness;
 Decision 13 defines how that is reported.
@@ -992,49 +1026,180 @@ fineness the artifact demonstrably records sets the shipped
 floor. Only what would require new evidence sources or prover
 changes may be deferred.
 
-Applied to Verus SST (spec §5.5, inspected 2026-07-28):
-obligation **nodes** carry sub-function structure
-(`:enss` clause lists, `LoopInv` nodes),
-but the **edges** observed so far are function-level
-(`Fun :path` references).
-Whole-function closure is therefore the current demonstrated
-maximum for the *closure*;
-whether clause- or invariant-level closure is recoverable —
-i.e. whether the artifact's edge structure can attribute a
-dependency to a specific clause rather than its enclosing
-function — is exactly the open investigation
-(Open Question 1's finer half, and the
-"finer-than-function discharge units" work item).
-If that investigation shows the artifact supports finer closure,
-shipping without it would violate this decision;
-if it shows the artifact cannot, the deferral is legitimate and
-this decision is satisfied at function granularity.
+Applied to Verus SST (spec §5.5; artifact investigation
+concluded 2026-07-29):
+the investigation this decision mandated is done, and the ceiling
+**splits by relation**.
+*Rooting* — which discharge unit an annotation attaches to —
+is demonstrably sub-function: the artifact records a distinct
+span for every ensures clause (`:enss`), loop invariant
+(`LoopInv`), and proof assert, so clause-level discharge units
+are the demonstrated maximum and consuming them is mandatory
+under this decision (Decision 18).
+*Closure* — what a unit's proof consulted — is function-level,
+and not as a logging gap: Verus checks all of a function's
+ensures clauses in one solver query (one `PostConditionSst`, one
+folded `ens_exps` list) and assumes a callee's **entire** ensures
+at every call site, so under Consulted semantics every unit in a
+function consults the same set, and a per-clause closure computed
+honestly from this artifact would equal the whole-function
+closure. Function-level closure is therefore the artifact's
+genuine ceiling for Consulted strength, and shipping at it
+satisfies this decision.
+Finer closure is a *strength* question, not a granularity
+question — it requires needed-set evidence, whose feasibility and
+declined consumption are recorded in Decision 7.
+
+---
+
+## Decision 18: Discharge units expand to clause granularity; every unit carries its function's closure {#decision-18}
+
+**Context:** Empirical (SST artifact investigation, 2026-07-29):
+the artifact records a distinct source span for every ensures
+clause (`:enss` list entries), every loop invariant
+(`LoopInv` nodes), and every proof assert — not just function
+extents. Under Decision 17, consuming that structure is
+mandatory: the demonstrated maximum sets the shipped floor.
+The current producer roots at extents only, which is below the
+evidence in hand.
+
+### Decision: `dom(du)` is the union of all four unit kinds
+
+```
+dom(du) = obligation extents (fn/lemma headers)
+        ∪ ensures-clause spans (:enss entries)
+        ∪ loop-invariant spans (LoopInv nodes)
+        ∪ proof-assert spans
+```
+
+Each unit kind roots discharge units by span containment;
+the reflexivity requirement (`root ∈ closure(root)`, Decision 3)
+holds at clause grain — confirmed empirically: clause-rooted
+witnesses contain their own spans.
+
+**Every unit inside a function carries the same function-level
+consulted closure.** This is the artifact's ceiling for the
+closure relation (Decision 17), and the boundary must be stated
+plainly wherever the feature is described, because it bounds what
+finer rooting buys:
+
+- What clause-level units buy **today**: precise
+  annotation-to-clause identity; failure reports that name the
+  exact clause; discharge units already shaped right for a future
+  strength upgrade.
+- What they do **not** buy today: smaller witnesses.
+  Within one function, discharge verdicts do not change —
+  a clause-rooted witness and its function's witness have
+  identical line sets at Consulted strength.
+
+Conjunct arms (`ensures A && B && C`) have sub-spans in the
+artifact but are not claim entries; they do not root units.
+The remediation for a claim about one conjunct is user-side
+clause splitting, consistent with Decision 14's ambiguity
+posture. (Non-normative guidance, restated in the spec.)
+
+---
+
+## Decision 19: Rooting is most-specific-wins {#decision-19}
+
+**Context:** With clause-level units in `dom(du)` (Decision 18),
+an annotation on a clause line sits inside both the clause span
+and the enclosing function extent. Which unit(s) does it root?
+
+### Option A: Root every containing unit
+
+Decision 12-style: the position roots the clause unit AND the
+enclosing extent; all resulting witnesses are held to the pair
+under Decision 14's universal quantifier.
+
+- Pro: Consistent with the ambiguity rule's shape.
+- Con: Multiplies obligations without adding information —
+  within a function the closures are identical, so the extra
+  witness is a duplicate at Consulted strength.
+- Con: Under a future strength upgrade, the surviving
+  function-level pairing cushions exactly the vacuity the
+  upgrade is meant to expose: the fat witness passes where the
+  clause's needed set would fail.
+
+### Option B: The most specific unit containing the position wins
+
+The annotation roots the finest unit whose span contains its
+resolved position; the function extent is the fallback for
+positions inside no finer unit. Decision 12's
+all-rooting-obligations rule still governs genuine ties —
+N distinct obligations rooted at byte-identical spans at the
+*same* specificity level each yield a witness.
+
+- Pro: Matches intent: an annotation placed on a clause means the
+  clause. The user aimed; the rule preserves the aim.
+- Pro: **Does not amplify the classifier's imprecision.**
+  The T side of every pair is located by the degenerate text
+  classifier — already the low-granularity, ambiguity-prone half
+  of the pipeline. A rule that hoists a clause-line annotation to
+  the whole function would stack a second lossy step on the
+  first, erasing exactly the precision the annotation's placement
+  expressed. Most-specific-wins keeps the rooting side from
+  widening what the classifier already blurs.
+- Pro: Makes a future strength upgrade mean something: the
+  clause-rooted unit is held to its own needed set when that
+  evidence arrives, with no fat sibling witness to hide behind.
+- Con: Stricter under the future upgrade — a pass today can
+  become a fail on the strength change. Deliberate: that is the
+  vacuity being caught.
+
+### Decision: Option B
+
+Distinct from Decision 12: Decision 12
+governs *ties* (several obligations, one position, same
+specificity); this decision governs *nesting* (finer and coarser
+units containing the same position). Nesting picks the finest;
+ties within the chosen level still yield all owners.
+
+---
+
+## Decision 20: Discharge units are labeled from the artifact, `proof_note` when present {#decision-20}
+
+**Context:** Failure legibility (Open Question 2) needs units
+users can recognize. The artifact investigation found that
+Verus's `proof_note` text lands in the SST artifact as
+`ProofNoteLabel` wrapping the exact clause/invariant/assert it
+annotates — a user-authored name, machine-recoverable.
+
+### Decision: Label priority is proof_note, then span identity
+
+A discharge unit's report label is its `proof_note` text when the
+artifact records one, otherwise its span identity
+(function path + unit kind + clause index/position) —
+compiler-exact either way, since both come from the artifact, not
+from duvet reading source text.
+
+**Hazard, empirical (solver-replay spike, 2026-07-29, pinned
+Verus):** `proof_note` on an *ensures clause* injects
+unconstrained guard labels into the callee's `ens%` definition
+and breaks verification of callers — loudly, at build time,
+before duvet runs. Failure direction is safe (build breakage,
+not misattribution), but until fixed upstream:
+notes on loop invariants and proof asserts work today;
+for ensures clauses, labels come from span identity.
+An upstream Verus report is a work item.
 
 ---
 
 ## Open questions (not decided) {#open-questions}
 
-1. **The exact closure definition.**
-   A constructed witness's contents are the downward reachable set
-   of the prover's dependency graph from the discharge unit —
+1. **The exact closure definition, per prover.**
+   A constructed witness's contents are the downward reachable
+   set of the prover's dependency graph from the discharge unit —
    to be stated exactly, per prover.
-   Two constraints are settled and normative:
-   the closure is **reflexive** (`root ∈ closure(root)`,
-   Decision 3 — binding must imply execution) and it is consumed
-   at the artifact's demonstrated maximum granularity
-   (Decision 17).
-   Precision is bounded by the graph's granularity
-   (five invariants on one loop: five nodes or one?).
-   *Status (2026-07-28): the first Verus producer is built and the
-   artifact inspected (spec §5.5). Nodes and edges are
-   function-level (`FunctionSst` blocks, `Fun :path` references),
-   so the shipped closure is the spans of whole reachable
-   functions, not the exact lines a proof consulted. The question
-   stays open at the finer level: whether and how clause- or
-   invariant-level closure precision is recoverable from the
-   artifact — under Decision 17 this investigation is normative
-   (its answer sets the shipped floor), not optional polish.
-   Flagged for return at the 2026-07-28 PR review.*
+   Settled constraints: the closure is **reflexive**
+   (`root ∈ closure(root)`, Decision 3) and consumed at the
+   artifact's demonstrated maximum granularity (Decision 17).
+   *For Verus this question is resolved (2026-07-29): units at
+   clause granularity, closure at function granularity — the
+   split ceiling recorded in Decisions 17 and 18. The question
+   remains open for each future prover producer (Lean, Strata,
+   TLAPS, TLC): the same investigation is owed per artifact
+   before its producer ships.*
 
 2. **Identifying which obligation is which in failure reports.**
    Under Decision 14, a multi-witness failure lists the bound
@@ -1052,18 +1217,23 @@ this decision is satisfied at function granularity.
 
 ## Work items (not questions — known work) {#work-items}
 
-- **Finer-than-function discharge units and closure — the
-  Decision 17 investigation.** The SST artifact carries
-  sub-function node structure (`:enss` clause lists, `LoopInv`
-  nodes), so clause- and invariant-level discharge units are
-  expressible without a format change (spec §5.5); whether the
-  artifact's *edge* structure supports clause-level closure is
-  unknown. Under Decision 17 this investigation is normative: its
-  answer sets the shipped granularity floor. Deliverable: a
-  written determination (in spec §5.5) of the artifact's
-  demonstrated maximum for both discharge units and closure,
-  with the producer brought up to that maximum or the limit
-  recorded as the artifact's ceiling.
+- **Rooting expansion to clause granularity (Decisions 18–19).**
+  Parse `:enss` clause spans, `LoopInv` spans, and proof-assert
+  spans into `dom(du)`; implement most-specific-wins rooting;
+  extend the reflexivity unit test over all four unit types;
+  extend the golden corpus with a multi-clause fixture
+  (the investigation's two-clause / disjoint-helpers probe is a
+  ready-made candidate).
+- **Unit labels from the artifact (Decision 20).**
+  `ProofNoteLabel` extraction with span-identity fallback;
+  ensures-clause labels span-only until the upstream fix.
+- **Upstream Verus report:** `proof_note` on an ensures clause
+  injects unconstrained guards into the callee's `ens%`
+  definition and breaks callers (observed 2026-07-29, pinned
+  Verus).
+- **Dogfood re-annotation at clause level:** where a property
+  maps to a specific clause, move the test annotation onto that
+  clause — the first live exercise of Decision 19's rule.
 - **Reflexivity check and guard (Decision 3).** One-time check
   against the existing SST run's constructed witnesses that every
   witness contains its own root span, plus the permanent producer

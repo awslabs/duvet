@@ -3,7 +3,9 @@ target = "design/witness/spec.md#verus-producer"
 # 5.5 The Verus producer
 #
 # Grounded empirically (2026-07-26, Verus 0.2026.05.24.ecee80a,
-# `cargo verus build -p duvet-coverage -- --log vir-sst`):
+# `cargo verus build -p duvet-coverage -- --log vir-sst`;
+# artifact granularity investigation and solver-replay spike
+# concluded 2026-07-29):
 # 
 # - The artifact is per-module `*-sst.vir` S-expression files.
 #   Top-level `FunctionSst` blocks carry a fully-qualified name
@@ -14,25 +16,36 @@ target = "design/witness/spec.md#verus-producer"
 #   edges. A flat span inventory of one block covers essentially
 #   only its own extent, which is why §5.2's parse-into-structure
 #   requirement is a MUST and not an optimization.
-# - Sub-function structure (`:enss` clause lists,
-#   `LoopInv` nodes) exists in the artifact;
-#   finer-than-function discharge units are therefore expressible
-#   later without a format change.
-# - The Verus producer MUST treat `FunctionSst` blocks as nodes and
-#   `Fun :path` references as edges,
-#   and MUST support whole-proof-fn discharge units in its first
-#   version. Finer units MAY follow.
-#   Its attribution rule: an obligation is a discharge unit for a
-#   position iff it is *rooted* there —
-#   extent containment, plus proof-element spans
-#   (`:enss` clauses, `LoopInv` nodes, proof asserts) as they are
-#   supported; all rooting obligations, one witness each
-#   (§5.3, Decisions 12 and 13).
+# - Sub-function structure carries per-unit spans: `:enss` clause
+#   lists (one span per ensures clause), `LoopInv` nodes, and
+#   proof-assert spans. Clause-level discharge units are the
+#   artifact's demonstrated rooting maximum.
+# - The closure is function-level, as a semantic fact of the
+#   encoding rather than a logging gap: all of a function's ensures
+#   clauses are checked in one solver query (one `PostConditionSst`,
+#   one folded `ens_exps` list), and a callee's entire ensures is
+#   assumed at every call site. Per-clause needed sets exist only
+#   at the solver level (recoverable by z3 replay with cores —
+#   demonstrated, and deliberately not consumed; decisions.md,
+#   Decision 7).
+# - The Verus producer MUST treat `FunctionSst` blocks as closure
+#   nodes and `Fun :path` references as edges, and MUST support
+#   discharge units of all four kinds: obligation extents,
+#   `:enss` clause spans, `LoopInv` spans, and proof-assert spans
+#   (decisions.md, Decision 18).
+#   Rooting is most-specific-wins (§5.3, Decision 19);
+#   ties at one specificity level yield all owners
+#   (Decisions 12 and 13).
 #   Own-span (body-line) ownership is NOT attribution:
 #   executable body lines are outside `dom(du)`.
 #   Loop header lines are excluded from `dom(du)` initially
 #   (the artifact would support them via loop isolation;
 #   deliberately deferred).
+# - Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
+#   when the artifact records it, otherwise span identity
+#   (function path + unit kind + clause index).
+#   Until the upstream `proof_note`-on-ensures defect is fixed,
+#   ensures-clause labels MUST come from span identity.
 # 
 # ---
 
@@ -47,15 +60,17 @@ requirement is a MUST and not an optimization.
 [[spec]]
 level = "MUST"
 quote = '''
-- The Verus producer MUST treat `FunctionSst` blocks as nodes and
-`Fun :path` references as edges,
-and MUST support whole-proof-fn discharge units in its first
-version.
+- The Verus producer MUST treat `FunctionSst` blocks as closure
+nodes and `Fun :path` references as edges, and MUST support
+discharge units of all four kinds: obligation extents,
+`:enss` clause spans, `LoopInv` spans, and proof-assert spans
+(decisions.md, Decision 18).
 '''
 
 [[spec]]
-level = "MAY"
+level = "MUST"
 quote = '''
-Finer units MAY follow.
+Until the upstream `proof_note`-on-ensures defect is fixed,
+ensures-clause labels MUST come from span identity.
 '''
 

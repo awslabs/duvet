@@ -17,15 +17,23 @@ target = "design/witness/spec.md#closure"
 # nothing outside the reachable set may be included.
 # The closure MUST be computed at the finest granularity the
 # artifact demonstrably supports
-# (decisions.md, Decision 17 — deferral is legitimate only where
-# the artifact itself is the limit);
-# the precision of "reachable" is bounded by the granularity of the
-# prover's graph and its finer levels are not yet fully specified
-# (decisions.md, Open Question 1);
+# (decisions.md, Decision 17 — deferral is legitimate only at the
+# artifact's ceiling or across a named architectural boundary);
 # what is normative now:
 # the closure MUST be a fixpoint (no truncation at a depth bound),
 # and the semantics is *consulted* (strength `Consulted`, §1.3),
 # not load-bearing dependency.
+# 
+# **The closure ceiling MUST be stated per producer, because it
+# bounds what unit granularity buys.** Where a prover checks a
+# function's obligations in one solver query and assumes callee
+# contracts whole (Verus does both, §5.5), every discharge unit
+# inside a function carries the identical function-level consulted
+# closure: finer units buy precise identity and legible failures,
+# not smaller witnesses, and discharge verdicts within one function
+# do not differ across its units at Consulted strength.
+# Reports and documentation MUST NOT present clause-level units as
+# implying clause-level evidence.
 
 [[spec]]
 level = "MUST"
@@ -58,14 +66,31 @@ level = "MUST"
 quote = '''
 The closure MUST be computed at the finest granularity the
 artifact demonstrably supports
-(decisions.md, Decision 17 — deferral is legitimate only where
-the artifact itself is the limit);
-the precision of "reachable" is bounded by the granularity of the
-prover's graph and its finer levels are not yet fully specified
-(decisions.md, Open Question 1);
+(decisions.md, Decision 17 — deferral is legitimate only at the
+artifact's ceiling or across a named architectural boundary);
 what is normative now:
 the closure MUST be a fixpoint (no truncation at a depth bound),
 and the semantics is *consulted* (strength `Consulted`, §1.3),
 not load-bearing dependency.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+**The closure ceiling MUST be stated per producer, because it
+bounds what unit granularity buys.** Where a prover checks a
+function's obligations in one solver query and assumes callee
+contracts whole (Verus does both, §5.5), every discharge unit
+inside a function carries the identical function-level consulted
+closure: finer units buy precise identity and legible failures,
+not smaller witnesses, and discharge verdicts within one function
+do not differ across its units at Consulted strength.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Reports and documentation MUST NOT present clause-level units as
+implying clause-level evidence.
 '''
 

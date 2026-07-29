@@ -8,23 +8,31 @@ target = "design/witness/spec.md#discharge-unit"
 # The mapping from position to unit is prover-specific and lives
 # inside each producer (decisions.md, Decision 9).
 # Its domain (`dom(du)`) MUST contain only positions where an
-# obligation is *rooted* — proof-element positions:
-# fn/lemma headers, ensures clauses, loop invariants, proof asserts.
+# obligation is *rooted* — proof-element positions,
+# at every granularity the artifact demonstrably records
+# (decisions.md, Decisions 13, 17, 18):
+# fn/lemma headers (obligation extents), ensures clauses,
+# loop invariants, and proof asserts.
 # Executable body lines MUST NOT be in the domain:
 # they are proof ingredients (consulted material), not claims,
 # and a test annotation there is not a proof-world test
 # (decisions.md, Decision 13).
-# Witness granularity is the image of the annotation's resolved
-# position under this mapping,
-# at the finest granularity the producer declares it supports.
 # 
-# Attribution MAY be ambiguous *within the domain*: provers stamp
-# generated obligations with the source range of the declaration
-# they were generated from,
-# so one proof-testable position can root several obligations.
-# When N obligations root a position, the producer MUST deliver one
-# witness per rooting obligation and MUST NOT select among them
-# (decisions.md, Decision 12).
+# **Rooting is most-specific-wins** (decisions.md, Decision 19):
+# an annotation roots the finest unit whose span contains its
+# resolved position; the enclosing extent is the fallback for
+# positions inside no finer unit. A producer MUST NOT hoist an
+# annotation placed on a clause, invariant, or assert to the
+# enclosing function's unit.
+# 
+# Attribution MAY be ambiguous *within one specificity level*:
+# provers stamp generated obligations with the source range of the
+# declaration they were generated from,
+# so one proof-testable position can root several obligations at
+# the same level.
+# When N obligations root a position at the chosen level, the
+# producer MUST deliver one witness per rooting obligation and
+# MUST NOT select among them (decisions.md, Decision 12).
 # Under Decision 14 the annotation is held to **all** of them:
 # every delivered witness at that position must execute I for the
 # pair to discharge, and the verdict's per-witness results name
@@ -32,14 +40,19 @@ target = "design/witness/spec.md#discharge-unit"
 # An ambiguous position that fails is correct pressure to
 # disambiguate — e.g. splitting a conjoined
 # `ensures A && B && C && D` into separate clauses and annotating
-# the intended one.
+# the intended one. Conjunct arms do not root units
+# (decisions.md, Decision 18); clause splitting is the remediation
+# for a claim about one conjunct.
 
 [[spec]]
 level = "MUST"
 quote = '''
 Its domain (`dom(du)`) MUST contain only positions where an
-obligation is *rooted* — proof-element positions:
-fn/lemma headers, ensures clauses, loop invariants, proof asserts.
+obligation is *rooted* — proof-element positions,
+at every granularity the artifact demonstrably records
+(decisions.md, Decisions 13, 17, 18):
+fn/lemma headers (obligation extents), ensures clauses,
+loop invariants, and proof asserts.
 '''
 
 [[spec]]
@@ -52,19 +65,28 @@ and a test annotation there is not a proof-world test
 '''
 
 [[spec]]
+level = "MUST"
+quote = '''
+A producer MUST NOT hoist an
+annotation placed on a clause, invariant, or assert to the
+enclosing function's unit.
+'''
+
+[[spec]]
 level = "MAY"
 quote = '''
-Attribution MAY be ambiguous *within the domain*: provers stamp
-generated obligations with the source range of the declaration
-they were generated from,
-so one proof-testable position can root several obligations.
+Attribution MAY be ambiguous *within one specificity level*:
+provers stamp generated obligations with the source range of the
+declaration they were generated from,
+so one proof-testable position can root several obligations at
+the same level.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-When N obligations root a position, the producer MUST deliver one
-witness per rooting obligation and MUST NOT select among them
-(decisions.md, Decision 12).
+When N obligations root a position at the chosen level, the
+producer MUST deliver one witness per rooting obligation and
+MUST NOT select among them (decisions.md, Decision 12).
 '''
 

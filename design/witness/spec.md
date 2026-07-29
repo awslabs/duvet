@@ -461,23 +461,31 @@ obligation that certifies that position
 The mapping from position to unit is prover-specific and lives
 inside each producer (decisions.md, Decision 9).
 Its domain (`dom(du)`) MUST contain only positions where an
-obligation is *rooted* — proof-element positions:
-fn/lemma headers, ensures clauses, loop invariants, proof asserts.
+obligation is *rooted* — proof-element positions,
+at every granularity the artifact demonstrably records
+(decisions.md, Decisions 13, 17, 18):
+fn/lemma headers (obligation extents), ensures clauses,
+loop invariants, and proof asserts.
 Executable body lines MUST NOT be in the domain:
 they are proof ingredients (consulted material), not claims,
 and a test annotation there is not a proof-world test
 (decisions.md, Decision 13).
-Witness granularity is the image of the annotation's resolved
-position under this mapping,
-at the finest granularity the producer declares it supports.
 
-Attribution MAY be ambiguous *within the domain*: provers stamp
-generated obligations with the source range of the declaration
-they were generated from,
-so one proof-testable position can root several obligations.
-When N obligations root a position, the producer MUST deliver one
-witness per rooting obligation and MUST NOT select among them
-(decisions.md, Decision 12).
+**Rooting is most-specific-wins** (decisions.md, Decision 19):
+an annotation roots the finest unit whose span contains its
+resolved position; the enclosing extent is the fallback for
+positions inside no finer unit. A producer MUST NOT hoist an
+annotation placed on a clause, invariant, or assert to the
+enclosing function's unit.
+
+Attribution MAY be ambiguous *within one specificity level*:
+provers stamp generated obligations with the source range of the
+declaration they were generated from,
+so one proof-testable position can root several obligations at
+the same level.
+When N obligations root a position at the chosen level, the
+producer MUST deliver one witness per rooting obligation and
+MUST NOT select among them (decisions.md, Decision 12).
 Under Decision 14 the annotation is held to **all** of them:
 every delivered witness at that position must execute I for the
 pair to discharge, and the verdict's per-witness results name
@@ -485,7 +493,9 @@ which obligation(s) failed.
 An ambiguous position that fails is correct pressure to
 disambiguate — e.g. splitting a conjoined
 `ensures A && B && C && D` into separate clauses and annotating
-the intended one.
+the intended one. Conjunct arms do not root units
+(decisions.md, Decision 18); clause splitting is the remediation
+for a claim about one conjunct.
 
 ### 5.4 Closure {#closure}
 
@@ -504,20 +514,30 @@ Only reachable nodes contribute;
 nothing outside the reachable set may be included.
 The closure MUST be computed at the finest granularity the
 artifact demonstrably supports
-(decisions.md, Decision 17 — deferral is legitimate only where
-the artifact itself is the limit);
-the precision of "reachable" is bounded by the granularity of the
-prover's graph and its finer levels are not yet fully specified
-(decisions.md, Open Question 1);
+(decisions.md, Decision 17 — deferral is legitimate only at the
+artifact's ceiling or across a named architectural boundary);
 what is normative now:
 the closure MUST be a fixpoint (no truncation at a depth bound),
 and the semantics is *consulted* (strength `Consulted`, §1.3),
 not load-bearing dependency.
 
+**The closure ceiling MUST be stated per producer, because it
+bounds what unit granularity buys.** Where a prover checks a
+function's obligations in one solver query and assumes callee
+contracts whole (Verus does both, §5.5), every discharge unit
+inside a function carries the identical function-level consulted
+closure: finer units buy precise identity and legible failures,
+not smaller witnesses, and discharge verdicts within one function
+do not differ across its units at Consulted strength.
+Reports and documentation MUST NOT present clause-level units as
+implying clause-level evidence.
+
 ### 5.5 The Verus producer {#verus-producer}
 
 Grounded empirically (2026-07-26, Verus 0.2026.05.24.ecee80a,
-`cargo verus build -p duvet-coverage -- --log vir-sst`):
+`cargo verus build -p duvet-coverage -- --log vir-sst`;
+artifact granularity investigation and solver-replay spike
+concluded 2026-07-29):
 
 - The artifact is per-module `*-sst.vir` S-expression files.
   Top-level `FunctionSst` blocks carry a fully-qualified name
@@ -528,25 +548,36 @@ Grounded empirically (2026-07-26, Verus 0.2026.05.24.ecee80a,
   edges. A flat span inventory of one block covers essentially
   only its own extent, which is why §5.2's parse-into-structure
   requirement is a MUST and not an optimization.
-- Sub-function structure (`:enss` clause lists,
-  `LoopInv` nodes) exists in the artifact;
-  finer-than-function discharge units are therefore expressible
-  later without a format change.
-- The Verus producer MUST treat `FunctionSst` blocks as nodes and
-  `Fun :path` references as edges,
-  and MUST support whole-proof-fn discharge units in its first
-  version. Finer units MAY follow.
-  Its attribution rule: an obligation is a discharge unit for a
-  position iff it is *rooted* there —
-  extent containment, plus proof-element spans
-  (`:enss` clauses, `LoopInv` nodes, proof asserts) as they are
-  supported; all rooting obligations, one witness each
-  (§5.3, Decisions 12 and 13).
+- Sub-function structure carries per-unit spans: `:enss` clause
+  lists (one span per ensures clause), `LoopInv` nodes, and
+  proof-assert spans. Clause-level discharge units are the
+  artifact's demonstrated rooting maximum.
+- The closure is function-level, as a semantic fact of the
+  encoding rather than a logging gap: all of a function's ensures
+  clauses are checked in one solver query (one `PostConditionSst`,
+  one folded `ens_exps` list), and a callee's entire ensures is
+  assumed at every call site. Per-clause needed sets exist only
+  at the solver level (recoverable by z3 replay with cores —
+  demonstrated, and deliberately not consumed; decisions.md,
+  Decision 7).
+- The Verus producer MUST treat `FunctionSst` blocks as closure
+  nodes and `Fun :path` references as edges, and MUST support
+  discharge units of all four kinds: obligation extents,
+  `:enss` clause spans, `LoopInv` spans, and proof-assert spans
+  (decisions.md, Decision 18).
+  Rooting is most-specific-wins (§5.3, Decision 19);
+  ties at one specificity level yield all owners
+  (Decisions 12 and 13).
   Own-span (body-line) ownership is NOT attribution:
   executable body lines are outside `dom(du)`.
   Loop header lines are excluded from `dom(du)` initially
   (the artifact would support them via loop isolation;
   deliberately deferred).
+- Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
+  when the artifact records it, otherwise span identity
+  (function path + unit kind + clause index).
+  Until the upstream `proof_note`-on-ensures defect is fixed,
+  ensures-clause labels MUST come from span identity.
 
 ---
 

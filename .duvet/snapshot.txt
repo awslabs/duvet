@@ -315,19 +315,26 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
 
   SECTION: [5.3 Discharge unit](#discharge-unit)
     TEXT[!MUST]: Its domain (`dom(du)`) MUST contain only positions where an
-    TEXT[!MUST]: obligation is *rooted* — proof-element positions:
-    TEXT[!MUST]: fn/lemma headers, ensures clauses, loop invariants, proof asserts.
+    TEXT[!MUST]: obligation is *rooted* — proof-element positions,
+    TEXT[!MUST]: at every granularity the artifact demonstrably records
+    TEXT[!MUST]: (decisions.md, Decisions 13, 17, 18):
+    TEXT[!MUST]: fn/lemma headers (obligation extents), ensures clauses,
+    TEXT[!MUST]: loop invariants, and proof asserts.
     TEXT[!MUST]: Executable body lines MUST NOT be in the domain:
     TEXT[!MUST]: they are proof ingredients (consulted material), not claims,
     TEXT[!MUST]: and a test annotation there is not a proof-world test
     TEXT[!MUST]: (decisions.md, Decision 13).
-    TEXT[!MAY]: Attribution MAY be ambiguous *within the domain*: provers stamp
-    TEXT[!MAY]: generated obligations with the source range of the declaration
-    TEXT[!MAY]: they were generated from,
-    TEXT[!MAY]: so one proof-testable position can root several obligations.
-    TEXT[!MUST]: When N obligations root a position, the producer MUST deliver one
-    TEXT[!MUST]: witness per rooting obligation and MUST NOT select among them
-    TEXT[!MUST]: (decisions.md, Decision 12).
+    TEXT[!MUST]: A producer MUST NOT hoist an
+    TEXT[!MUST]: annotation placed on a clause, invariant, or assert to the
+    TEXT[!MUST]: enclosing function's unit.
+    TEXT[!MAY]: Attribution MAY be ambiguous *within one specificity level*:
+    TEXT[!MAY]: provers stamp generated obligations with the source range of the
+    TEXT[!MAY]: declaration they were generated from,
+    TEXT[!MAY]: so one proof-testable position can root several obligations at
+    TEXT[!MAY]: the same level.
+    TEXT[!MUST]: When N obligations root a position at the chosen level, the
+    TEXT[!MUST]: producer MUST deliver one witness per rooting obligation and
+    TEXT[!MUST]: MUST NOT select among them (decisions.md, Decision 12).
 
   SECTION: [5.4 Closure](#closure)
     TEXT[!MUST]: A constructed witness's `files` maps MUST equal the source spans
@@ -343,22 +350,31 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: constructed witness.
     TEXT[!MUST]: The closure MUST be computed at the finest granularity the
     TEXT[!MUST]: artifact demonstrably supports
-    TEXT[!MUST]: (decisions.md, Decision 17 — deferral is legitimate only where
-    TEXT[!MUST]: the artifact itself is the limit);
-    TEXT[!MUST]: the precision of "reachable" is bounded by the granularity of the
-    TEXT[!MUST]: prover's graph and its finer levels are not yet fully specified
-    TEXT[!MUST]: (decisions.md, Open Question 1);
+    TEXT[!MUST]: (decisions.md, Decision 17 — deferral is legitimate only at the
+    TEXT[!MUST]: artifact's ceiling or across a named architectural boundary);
     TEXT[!MUST]: what is normative now:
     TEXT[!MUST]: the closure MUST be a fixpoint (no truncation at a depth bound),
     TEXT[!MUST]: and the semantics is *consulted* (strength `Consulted`, §1.3),
     TEXT[!MUST]: not load-bearing dependency.
+    TEXT[!MUST]: **The closure ceiling MUST be stated per producer, because it
+    TEXT[!MUST]: bounds what unit granularity buys.** Where a prover checks a
+    TEXT[!MUST]: function's obligations in one solver query and assumes callee
+    TEXT[!MUST]: contracts whole (Verus does both, §5.5), every discharge unit
+    TEXT[!MUST]: inside a function carries the identical function-level consulted
+    TEXT[!MUST]: closure: finer units buy precise identity and legible failures,
+    TEXT[!MUST]: not smaller witnesses, and discharge verdicts within one function
+    TEXT[!MUST]: do not differ across its units at Consulted strength.
+    TEXT[!MUST]: Reports and documentation MUST NOT present clause-level units as
+    TEXT[!MUST]: implying clause-level evidence.
 
   SECTION: [5.5 The Verus producer](#verus-producer)
     TEXT[!MUST]: A flat span inventory of one block covers essentially
     TEXT[!MUST]:   only its own extent, which is why §5.2's parse-into-structure
     TEXT[!MUST]:   requirement is a MUST and not an optimization.
-    TEXT[!MUST]: - The Verus producer MUST treat `FunctionSst` blocks as nodes and
-    TEXT[!MUST]:   `Fun :path` references as edges,
-    TEXT[!MUST]:   and MUST support whole-proof-fn discharge units in its first
-    TEXT[!MUST]:   version.
-    TEXT[!MAY]: Finer units MAY follow.
+    TEXT[!MUST]: - The Verus producer MUST treat `FunctionSst` blocks as closure
+    TEXT[!MUST]:   nodes and `Fun :path` references as edges, and MUST support
+    TEXT[!MUST]:   discharge units of all four kinds: obligation extents,
+    TEXT[!MUST]:   `:enss` clause spans, `LoopInv` spans, and proof-assert spans
+    TEXT[!MUST]:   (decisions.md, Decision 18).
+    TEXT[!MUST]:   Until the upstream `proof_note`-on-ensures defect is fixed,
+    TEXT[!MUST]:   ensures-clause labels MUST come from span identity.
