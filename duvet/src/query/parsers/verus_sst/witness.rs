@@ -5,20 +5,20 @@
 //!
 //! The types below are the *producer's own* output shapes. They
 //! anticipate spec §1.2 (Witness) and §1.3 (Provenance) but are
-//! deliberately not the engine's types: engine wiring is a later
-//! milestone, and per spec §1.7 the producer-internal artifact
+//! deliberately not the engine's types: engine wiring lives in
+//! `producers.rs`, and per spec §1.7 the producer-internal artifact
 //! format must not escape — these types are the boundary at which
 //! it stops.
 //!
-//! Discharge-unit granularity in this first version is
-//! whole-proof-fn (spec §5.5): the discharge unit of a position is
-//! the `FunctionSst` node whose extent contains it. Finer units
-//! (`:enss` clauses, `LoopInv` nodes) exist in the artifact and may
-//! follow without a format change.
+//! Discharge units exist at every granularity the artifact records
+//! (spec §5.3): obligation extents, ensures clauses, loop
+//! invariants, and proof asserts. Every unit inside a function
+//! carries the function's consulted closure (spec §5.4 — the
+//! closure ceiling).
 
 use super::{
     closure::{closure, FileLines},
-    structure::{ObligationGraph, ObligationNode, Span},
+    structure::{ClauseUnit, ObligationGraph, ObligationNode, Span, UnitKind},
 };
 
 /// How a test annotation claims this witness (spec §1.5).
@@ -54,12 +54,15 @@ pub struct Provenance {
 }
 
 /// One act of checking: a prover obligation's successful
-/// verification, with everything its elaboration consulted
-/// (spec §1.2, restricted to project files).
+/// verification, scoped to one discharge unit, with everything the
+/// obligation's elaboration consulted (spec §1.2, restricted to
+/// project files).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct VerusWitness {
-    /// Human-readable identity: the obligation's fully-qualified
-    /// path.
+    /// Human-readable identity of the discharge unit
+    /// (spec §5.5, Decision 20): the obligation's fully-qualified
+    /// path for extent units; `proof_note` text or span identity
+    /// for clause-kind units.
     pub label: String,
     pub claim: ClaimRule,
     pub provenance: Provenance,
@@ -81,11 +84,11 @@ pub const NOT_PROOF_TESTABLE: &str = "this position carries no dischargeable obl
 /// (spec §5.2/§5.3, Decision 13).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PositionKind<'g> {
-    /// In `dom(du)`: at least one obligation is rooted here.
-    /// Several when generated obligations share one stamped extent
-    /// (Decision 12); under Decision 14 the annotation is held to
-    /// ALL of them.
-    Rooted(Vec<&'g ObligationNode>),
+    /// In `dom(du)`: at least one discharge unit is rooted here.
+    /// Several when byte-identical spans tie at one specificity
+    /// level (Decision 12); under Decision 14 the annotation is
+    /// held to ALL of them.
+    Rooted(Vec<DischargeUnit<'g>>),
     /// Elaborated by the verifier but rooting nothing: an
     /// executable body line — proof *ingredient*, not a claim. A
     /// test annotation here gets zero proof witnesses by
@@ -98,18 +101,71 @@ pub enum PositionKind<'g> {
     Unelaborated,
 }
 
+/// One discharge unit, resolved against its owning obligation: the
+/// pair (obligation, unit span) plus the unit's kind and report
+/// label. The obligation is the closure root; the unit span is the
+/// `ByRootSpan` claim.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DischargeUnit<'g> {
+    /// The owning obligation (the `FunctionSst` node).
+    pub node: &'g ObligationNode,
+    pub kind: UnitKind,
+    /// The unit's own span: the node extent for `Extent` units, the
+    /// clause/invariant/assert span otherwise.
+    pub span: Span,
+    /// Report label (spec §5.5, Decision 20).
+    pub label: String,
+}
+
+impl<'g> DischargeUnit<'g> {
+    fn extent(node: &'g ObligationNode) -> Self {
+        DischargeUnit {
+            node,
+            kind: UnitKind::Extent,
+            span: node.extent.clone(),
+            label: node.name.clone(),
+        }
+    }
+
+    //= design/witness/spec.md#verus-producer
+    //= type=implementation
+    //# Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
+    //# when the artifact records it, otherwise span identity
+    //# (function path + unit kind + clause index).
+    fn clause(node: &'g ObligationNode, unit: &ClauseUnit) -> Self {
+        let label = match &unit.note {
+            Some(text) => text.clone(),
+            None => format!("{} {}[{}]", node.name, unit.kind.token(), unit.index),
+        };
+        DischargeUnit {
+            node,
+            kind: unit.kind,
+            span: unit.span.clone(),
+            label,
+        }
+    }
+}
+
 /// Classify a position against the artifact (Decision 13).
 ///
-/// The domain check is exact from the start — it is the soundness
-/// boundary: a position is in `dom(du)` iff an obligation is
-/// *rooted* there, and today rooting means extent containment
-/// (fn/lemma headers, plus whatever contract lines the extent
-/// spans). Finer proof-element rootings (`:enss` clause spans,
-/// `LoopInv` nodes, proof asserts) are present in the artifact and
-/// may land incrementally — they can only move positions from
-/// `NotProofTestable` to `Rooted`, never the reverse. Loop headers
-/// are deliberately excluded (Decision 13: revisitable with
-/// evidence).
+/// The domain check is exact — it is the soundness boundary: a
+/// position is in `dom(du)` iff a discharge unit is *rooted* there.
+///
+//= design/witness/spec.md#discharge-unit
+//= type=implementation
+//# Its domain (`dom(du)`) MUST contain only positions where an
+//# obligation is *rooted* — proof-element positions,
+//# at every granularity the artifact demonstrably records
+//# (decisions.md, Decisions 13, 17, 18):
+//# fn/lemma headers (obligation extents), ensures clauses,
+//# loop invariants, and proof asserts.
+///
+//= design/witness/spec.md#discharge-unit
+//= type=implementation
+//# Executable body lines MUST NOT be in the domain:
+//# they are proof ingredients (consulted material), not claims,
+//# and a test annotation there is not a proof-world test
+//# (decisions.md, Decision 13).
 pub fn classify_position<'g>(
     graph: &'g ObligationGraph,
     file: &str,
@@ -130,76 +186,99 @@ pub fn classify_position<'g>(
     }
 }
 
-/// Map an annotation position to its rooting obligation(s) —
-/// `du` (spec §5.3, Decisions 9, 12, 13).
+/// Map an annotation position to the discharge unit(s) it roots —
+/// `du` (spec §5.3, Decisions 9, 12, 13, 18, 19).
 ///
-/// Attribution is by **extent containment only**: the obligations
-/// whose extent contains the position, restricted to those of
-/// minimal extent size (strict nesting yields the innermost alone).
-/// *Equal* minimal extents are the stamped-generated-obligation
-/// situation (the corpus's arrow-accessor pair shares extent
-/// types.rs 154..=166 exactly): per Decision 12 every tied node is
-/// a unit, the producer MUST NOT select among them, and per
-/// Decision 14 the annotation is held to all of them.
+//= design/witness/spec.md#discharge-unit
+//= type=implementation
+//# **Rooting is most-specific-wins** (decisions.md, Decision 19):
+//# an annotation roots the finest unit whose span contains its
+//# resolved position; the enclosing extent is the fallback for
+//# positions inside no finer unit. A producer MUST NOT hoist an
+//# annotation placed on a clause, invariant, or assert to the
+//# enclosing function's unit.
 ///
-/// Decision 13 deleted the former own-span-ownership fallback:
-/// attributing a body line to the enclosing obligation constructed
-/// a witness whose `ByRootSpan` claim could not contain the
-/// annotation that requested it — a dead witness from two
-/// geometries answering differently. Body lines are not in
-/// `dom(du)` at all; [`classify_position`] reports them
-/// [`PositionKind::NotProofTestable`].
+/// Two specificity levels: clause-kind units (ensures clauses,
+/// loop invariants, proof asserts) and obligation extents. A
+/// position inside any clause-kind unit roots at the clause level
+/// and the extent level never applies; the extent level is the
+/// fallback. Within the winning level, nesting resolves to the
+/// units of minimal line extent.
 ///
-/// Empirical extent shapes (golden corpus, 2026-07-27): proof-mode
-/// fns carry whole-body extents (`lemma_no_cross_scope_leakage`,
-/// 54..=61 — its ensures lines are in-domain via containment);
-/// exec/spec fns carry declaration extents that may span the
-/// contract header (`execution_set`, 62..=66) or a single line
-/// (`self_contained` in the vacuity fixture) — 31 of 64 unique
-/// `duvet_coverage` obligations are single-line. Contract lines
-/// outside the extent join the domain when `:enss` rooting lands.
+//= design/witness/spec.md#discharge-unit
+//= type=implementation
+//# When N obligations root a position at the chosen level, the
+//# producer MUST deliver one witness per rooting obligation and
+//# MUST NOT select among them (decisions.md, Decision 12).
 ///
-/// Order is deterministic (ascending by obligation name).
+/// Order is deterministic: ascending by obligation name, then unit
+/// kind, then clause index (via label).
 pub fn find_discharge_units<'g>(
     graph: &'g ObligationGraph,
     file: &str,
     line: u32,
-) -> Vec<&'g ObligationNode> {
-    let containing: Vec<&ObligationNode> = graph
+) -> Vec<DischargeUnit<'g>> {
+    let minimal = |mut units: Vec<DischargeUnit<'g>>| -> Vec<DischargeUnit<'g>> {
+        let Some(min_size) = units.iter().map(|u| u.span.line_count()).min() else {
+            return Vec::new();
+        };
+        units.retain(|u| u.span.line_count() == min_size);
+        units
+    };
+
+    let clause_level: Vec<DischargeUnit<'g>> = graph
         .nodes
         .values()
-        .filter(|n| n.extent.contains(file, line))
+        .flat_map(|n| n.units.iter().map(move |u| (n, u)))
+        .filter(|(_, u)| u.span.contains(file, line))
+        .map(|(n, u)| DischargeUnit::clause(n, u))
         .collect();
-    let Some(min_size) = containing.iter().map(|n| n.extent.line_count()).min() else {
-        return Vec::new();
-    };
-    containing
-        .into_iter()
-        .filter(|n| n.extent.line_count() == min_size)
-        .collect()
+    if !clause_level.is_empty() {
+        return minimal(clause_level);
+    }
+
+    minimal(
+        graph
+            .nodes
+            .values()
+            .filter(|n| n.extent.contains(file, line))
+            .map(DischargeUnit::extent)
+            .collect(),
+    )
 }
 
-/// The witness of one obligation: a pure function of
-/// (artifact, obligation) — no annotation identity anywhere
+/// The witness of one discharge unit: a pure function of
+/// (artifact, unit) — no annotation identity anywhere
 /// (spec §1.7: the annotations input is a semantically inert
 /// optimization). Shared by [`construct_witnesses`] and
 /// [`materialize_all`] so annotation-driven and full-universe
 /// production cannot diverge by construction.
+///
+//= design/witness/spec.md#closure
+//= type=implementation
+//# **The closure ceiling MUST be stated per producer, because it
+//# bounds what unit granularity buys.** Where a prover checks a
+//# function's obligations in one solver query and assumes callee
+//# contracts whole (Verus does both, §5.5), every discharge unit
+//# inside a function carries the identical function-level consulted
+//# closure: finer units buy precise identity and legible failures,
+//# not smaller witnesses, and discharge verdicts within one function
+//# do not differ across its units at Consulted strength.
 fn witness_for_unit(
     graph: &ObligationGraph,
-    unit: &ObligationNode,
+    unit: &DischargeUnit<'_>,
     artifact: &str,
     project: impl Fn(&str) -> bool,
 ) -> VerusWitness {
-    let closure =
-        closure(graph, &unit.name, project).expect("unit came from this graph; root must exist");
+    let closure = closure(graph, &unit.node.name, project)
+        .expect("unit came from this graph; root must exist");
     VerusWitness {
-        label: unit.name.clone(),
-        claim: ClaimRule::ByRootSpan(unit.extent.clone()),
+        label: unit.label.clone(),
+        claim: ClaimRule::ByRootSpan(unit.span.clone()),
         provenance: Provenance {
             producer: PRODUCER,
             artifact: artifact.to_string(),
-            discharge_unit: Some(unit.name.clone()),
+            discharge_unit: Some(unit.node.name.clone()),
             strength: Strength::Consulted,
         },
         files: closure.files,
@@ -207,13 +286,13 @@ fn witness_for_unit(
 }
 
 /// Construct the witnesses for an annotation resolved to `file:line`
-/// (spec §5.2 pass 2, §5.5): one witness per rooting obligation.
+/// (spec §5.2 pass 2, §5.5): one witness per rooted discharge unit.
 ///
-/// Usually a singleton. Equal-extent ties (Decision 12) yield one
-/// witness per rooting obligation, each individually A2-sound (one
-/// obligation, its own closure, its own root span); under
-/// Decision 14 discharge holds the annotation to all of them.
-/// Empty when the position is outside `dom(du)` — use
+/// Usually a singleton. Byte-identical span ties at one specificity
+/// level (Decision 12) yield one witness per rooting unit, each
+/// individually A2-sound (one unit, its function's closure, its own
+/// root span); under Decision 14 discharge holds the annotation to
+/// all of them. Empty when the position is outside `dom(du)` — use
 /// [`classify_position`] to distinguish not-proof-testable
 /// (Decision 13 report) from unelaborated (Property W6).
 pub fn construct_witnesses(
@@ -225,13 +304,27 @@ pub fn construct_witnesses(
 ) -> Vec<VerusWitness> {
     find_discharge_units(graph, file, line)
         .into_iter()
-        .map(|unit| witness_for_unit(graph, unit, artifact, &project))
+        .map(|unit| witness_for_unit(graph, &unit, artifact, &project))
+        .collect()
+}
+
+/// Every discharge unit the artifact records, in ascending
+/// (obligation name, unit kind, clause index) order: obligation
+/// extents plus all clause-kind units of every node (spec §5.3,
+/// Decision 18).
+pub fn all_units(graph: &ObligationGraph) -> Vec<DischargeUnit<'_>> {
+    graph
+        .nodes
+        .values()
+        .flat_map(|n| {
+            std::iter::once(DischargeUnit::extent(n))
+                .chain(n.units.iter().map(move |u| DischargeUnit::clause(n, u)))
+        })
         .collect()
 }
 
 /// Materialize-everything mode (spec §1.7): the full witness
-/// universe, one witness per obligation in the artifact, in
-/// ascending obligation-name order.
+/// universe, one witness per discharge unit in the artifact.
 ///
 /// The annotations argument of `produce` only *selects* members of
 /// this universe; it never changes their content. This function is
@@ -242,9 +335,8 @@ pub fn materialize_all(
     artifact: &str,
     project: impl Fn(&str) -> bool,
 ) -> Vec<VerusWitness> {
-    graph
-        .nodes
-        .values()
+    all_units(graph)
+        .iter()
         .map(|unit| witness_for_unit(graph, unit, artifact, &project))
         .collect()
 }
@@ -265,8 +357,8 @@ mod tests {
         ObligationGraph::merge([parse_module(TWO_FNS).unwrap()]).unwrap()
     }
 
-    fn unit_names(units: &[&super::super::structure::ObligationNode]) -> Vec<String> {
-        units.iter().map(|n| n.name.clone()).collect()
+    fn unit_names(units: &[DischargeUnit<'_>]) -> Vec<String> {
+        units.iter().map(|u| u.node.name.clone()).collect()
     }
 
     #[test]

@@ -58,6 +58,32 @@ pub fn self_contained(x: u32) -> (r: u32)
     y
 }
 
+// ---- Scenario D: unit labels from the artifact ----------------------
+// A loop with a proof_note'd invariant and a proof_note'd assert,
+// plus unnoted siblings. Pins Decision 20 label extraction:
+// ProofNoteLabel text when recorded, span identity otherwise.
+pub fn noted_loop(n: u32) -> (r: u32)
+    requires n <= 100,
+    ensures r <= 100,
+{
+    let mut i: u32 = 0;
+    while i < n
+        invariant
+            #[verifier::proof_note("i stays bounded")]
+            i <= n,
+            n <= 100,
+        decreases n - i,
+    {
+        i = i + 1;
+    }
+    proof {
+        #[verifier::proof_note("loop exit bound")]
+        assert(i <= 100);
+        assert(i >= 0);
+    }
+    i
+}
+
 } // verus!
 
 fn main() {}

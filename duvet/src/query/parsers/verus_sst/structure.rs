@@ -37,7 +37,7 @@ use std::{
 ///
 /// Column information is parsed and discarded: the witness model is
 /// line-granular (`files: Map<FilePath, line → status>`, spec §1.2).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Span {
     pub file: String,
     pub start_line: u32,
@@ -82,6 +82,51 @@ impl Span {
     }
 }
 
+/// The kind of a discharge unit (spec §5.3, §5.5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum UnitKind {
+    /// The obligation's own head extent (fn/lemma header).
+    Extent,
+    /// One `:enss` clause entry.
+    Ensures,
+    /// One `LoopInv` node's `:inv` expression.
+    LoopInvariant,
+    /// One `Stm Assert` inside the obligation's proof check.
+    ProofAssert,
+}
+
+impl UnitKind {
+    /// Report-label token for span-identity labels.
+    pub fn token(self) -> &'static str {
+        match self {
+            UnitKind::Extent => "extent",
+            UnitKind::Ensures => "ensures",
+            UnitKind::LoopInvariant => "loop_invariant",
+            UnitKind::ProofAssert => "proof_assert",
+        }
+    }
+}
+
+/// A sub-function discharge unit recorded by the artifact: one
+/// ensures clause, loop invariant, or proof assert, with its own
+/// span (spec §5.5 — the artifact records a distinct span per
+/// clause/invariant/assert).
+///
+/// `Extent` units are not stored here; the node's `extent` field is
+/// that unit. `index` is the unit's position within its kind's
+/// artifact order in the defining block, giving span-identity
+/// labels a stable clause index.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ClauseUnit {
+    pub kind: UnitKind,
+    pub index: usize,
+    pub span: Span,
+    /// `ProofNoteLabel :text` found inside the unit's expression,
+    /// when the artifact records one. Never populated for
+    /// `Ensures` units — see [`parse_module`].
+    pub note: Option<String>,
+}
+
 /// One prover obligation: a top-level `FunctionSst` block.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObligationNode {
@@ -89,6 +134,9 @@ pub struct ObligationNode {
     pub name: String,
     /// The block's own head span.
     pub extent: Span,
+    /// Sub-function discharge units (ensures clauses, loop
+    /// invariants, proof asserts), in kind-then-artifact order.
+    pub units: Vec<ClauseUnit>,
     /// Every span inside the block, expanded to per-file line sets.
     /// Unfiltered: project-file filtering is a *view* applied by
     /// closure/aggregation, not baked into the structure.
@@ -185,6 +233,8 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
             head: head_span.to_string(),
         })?;
 
+        let units = clause_units(items);
+
         let mut spans: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
         let mut edges = BTreeSet::new();
         // Walk the whole top-level node (including its own head span)
@@ -231,12 +281,195 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
         nodes.push(ObligationNode {
             name,
             extent,
+            units,
             spans,
             edges,
         });
     }
 
     Ok(nodes)
+}
+
+/// Extract the sub-function discharge units of one `FunctionSst`
+/// item list.
+///
+//= design/witness/spec.md#verus-producer
+//= type=implementation
+//# The Verus producer MUST treat `FunctionSst` blocks as closure
+//# nodes and `Fun :path` references as edges, and MUST support
+//# discharge units of all four kinds: obligation extents,
+//# `:enss` clause spans, `LoopInv` spans, and proof-assert spans
+//# (decisions.md, Decision 18).
+///
+/// Artifact shapes (empirical, Verus 0.2026.05.24.ecee80a,
+/// 2026-07-29):
+///
+/// - Ensures clauses: the `:enss` field is `(tuple (exp ...)
+///   (exp ...))` — two clause lists whose entries are
+///   `(@@ "span" (Exp ...))`, one entry per declared clause. Both
+///   slots are consumed; clause indices run over the
+///   concatenation.
+/// - Loop invariants: `(LoopInv :at_entry _ :at_exit _ :inv
+///   (@@ "span" (Exp ...)))` nodes; the unit span is the `:inv`
+///   expression's span.
+/// - Proof asserts: `(@ "span" (Stm Assert (id) _ ...))`
+///   statements; the unit span is the statement's head span.
+///
+/// Loop invariants and asserts are collected from the
+/// `:exec_proof_check` subtree only: the `:recommends_check`
+/// subtree re-records the same statements for the recommends
+/// query (plus generated "recommendation not met" asserts that are
+/// not user proof elements), and imported re-logged declarations
+/// carry `:exec_proof_check None`, so this scoping both prevents
+/// duplicates and keeps generated recommends checks out of
+/// `dom(du)`.
+///
+//= design/witness/spec.md#verus-producer
+//= type=implementation
+//# Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
+//# when the artifact records it, otherwise span identity
+//# (function path + unit kind + clause index).
+///
+//= design/witness/spec.md#verus-producer
+//= type=implementation
+//# Until the upstream `proof_note`-on-ensures defect is fixed,
+//# ensures-clause labels MUST come from span identity.
+fn clause_units(items: &[Sexpr<'_>]) -> Vec<ClauseUnit> {
+    let mut units = Vec::new();
+
+    // Ensures clauses: both `:enss` tuple slots (inside the
+    // `:decl (FuncDeclSst ...)` sub-structure), in order.
+    let enss = field_value(items, ":decl")
+        .and_then(Sexpr::as_list)
+        .and_then(|decl| field_value(decl, ":enss"))
+        .and_then(Sexpr::as_list);
+    if let Some(enss) = enss {
+        if enss.first().and_then(Sexpr::as_atom) == Some("tuple") {
+            let mut index = 0usize;
+            for slot in &enss[1..] {
+                let Some(clauses) = slot.as_list() else {
+                    continue;
+                };
+                for clause in clauses {
+                    let Some((span_str, _)) = as_at_node(clause) else {
+                        continue;
+                    };
+                    let Some(span) = Span::parse(span_str) else {
+                        continue;
+                    };
+                    units.push(ClauseUnit {
+                        kind: UnitKind::Ensures,
+                        index,
+                        span,
+                        // Never consumed for ensures (Decision 20
+                        // hazard rule): span identity only.
+                        note: None,
+                    });
+                    index += 1;
+                }
+            }
+        }
+    }
+
+    // Loop invariants and proof asserts: `:exec_proof_check` only.
+    let Some(check) = field_value(items, ":exec_proof_check") else {
+        return units;
+    };
+    let (mut inv_index, mut assert_index) = (0usize, 0usize);
+    let mut work: Vec<&Sexpr> = vec![check];
+    while let Some(e) = work.pop() {
+        let Sexpr::List(list) = e else { continue };
+        match list.as_slice() {
+            // (LoopInv :at_entry _ :at_exit _ :inv (@@ "span" exp))
+            [Sexpr::Atom("LoopInv"), rest @ ..] => {
+                if let Some(inv) = field_value(rest, ":inv") {
+                    if let Some((span_str, exp)) = as_at_node(inv) {
+                        if let Some(span) = Span::parse(span_str) {
+                            units.push(ClauseUnit {
+                                kind: UnitKind::LoopInvariant,
+                                index: inv_index,
+                                span,
+                                note: proof_note(exp),
+                            });
+                            inv_index += 1;
+                        }
+                    }
+                }
+            }
+            // (@ "span" (Stm Assert (id) _ exp ...))
+            [Sexpr::Atom("@") | Sexpr::Atom("@@"), Sexpr::Str(span_str), payload, ..]
+                if is_stm_assert(payload) =>
+            {
+                if let Some(span) = Span::parse(span_str) {
+                    units.push(ClauseUnit {
+                        kind: UnitKind::ProofAssert,
+                        index: assert_index,
+                        span,
+                        note: proof_note(payload),
+                    });
+                    assert_index += 1;
+                }
+                // Do not descend: an assert's expression can carry
+                // further span-shaped strings but no nested units.
+                continue;
+            }
+            _ => {}
+        }
+        // Reverse push so the worklist pops in document order —
+        // unit indices are document-order positions.
+        work.extend(list.iter().rev());
+    }
+
+    units
+}
+
+/// Match a *user* proof assert: `(Stm Assert (id) None ...)`.
+///
+/// The fourth element is the generated-diagnostic slot: `None` for
+/// user-written `assert(...)` statements, `(Message :level Error
+/// :note "possible arithmetic underflow/overflow" ...)` (and
+/// similar) for compiler-generated overflow/bounds/recommends
+/// checks. Generated checks sit on executable body lines — proof
+/// ingredients, not claims — so they are not discharge units
+/// (spec §5.3: executable body lines MUST NOT be in the domain).
+fn is_stm_assert(e: &Sexpr<'_>) -> bool {
+    matches!(
+        e.as_list(),
+        Some([
+            Sexpr::Atom("Stm"),
+            Sexpr::Atom("Assert"),
+            _,
+            Sexpr::Atom("None"),
+            ..
+        ])
+    )
+}
+
+/// First `(ProofNoteLabel :text "..." ...)` in an expression
+/// subtree, depth-first.
+///
+/// Empirical shape (probe artifact, 2026-07-29): a noted
+/// clause/assert wraps its expression as `(Exp UnaryOpr (UnaryOpr
+/// ProofNote (ProofNoteLabel :text "..." :is_custom_err false))
+/// inner)`, possibly below other operators.
+fn proof_note(e: &Sexpr<'_>) -> Option<String> {
+    let mut work: Vec<&Sexpr> = vec![e];
+    while let Some(e) = work.pop() {
+        let Sexpr::List(list) = e else { continue };
+        if let [Sexpr::Atom("ProofNoteLabel"), rest @ ..] = list.as_slice() {
+            if let Some(Sexpr::Str(text)) = field_value(rest, ":text") {
+                return Some((*text).to_string());
+            }
+        }
+        work.extend(list.iter());
+    }
+    None
+}
+
+/// Find the value following a `:field` atom in an item list.
+fn field_value<'a, 'b>(items: &'b [Sexpr<'a>], field: &str) -> Option<&'b Sexpr<'a>> {
+    let pos = items.iter().position(|e| e.as_atom() == Some(field))?;
+    items.get(pos + 1)
 }
 
 impl ObligationGraph {
@@ -264,6 +497,15 @@ impl ObligationGraph {
                             existing.spans.entry(file).or_default().extend(lines);
                         }
                         existing.edges.extend(node.edges);
+                        // Re-logged declarations repeat the same
+                        // clause units (and only the defining module
+                        // carries a proof check): union by value.
+                        for unit in node.units {
+                            if !existing.units.contains(&unit) {
+                                existing.units.push(unit);
+                            }
+                        }
+                        existing.units.sort();
                     }
                 }
             }
@@ -388,5 +630,72 @@ mod tests {
         .unwrap();
         let err = ObligationGraph::merge([parse_module(MINI).unwrap(), conflicting]).unwrap_err();
         assert!(matches!(err, StructureError::ExtentConflict { .. }));
+    }
+
+    // A block with every unit-kind shape the artifact records
+    // (spec §5.5): two ensures clauses split across the two
+    // `:enss` tuple slots, a noted and an unnoted loop invariant,
+    // a noted user assert, and a generated (Message-slot) assert.
+    const UNITS: &str = r#"
+(@ "src/u.rs:10:1: 12:2 (#0)"
+ (FunctionSst :name (Fun :path crate::units)
+  :decl (FuncDeclSst :reqs ()
+   :enss (tuple
+    ((@@ "src/u.rs:20:9: 21:30 (#0)"
+      (Exp UnaryOpr
+       (UnaryOpr ProofNote (ProofNoteLabel :text "smuggled" :is_custom_err false))
+       (Exp Const (Constant Bool true)))))
+    ((@@ "src/u.rs:22:9: 22:30 (#0)" (Exp Const (Constant Bool true))))))
+  :exec_proof_check (FuncCheckSst :reqs ()
+   :body (@ "src/u.rs:13:1: 40:2 (#0)" (Stm Block (
+    (Loop :invs (
+      (LoopInv :at_entry true :at_exit true :inv
+       (@@ "src/u.rs:30:13: 30:20 (#0)"
+        (Exp UnaryOpr
+         (UnaryOpr ProofNote (ProofNoteLabel :text "inv note" :is_custom_err false))
+         (Exp Const (Constant Bool true)))))
+      (LoopInv :at_entry true :at_exit true :inv
+       (@@ "src/u.rs:31:13: 31:20 (#0)" (Exp Const (Constant Bool true))))))
+    (@ "src/u.rs:35:12: 35:40 (#0)"
+     (Stm Assert (0) None
+      (@@ "src/u.rs:35:12: 35:40 (#0)"
+       (Exp UnaryOpr
+        (UnaryOpr ProofNote (ProofNoteLabel :text "assert note" :is_custom_err false))
+        (Exp Const (Constant Bool true))))))
+    (@ "src/u.rs:36:5: 36:20 (#0)"
+     (Stm Assert (1) (Message :level Error :note "possible arithmetic underflow/overflow")
+      (@@ "src/u.rs:36:5: 36:20 (#0)" (Exp Const (Constant Bool true)))))))))
+  :recommends_check (FuncCheckSst :reqs ()
+   :body (@ "src/u.rs:13:1: 40:2 (#0)" (Stm Block (
+    (Loop :invs (
+      (LoopInv :at_entry true :at_exit true :inv
+       (@@ "src/u.rs:30:13: 30:20 (#0)" (Exp Const (Constant Bool true))))))))))))
+"#;
+
+    #[test]
+    fn clause_units_of_every_kind() {
+        let nodes = parse_module(UNITS).unwrap();
+        let units = &nodes[0].units;
+        assert_eq!(
+            units
+                .iter()
+                .map(|u| (u.kind, u.index, u.span.start_line, u.note.as_deref()))
+                .collect::<Vec<_>>(),
+            [
+                // Both `:enss` tuple slots contribute, indices over
+                // the concatenation; the smuggled ProofNoteLabel is
+                // NOT consumed for ensures (Decision 20 hazard
+                // rule: span identity only).
+                (UnitKind::Ensures, 0, 20, None),
+                (UnitKind::Ensures, 1, 22, None),
+                // Loop invariants and asserts come from
+                // :exec_proof_check only — the :recommends_check
+                // copy of the invariant does not duplicate, and the
+                // generated Message-slot assert is not a unit.
+                (UnitKind::LoopInvariant, 0, 30, Some("inv note")),
+                (UnitKind::LoopInvariant, 1, 31, None),
+                (UnitKind::ProofAssert, 0, 35, Some("assert note")),
+            ]
+        );
     }
 }

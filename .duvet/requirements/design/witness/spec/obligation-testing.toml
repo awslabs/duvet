@@ -5,8 +5,6 @@ target = "design/witness/spec.md#obligation-testing"
 # Each producer MUST be unit-tested against golden artifacts
 # (a real report file; a real prover log),
 # since producers are unverified glue at the trust boundary.
-# 
-# ---
 
 [[spec]]
 level = "MUST"

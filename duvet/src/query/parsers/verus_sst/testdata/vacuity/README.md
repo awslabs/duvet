@@ -8,20 +8,29 @@ SST POC findings, 2026-07-26).
 
 Three scenarios:
 
-1. `vacuous_proof` (line 30) — vacuous premise, never mentions the
+1. `vacuous_proof` (line 32) — vacuous premise, never mentions the
    implementation. Its closure's project spans are its own extent
    only; a pair against any impl annotation fails. The vacuity
    defense that consulted semantics does provide.
-2. `vacuous_proof_mentioning` (line 41) — vacuous premise, but the
+2. `vacuous_proof_mentioning` (line 43) — vacuous premise, but the
    `ensures` textually mentions `spec_add_one`. Elaboration records
    the mention, so the closure includes `spec_add_one` and the pair
    IS credited. Deliberate: consulted semantics cannot catch
    mention-without-need; this is the flagship case for the
    needed-semantics strengthening that Decision 7 reserves room for.
-3. `self_contained` (line 52) — vacuous `ensures`, impl annotation
-   inside the same fn's body (line 55). Whole-fn discharge units
-   self-include the body, so the pair IS credited. Catching it
-   requires clause-level units AND needed semantics.
+3. `self_contained` (line 54) — vacuous `ensures`, impl annotation
+   inside the same fn's body (line 57). Discharge units carry their
+   function's closure (design/witness/spec.md §5.4), which
+   self-includes the body, so the pair IS credited — at clause
+   grain too, now that the ensures clause is its own unit.
+   Catching it requires needed semantics.
+
+Plus a label fixture:
+
+4. `noted_loop` (line 65) — a loop with a `proof_note`'d invariant
+   and a `proof_note`'d assert alongside unnoted siblings, pinning
+   Decision 20 label extraction (`ProofNoteLabel` text when
+   recorded, span identity otherwise).
 
 ## Regeneration
 
@@ -36,5 +45,5 @@ $ mv sst/root-sst.vir vacuity-sst.vir && rmdir sst
 $ rm -f vacuity            # discard the compiled binary
 ```
 
-Expected: `5 verified, 0 errors`, and spans in the log read
+Expected: `7 verified, 0 errors`, and spans in the log read
 `vacuity.rs:<line>:<col>: ...` (relative path, no directory prefix).

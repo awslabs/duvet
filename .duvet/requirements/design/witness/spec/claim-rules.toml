@@ -38,7 +38,7 @@ target = "design/witness/spec.md#claim-rules"
 # ambiguity rather than select — the same posture the producer takes
 # when translating positions into artifact coordinates.
 # Suffix matching that silently crosses two files ending in the same
-# path is a G1 (file-identity injectivity) violation and can
+# path is a G1 (file-identity injectivity, §4.4) violation and can
 # manufacture both false failures and, when closures overlap, false
 # discharges.
 

@@ -1,15 +1,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Verus SST witness producer (milestone 1: parser, structure,
-//! closure, witness construction).
+//! Verus SST witness producer: parser, structure, closure, and
+//! witness construction.
 //!
 //! Implements the producer side of `design/witness/spec.md`:
 //! §1.2/§1.3 output shapes, §4 producer obligations, §5.2 two-pass
-//! construction, §5.5 the Verus artifact. Engine wiring (the
-//! `produce : (artifacts, annotations) → Vec<Witness>` entry point
-//! of §1.7 against engine types) is a later milestone; nothing in
-//! here is reachable from `duvet query` yet.
+//! construction, §5.3 discharge units, §5.5 the Verus artifact.
+//! Engine wiring (the `produce` entry point of §1.7 against engine
+//! types) lives in `crate::query::producers`; per §1.7 the types in
+//! this module never escape it.
 //!
 //! Trusted-base note (spec §4.1): this module trusts that the SST
 //! log faithfully records what elaboration consulted — the same
@@ -17,9 +17,9 @@
 //! computation over that record is our code, golden-tested here
 //! (§4.3) and a candidate for verification in `duvet-coverage`.
 
-// Until engine wiring lands (milestone 2), the only consumer is the
-// test suite; remove this allow when the producer is reachable from
-// `duvet query`.
+// The full-universe entry points (`materialize_all`, `all_units`)
+// and some structure fields have no non-test consumer in the
+// engine path; they are the golden-test reference surface.
 #![allow(dead_code)]
 
 pub mod closure;
@@ -39,7 +39,7 @@ use structure::{ObligationGraph, StructureError};
 /// identical.
 ///
 /// Synchronous `std::fs` on purpose: the async/vfs decision belongs
-/// to engine wiring (milestone 2), and the golden tests want a
+/// to the engine boundary, and the golden tests want a
 /// plain entry point.
 pub fn load_dir(dir: &Path) -> Result<ObligationGraph, LoadError> {
     let mut sources = Vec::new();

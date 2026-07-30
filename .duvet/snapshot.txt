@@ -285,6 +285,26 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: (a real report file; a real prover log),
     TEXT[!MUST]: since producers are unverified glue at the trust boundary.
 
+  SECTION: [4.4 Engine glue](#engine-glue)
+    TEXT[!MUST]: - **G1 (file identity).** The engine adapter MUST map file paths
+    TEXT[!MUST]:   to the model's file identities injectively and consistently
+    TEXT[!MUST]:   across all annotations and witnesses in one run, and MUST
+    TEXT[!MUST]:   deliver each witness's per-file maps free of duplicate
+    TEXT[!MUST]:   identities.
+    TEXT[!MUST]: - **G2 (call obligation).** The engine MUST compute every pair,
+    TEXT[!MUST]:   test, and global verdict (Properties W1–W4, W6) by calling the
+    TEXT[!MUST]:   verified layer's functions, and MUST derive per-witness
+    TEXT[!MUST]:   failure diagnostics (§3) from the same verified cells;
+    TEXT[!MUST]:   no parallel engine-side verdict computation may exist.
+    TEXT[!MUST]: - **G3 (mode routing).** The adapter MUST assign each
+    TEXT[!MUST]:   annotation's file the scoring mode its classification actually
+    TEXT[!MUST]:   selected — classified, degraded, or the trust-boundary refusal
+    TEXT[!MUST]:   that binds nothing and executes nothing
+    TEXT[!MUST]:   (§1.4; decisions.md, Decision 15).
+    TEXT[!MUST]: The adapter MUST establish
+    TEXT[!MUST]:   the verified functions' preconditions at the boundary —
+    TEXT[!MUST]:   filter or degrade before calling, never assume.
+
   SECTION: [5.1 Witnessable annotations](#witnessable-annotations)
     TEXT[!MUST]: Prover producers MUST construct witnesses for `type=test`
     TEXT[!MUST]: annotations only

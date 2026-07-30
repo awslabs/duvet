@@ -242,12 +242,12 @@
        ) (Typ Bool)))))
   ) :exec_proof_check None :recommends_check None :safe_api_check None :async_ret None))
 
-(@ "vacuity.rs:7:1: 7:45 (#0)" (FunctionSst :name (Fun :path vacuity::spec_add_one) :kind (FunctionKind Static) :body_visibility
+(@ "vacuity.rs:9:1: 9:45 (#0)" (FunctionSst :name (Fun :path vacuity::spec_add_one) :kind (FunctionKind Static) :body_visibility
   (BodyVisibility Visibility (Visibility :restricted_to None)) :owning_module vacuity:: :mode Spec :opaqueness (Opaqueness Revealed
    :visibility (Visibility :restricted_to None)
-  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:7:31: 7:37 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:9:31: 9:37 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
      :typ (Typ Int (IntRange Int)) :mode Spec :purpose (ParPurpose Regular)))
-  ) :ret (@ "vacuity.rs:7:42: 7:45 (#0)" (Par :name (VarIdent "%return" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
+  ) :ret (@ "vacuity.rs:9:42: 9:45 (#0)" (Par :name (VarIdent "%return" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
       Int)
     ) :mode Spec :purpose (ParPurpose Regular))
   ) :ens_has_return true :item_kind (ItemKind Function) :attrs (FunctionAttrs :uses_ghost_blocks true :inline false :hidden
@@ -259,27 +259,27 @@
    false :exec_allows_no_decreases_clause false :tracked_swap false :tracked_take_option false :is_async false
   ) :has (FunctionSstHas :has_body true :has_requires false :has_ensures false :has_decrease false :has_mask_spec false :has_return_name
    true :is_recursive false
-  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:7:31: 7:37 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:9:31: 9:37 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
       :typ (Typ Int (IntRange Int)) :mode Spec :purpose (ParPurpose Regular)))
-   ) :ens_pars ((@ "vacuity.rs:7:31: 7:37 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
+   ) :ens_pars ((@ "vacuity.rs:9:31: 9:37 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
         Int)
       ) :mode Spec :purpose (ParPurpose Regular)))
    ) :reqs () :enss (tuple () ()) :inv_masks () :unwind_condition None :fndef_axioms ()
-  ) :axioms (FuncAxiomsSst :spec_axioms (FuncSpecBodySst :decrease_when None :termination_check None :body_exp (@@ "vacuity.rs:8:5: 8:10 (#0)"
-     (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:8:5: 8:6 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate
-          VirParam))
+  ) :axioms (FuncAxiomsSst :spec_axioms (FuncSpecBodySst :decrease_when None :termination_check None :body_exp (@@ "vacuity.rs:10:5: 10:10 (#0)"
+     (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:10:5: 10:6 (#0)" (Exp Var (VarIdent "x" (
+          VarIdentDisambiguate VirParam))
        ) (Typ Int (IntRange Int))
-      ) (@@ "vacuity.rs:8:9: 8:10 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
+      ) (@@ "vacuity.rs:10:9: 10:10 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
      ) (Typ Int (IntRange Int)))
    ) :proof_exec_axioms None
   ) :exec_proof_check None :recommends_check None :safe_api_check None :async_ret None))
 
-(@ "vacuity.rs:11:1: 11:34 (#0)" (FunctionSst :name (Fun :path vacuity::add_one) :kind (FunctionKind Static) :body_visibility
+(@ "vacuity.rs:13:1: 13:34 (#0)" (FunctionSst :name (Fun :path vacuity::add_one) :kind (FunctionKind Static) :body_visibility
   (BodyVisibility Visibility (Visibility :restricted_to vacuity::)) :owning_module vacuity:: :mode Exec :opaqueness (Opaqueness
    Opaque
-  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:11:16: 11:22 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:13:16: 13:22 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
      :typ (Typ Int (IntRange U 32)) :mode Exec :purpose (ParPurpose Regular)))
-  ) :ret (@ "vacuity.rs:11:31: 11:34 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U
+  ) :ret (@ "vacuity.rs:13:31: 13:34 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U
       32)
     ) :mode Exec :purpose (ParPurpose Regular))
   ) :ens_has_return true :item_kind (ItemKind Function) :attrs (FunctionAttrs :uses_ghost_blocks true :inline false :hidden
@@ -291,74 +291,74 @@
    false :exec_allows_no_decreases_clause false :tracked_swap false :tracked_take_option false :is_async false
   ) :has (FunctionSstHas :has_body true :has_requires true :has_ensures true :has_decrease false :has_mask_spec false :has_return_name
    true :is_recursive false
-  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:11:16: 11:22 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:13:16: 13:22 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
       :typ (Typ Int (IntRange U 32)) :mode Exec :purpose (ParPurpose Regular)))
-   ) :ens_pars ((@ "vacuity.rs:11:16: 11:22 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
+   ) :ens_pars ((@ "vacuity.rs:13:16: 13:22 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
         U 32)
       ) :mode Exec :purpose (ParPurpose Regular))
-    ) (@ "vacuity.rs:11:31: 11:34 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32))
+    ) (@ "vacuity.rs:13:31: 13:34 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32))
       :mode Exec :purpose (ParPurpose Regular)))
-   ) :reqs ((@@ "vacuity.rs:12:14: 12:22 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Lt)) (@@ "vacuity.rs:12:14: 12:15 (#0)"
+   ) :reqs ((@@ "vacuity.rs:14:14: 14:22 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Lt)) (@@ "vacuity.rs:14:14: 14:15 (#0)"
        (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))
-      ) (@@ "vacuity.rs:12:18: 12:22 (#0)" (Exp Const (Constant Int 1000)) (Typ Int (IntRange Nat)))
+      ) (@@ "vacuity.rs:14:18: 14:22 (#0)" (Exp Const (Constant Int 1000)) (Typ Int (IntRange Nat)))
      ) (Typ Bool))
-   ) :enss (tuple ((@@ "vacuity.rs:13:13: 13:40 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:13:13: 13:14 (#0)" (Exp Var (
+   ) :enss (tuple ((@@ "vacuity.rs:15:13: 15:40 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:15:13: 15:14 (#0)" (Exp Var (
           VarIdent "r" (VarIdentDisambiguate VirParam))
         ) (Typ Int (IntRange U 32))
-       ) (@@ "vacuity.rs:13:18: 13:40 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:13:31: 13:32 (#0)"
+       ) (@@ "vacuity.rs:15:18: 15:40 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:15:31: 15:32 (#0)"
            (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))))
         ) (Typ Int (IntRange Int)))
       ) (Typ Bool))
     ) ()
    ) :inv_masks () :unwind_condition None :fndef_axioms ()
-  ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs ((@@ "vacuity.rs:12:14: 12:22 (#0)"
-     (Exp Binary (BinaryOp Inequality (InequalityOp Lt)) (@@ "vacuity.rs:12:14: 12:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate
+  ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs ((@@ "vacuity.rs:14:14: 14:22 (#0)"
+     (Exp Binary (BinaryOp Inequality (InequalityOp Lt)) (@@ "vacuity.rs:14:14: 14:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate
           VirParam))
        ) (Typ Int (IntRange U 32))
-      ) (@@ "vacuity.rs:12:18: 12:22 (#0)" (Exp Const (Constant Int 1000)) (Typ Int (IntRange Nat)))
+      ) (@@ "vacuity.rs:14:18: 14:22 (#0)" (Exp Const (Constant Int 1000)) (Typ Int (IntRange Nat)))
      ) (Typ Bool))
-   ) :post_condition (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam)) :ens_exps ((@@ "vacuity.rs:13:13: 13:40 (#0)"
-      (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:13:13: 13:14 (#0)" (Exp Var (VarIdent "r" (VarIdentDisambiguate VirParam)))
+   ) :post_condition (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam)) :ens_exps ((@@ "vacuity.rs:15:13: 15:40 (#0)"
+      (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:15:13: 15:14 (#0)" (Exp Var (VarIdent "r" (VarIdentDisambiguate VirParam)))
         (Typ Int (IntRange U 32))
-       ) (@@ "vacuity.rs:13:18: 13:40 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:13:31: 13:32 (#0)"
+       ) (@@ "vacuity.rs:15:18: 15:40 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:15:31: 15:32 (#0)"
            (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre)) (Typ Int (IntRange U 32))))
         ) (Typ Int (IntRange Int)))
       ) (Typ Bool))
     ) :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:14:1: 17:2 (#0)" (Stm Block (
-      (@ "vacuity.rs:14:1: 17:2 (#0)" (Stm Block (
-         (@ "vacuity.rs:15:13: 15:18 (#0)" (Stm Assert (0) (Message :level Error :note "possible arithmetic underflow/overflow" :spans
-            ("vacuity.rs:15:13: 15:18 (#0)") :labels () :help None :fancy_note None
-           ) (@@ "vacuity.rs:15:13: 15:18 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange U 32))) (@@ "vacuity.rs:15:13: 15:18 (#0)"
-              (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:15:13: 15:14 (#0)" (Exp Var (VarIdent "x"
+   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:16:1: 19:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:16:1: 19:2 (#0)" (Stm Block (
+         (@ "vacuity.rs:17:13: 17:18 (#0)" (Stm Assert (0) (Message :level Error :note "possible arithmetic underflow/overflow" :spans
+            ("vacuity.rs:17:13: 17:18 (#0)") :labels () :help None :fancy_note None
+           ) (@@ "vacuity.rs:17:13: 17:18 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange U 32))) (@@ "vacuity.rs:17:13: 17:18 (#0)"
+              (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:17:13: 17:14 (#0)" (Exp Var (VarIdent "x"
                   (VarIdentDisambiguate VirParam))
                 ) (Typ Int (IntRange U 32))
-               ) (@@ "vacuity.rs:15:17: 15:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+               ) (@@ "vacuity.rs:17:17: 17:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
               ) (Typ Int (IntRange U 32)))
             ) (Typ Bool))))
-         (@ "vacuity.rs:15:13: 15:18 (#0)" (Stm Assume (@@ "vacuity.rs:15:13: 15:18 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange
+         (@ "vacuity.rs:17:13: 17:18 (#0)" (Stm Assume (@@ "vacuity.rs:17:13: 17:18 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange
                 U 32))
-             ) (@@ "vacuity.rs:15:13: 15:18 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:15:13: 15:14 (#0)"
+             ) (@@ "vacuity.rs:17:13: 17:18 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:17:13: 17:14 (#0)"
                 (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))
-               ) (@@ "vacuity.rs:15:17: 15:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+               ) (@@ "vacuity.rs:17:17: 17:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
               ) (Typ Int (IntRange U 32)))
             ) (Typ Bool))))
-         (@ "vacuity.rs:15:9: 15:10 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:15:13: 15:18 (#0)" (Exp VarLoc (VarIdent "r" (VarIdentDisambiguate
+         (@ "vacuity.rs:17:9: 17:10 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:17:13: 17:18 (#0)" (Exp VarLoc (VarIdent "r" (VarIdentDisambiguate
                 VirRenumbered :is_stmt true :does_shadow false :id 0))
              ) (Typ Int (IntRange U 32))
             ) :is_init true
-           ) :rhs (@@ "vacuity.rs:15:13: 15:18 (#0)" (Exp Unary (UnaryOp Clip :range (IntRange U 32) :truncate true) (@@ "vacuity.rs:15:13: 15:18 (#0)"
-              (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:15:13: 15:14 (#0)" (Exp Var (VarIdent "x"
+           ) :rhs (@@ "vacuity.rs:17:13: 17:18 (#0)" (Exp Unary (UnaryOp Clip :range (IntRange U 32) :truncate true) (@@ "vacuity.rs:17:13: 17:18 (#0)"
+              (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:17:13: 17:14 (#0)" (Exp Var (VarIdent "x"
                   (VarIdentDisambiguate VirParam))
                 ) (Typ Int (IntRange U 32))
-               ) (@@ "vacuity.rs:15:17: 15:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+               ) (@@ "vacuity.rs:17:17: 17:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
               ) (Typ Int (IntRange U 32)))
             ) (Typ Int (IntRange U 32))))))))
-      (@ "vacuity.rs:14:1: 17:2 (#0)" (Stm Return :assert_id (1) :base_error (Message :level Error :note "postcondition not satisfied"
-         :spans () :labels ((MessageLabel :span "vacuity.rs:16:5: 16:6 (#0)" :note "at the end of the function body" :is_proof_note
+      (@ "vacuity.rs:16:1: 19:2 (#0)" (Stm Return :assert_id (1) :base_error (Message :level Error :note "postcondition not satisfied"
+         :spans () :labels ((MessageLabel :span "vacuity.rs:18:5: 18:6 (#0)" :note "at the end of the function body" :is_proof_note
            false :is_custom_err false)
          ) :help None :fancy_note None
-        ) :ret_exp (@@ "vacuity.rs:16:5: 16:6 (#0)" (Exp Var (VarIdent "r" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow
+        ) :ret_exp (@@ "vacuity.rs:18:5: 18:6 (#0)" (Exp Var (VarIdent "r" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow
             false :id 0))
          ) (Typ Int (IntRange U 32))
         ) :inside_body false))))
@@ -372,37 +372,37 @@
    ) :local_decls_decreases_init () :statics ()
   ) :recommends_check (FuncCheckSst :reqs () :post_condition (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam))
     :ens_exps () :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:14:1: 17:2 (#0)" (Stm Block (
-      (@ "vacuity.rs:12:14: 12:22 (#0)" (Stm Assume (@@ "vacuity.rs:12:14: 12:22 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp
+   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:16:1: 19:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:14:14: 14:22 (#0)" (Stm Assume (@@ "vacuity.rs:14:14: 14:22 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp
             Lt)
-          ) (@@ "vacuity.rs:12:14: 12:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
-          (@@ "vacuity.rs:12:18: 12:22 (#0)" (Exp Const (Constant Int 1000)) (Typ Int (IntRange Nat)))
+          ) (@@ "vacuity.rs:14:14: 14:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+          (@@ "vacuity.rs:14:18: 14:22 (#0)" (Exp Const (Constant Int 1000)) (Typ Int (IntRange Nat)))
          ) (Typ Bool))))
-      (@ "vacuity.rs:14:1: 17:2 (#0)" (Stm Block (
-         (@ "vacuity.rs:14:1: 17:2 (#0)" (Stm Block (
-            (@ "vacuity.rs:15:13: 15:18 (#0)" (Stm Assume (@@ "vacuity.rs:15:13: 15:18 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange
+      (@ "vacuity.rs:16:1: 19:2 (#0)" (Stm Block (
+         (@ "vacuity.rs:16:1: 19:2 (#0)" (Stm Block (
+            (@ "vacuity.rs:17:13: 17:18 (#0)" (Stm Assume (@@ "vacuity.rs:17:13: 17:18 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange
                    U 32))
-                ) (@@ "vacuity.rs:15:13: 15:18 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:15:13: 15:14 (#0)"
+                ) (@@ "vacuity.rs:17:13: 17:18 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:17:13: 17:14 (#0)"
                    (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))
-                  ) (@@ "vacuity.rs:15:17: 15:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+                  ) (@@ "vacuity.rs:17:17: 17:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
                  ) (Typ Int (IntRange U 32)))
                ) (Typ Bool))))
-            (@ "vacuity.rs:15:9: 15:10 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:15:13: 15:18 (#0)" (Exp VarLoc (VarIdent "r" (VarIdentDisambiguate
+            (@ "vacuity.rs:17:9: 17:10 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:17:13: 17:18 (#0)" (Exp VarLoc (VarIdent "r" (VarIdentDisambiguate
                    VirRenumbered :is_stmt true :does_shadow false :id 0))
                 ) (Typ Int (IntRange U 32))
                ) :is_init true
-              ) :rhs (@@ "vacuity.rs:15:13: 15:18 (#0)" (Exp Unary (UnaryOp Clip :range (IntRange U 32) :truncate true) (@@ "vacuity.rs:15:13: 15:18 (#0)"
-                 (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:15:13: 15:14 (#0)" (Exp Var (VarIdent "x"
+              ) :rhs (@@ "vacuity.rs:17:13: 17:18 (#0)" (Exp Unary (UnaryOp Clip :range (IntRange U 32) :truncate true) (@@ "vacuity.rs:17:13: 17:18 (#0)"
+                 (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:17:13: 17:14 (#0)" (Exp Var (VarIdent "x"
                      (VarIdentDisambiguate VirParam))
                    ) (Typ Int (IntRange U 32))
-                  ) (@@ "vacuity.rs:15:17: 15:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+                  ) (@@ "vacuity.rs:17:17: 17:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
                  ) (Typ Int (IntRange U 32)))
                ) (Typ Int (IntRange U 32))))))))
-         (@ "vacuity.rs:14:1: 17:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
-            :spans () :labels ((MessageLabel :span "vacuity.rs:16:5: 16:6 (#0)" :note "at the end of the function body" :is_proof_note
+         (@ "vacuity.rs:16:1: 19:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
+            :spans () :labels ((MessageLabel :span "vacuity.rs:18:5: 18:6 (#0)" :note "at the end of the function body" :is_proof_note
               false :is_custom_err false)
             ) :help None :fancy_note None
-           ) :ret_exp (@@ "vacuity.rs:16:5: 16:6 (#0)" (Exp Var (VarIdent "r" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow
+           ) :ret_exp (@@ "vacuity.rs:18:5: 18:6 (#0)" (Exp Var (VarIdent "r" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow
                false :id 0))
             ) (Typ Int (IntRange U 32))
            ) :inside_body false)))))))
@@ -416,13 +416,13 @@
    ) :local_decls_decreases_init () :statics ()
   ) :safe_api_check None :async_ret None))
 
-(@ "vacuity.rs:22:1: 22:28 (#0)" (FunctionSst :name (Fun :path vacuity::honest_proof) :kind (FunctionKind Static) :body_visibility
+(@ "vacuity.rs:24:1: 24:28 (#0)" (FunctionSst :name (Fun :path vacuity::honest_proof) :kind (FunctionKind Static) :body_visibility
   (BodyVisibility Visibility (Visibility :restricted_to vacuity::)) :owning_module vacuity:: :mode Proof :opaqueness (Opaqueness
    Opaque
-  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:22:1: 22:28 (#0)" (Par :name (VarIdent "no%param" (VarIdentDisambiguate
+  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:24:1: 24:28 (#0)" (Par :name (VarIdent "no%param" (VarIdentDisambiguate
        AirLocal)
      ) :typ (Typ Int (IntRange Int)) :mode Spec :purpose (ParPurpose Regular)))
-  ) :ret (@ "vacuity.rs:22:28: 22:28 (#0)" (Par :name (VarIdent "%return" (VarIdentDisambiguate VirParam)) :typ (Typ Datatype
+  ) :ret (@ "vacuity.rs:24:28: 24:28 (#0)" (Par :name (VarIdent "%return" (VarIdentDisambiguate VirParam)) :typ (Typ Datatype
      (Dt Tuple 0) () ()
     ) :mode Proof :purpose (ParPurpose Regular))
   ) :ens_has_return false :item_kind (ItemKind Function) :attrs (FunctionAttrs :uses_ghost_blocks true :inline false :hidden
@@ -434,73 +434,73 @@
    false :exec_allows_no_decreases_clause false :tracked_swap false :tracked_take_option false :is_async false
   ) :has (FunctionSstHas :has_body true :has_requires false :has_ensures true :has_decrease false :has_mask_spec false :has_return_name
    false :is_recursive false
-  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:22:1: 22:28 (#0)" (Par :name (VarIdent "no%param" (VarIdentDisambiguate AirLocal))
+  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:24:1: 24:28 (#0)" (Par :name (VarIdent "no%param" (VarIdentDisambiguate AirLocal))
       :typ (Typ Int (IntRange Int)) :mode Spec :purpose (ParPurpose Regular)))
-   ) :ens_pars ((@ "vacuity.rs:22:1: 22:28 (#0)" (Par :name (VarIdent "no%param" (VarIdentDisambiguate AirLocal)) :typ (Typ Int
+   ) :ens_pars ((@ "vacuity.rs:24:1: 24:28 (#0)" (Par :name (VarIdent "no%param" (VarIdentDisambiguate AirLocal)) :typ (Typ Int
        (IntRange Int)
       ) :mode Spec :purpose (ParPurpose Regular)))
-   ) :reqs () :enss (tuple ((@@ "vacuity.rs:23:13: 23:52 (#0)" (Exp Bind (@ "vacuity.rs:23:28: 23:52 (#0)" (Bnd Quant (Forall) ((->
+   ) :reqs () :enss (tuple ((@@ "vacuity.rs:25:13: 25:52 (#0)" (Exp Bind (@ "vacuity.rs:25:28: 25:52 (#0)" (Bnd Quant (Forall) ((->
            x$ (Typ Int (IntRange Int)))
-         ) (((@@ "vacuity.rs:23:28: 23:43 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:23:41: 23:42 (#0)"
+         ) (((@@ "vacuity.rs:25:28: 25:43 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:25:41: 25:42 (#0)"
                (Exp Var (VarIdent "x" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange Int))))
             ) (Typ Int (IntRange Int))))
          ) None)
-       ) (@@ "vacuity.rs:23:28: 23:52 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:23:28: 23:43 (#0)" (Exp Call (CallFun Fun
+       ) (@@ "vacuity.rs:25:28: 25:52 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:25:28: 25:43 (#0)" (Exp Call (CallFun Fun
             (Fun :path vacuity::spec_add_one) None
-           ) () ((@@ "vacuity.rs:23:41: 23:42 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange Int))))
+           ) () ((@@ "vacuity.rs:25:41: 25:42 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange Int))))
           ) (Typ Int (IntRange Int))
-         ) (@@ "vacuity.rs:23:47: 23:52 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:23:47: 23:48 (#0)"
+         ) (@@ "vacuity.rs:25:47: 25:52 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:25:47: 25:48 (#0)"
             (Exp Var (VarIdent "x" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange Int))
-           ) (@@ "vacuity.rs:23:51: 23:52 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
+           ) (@@ "vacuity.rs:25:51: 25:52 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
           ) (Typ Int (IntRange Int)))
         ) (Typ Bool))
       ) (Typ Bool))
     ) ()
    ) :inv_masks () :unwind_condition None :fndef_axioms ()
   ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs () :post_condition
-   (PostConditionSst :dest None :ens_exps ((@@ "vacuity.rs:23:13: 23:52 (#0)" (Exp Bind (@ "vacuity.rs:23:28: 23:52 (#0)" (Bnd Quant
-         (Forall) ((-> x$ (Typ Int (IntRange Int)))) (((@@ "vacuity.rs:23:28: 23:43 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one)
+   (PostConditionSst :dest None :ens_exps ((@@ "vacuity.rs:25:13: 25:52 (#0)" (Exp Bind (@ "vacuity.rs:25:28: 25:52 (#0)" (Bnd Quant
+         (Forall) ((-> x$ (Typ Int (IntRange Int)))) (((@@ "vacuity.rs:25:28: 25:43 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one)
               None
-             ) () ((@@ "vacuity.rs:23:41: 23:42 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange Int))))
+             ) () ((@@ "vacuity.rs:25:41: 25:42 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange Int))))
             ) (Typ Int (IntRange Int))))
          ) None)
-       ) (@@ "vacuity.rs:23:28: 23:52 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:23:28: 23:43 (#0)" (Exp Call (CallFun Fun
+       ) (@@ "vacuity.rs:25:28: 25:52 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:25:28: 25:43 (#0)" (Exp Call (CallFun Fun
             (Fun :path vacuity::spec_add_one) None
-           ) () ((@@ "vacuity.rs:23:41: 23:42 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange Int))))
+           ) () ((@@ "vacuity.rs:25:41: 25:42 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange Int))))
           ) (Typ Int (IntRange Int))
-         ) (@@ "vacuity.rs:23:47: 23:52 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:23:47: 23:48 (#0)"
+         ) (@@ "vacuity.rs:25:47: 25:52 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:25:47: 25:48 (#0)"
             (Exp Var (VarIdent "x" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange Int))
-           ) (@@ "vacuity.rs:23:51: 23:52 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
+           ) (@@ "vacuity.rs:25:51: 25:52 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
           ) (Typ Int (IntRange Int)))
         ) (Typ Bool))
       ) (Typ Bool))
     ) :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:24:1: 25:2 (#0)" (Stm Block (
-      (@ "vacuity.rs:24:1: 25:2 (#0)" (Stm Block ()))
-      (@ "vacuity.rs:24:1: 25:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
-         :spans () :labels ((MessageLabel :span "vacuity.rs:22:1: 22:28 (#0)" :note "at the end of the function body" :is_proof_note
+   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:26:1: 27:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:26:1: 27:2 (#0)" (Stm Block ()))
+      (@ "vacuity.rs:26:1: 27:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
+         :spans () :labels ((MessageLabel :span "vacuity.rs:24:1: 24:28 (#0)" :note "at the end of the function body" :is_proof_note
            false :is_custom_err false)
          ) :help None :fancy_note None
-        ) :ret_exp (@@ "vacuity.rs:24:1: 25:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
+        ) :ret_exp (@@ "vacuity.rs:26:1: 27:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
         false))))
    ) :local_decls ((LocalDecl :ident (VarIdent "no%param" (VarIdentDisambiguate AirLocal)) :typ (Typ Int (IntRange Int)) :kind
      (LocalDeclKind Param :mutable false))
    ) :local_decls_decreases_init () :statics ()
   ) :recommends_check (FuncCheckSst :reqs () :post_condition (PostConditionSst :dest None :ens_exps () :ens_spec_precondition_stms
-    ((@ "vacuity.rs:23:28: 23:52 (#0)" (Stm Assume (@@ "vacuity.rs:23:28: 23:52 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange
+    ((@ "vacuity.rs:25:28: 25:52 (#0)" (Stm Assume (@@ "vacuity.rs:25:28: 25:52 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange
             Int))
-         ) (@@ "vacuity.rs:23:28: 23:52 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false
+         ) (@@ "vacuity.rs:25:28: 25:52 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false
              :id 0))
           ) (Typ Bool))
         ) (Typ Bool))))
     ) :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:24:1: 25:2 (#0)" (Stm Block (
-      (@ "vacuity.rs:24:1: 25:2 (#0)" (Stm Block ()))
-      (@ "vacuity.rs:24:1: 25:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
-         :spans () :labels ((MessageLabel :span "vacuity.rs:22:1: 22:28 (#0)" :note "at the end of the function body" :is_proof_note
+   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:26:1: 27:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:26:1: 27:2 (#0)" (Stm Block ()))
+      (@ "vacuity.rs:26:1: 27:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
+         :spans () :labels ((MessageLabel :span "vacuity.rs:24:1: 24:28 (#0)" :note "at the end of the function body" :is_proof_note
            false :is_custom_err false)
          ) :help None :fancy_note None
-        ) :ret_exp (@@ "vacuity.rs:24:1: 25:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
+        ) :ret_exp (@@ "vacuity.rs:26:1: 27:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
         false))))
    ) :local_decls ((LocalDecl :ident (VarIdent "no%param" (VarIdentDisambiguate AirLocal)) :typ (Typ Int (IntRange Int)) :kind
      (LocalDeclKind Param :mutable false)
@@ -510,12 +510,12 @@
    ) :local_decls_decreases_init () :statics ()
   ) :safe_api_check None :async_ret None))
 
-(@ "vacuity.rs:30:1: 30:35 (#0)" (FunctionSst :name (Fun :path vacuity::vacuous_proof) :kind (FunctionKind Static) :body_visibility
+(@ "vacuity.rs:32:1: 32:35 (#0)" (FunctionSst :name (Fun :path vacuity::vacuous_proof) :kind (FunctionKind Static) :body_visibility
   (BodyVisibility Visibility (Visibility :restricted_to vacuity::)) :owning_module vacuity:: :mode Proof :opaqueness (Opaqueness
    Opaque
-  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:30:28: 30:34 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:32:28: 32:34 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
      :typ (Typ Int (IntRange Int)) :mode Spec :purpose (ParPurpose Regular)))
-  ) :ret (@ "vacuity.rs:30:35: 30:35 (#0)" (Par :name (VarIdent "%return" (VarIdentDisambiguate VirParam)) :typ (Typ Datatype
+  ) :ret (@ "vacuity.rs:32:35: 32:35 (#0)" (Par :name (VarIdent "%return" (VarIdentDisambiguate VirParam)) :typ (Typ Datatype
      (Dt Tuple 0) () ()
     ) :mode Proof :purpose (ParPurpose Regular))
   ) :ens_has_return false :item_kind (ItemKind Function) :attrs (FunctionAttrs :uses_ghost_blocks true :inline false :hidden
@@ -527,81 +527,81 @@
    false :exec_allows_no_decreases_clause false :tracked_swap false :tracked_take_option false :is_async false
   ) :has (FunctionSstHas :has_body true :has_requires true :has_ensures true :has_decrease false :has_mask_spec false :has_return_name
    false :is_recursive false
-  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:30:28: 30:34 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:32:28: 32:34 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
       :typ (Typ Int (IntRange Int)) :mode Spec :purpose (ParPurpose Regular)))
-   ) :ens_pars ((@ "vacuity.rs:30:28: 30:34 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
+   ) :ens_pars ((@ "vacuity.rs:32:28: 32:34 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
         Int)
       ) :mode Spec :purpose (ParPurpose Regular)))
-   ) :reqs ((@@ "vacuity.rs:31:14: 31:20 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:31:14: 31:20 (#0)" (Exp Binary (BinaryOp Eq
+   ) :reqs ((@@ "vacuity.rs:33:14: 33:20 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:33:14: 33:20 (#0)" (Exp Binary (BinaryOp Eq
          Spec
-        ) (@@ "vacuity.rs:31:14: 31:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int))) (
-         @@ "vacuity.rs:31:19: 31:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
+        ) (@@ "vacuity.rs:33:14: 33:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int))) (
+         @@ "vacuity.rs:33:19: 33:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
        ) (Typ Bool))
      ) (Typ Bool))
-   ) :enss (tuple ((@@ "vacuity.rs:32:13: 32:23 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:32:13: 32:14 (#0)" (Exp Var (
+   ) :enss (tuple ((@@ "vacuity.rs:34:13: 34:23 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:34:13: 34:14 (#0)" (Exp Var (
           VarIdent "x" (VarIdentDisambiguate VirParam))
         ) (Typ Int (IntRange Int))
-       ) (@@ "vacuity.rs:32:18: 32:23 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:32:18: 32:19 (#0)"
+       ) (@@ "vacuity.rs:34:18: 34:23 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:34:18: 34:19 (#0)"
           (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int))
-         ) (@@ "vacuity.rs:32:22: 32:23 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
+         ) (@@ "vacuity.rs:34:22: 34:23 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
         ) (Typ Int (IntRange Int)))
       ) (Typ Bool))
     ) ()
    ) :inv_masks () :unwind_condition None :fndef_axioms ()
-  ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs ((@@ "vacuity.rs:31:14: 31:20 (#0)"
-     (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:31:14: 31:20 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:31:14: 31:15 (#0)"
+  ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs ((@@ "vacuity.rs:33:14: 33:20 (#0)"
+     (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:33:14: 33:20 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:33:14: 33:15 (#0)"
          (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int))
-        ) (@@ "vacuity.rs:31:19: 31:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
+        ) (@@ "vacuity.rs:33:19: 33:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
        ) (Typ Bool))
      ) (Typ Bool))
-   ) :post_condition (PostConditionSst :dest None :ens_exps ((@@ "vacuity.rs:32:13: 32:23 (#0)" (Exp Binary (BinaryOp Eq Spec) (
-        @@ "vacuity.rs:32:13: 32:14 (#0)" (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre)) (Typ Int (IntRange
+   ) :post_condition (PostConditionSst :dest None :ens_exps ((@@ "vacuity.rs:34:13: 34:23 (#0)" (Exp Binary (BinaryOp Eq Spec) (
+        @@ "vacuity.rs:34:13: 34:14 (#0)" (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre)) (Typ Int (IntRange
           Int))
-       ) (@@ "vacuity.rs:32:18: 32:23 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:32:18: 32:19 (#0)"
+       ) (@@ "vacuity.rs:34:18: 34:23 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:34:18: 34:19 (#0)"
           (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre)) (Typ Int (IntRange Int))
-         ) (@@ "vacuity.rs:32:22: 32:23 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
+         ) (@@ "vacuity.rs:34:22: 34:23 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange Nat)))
         ) (Typ Int (IntRange Int)))
       ) (Typ Bool))
     ) :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:33:1: 34:2 (#0)" (Stm Block (
-      (@ "vacuity.rs:33:1: 34:2 (#0)" (Stm Block ()))
-      (@ "vacuity.rs:33:1: 34:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
-         :spans () :labels ((MessageLabel :span "vacuity.rs:30:1: 30:35 (#0)" :note "at the end of the function body" :is_proof_note
+   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:35:1: 36:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:35:1: 36:2 (#0)" (Stm Block ()))
+      (@ "vacuity.rs:35:1: 36:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
+         :spans () :labels ((MessageLabel :span "vacuity.rs:32:1: 32:35 (#0)" :note "at the end of the function body" :is_proof_note
            false :is_custom_err false)
          ) :help None :fancy_note None
-        ) :ret_exp (@@ "vacuity.rs:33:1: 34:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
+        ) :ret_exp (@@ "vacuity.rs:35:1: 36:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
         false))))
    ) :local_decls ((LocalDecl :ident (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange Int)) :kind (LocalDeclKind
       Param :mutable false))
    ) :local_decls_decreases_init () :statics ()
   ) :recommends_check (FuncCheckSst :reqs () :post_condition (PostConditionSst :dest None :ens_exps () :ens_spec_precondition_stms
     () :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:33:1: 34:2 (#0)" (Stm Block (
-      (@ "vacuity.rs:31:14: 31:20 (#0)" (Stm Assume (@@ "vacuity.rs:31:14: 31:20 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:31:14: 31:20 (#0)"
-           (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:31:14: 31:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam)))
+   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:35:1: 36:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:33:14: 33:20 (#0)" (Stm Assume (@@ "vacuity.rs:33:14: 33:20 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:33:14: 33:20 (#0)"
+           (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:33:14: 33:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam)))
              (Typ Int (IntRange Int))
-            ) (@@ "vacuity.rs:31:19: 31:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
+            ) (@@ "vacuity.rs:33:19: 33:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
            ) (Typ Bool))
          ) (Typ Bool))))
-      (@ "vacuity.rs:33:1: 34:2 (#0)" (Stm Block (
-         (@ "vacuity.rs:33:1: 34:2 (#0)" (Stm Block ()))
-         (@ "vacuity.rs:33:1: 34:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
-            :spans () :labels ((MessageLabel :span "vacuity.rs:30:1: 30:35 (#0)" :note "at the end of the function body" :is_proof_note
+      (@ "vacuity.rs:35:1: 36:2 (#0)" (Stm Block (
+         (@ "vacuity.rs:35:1: 36:2 (#0)" (Stm Block ()))
+         (@ "vacuity.rs:35:1: 36:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
+            :spans () :labels ((MessageLabel :span "vacuity.rs:32:1: 32:35 (#0)" :note "at the end of the function body" :is_proof_note
               false :is_custom_err false)
             ) :help None :fancy_note None
-           ) :ret_exp (@@ "vacuity.rs:33:1: 34:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
+           ) :ret_exp (@@ "vacuity.rs:35:1: 36:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
            false)))))))
    ) :local_decls ((LocalDecl :ident (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange Int)) :kind (LocalDeclKind
       Param :mutable false))
    ) :local_decls_decreases_init () :statics ()
   ) :safe_api_check None :async_ret None))
 
-(@ "vacuity.rs:41:1: 41:46 (#0)" (FunctionSst :name (Fun :path vacuity::vacuous_proof_mentioning) :kind (FunctionKind Static)
+(@ "vacuity.rs:43:1: 43:46 (#0)" (FunctionSst :name (Fun :path vacuity::vacuous_proof_mentioning) :kind (FunctionKind Static)
   :body_visibility (BodyVisibility Visibility (Visibility :restricted_to vacuity::)) :owning_module vacuity:: :mode Proof :opaqueness
-  (Opaqueness Opaque) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:41:39: 41:45 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate
+  (Opaqueness Opaque) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:43:39: 43:45 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate
        VirParam)
      ) :typ (Typ Int (IntRange Int)) :mode Spec :purpose (ParPurpose Regular)))
-  ) :ret (@ "vacuity.rs:41:46: 41:46 (#0)" (Par :name (VarIdent "%return" (VarIdentDisambiguate VirParam)) :typ (Typ Datatype
+  ) :ret (@ "vacuity.rs:43:46: 43:46 (#0)" (Par :name (VarIdent "%return" (VarIdentDisambiguate VirParam)) :typ (Typ Datatype
      (Dt Tuple 0) () ()
     ) :mode Proof :purpose (ParPurpose Regular))
   ) :ens_has_return false :item_kind (ItemKind Function) :attrs (FunctionAttrs :uses_ghost_blocks true :inline false :hidden
@@ -613,84 +613,84 @@
    false :exec_allows_no_decreases_clause false :tracked_swap false :tracked_take_option false :is_async false
   ) :has (FunctionSstHas :has_body true :has_requires true :has_ensures true :has_decrease false :has_mask_spec false :has_return_name
    false :is_recursive false
-  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:41:39: 41:45 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:43:39: 43:45 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
       :typ (Typ Int (IntRange Int)) :mode Spec :purpose (ParPurpose Regular)))
-   ) :ens_pars ((@ "vacuity.rs:41:39: 41:45 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
+   ) :ens_pars ((@ "vacuity.rs:43:39: 43:45 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
         Int)
       ) :mode Spec :purpose (ParPurpose Regular)))
-   ) :reqs ((@@ "vacuity.rs:42:14: 42:20 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:42:14: 42:20 (#0)" (Exp Binary (BinaryOp Eq
+   ) :reqs ((@@ "vacuity.rs:44:14: 44:20 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:44:14: 44:20 (#0)" (Exp Binary (BinaryOp Eq
          Spec
-        ) (@@ "vacuity.rs:42:14: 42:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int))) (
-         @@ "vacuity.rs:42:19: 42:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
+        ) (@@ "vacuity.rs:44:14: 44:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int))) (
+         @@ "vacuity.rs:44:19: 44:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
        ) (Typ Bool))
      ) (Typ Bool))
-   ) :enss (tuple ((@@ "vacuity.rs:43:13: 43:39 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:43:13: 43:28 (#0)" (Exp Call
-         (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:43:26: 43:27 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate
+   ) :enss (tuple ((@@ "vacuity.rs:45:13: 45:39 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:45:13: 45:28 (#0)" (Exp Call
+         (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:45:26: 45:27 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate
               VirParam))
            ) (Typ Int (IntRange Int))))
         ) (Typ Int (IntRange Int))
-       ) (@@ "vacuity.rs:43:32: 43:39 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Sub (OverflowBehavior Allow))) (@@ "vacuity.rs:43:32: 43:33 (#0)"
+       ) (@@ "vacuity.rs:45:32: 45:39 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Sub (OverflowBehavior Allow))) (@@ "vacuity.rs:45:32: 45:33 (#0)"
           (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int))
-         ) (@@ "vacuity.rs:43:36: 43:39 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+         ) (@@ "vacuity.rs:45:36: 45:39 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
         ) (Typ Int (IntRange Int)))
       ) (Typ Bool))
     ) ()
    ) :inv_masks () :unwind_condition None :fndef_axioms ()
-  ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs ((@@ "vacuity.rs:42:14: 42:20 (#0)"
-     (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:42:14: 42:20 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:42:14: 42:15 (#0)"
+  ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs ((@@ "vacuity.rs:44:14: 44:20 (#0)"
+     (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:44:14: 44:20 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:44:14: 44:15 (#0)"
          (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int))
-        ) (@@ "vacuity.rs:42:19: 42:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
+        ) (@@ "vacuity.rs:44:19: 44:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
        ) (Typ Bool))
      ) (Typ Bool))
-   ) :post_condition (PostConditionSst :dest None :ens_exps ((@@ "vacuity.rs:43:13: 43:39 (#0)" (Exp Binary (BinaryOp Eq Spec) (
-        @@ "vacuity.rs:43:13: 43:28 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:43:26: 43:27 (#0)"
+   ) :post_condition (PostConditionSst :dest None :ens_exps ((@@ "vacuity.rs:45:13: 45:39 (#0)" (Exp Binary (BinaryOp Eq Spec) (
+        @@ "vacuity.rs:45:13: 45:28 (#0)" (Exp Call (CallFun Fun (Fun :path vacuity::spec_add_one) None) () ((@@ "vacuity.rs:45:26: 45:27 (#0)"
            (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre)) (Typ Int (IntRange Int))))
         ) (Typ Int (IntRange Int))
-       ) (@@ "vacuity.rs:43:32: 43:39 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Sub (OverflowBehavior Allow))) (@@ "vacuity.rs:43:32: 43:33 (#0)"
+       ) (@@ "vacuity.rs:45:32: 45:39 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Sub (OverflowBehavior Allow))) (@@ "vacuity.rs:45:32: 45:33 (#0)"
           (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre)) (Typ Int (IntRange Int))
-         ) (@@ "vacuity.rs:43:36: 43:39 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+         ) (@@ "vacuity.rs:45:36: 45:39 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
         ) (Typ Int (IntRange Int)))
       ) (Typ Bool))
     ) :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:44:1: 45:2 (#0)" (Stm Block (
-      (@ "vacuity.rs:44:1: 45:2 (#0)" (Stm Block ()))
-      (@ "vacuity.rs:44:1: 45:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
-         :spans () :labels ((MessageLabel :span "vacuity.rs:41:1: 41:46 (#0)" :note "at the end of the function body" :is_proof_note
+   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:46:1: 47:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:46:1: 47:2 (#0)" (Stm Block ()))
+      (@ "vacuity.rs:46:1: 47:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
+         :spans () :labels ((MessageLabel :span "vacuity.rs:43:1: 43:46 (#0)" :note "at the end of the function body" :is_proof_note
            false :is_custom_err false)
          ) :help None :fancy_note None
-        ) :ret_exp (@@ "vacuity.rs:44:1: 45:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
+        ) :ret_exp (@@ "vacuity.rs:46:1: 47:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
         false))))
    ) :local_decls ((LocalDecl :ident (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange Int)) :kind (LocalDeclKind
       Param :mutable false))
    ) :local_decls_decreases_init () :statics ()
   ) :recommends_check (FuncCheckSst :reqs () :post_condition (PostConditionSst :dest None :ens_exps () :ens_spec_precondition_stms
     () :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:44:1: 45:2 (#0)" (Stm Block (
-      (@ "vacuity.rs:42:14: 42:20 (#0)" (Stm Assume (@@ "vacuity.rs:42:14: 42:20 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:42:14: 42:20 (#0)"
-           (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:42:14: 42:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam)))
+   ) :unwind (UnwindSst NoUnwind) :body (@ "vacuity.rs:46:1: 47:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:44:14: 44:20 (#0)" (Stm Assume (@@ "vacuity.rs:44:14: 44:20 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:44:14: 44:20 (#0)"
+           (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:44:14: 44:15 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam)))
              (Typ Int (IntRange Int))
-            ) (@@ "vacuity.rs:42:19: 42:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
+            ) (@@ "vacuity.rs:44:19: 44:20 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange Int)))
            ) (Typ Bool))
          ) (Typ Bool))))
-      (@ "vacuity.rs:44:1: 45:2 (#0)" (Stm Block (
-         (@ "vacuity.rs:44:1: 45:2 (#0)" (Stm Block ()))
-         (@ "vacuity.rs:44:1: 45:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
-            :spans () :labels ((MessageLabel :span "vacuity.rs:41:1: 41:46 (#0)" :note "at the end of the function body" :is_proof_note
+      (@ "vacuity.rs:46:1: 47:2 (#0)" (Stm Block (
+         (@ "vacuity.rs:46:1: 47:2 (#0)" (Stm Block ()))
+         (@ "vacuity.rs:46:1: 47:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
+            :spans () :labels ((MessageLabel :span "vacuity.rs:43:1: 43:46 (#0)" :note "at the end of the function body" :is_proof_note
               false :is_custom_err false)
             ) :help None :fancy_note None
-           ) :ret_exp (@@ "vacuity.rs:44:1: 45:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
+           ) :ret_exp (@@ "vacuity.rs:46:1: 47:2 (#0)" (Exp Ctor (Dt Tuple 0) "tuple%0" ()) (Typ Datatype (Dt Tuple 0) () ())) :inside_body
            false)))))))
    ) :local_decls ((LocalDecl :ident (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange Int)) :kind (LocalDeclKind
       Param :mutable false))
    ) :local_decls_decreases_init () :statics ()
   ) :safe_api_check None :async_ret None))
 
-(@ "vacuity.rs:52:1: 52:41 (#0)" (FunctionSst :name (Fun :path vacuity::self_contained) :kind (FunctionKind Static) :body_visibility
+(@ "vacuity.rs:54:1: 54:41 (#0)" (FunctionSst :name (Fun :path vacuity::self_contained) :kind (FunctionKind Static) :body_visibility
   (BodyVisibility Visibility (Visibility :restricted_to vacuity::)) :owning_module vacuity:: :mode Exec :opaqueness (Opaqueness
    Opaque
-  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:52:23: 52:29 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:54:23: 54:29 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
      :typ (Typ Int (IntRange U 32)) :mode Exec :purpose (ParPurpose Regular)))
-  ) :ret (@ "vacuity.rs:52:38: 52:41 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U
+  ) :ret (@ "vacuity.rs:54:38: 54:41 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U
       32)
     ) :mode Exec :purpose (ParPurpose Regular))
   ) :ens_has_return true :item_kind (ItemKind Function) :attrs (FunctionAttrs :uses_ghost_blocks true :inline false :hidden
@@ -702,50 +702,50 @@
    false :exec_allows_no_decreases_clause false :tracked_swap false :tracked_take_option false :is_async false
   ) :has (FunctionSstHas :has_body true :has_requires false :has_ensures true :has_decrease false :has_mask_spec false :has_return_name
    true :is_recursive false
-  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:52:23: 52:29 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:54:23: 54:29 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
       :typ (Typ Int (IntRange U 32)) :mode Exec :purpose (ParPurpose Regular)))
-   ) :ens_pars ((@ "vacuity.rs:52:23: 52:29 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
+   ) :ens_pars ((@ "vacuity.rs:54:23: 54:29 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
         U 32)
       ) :mode Exec :purpose (ParPurpose Regular))
-    ) (@ "vacuity.rs:52:38: 52:41 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32))
+    ) (@ "vacuity.rs:54:38: 54:41 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32))
       :mode Exec :purpose (ParPurpose Regular)))
-   ) :reqs () :enss (tuple ((@@ "vacuity.rs:53:13: 53:32 (#0)" (Exp Binary (BinaryOp Implies) (@@ "vacuity.rs:53:13: 53:19 (#0)"
-        (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:53:13: 53:19 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:53:13: 53:14 (#0)"
+   ) :reqs () :enss (tuple ((@@ "vacuity.rs:55:13: 55:32 (#0)" (Exp Binary (BinaryOp Implies) (@@ "vacuity.rs:55:13: 55:19 (#0)"
+        (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:55:13: 55:19 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:55:13: 55:14 (#0)"
             (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))
-           ) (@@ "vacuity.rs:53:18: 53:19 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+           ) (@@ "vacuity.rs:55:18: 55:19 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
           ) (Typ Bool))
         ) (Typ Bool)
-       ) (@@ "vacuity.rs:53:24: 53:32 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:53:24: 53:25 (#0)" (Exp Var (VarIdent "r"
+       ) (@@ "vacuity.rs:55:24: 55:32 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:55:24: 55:25 (#0)" (Exp Var (VarIdent "r"
             (VarIdentDisambiguate VirParam))
           ) (Typ Int (IntRange U 32))
-         ) (@@ "vacuity.rs:53:29: 53:32 (#0)" (Exp Const (Constant Int 999)) (Typ Int (IntRange Nat)))
+         ) (@@ "vacuity.rs:55:29: 55:32 (#0)" (Exp Const (Constant Int 999)) (Typ Int (IntRange Nat)))
         ) (Typ Bool))
       ) (Typ Bool))
     ) ()
    ) :inv_masks () :unwind_condition None :fndef_axioms ()
   ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs () :post_condition
-   (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam)) :ens_exps ((@@ "vacuity.rs:53:13: 53:32 (#0)" (Exp Binary
-       (BinaryOp Implies) (@@ "vacuity.rs:53:13: 53:19 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:53:13: 53:19 (#0)" (Exp Binary
-           (BinaryOp Eq Spec) (@@ "vacuity.rs:53:13: 53:14 (#0)" (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre))
+   (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam)) :ens_exps ((@@ "vacuity.rs:55:13: 55:32 (#0)" (Exp Binary
+       (BinaryOp Implies) (@@ "vacuity.rs:55:13: 55:19 (#0)" (Exp Unary (UnaryOp Not) (@@ "vacuity.rs:55:13: 55:19 (#0)" (Exp Binary
+           (BinaryOp Eq Spec) (@@ "vacuity.rs:55:13: 55:14 (#0)" (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre))
             (Typ Int (IntRange U 32))
-           ) (@@ "vacuity.rs:53:18: 53:19 (#0)" (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre)) (Typ Int (IntRange
+           ) (@@ "vacuity.rs:55:18: 55:19 (#0)" (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre)) (Typ Int (IntRange
               U 32)))
           ) (Typ Bool))
         ) (Typ Bool)
-       ) (@@ "vacuity.rs:53:24: 53:32 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:53:24: 53:25 (#0)" (Exp Var (VarIdent "r"
+       ) (@@ "vacuity.rs:55:24: 55:32 (#0)" (Exp Binary (BinaryOp Eq Spec) (@@ "vacuity.rs:55:24: 55:25 (#0)" (Exp Var (VarIdent "r"
             (VarIdentDisambiguate VirParam))
           ) (Typ Int (IntRange U 32))
-         ) (@@ "vacuity.rs:53:29: 53:32 (#0)" (Exp Const (Constant Int 999)) (Typ Int (IntRange Nat)))
+         ) (@@ "vacuity.rs:55:29: 55:32 (#0)" (Exp Const (Constant Int 999)) (Typ Int (IntRange Nat)))
         ) (Typ Bool))
       ) (Typ Bool))
     ) :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:54:1: 57:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level
-      Error :note "postcondition not satisfied" :spans () :labels ((MessageLabel :span "vacuity.rs:56:5: 56:6 (#0)" :note "at the end of the function body"
+   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:56:1: 59:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level
+      Error :note "postcondition not satisfied" :spans () :labels ((MessageLabel :span "vacuity.rs:58:5: 58:6 (#0)" :note "at the end of the function body"
         :is_proof_note false :is_custom_err false)
       ) :help None :fancy_note None
-     ) :ret_exp (@@ "vacuity.rs:54:1: 57:2 (#0)" (Exp Bind (@ "vacuity.rs:55:9: 55:10 (#0)" (Bnd Let ((-> y$ (@@ "vacuity.rs:55:13: 55:14 (#0)"
+     ) :ret_exp (@@ "vacuity.rs:56:1: 59:2 (#0)" (Exp Bind (@ "vacuity.rs:57:9: 57:10 (#0)" (Bnd Let ((-> y$ (@@ "vacuity.rs:57:13: 57:14 (#0)"
             (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))))))
-       ) (@@ "vacuity.rs:56:5: 56:6 (#0)" (Exp Var (VarIdent "y" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange U 32)))
+       ) (@@ "vacuity.rs:58:5: 58:6 (#0)" (Exp Var (VarIdent "y" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange U 32)))
       ) (Typ Int (IntRange U 32))
      ) :inside_body false)
    ) :local_decls ((LocalDecl :ident (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind
@@ -755,19 +755,282 @@
    ) :local_decls_decreases_init () :statics ()
   ) :recommends_check (FuncCheckSst :reqs () :post_condition (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam))
     :ens_exps () :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
-   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:54:1: 57:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level
-      Error :note "postcondition not satisfied" :spans () :labels ((MessageLabel :span "vacuity.rs:56:5: 56:6 (#0)" :note "at the end of the function body"
+   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:56:1: 59:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level
+      Error :note "postcondition not satisfied" :spans () :labels ((MessageLabel :span "vacuity.rs:58:5: 58:6 (#0)" :note "at the end of the function body"
         :is_proof_note false :is_custom_err false)
       ) :help None :fancy_note None
-     ) :ret_exp (@@ "vacuity.rs:54:1: 57:2 (#0)" (Exp Bind (@ "vacuity.rs:55:9: 55:10 (#0)" (Bnd Let ((-> y$ (@@ "vacuity.rs:55:13: 55:14 (#0)"
+     ) :ret_exp (@@ "vacuity.rs:56:1: 59:2 (#0)" (Exp Bind (@ "vacuity.rs:57:9: 57:10 (#0)" (Bnd Let ((-> y$ (@@ "vacuity.rs:57:13: 57:14 (#0)"
             (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))))))
-       ) (@@ "vacuity.rs:56:5: 56:6 (#0)" (Exp Var (VarIdent "y" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange U 32)))
+       ) (@@ "vacuity.rs:58:5: 58:6 (#0)" (Exp Var (VarIdent "y" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange U 32)))
       ) (Typ Int (IntRange U 32))
      ) :inside_body false)
    ) :local_decls ((LocalDecl :ident (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind
       Return)
     ) (LocalDecl :ident (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind Param
       :mutable false))
+   ) :local_decls_decreases_init () :statics ()
+  ) :safe_api_check None :async_ret None))
+
+(@ "vacuity.rs:65:1: 65:37 (#0)" (FunctionSst :name (Fun :path vacuity::noted_loop) :kind (FunctionKind Static) :body_visibility
+  (BodyVisibility Visibility (Visibility :restricted_to vacuity::)) :owning_module vacuity:: :mode Exec :opaqueness (Opaqueness
+   Opaque
+  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:65:19: 65:25 (#0)" (Par :name (VarIdent "n" (VarIdentDisambiguate VirParam))
+     :typ (Typ Int (IntRange U 32)) :mode Exec :purpose (ParPurpose Regular)))
+  ) :ret (@ "vacuity.rs:65:34: 65:37 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U
+      32)
+    ) :mode Exec :purpose (ParPurpose Regular))
+  ) :ens_has_return true :item_kind (ItemKind Function) :attrs (FunctionAttrs :uses_ghost_blocks true :inline false :hidden
+   () :broadcast_forall false :broadcast_forall_only false :no_auto_trigger false :auto_ext_equal (AutoExtEqual :assert true
+    :assert_by true :ensures true :invariant true
+   ) :autospec None :bit_vector false :atomic false :integer_ring false :is_decrease_by false :check_recommends false :nonlinear
+   false :spinoff_prover false :memoize false :rlimit None :print_zero_args false :print_as_method false :prophecy_dependent
+   false :size_of_broadcast_proof false :is_type_invariant_fn false :is_external_body false :is_unsafe false :exec_assume_termination
+   false :exec_allows_no_decreases_clause false :tracked_swap false :tracked_take_option false :is_async false
+  ) :has (FunctionSstHas :has_body true :has_requires true :has_ensures true :has_decrease false :has_mask_spec false :has_return_name
+   true :is_recursive false
+  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:65:19: 65:25 (#0)" (Par :name (VarIdent "n" (VarIdentDisambiguate VirParam))
+      :typ (Typ Int (IntRange U 32)) :mode Exec :purpose (ParPurpose Regular)))
+   ) :ens_pars ((@ "vacuity.rs:65:19: 65:25 (#0)" (Par :name (VarIdent "n" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
+        U 32)
+      ) :mode Exec :purpose (ParPurpose Regular))
+    ) (@ "vacuity.rs:65:34: 65:37 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32))
+      :mode Exec :purpose (ParPurpose Regular)))
+   ) :reqs ((@@ "vacuity.rs:66:14: 66:22 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Le)) (@@ "vacuity.rs:66:14: 66:15 (#0)"
+       (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))
+      ) (@@ "vacuity.rs:66:19: 66:22 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+     ) (Typ Bool))
+   ) :enss (tuple ((@@ "vacuity.rs:67:13: 67:21 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Le)) (@@ "vacuity.rs:67:13: 67:14 (#0)"
+        (Exp Var (VarIdent "r" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))
+       ) (@@ "vacuity.rs:67:18: 67:21 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+      ) (Typ Bool))
+    ) ()
+   ) :inv_masks () :unwind_condition None :fndef_axioms ()
+  ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs ((@@ "vacuity.rs:66:14: 66:22 (#0)"
+     (Exp Binary (BinaryOp Inequality (InequalityOp Le)) (@@ "vacuity.rs:66:14: 66:15 (#0)" (Exp Var (VarIdent "n" (VarIdentDisambiguate
+          VirParam))
+       ) (Typ Int (IntRange U 32))
+      ) (@@ "vacuity.rs:66:19: 66:22 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+     ) (Typ Bool))
+   ) :post_condition (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam)) :ens_exps ((@@ "vacuity.rs:67:13: 67:21 (#0)"
+      (Exp Binary (BinaryOp Inequality (InequalityOp Le)) (@@ "vacuity.rs:67:13: 67:14 (#0)" (Exp Var (VarIdent "r" (VarIdentDisambiguate
+           VirParam))
+        ) (Typ Int (IntRange U 32))
+       ) (@@ "vacuity.rs:67:18: 67:21 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+      ) (Typ Bool))
+    ) :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
+   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:68:1: 85:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:68:1: 85:2 (#0)" (Stm Block (
+         (@ "vacuity.rs:69:9: 69:14 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:69:22: 69:23 (#0)" (Exp VarLoc (VarIdent "i" (VarIdentDisambiguate
+                VirRenumbered :is_stmt true :does_shadow false :id 0))
+             ) (Typ Int (IntRange U 32))
+            ) :is_init true
+           ) :rhs (@@ "vacuity.rs:69:22: 69:23 (#0)" (Exp Const (Constant Int 0)) (Typ Int (IntRange U 32)))))
+         (@ "vacuity.rs:70:5: 70:16 (#10)" (Stm Loop :loop_isolation true :is_for_loop false :id 0 :label None :cond (tuple (@ "vacuity.rs:70:5: 70:16 (#10)"
+             (Stm Block ())
+            ) (@@ "vacuity.rs:70:11: 70:16 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Lt)) (@@ "vacuity.rs:70:11: 70:12 (#0)"
+               (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))) (Typ Int (IntRange U 32))
+              ) (@@ "vacuity.rs:70:15: 70:16 (#0)" (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+             ) (Typ Bool))
+           ) :body (@ "vacuity.rs:76:5: 78:6 (#0)" (Stm Block (
+              (@ "vacuity.rs:77:13: 77:18 (#0)" (Stm Assert (0) (Message :level Error :note "possible arithmetic underflow/overflow" :spans
+                 ("vacuity.rs:77:13: 77:18 (#0)") :labels () :help None :fancy_note None
+                ) (@@ "vacuity.rs:77:13: 77:18 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange U 32))) (@@ "vacuity.rs:77:13: 77:18 (#0)"
+                   (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:77:13: 77:14 (#0)" (Exp Var (VarIdent "i"
+                       (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))
+                     ) (Typ Int (IntRange U 32))
+                    ) (@@ "vacuity.rs:77:17: 77:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+                   ) (Typ Int (IntRange U 32)))
+                 ) (Typ Bool))))
+              (@ "vacuity.rs:77:13: 77:18 (#0)" (Stm Assume (@@ "vacuity.rs:77:13: 77:18 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange
+                     U 32))
+                  ) (@@ "vacuity.rs:77:13: 77:18 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:77:13: 77:14 (#0)"
+                     (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))) (Typ Int (IntRange U 32))
+                    ) (@@ "vacuity.rs:77:17: 77:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+                   ) (Typ Int (IntRange U 32)))
+                 ) (Typ Bool))))
+              (@ "vacuity.rs:77:9: 77:18 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:77:9: 77:10 (#0)" (Exp Loc (@@ "vacuity.rs:77:9: 77:10 (#0)"
+                    (Exp VarLoc (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))) (Typ Int (IntRange
+                      U 32)))
+                  ) (Typ Int (IntRange U 32))
+                 ) :is_init false
+                ) :rhs (@@ "vacuity.rs:77:13: 77:18 (#0)" (Exp Unary (UnaryOp Clip :range (IntRange U 32) :truncate true) (@@ "vacuity.rs:77:13: 77:18 (#0)"
+                   (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:77:13: 77:14 (#0)" (Exp Var (VarIdent "i"
+                       (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))
+                     ) (Typ Int (IntRange U 32))
+                    ) (@@ "vacuity.rs:77:17: 77:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+                   ) (Typ Int (IntRange U 32)))
+                 ) (Typ Int (IntRange U 32)))))))
+           ) :invs ((LoopInv :at_entry true :at_exit true :inv (@@ "vacuity.rs:72:13: 73:19 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp
+                 Le)
+               ) (@@ "vacuity.rs:72:13: 73:14 (#0)" (Exp UnaryOpr (UnaryOpr ProofNote (ProofNoteLabel :text "i stays bounded" :is_custom_err
+                   false)
+                 ) (@@ "vacuity.rs:72:13: 73:14 (#0)" (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false
+                     :id 0))
+                  ) (Typ Int (IntRange U 32)))
+                ) (Typ Int (IntRange U 32))
+               ) (@@ "vacuity.rs:73:18: 73:19 (#0)" (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+              ) (Typ Bool))
+            ) (LoopInv :at_entry true :at_exit true :inv (@@ "vacuity.rs:74:13: 74:21 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp
+                 Le)
+               ) (@@ "vacuity.rs:74:13: 74:14 (#0)" (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+               (@@ "vacuity.rs:74:18: 74:21 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+              ) (Typ Bool)))
+           ) :decrease ((@@ "vacuity.rs:75:19: 75:24 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Sub (OverflowBehavior Allow))) (@@ "vacuity.rs:75:19: 75:20 (#0)"
+               (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))
+              ) (@@ "vacuity.rs:75:23: 75:24 (#0)" (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false
+                  :id 0))
+               ) (Typ Int (IntRange U 32)))
+             ) (Typ Int (IntRange Int)))
+           ) :typ_inv_vars () :modified_vars None :pre_modified_params None))
+         (@ "vacuity.rs:79:11: 83:6 (#0)" (Stm Block (
+            (@ "vacuity.rs:81:16: 81:24 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:81:16: 81:24 (#0)" (Exp VarLoc (VarIdent "tmp%"
+                  (VarIdentDisambiguate VirTemp 1))
+                ) (Typ Bool)
+               ) :is_init true
+              ) :rhs (@@ "vacuity.rs:81:16: 81:24 (#0)" (Exp UnaryOpr (UnaryOpr ProofNote (ProofNoteLabel :text "loop exit bound" :is_custom_err
+                  false)
+                ) (@@ "vacuity.rs:81:16: 81:24 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Le)) (@@ "vacuity.rs:81:16: 81:17 (#0)"
+                   (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))) (Typ Int (IntRange U 32))
+                  ) (@@ "vacuity.rs:81:21: 81:24 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+                 ) (Typ Bool))
+               ) (Typ Bool))))
+            (@ "vacuity.rs:81:16: 81:24 (#0)" (Stm Assert (1) None (@@ "vacuity.rs:81:16: 81:24 (#0)" (Exp UnaryOpr (UnaryOpr ProofNote (ProofNoteLabel
+                  :text "loop exit bound" :is_custom_err false)
+                ) (@@ "vacuity.rs:81:16: 81:24 (#0)" (Exp Var (VarIdent "tmp%" (VarIdentDisambiguate VirTemp 1))) (Typ Bool))
+               ) (Typ Bool))))
+            (@ "vacuity.rs:81:16: 81:24 (#0)" (Stm Assume (@@ "vacuity.rs:81:16: 81:24 (#0)" (Exp UnaryOpr (UnaryOpr ProofNote (ProofNoteLabel
+                  :text "loop exit bound" :is_custom_err false)
+                ) (@@ "vacuity.rs:81:16: 81:24 (#0)" (Exp Var (VarIdent "tmp%" (VarIdentDisambiguate VirTemp 1))) (Typ Bool))
+               ) (Typ Bool))))
+            (@ "vacuity.rs:82:16: 82:22 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:82:16: 82:22 (#0)" (Exp VarLoc (VarIdent "tmp%"
+                  (VarIdentDisambiguate VirTemp 2))
+                ) (Typ Bool)
+               ) :is_init true
+              ) :rhs (@@ "vacuity.rs:82:16: 82:22 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Ge)) (@@ "vacuity.rs:82:16: 82:17 (#0)"
+                 (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))) (Typ Int (IntRange U 32))
+                ) (@@ "vacuity.rs:82:21: 82:22 (#0)" (Exp Const (Constant Int 0)) (Typ Int (IntRange Nat)))
+               ) (Typ Bool))))
+            (@ "vacuity.rs:82:16: 82:22 (#0)" (Stm Assert (2) None (@@ "vacuity.rs:82:16: 82:22 (#0)" (Exp Var (VarIdent "tmp%" (VarIdentDisambiguate
+                  VirTemp 2))
+               ) (Typ Bool))))
+            (@ "vacuity.rs:82:16: 82:22 (#0)" (Stm Assume (@@ "vacuity.rs:82:16: 82:22 (#0)" (Exp Var (VarIdent "tmp%" (VarIdentDisambiguate
+                  VirTemp 2))
+               ) (Typ Bool))))))))))
+      (@ "vacuity.rs:68:1: 85:2 (#0)" (Stm Return :assert_id (3) :base_error (Message :level Error :note "postcondition not satisfied"
+         :spans () :labels ((MessageLabel :span "vacuity.rs:84:5: 84:6 (#0)" :note "at the end of the function body" :is_proof_note
+           false :is_custom_err false)
+         ) :help None :fancy_note None
+        ) :ret_exp (@@ "vacuity.rs:84:5: 84:6 (#0)" (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow
+            false :id 0))
+         ) (Typ Int (IntRange U 32))
+        ) :inside_body false))))
+   ) :local_decls ((LocalDecl :ident (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind
+      Return)
+    ) (LocalDecl :ident (VarIdent "n" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind Param
+      :mutable false)
+    ) (LocalDecl :ident (VarIdent "decrease%init0%0" (VarIdentDisambiguate AirLocal)) :typ (Typ Int (IntRange Int)) :kind (LocalDeclKind
+      Decreases)
+    ) (LocalDecl :ident (VarIdent "tmp%" (VarIdentDisambiguate VirTemp 1)) :typ (Typ Bool) :kind (LocalDeclKind Assert)) (LocalDecl
+     :ident (VarIdent "tmp%" (VarIdentDisambiguate VirTemp 2)) :typ (Typ Bool) :kind (LocalDeclKind Assert)
+    ) (LocalDecl :ident (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0)) :typ (Typ Int
+      (IntRange U 32)
+     ) :kind (LocalDeclKind StmtLet :mutable true))
+   ) :local_decls_decreases_init () :statics ()
+  ) :recommends_check (FuncCheckSst :reqs () :post_condition (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam))
+    :ens_exps () :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
+   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:68:1: 85:2 (#0)" (Stm Block (
+      (@ "vacuity.rs:66:14: 66:22 (#0)" (Stm Assume (@@ "vacuity.rs:66:14: 66:22 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp
+            Le)
+          ) (@@ "vacuity.rs:66:14: 66:15 (#0)" (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+          (@@ "vacuity.rs:66:19: 66:22 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+         ) (Typ Bool))))
+      (@ "vacuity.rs:68:1: 85:2 (#0)" (Stm Block (
+         (@ "vacuity.rs:68:1: 85:2 (#0)" (Stm Block (
+            (@ "vacuity.rs:69:9: 69:14 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:69:22: 69:23 (#0)" (Exp VarLoc (VarIdent "i" (VarIdentDisambiguate
+                   VirRenumbered :is_stmt true :does_shadow false :id 0))
+                ) (Typ Int (IntRange U 32))
+               ) :is_init true
+              ) :rhs (@@ "vacuity.rs:69:22: 69:23 (#0)" (Exp Const (Constant Int 0)) (Typ Int (IntRange U 32)))))
+            (@ "vacuity.rs:70:5: 70:16 (#10)" (Stm Loop :loop_isolation true :is_for_loop false :id 0 :label None :cond (tuple (@ "vacuity.rs:70:5: 70:16 (#10)"
+                (Stm Block ())
+               ) (@@ "vacuity.rs:70:11: 70:16 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Lt)) (@@ "vacuity.rs:70:11: 70:12 (#0)"
+                  (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))) (Typ Int (IntRange U 32))
+                 ) (@@ "vacuity.rs:70:15: 70:16 (#0)" (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+                ) (Typ Bool))
+              ) :body (@ "vacuity.rs:76:5: 78:6 (#0)" (Stm Block (
+                 (@ "vacuity.rs:77:13: 77:18 (#0)" (Stm Assume (@@ "vacuity.rs:77:13: 77:18 (#0)" (Exp UnaryOpr (UnaryOpr HasType (Typ Int (IntRange
+                        U 32))
+                     ) (@@ "vacuity.rs:77:13: 77:18 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:77:13: 77:14 (#0)"
+                        (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))) (Typ Int (IntRange U 32))
+                       ) (@@ "vacuity.rs:77:17: 77:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+                      ) (Typ Int (IntRange U 32)))
+                    ) (Typ Bool))))
+                 (@ "vacuity.rs:77:9: 77:18 (#0)" (Stm Assign :lhs (Dest :dest (@@ "vacuity.rs:77:9: 77:10 (#0)" (Exp Loc (@@ "vacuity.rs:77:9: 77:10 (#0)"
+                       (Exp VarLoc (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))) (Typ Int (IntRange
+                         U 32)))
+                     ) (Typ Int (IntRange U 32))
+                    ) :is_init false
+                   ) :rhs (@@ "vacuity.rs:77:13: 77:18 (#0)" (Exp Unary (UnaryOp Clip :range (IntRange U 32) :truncate true) (@@ "vacuity.rs:77:13: 77:18 (#0)"
+                      (Exp Binary (BinaryOp Arith (ArithOp Add (OverflowBehavior Allow))) (@@ "vacuity.rs:77:13: 77:14 (#0)" (Exp Var (VarIdent "i"
+                          (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))
+                        ) (Typ Int (IntRange U 32))
+                       ) (@@ "vacuity.rs:77:17: 77:18 (#0)" (Exp Const (Constant Int 1)) (Typ Int (IntRange U 32)))
+                      ) (Typ Int (IntRange U 32)))
+                    ) (Typ Int (IntRange U 32)))))))
+              ) :invs ((LoopInv :at_entry true :at_exit true :inv (@@ "vacuity.rs:72:13: 73:19 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp
+                    Le)
+                  ) (@@ "vacuity.rs:72:13: 73:14 (#0)" (Exp UnaryOpr (UnaryOpr ProofNote (ProofNoteLabel :text "i stays bounded" :is_custom_err
+                      false)
+                    ) (@@ "vacuity.rs:72:13: 73:14 (#0)" (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false
+                        :id 0))
+                     ) (Typ Int (IntRange U 32)))
+                   ) (Typ Int (IntRange U 32))
+                  ) (@@ "vacuity.rs:73:18: 73:19 (#0)" (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+                 ) (Typ Bool))
+               ) (LoopInv :at_entry true :at_exit true :inv (@@ "vacuity.rs:74:13: 74:21 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp
+                    Le)
+                  ) (@@ "vacuity.rs:74:13: 74:14 (#0)" (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+                  (@@ "vacuity.rs:74:18: 74:21 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+                 ) (Typ Bool)))
+              ) :decrease ((@@ "vacuity.rs:75:19: 75:24 (#0)" (Exp Binary (BinaryOp Arith (ArithOp Sub (OverflowBehavior Allow))) (@@ "vacuity.rs:75:19: 75:20 (#0)"
+                  (Exp Var (VarIdent "n" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))
+                 ) (@@ "vacuity.rs:75:23: 75:24 (#0)" (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false
+                     :id 0))
+                  ) (Typ Int (IntRange U 32)))
+                ) (Typ Int (IntRange Int)))
+              ) :typ_inv_vars () :modified_vars None :pre_modified_params None))
+            (@ "vacuity.rs:79:11: 83:6 (#0)" (Stm Block (
+               (@ "vacuity.rs:81:9: 81:15 (#0)" (Stm Assume (@@ "vacuity.rs:81:16: 81:24 (#0)" (Exp UnaryOpr (UnaryOpr ProofNote (ProofNoteLabel
+                     :text "loop exit bound" :is_custom_err false)
+                   ) (@@ "vacuity.rs:81:16: 81:24 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Le)) (@@ "vacuity.rs:81:16: 81:17 (#0)"
+                      (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0))) (Typ Int (IntRange U 32))
+                     ) (@@ "vacuity.rs:81:21: 81:24 (#0)" (Exp Const (Constant Int 100)) (Typ Int (IntRange Nat)))
+                    ) (Typ Bool))
+                  ) (Typ Bool))))
+               (@ "vacuity.rs:82:9: 82:15 (#0)" (Stm Assume (@@ "vacuity.rs:82:16: 82:22 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp
+                     Ge)
+                   ) (@@ "vacuity.rs:82:16: 82:17 (#0)" (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false
+                       :id 0))
+                    ) (Typ Int (IntRange U 32))
+                   ) (@@ "vacuity.rs:82:21: 82:22 (#0)" (Exp Const (Constant Int 0)) (Typ Int (IntRange Nat)))
+                  ) (Typ Bool))))))))))
+         (@ "vacuity.rs:68:1: 85:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level Error :note "postcondition not satisfied"
+            :spans () :labels ((MessageLabel :span "vacuity.rs:84:5: 84:6 (#0)" :note "at the end of the function body" :is_proof_note
+              false :is_custom_err false)
+            ) :help None :fancy_note None
+           ) :ret_exp (@@ "vacuity.rs:84:5: 84:6 (#0)" (Exp Var (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow
+               false :id 0))
+            ) (Typ Int (IntRange U 32))
+           ) :inside_body false)))))))
+   ) :local_decls ((LocalDecl :ident (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind
+      Return)
+    ) (LocalDecl :ident (VarIdent "n" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind Param
+      :mutable false)
+    ) (LocalDecl :ident (VarIdent "decrease%init0%0" (VarIdentDisambiguate AirLocal)) :typ (Typ Int (IntRange Int)) :kind (LocalDeclKind
+      Decreases)
+    ) (LocalDecl :ident (VarIdent "i" (VarIdentDisambiguate VirRenumbered :is_stmt true :does_shadow false :id 0)) :typ (Typ Int
+      (IntRange U 32)
+     ) :kind (LocalDeclKind StmtLet :mutable true))
    ) :local_decls_decreases_init () :statics ()
   ) :safe_api_check None :async_ret None))
 

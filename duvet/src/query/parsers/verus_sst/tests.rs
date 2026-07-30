@@ -35,9 +35,10 @@
 use super::{
     closure::{aggregate_map, closure, Closure},
     load_dir,
-    structure::{parse_module, ObligationGraph},
+    structure::{parse_module, ObligationGraph, UnitKind},
     witness::{
-        classify_position, construct_witnesses, materialize_all, ClaimRule, PositionKind, Strength,
+        all_units, classify_position, construct_witnesses, materialize_all, ClaimRule,
+        PositionKind, Strength,
     },
 };
 use std::{
@@ -329,53 +330,67 @@ fn body_line_is_not_proof_testable() {
     // Decision 13 golden (the redirect's named case): a test
     // annotation targeting `execution_set`'s BODY. Its extent —
     // the declaration, lines 62..=66 — roots the obligation; body
-    // line 68 is elaborated (it appears in the aggregate) but roots
-    // nothing: proof ingredient, not claim. The outcome is the
-    // distinct not-proof-testable report, NOT a du result and NOT
-    // W6, and zero witnesses. (The old own-span fallback attributed
-    // this line to execution_set and built a witness the
-    // annotation could not bind — Decision 13 deleted it.)
+    // line 90 (`let directly_executed = ...`) is elaborated (it
+    // appears in the aggregate) but roots nothing: proof
+    // ingredient, not claim. The outcome is the distinct
+    // not-proof-testable report, NOT a du result and NOT W6, and
+    // zero witnesses.
     let graph = corpus();
     let file = "duvet-coverage/src/execution_propagation.rs";
     assert!(matches!(
         classify_position(graph, file, 62),
         PositionKind::Rooted(units)
-            if units.iter().map(|n| n.name.as_str()).collect::<Vec<_>>()
+            if units.iter().map(|u| u.node.name.as_str()).collect::<Vec<_>>()
                 == ["duvet_coverage::execution_propagation::execution_set"]
     ));
+    assert_eq!(
+        classify_position(graph, file, 90),
+        PositionKind::NotProofTestable
+    );
+    assert!(construct_witnesses(graph, file, 90, "sst-poc", is_project).is_empty());
+    // A requires clause line: elaborated, but requires clauses are
+    // not one of the four unit kinds (spec §5.3), so it roots
+    // nothing either.
     assert_eq!(
         classify_position(graph, file, 68),
         PositionKind::NotProofTestable
     );
-    assert!(construct_witnesses(graph, file, 68, "sst-poc", is_project).is_empty());
-    // Same shape for the declaration-only exec fn that motivated
-    // the old fallback: its 42 body lines are now out of domain.
+    // Compiler-generated overflow/bounds checks are stamped as
+    // asserts with a diagnostic `Message` (not `None`): they sit
+    // on executable body lines and are not user proof elements,
+    // so they root nothing. annotation_execution.rs:197 carries a
+    // generated index-bounds assert and stays out of the domain.
     assert_eq!(
-        classify_position(graph, "duvet-coverage/src/annotation_execution.rs", 190),
+        classify_position(graph, "duvet-coverage/src/annotation_execution.rs", 197),
         PositionKind::NotProofTestable
     );
 }
 
 #[test]
 fn du_map_domain_split_over_the_aggregate() {
-    // Decision 13 partitions the 1990 elaborated project lines
-    // exactly: 235 rooted (in dom(du)) and 1755 not-proof-testable
-    // (elaborated body/ingredient lines), zero unelaborated —
-    // pinned so a rooting change (e.g. :enss/LoopInv landing, which
-    // may only move lines NPT → rooted) is a visible diff here, and
-    // the refuse-body-lines boundary is exact from the start.
+    // Decisions 13, 18, 19 partition the 1990 elaborated project
+    // lines exactly: 752 rooted (in dom(du)) and 1238
+    // not-proof-testable (elaborated body/ingredient lines), zero
+    // unelaborated. Winning-unit-kind breakdown of the rooted
+    // lines: 230 extent, 150 ensures, 185 loop-invariant, 187
+    // proof-assert. Cross-checked against an independent
+    // computation (python, own S-expression reader, 2026-07-29);
+    // the two agree exactly on all counts.
     // Multi-rooted positions: exactly the 13 lines of the
     // arrow-accessor pair's shared extent (types.rs 154..=166),
-    // two obligations each.
+    // two extent units each — most-specific-wins does not disturb
+    // Decision 12's tie handling.
     let graph = corpus();
     let agg = aggregate_map(graph, is_project);
     let (mut rooted, mut npt) = (0usize, 0usize);
+    let mut by_kind: std::collections::BTreeMap<UnitKind, usize> = Default::default();
     let mut multi = Vec::new();
     for (file, lines) in &agg.0 {
         for &line in lines {
             match classify_position(graph, file, line) {
                 PositionKind::Rooted(units) => {
                     rooted += 1;
+                    *by_kind.entry(units[0].kind).or_default() += 1;
                     if units.len() > 1 {
                         multi.push((file.clone(), line, units.len()));
                     }
@@ -387,7 +402,16 @@ fn du_map_domain_split_over_the_aggregate() {
             }
         }
     }
-    assert_eq!((rooted, npt), (235, 1755));
+    assert_eq!((rooted, npt), (752, 1238));
+    assert_eq!(
+        by_kind.into_iter().collect::<Vec<_>>(),
+        [
+            (UnitKind::Extent, 230),
+            (UnitKind::Ensures, 150),
+            (UnitKind::LoopInvariant, 185),
+            (UnitKind::ProofAssert, 187),
+        ]
+    );
     let expected: Vec<(String, u32, usize)> = (154..=166)
         .map(|l| ("duvet-coverage/src/types.rs".to_string(), l, 2))
         .collect();
@@ -435,35 +459,45 @@ fn annotation_independence_same_obligation_identical_witness() {
 fn filter_soundness_annotations_only_select_from_the_universe() {
     // Spec §1.7: the witness universe is defined by the artifact
     // alone; the annotations input only selects which members get
-    // materialized. Sweep every possible single-line annotation
-    // position (all 1990 elaborated project lines) and check, at
-    // each, against full-universe production:
+    // materialized. The universe has one witness per discharge
+    // unit (spec §5.3, Decision 18): 330 obligation extents plus
+    // 445 clause-kind units (182 ensures clauses, 98 loop
+    // invariants, 165 user proof asserts) = 775.
+    //
+    // Sweep every possible single-line annotation position (all
+    // 1990 elaborated project lines) and check, at each, against
+    // full-universe production:
     //
     //   1. every witness materialized for the position is
     //      byte-identical to the universe member with its label
     //      (production never invents or perturbs a witness), and
-    //   2. the position's ByRootSpan binding set over the
-    //      materialized witnesses equals its binding set over the
-    //      whole universe (filtering loses no binder — this is
-    //      what forced containment ties to yield ALL tied units;
-    //      a smallest-extent tiebreak silently dropped a binder
-    //      for types.rs lines 154..=166).
+    //   2. the materialized set equals the most-specific level of
+    //      the position's ByRootSpan binding set over the whole
+    //      universe: clause-kind binders of minimal span if any
+    //      exist, else extent binders of minimal span (rooting is
+    //      most-specific-wins, spec §5.3, Decision 19 — a bound
+    //      coarser witness is deliberately NOT materialized:
+    //      hoisting to the enclosing function is refused, and ties
+    //      at the chosen level all materialize, Decision 12).
     let graph = corpus();
     let universe = materialize_all(graph, "sst-poc", is_project);
-    assert_eq!(
-        universe.len(),
-        graph.nodes.len(),
-        "one witness per obligation"
-    );
+    let units = all_units(graph);
+    assert_eq!(universe.len(), units.len(), "one witness per unit");
+    assert_eq!(universe.len(), 775, "330 extents + 445 clause units");
     let by_label: std::collections::BTreeMap<&str, &super::witness::VerusWitness> =
         universe.iter().map(|w| (w.label.as_str(), w)).collect();
     assert_eq!(by_label.len(), universe.len(), "labels are unique");
 
-    let binds = |w: &super::witness::VerusWitness, file: &str, line: u32| {
-        // Single-line resolved target: T binds w iff the target
-        // lies inside w's root span (spec §1.5, ByRootSpan).
-        let ClaimRule::ByRootSpan(root) = &w.claim;
-        root.contains(file, line)
+    // (kind, size, label) of every universe member whose root span
+    // contains the position (spec §1.5 ByRootSpan binding for a
+    // single-line target).
+    let binders = |file: &str, line: u32| -> Vec<(UnitKind, u64, &str)> {
+        units
+            .iter()
+            .zip(universe.iter())
+            .filter(|(u, _)| u.span.contains(file, line))
+            .map(|(u, w)| (u.kind, u.span.line_count(), w.label.as_str()))
+            .collect()
     };
 
     let agg = aggregate_map(graph, is_project);
@@ -477,21 +511,30 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
                     "{file}:{line}: materialized witness diverges from universe member"
                 );
             }
-            let mut universe_binders: Vec<&str> = universe
+            let all = binders(file, line);
+            let clause: Vec<_> = all
                 .iter()
-                .filter(|w| binds(w, file, line))
-                .map(|w| w.label.as_str())
+                .filter(|(k, _, _)| *k != UnitKind::Extent)
                 .collect();
-            let mut materialized_binders: Vec<&str> = materialized
+            let level: Vec<_> = if clause.is_empty() {
+                all.iter().collect()
+            } else {
+                clause
+            };
+            let min = level.iter().map(|(_, s, _)| *s).min();
+            let mut expected: Vec<&str> = level
                 .iter()
-                .filter(|w| binds(w, file, line))
-                .map(|w| w.label.as_str())
+                .filter(|(_, s, _)| Some(*s) == min)
+                .map(|(_, _, l)| *l)
                 .collect();
-            universe_binders.sort_unstable();
-            materialized_binders.sort_unstable();
+            let mut materialized_labels: Vec<&str> =
+                materialized.iter().map(|w| w.label.as_str()).collect();
+            expected.sort_unstable();
+            materialized_labels.sort_unstable();
             assert_eq!(
-                universe_binders, materialized_binders,
-                "{file}:{line}: binding over materialized set diverges from full universe"
+                materialized_labels, expected,
+                "{file}:{line}: materialized set diverges from the most-specific \
+                 level of the universe binding set"
             );
         }
     }
@@ -522,7 +565,7 @@ fn lines(c: &Closure) -> BTreeSet<u32> {
 #[test]
 fn vacuity_fixture_shape() {
     let g = vacuity();
-    assert_eq!(g.nodes.len(), 8, "5 vacuity fns + main + vstd nodes");
+    assert_eq!(g.nodes.len(), 9, "6 vacuity fns + main + vstd nodes");
     for name in [
         "vacuity::spec_add_one",
         "vacuity::add_one",
@@ -530,6 +573,7 @@ fn vacuity_fixture_shape() {
         "vacuity::vacuous_proof",
         "vacuity::vacuous_proof_mentioning",
         "vacuity::self_contained",
+        "vacuity::noted_loop",
     ] {
         assert!(g.nodes.contains_key(name), "missing {name}");
     }
@@ -544,13 +588,13 @@ fn scenario_1_vacuous_proof_closure_is_itself_only() {
     // semantics really does provide (FINDINGS.md hypothesis,
     // confirmed).
     let c = closure(vacuity(), "vacuity::vacuous_proof", vacuity_file).unwrap();
-    assert_eq!(lines(&c), (30..=34).collect(), "own extent lines only");
-    // Explicitly: no spec_add_one (7..=8), no add_one body, no
+    assert_eq!(lines(&c), (32..=36).collect(), "own extent lines only");
+    // Explicitly: no spec_add_one (9..=10), no add_one body, no
     // self_contained body. Closure *size* is not the signal —
     // project-span content is.
-    assert!(!lines(&c).contains(&7));
-    assert!(!lines(&c).contains(&15));
-    assert!(!lines(&c).contains(&55));
+    assert!(!lines(&c).contains(&9));
+    assert!(!lines(&c).contains(&17));
+    assert!(!lines(&c).contains(&57));
 }
 
 #[test]
@@ -567,41 +611,62 @@ fn scenario_2_mention_without_need_is_credited() {
         c.reached.contains("vacuity::spec_add_one"),
         "the mention is followed"
     );
-    assert_eq!(lines(&c), [7, 8, 41, 42, 43, 44, 45].into_iter().collect());
+    assert_eq!(lines(&c), [9, 10, 43, 44, 45, 46, 47].into_iter().collect());
 }
 
 #[test]
 fn scenario_3_self_inclusion_is_credited() {
     // Vacuous ensures, impl annotation inside the same fn's body
-    // (line 55): whole-fn discharge units self-include the body, so
-    // the pair IS credited. Catching this requires clause-level
-    // units AND needed semantics — both out of scope (Decision 7).
+    // (line 57): discharge units carry their function's closure,
+    // which self-includes the body, so the pair IS credited.
+    // Catching this now requires needed semantics (Decision 7 —
+    // clause-level units alone do not shrink the closure; spec
+    // §5.4's closure-ceiling statement).
     //
     // `self_contained`'s extent is the declaration line alone
-    // (52:1..52:41), so under Decision 13 the header line 52 is
-    // the proof-testable position. The ensures line 53 is currently
-    // not-proof-testable — it joins dom(du) when :enss clause
-    // rooting lands (which may only move it NPT → Rooted), at
-    // which point the classification assertion below is the test
-    // that flips.
+    // (54:1..54:41); the ensures clause (line 55) is its own
+    // discharge unit now that :enss rooting has landed
+    // (spec §5.3, Decision 18 — this is the test that flipped, as
+    // its pre-flip text anticipated). The clause-rooted witness
+    // carries the same function-level closure and still
+    // self-includes body line 57.
     let g = vacuity();
-    let ws = construct_witnesses(g, "vacuity.rs", 52, "fixture", vacuity_file);
+    let ws = construct_witnesses(g, "vacuity.rs", 54, "fixture", vacuity_file);
     let [w] = ws.as_slice() else {
         panic!("expected exactly one witness, got {}", ws.len())
     };
     assert_eq!(w.label, "vacuity::self_contained");
     assert!(
-        w.files["vacuity.rs"].contains(&55),
+        w.files["vacuity.rs"].contains(&57),
         "witness self-includes the body line carrying the impl annotation"
     );
+    // The ensures line roots the clause unit — and ONLY the clause
+    // unit: hoisting to the enclosing function is refused
+    // (Decision 19), and the label is span identity, never
+    // proof_note (Decision 20's ensures hazard rule).
+    let ws = construct_witnesses(g, "vacuity.rs", 55, "fixture", vacuity_file);
+    let [w55] = ws.as_slice() else {
+        panic!("expected exactly one witness, got {}", ws.len())
+    };
+    assert_eq!(w55.label, "vacuity::self_contained ensures[0]");
+    let ClaimRule::ByRootSpan(root) = &w55.claim;
+    assert_eq!((root.start_line, root.end_line), (55, 55));
     assert_eq!(
-        classify_position(g, "vacuity.rs", 53),
-        PositionKind::NotProofTestable,
-        "ensures line: rooted only once :enss rooting lands"
+        w55.provenance.discharge_unit.as_deref(),
+        Some("vacuity::self_contained")
+    );
+    assert_eq!(
+        w55.files, w.files,
+        "clause unit carries the function-level closure (spec §5.4 ceiling)"
+    );
+    assert!(
+        w55.files["vacuity.rs"].contains(&57),
+        "so the vacuous clause still self-includes the body: needed \
+         semantics, not granularity, is what catches this"
     );
     // The body line itself: proof ingredient, never a test target.
     assert_eq!(
-        classify_position(g, "vacuity.rs", 55),
+        classify_position(g, "vacuity.rs", 57),
         PositionKind::NotProofTestable
     );
 }
@@ -610,5 +675,84 @@ fn scenario_3_self_inclusion_is_credited() {
 fn honest_proof_reaches_the_implementation_spec() {
     let c = closure(vacuity(), "vacuity::honest_proof", vacuity_file).unwrap();
     assert!(c.reached.contains("vacuity::spec_add_one"));
-    assert_eq!(lines(&c), [7, 8, 22, 23, 24, 25].into_iter().collect());
+    assert_eq!(lines(&c), [9, 10, 24, 25, 26, 27].into_iter().collect());
+}
+
+// ---------------------------------------------------------------
+// Vacuity fixture: unit labels from the artifact (spec §5.5,
+// Decision 20)
+// ---------------------------------------------------------------
+
+#[test]
+fn labels_proof_note_when_recorded_span_identity_otherwise() {
+    // `noted_loop` carries a proof_note'd invariant ("i stays
+    // bounded", lines 72..=73 — the attribute line is part of the
+    // recorded span) alongside an unnoted one (line 74), and a
+    // proof_note'd assert ("loop exit bound", 80..=81) alongside an
+    // unnoted one (line 82). Each label comes from the artifact:
+    // ProofNoteLabel text when recorded, span identity otherwise —
+    // never from duvet reading source text.
+    let g = vacuity();
+    let label_at = |line: u32| -> Vec<String> {
+        construct_witnesses(g, "vacuity.rs", line, "fixture", vacuity_file)
+            .into_iter()
+            .map(|w| w.label)
+            .collect()
+    };
+    assert_eq!(label_at(73), ["i stays bounded"]);
+    assert_eq!(label_at(74), ["vacuity::noted_loop loop_invariant[1]"]);
+    assert_eq!(label_at(81), ["loop exit bound"]);
+    assert_eq!(label_at(82), ["vacuity::noted_loop proof_assert[1]"]);
+    // The ensures clause (line 67): span identity even though loop
+    // invariants and asserts in the same fn carry notes — the
+    // upstream proof_note-on-ensures defect makes note consumption
+    // for ensures a build breaker, so the producer never reads it
+    // (Decision 20 hazard rule).
+    assert_eq!(label_at(67), ["vacuity::noted_loop ensures[0]"]);
+    // The loop header line (70): excluded from dom(du) — the
+    // invariant clauses are units; the `while` line is not.
+    assert_eq!(
+        classify_position(g, "vacuity.rs", 70),
+        PositionKind::NotProofTestable
+    );
+}
+
+// ---------------------------------------------------------------
+// Closure reflexivity at every unit grain (spec §5.4)
+// ---------------------------------------------------------------
+
+#[test]
+fn every_constructed_witness_contains_its_own_root_span() {
+    // Spec §5.4: the closure MUST be reflexive — root ∈
+    // closure(root) — so a witness always scores its own
+    // annotation as executed and ByRootSpan binding implies
+    // execution. Producers MUST carry a unit test asserting
+    // reflexivity for every constructed witness; this is that
+    // test, over the full universe of both artifact sets, at
+    // clause grain (every unit kind, not just extents).
+    for (graph, project) in [
+        (corpus(), is_project as fn(&str) -> bool),
+        (vacuity(), vacuity_file as fn(&str) -> bool),
+    ] {
+        for w in materialize_all(graph, "x", project) {
+            let ClaimRule::ByRootSpan(root) = &w.claim;
+            if !project(&root.file) {
+                continue; // vstd-rooted units: projected out
+            }
+            let lines = w.files.get(&root.file).unwrap_or_else(|| {
+                panic!(
+                    "{}: root file {} missing from witness map",
+                    w.label, root.file
+                )
+            });
+            for line in root.start_line..=root.end_line {
+                assert!(
+                    lines.contains(&line),
+                    "{}: root line {}:{line} not in own closure",
+                    w.label,
+                    root.file
+                );
+            }
+        }
+    }
 }

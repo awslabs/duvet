@@ -193,6 +193,43 @@ resolve to comment lines under degraded resolution; harmless today
 (implication coverers are not scored by proof witnesses in these
 runs) but they should be re-placed in the optional retrofit pass.
 
+## Live run re-verified after clause-granularity rooting (2026-07-29)
+
+Decisions 17–20 landed in the producer (dom(du) = obligation
+extents ∪ ensures clauses ∪ loop invariants ∪ proof asserts;
+most-specific-wins rooting; labels from the artifact). The demo
+re-ran on fresh logs:
+
+```
+cargo verus build -p duvet-coverage -- --log vir-sst --log-dir /tmp/sst-fresh
+    # 65 verified, 0 errors, 11 module logs
+cargo run -p duvet -- query -c coverage --coverage-source verus-sst=/tmp/sst-fresh
+    # exit 1: 6/6 correlations, 10 unwitnessed runtime tests (Decision 8)
+cargo run -p duvet -- query -c coverage --coverage-source verus-sst=/tmp/sst-fresh \
+    -s "design/witness/spec.md#property-w1-...,...w2,...w3,...w4,...w5,...w6"
+    # exit 0: 6/6 discharged, 0 failed, 0 unwitnessed
+```
+
+- **All 6 W-property pairs still DISCHARGE**, verdicts identical to
+  2026-07-28. Their witnesses still root **extent units**: each
+  test annotation resolves to the `pub proof fn` header line
+  (below its docs, per the placement fix), which sits inside the
+  obligation extent and inside no finer unit — so the extent is
+  the correct most-specific unit and the labels remain the six
+  fully-qualified fn paths. No pair rooted a clause, because no
+  annotation targets a clause line.
+- Clause-grain rooting is exercised by the golden corpus instead:
+  of its 1990 elaborated project lines, 752 are now in dom(du)
+  (was 235) — winning-unit kinds: 230 extent, 150 ensures,
+  185 loop-invariant, 187 proof-assert — and the vacuity fixture's
+  scenario-3 ensures line roots its own clause unit
+  (`vacuity::self_contained ensures[0]`), as Decision 18 requires.
+- The full run's 10 unwitnessed annotations are the same 10
+  runtime `#[test]` annotations as 2026-07-28 (proofs.rs ×6,
+  execution_propagation.rs ×2, scopes.rs ×2) — clause expansion
+  moved none of them, as expected: their targets are `#[test]`
+  fns outside the artifact.
+
 ## CI staging (decided 2026-07-28)
 
 The full proof-only run exits 1 on the 10 unwitnessed runtime
