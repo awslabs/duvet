@@ -36,7 +36,10 @@ pub open spec fn repeated_label(label: usize, len: nat) -> Seq<usize> {
     Seq::new(len, |i: int| label)
 }
 
-/// Per-byte annotation coverage, with segment cuts erased.
+/// Per-byte annotation coverage, with segment cuts erased. This "unpacks" the
+/// compressed span representation into one label entry per covered byte, so two
+/// span lists denote the same sequence exactly when they mean the same thing.
+/// It is the semantic ground truth the proofs preserve across canonicalization.
 pub open spec fn denote(spans: Seq<SegmentSpan>) -> Seq<usize>
     decreases spans.len(),
 {
@@ -171,6 +174,14 @@ proof fn lemma_push_preserves_denotation(
     }
 }
 
+// Well-formedness survives truncation: any prefix of a well-formed list is
+// itself well-formed. The inductive step below reasons about `input.take(..)`
+// but only has `spans_well_formed` for the whole input, so it needs this.
+//
+// None of this is automatic: `spans_well_formed` is three quantified clauses,
+// and Verus does not unfold `take`'s indexing inside a quantifier on its own.
+// Each clause is re-established by handing the solver the bridging fact that a
+// prefix element is definitionally the same element as the original.
 proof fn lemma_well_formed_take(spans: Seq<SegmentSpan>, count: int)
     requires
         spans_well_formed(spans),
@@ -178,13 +189,17 @@ proof fn lemma_well_formed_take(spans: Seq<SegmentSpan>, count: int)
     ensures
         spans_well_formed(spans.take(count)),
 {
+    // Clause 1: every span is non-empty (start < end).
     assert forall|i: int| 0 <= i < spans.take(count).len() implies
         (#[trigger] spans.take(count)[i]).start < spans.take(count)[i].end by {
         assert(spans.take(count)[i] == spans[i]);
     }
+    // Clause 2: the first span starts at byte 0 (guarded: empty prefix has none).
     if count > 0 {
         assert(spans.take(count)[0] == spans[0]);
     }
+    // Clause 3: spans are contiguous. This relates two adjacent elements, so it
+    // needs the bridge for both `i - 1` and `i`.
     assert forall|i: int| 0 < i < spans.take(count).len() implies
         (#[trigger] spans.take(count)[i - 1]).end
             == (#[trigger] spans.take(count)[i]).start by {
@@ -216,6 +231,13 @@ proof fn lemma_push_preserves_well_formed(
     }
 }
 
+// Canonicalizing the first `count` spans denotes the same per-byte label
+// sequence as taking the first `count` spans raw (and stays well-formed).
+//
+// `count` generalizes the real goal (the `count == input.len()` case) so we can
+// induct on prefix length; `decreases count` proves the induction terminates.
+// The step folds in one more span with `push_span` on top of the induction
+// hypothesis and shows that extra step is invisible to `denote`.
 proof fn lemma_canonicalize_prefix_preserves_denotation(
     input: Seq<SegmentSpan>,
     count: int,
@@ -229,27 +251,48 @@ proof fn lemma_canonicalize_prefix_preserves_denotation(
     decreases count,
 {
     if count == 0 {
+        // Base case: both sides are the empty sequence. `reveal` unfolds the
+        // hidden recursive definition far enough to see it bottoms out at empty.
         reveal(canonicalize_prefix);
     } else {
+        // Move 1: the recursive call IS the induction hypothesis. Afterwards
+        // Verus knows `prior` is well-formed and denote(prior) == denote(input_prior).
         lemma_canonicalize_prefix_preserves_denotation(input, count - 1);
         lemma_well_formed_take(input, count - 1);
         let prior = canonicalize_prefix(input, count - 1);
         let input_prior = input.take(count - 1);
         let span = input[count - 1];
+        // Move 2: rewrite the goal's RHS as "prefix, plus one span appended", so
+        // both sides are phrased the same way. `=~=` is extensional (equal at
+        // every index) equality, which the solver won't infer unaided here.
         assert(input.take(count) =~= input_prior.push(span)) by {
             input.lemma_take_succ_push(count - 1);
         }
         assert(span.start < span.end);
+        // Move 3: establish the "seam" precondition the push lemmas need, namely
+        // that `span` butts up exactly against the end of `prior`.
         if prior.len() == 0 {
+            // `push_span` never shrinks, so an empty canonical prefix means an
+            // empty input prefix; then `span == input[0]`, which starts at 0.
             assert(input_prior.len() == 0);
             assert(span.start == 0);
         } else {
+            // Canonicalization merges interior cuts but never moves the final
+            // endpoint, so `prior` and `input_prior` end at the same byte; then
+            // contiguity of `input` places `span.start` right there.
             assert(input_prior.len() > 0);
             assert(prior.last().end == input_prior.last().end);
             assert(input_prior.last().end == span.start);
         }
+        // Move 4: the one-step push lemmas. The denotation lemma is the heart:
+        // coalescing-append (push_span) and plain append denote the same thing,
+        // which is where "merging equal labels is invisible" gets used.
         lemma_push_preserves_well_formed(prior, span);
         lemma_push_preserves_denotation(prior, span);
+        // Move 5: unfold `denote` one notch on each side (its body is hidden by
+        // default to avoid trigger loops; fuel 2 peels the last span off once).
+        // Both sides append the SAME repeated_label run, so once the IH equates
+        // the prefixes the whole equation chains shut.
         reveal(canonicalize_prefix);
         reveal_with_fuel(denote, 2);
         assert((prior.push(span)).drop_last() =~= prior);
