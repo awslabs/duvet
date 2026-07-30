@@ -185,6 +185,9 @@ jobs:
           echo "Installing Verus-required toolchain: $TOOLCHAIN"
           rustup toolchain install "$TOOLCHAIN"
 
+      - name: Build script.js
+        run: make -C duvet/www
+
       - name: Verify proofs
         run: cargo verus build -p duvet-coverage -p duvet
 
