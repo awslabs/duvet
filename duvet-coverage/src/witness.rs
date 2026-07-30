@@ -13,38 +13,15 @@
 //! verified scoring applied to w's map for X's file (spec §1.4); nothing in
 //! Phases 1–3 is re-specified here.
 //!
-//! Named glue assumptions (trusted base, NOT verified here):
-//!
-//! - **G1 (file identity):** the engine adapter (`VerifiedVerdicts` in
-//!   `duvet/src/query/witness.rs`) maps file paths to opaque `u64` file ids
-//!   injectively and consistently across all annotations and witnesses in
-//!   one run, and delivers each witness's `files` vector with
-//!   duplicate-free file ids. The adapter keys ids by absolute project
-//!   path (injective by construction of the map) and refuses — rather than
-//!   selects among — ambiguous producer-path suffix matches (spec §1.5's
-//!   bind-time refusal). What remains axiomatic: an absolute path is a
-//!   faithful file identity (e.g. no two distinct absolute paths alias one
-//!   file), and the adapter's translation is faithful (unit-tested glue).
-//! - **G2 (call obligation):** the engine computes its verdicts — pair
-//!   discharge (W1), test witnessed/unwitnessed (W2/W6), ever-executed
-//!   (W3) — by calling `report_discharged` / `is_unwitnessed` /
-//!   `report_ever_executed` below through the adapter, and derives
-//!   per-witness failure diagnostics from the same `is_bound_by` /
-//!   `is_executed_by` cells; the engine-side mirror of these quantifiers
-//!   was deleted so no parallel verdict computation exists. G2 is a
-//!   trusted-base item, not a proven property: a coverage run checks
-//!   annotation execution, not call graphs, so the dogfood loop cannot
-//!   discharge it. It is enforced by the deletion, by review, and by the
-//!   engine's test suite exercising verdicts end to end.
-//! - **G3 (mode routing):** the engine's per-file classifier routing is
-//!   reproduced in the model as [`ScoringMode`]: `Classified` files score
-//!   through the two-phase model, `Degraded` files through the verified
-//!   degraded path, and trust-boundary refusals (defeated classification,
-//!   ill-formed annotation ranges, unclassified files) enter as
-//!   `Unscorable`, which binds nothing and executes nothing. That the
-//!   adapter assigns each annotation the mode its file's classification
-//!   actually selected is adapter glue (unit-tested), not proven here.
-//! - Producer obligations A1 (closedness) and A2 (individuation) per spec §4.
+//! Named glue assumptions (trusted base, NOT verified here) are specified
+//! in design/witness/spec.md §4.4: **G1** (file identity — the adapter
+//! delivers injective, duplicate-free file ids), **G2** (call obligation —
+//! the engine computes every verdict by calling this layer's functions;
+//! no parallel verdict computation exists), and **G3** (mode routing —
+//! each annotation's file is scored in the [`ScoringMode`] its
+//! classification actually selected). The engine side of the glue lives
+//! in `duvet/src/query/witness.rs` (`VerifiedVerdicts`).
+//! Producer obligations A1 (closedness) and A2 (individuation) per spec §4.
 //!
 //! The `requires` on the report functions (coverage keys within
 //! classification bounds for `Classified`-mode scoring; scope line bounds)

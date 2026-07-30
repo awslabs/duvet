@@ -154,7 +154,7 @@ source file), the engine MUST refuse the bind and report the
 ambiguity rather than select — the same posture the producer takes
 when translating positions into artifact coordinates.
 Suffix matching that silently crosses two files ending in the same
-path is a G1 (file-identity injectivity) violation and can
+path is a G1 (file-identity injectivity, §4.4) violation and can
 manufacture both false failures and, when closures overlap, false
 discharges.
 
@@ -401,6 +401,36 @@ checking.
 Each producer MUST be unit-tested against golden artifacts
 (a real report file; a real prover log),
 since producers are unverified glue at the trust boundary.
+
+### 4.4 Engine glue {#engine-glue}
+
+The verified layer's guarantees (§2) reach the user only through
+unverified engine glue. Each glue component is named, bounded,
+and unit-tested (the posture §4.3 takes for producers):
+
+- **G1 (file identity).** The engine adapter MUST map file paths
+  to the model's file identities injectively and consistently
+  across all annotations and witnesses in one run, and MUST
+  deliver each witness's per-file maps free of duplicate
+  identities. Ambiguous producer-path matches are refused at
+  bind time, never selected among (§1.5).
+  What remains axiomatic: an absolute path is a faithful file
+  identity.
+- **G2 (call obligation).** The engine MUST compute every pair,
+  test, and global verdict (Properties W1–W4, W6) by calling the
+  verified layer's functions, and MUST derive per-witness
+  failure diagnostics (§3) from the same verified cells;
+  no parallel engine-side verdict computation may exist.
+  The verified layer cannot check its own callers, so G2 is a
+  trusted-base item — enforced by review and by the engine's
+  end-to-end test suite.
+- **G3 (mode routing).** The adapter MUST assign each
+  annotation's file the scoring mode its classification actually
+  selected — classified, degraded, or the trust-boundary refusal
+  that binds nothing and executes nothing
+  (§1.4; decisions.md, Decision 15). The adapter MUST establish
+  the verified functions' preconditions at the boundary —
+  filter or degrade before calling, never assume.
 
 ---
 

@@ -8,12 +8,11 @@
 //! The quantifiers themselves — `binds`, the bound-witness set,
 //! same-witness discharge (W1), test execution (W2/W6), global execution
 //! (W3) — are NOT implemented here. They are proven in `duvet-coverage`
-//! and the engine's verdicts are computed by calling them (glue
-//! obligation G2). An earlier engine-side mirror of those quantifiers
-//! lived in this module and was deleted when the adapter landed, so no
-//! parallel verdict computation exists.
+//! and the engine's verdicts are computed by calling them; no parallel
+//! engine-side verdict computation exists (glue obligation G2,
+//! spec §4.4).
 //!
-//! What this module still owns is glue, named as such:
+//! What this module still owns is glue, named in spec §4.4:
 //!
 //! - the engine's witness data model (labels, provenance, producer-path
 //!   coordinates — everything the verified projection deliberately

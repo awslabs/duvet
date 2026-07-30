@@ -429,13 +429,13 @@ fn stamp_annotation_range(classifications: &mut [Option<LineClass>], range: (u64
 /// the duvet source file whose absolute on-disk path is `absolute_duvet_path`.
 ///
 /// The rule is a single test: **is `coverage_path` a suffix of the absolute
-/// duvet path, ending at a `/` boundary?** This is deterministic, direction-free,
-/// and dominates the old four-strategy `paths_match`:
+/// duvet path, ending at a `/` boundary?** This is deterministic and
+/// direction-free, and covers every shape reports produce:
 ///
-///   - It subsumes exact-match and duvet-is-longer (the report names the whole
-///     path, or a package-relative tail of it).
-///   - It subsumes coverage-is-longer / nested-`.duvet` (duvet was run from
-///     inside the package so its glob returned a short path): absolutizing
+///   - The report names the whole path, or a package-relative tail of it
+///     (exact match; shorter report path).
+///   - The report's path is longer than duvet's (duvet was run from inside
+///     the package so its glob returned a short path): absolutizing
 ///     restores the real package directories, so the report's longer path is a
 ///     suffix of the real file — anchored to the actual package, not a bare
 ///     filename.
@@ -531,10 +531,10 @@ mod tests {
     }
 
     /// The scope tree is derived from the classifier's CST scope-event stream,
-    /// so an annotation override that clobbers a `ScopeClose` on the per-line
-    /// classification set can no longer unbalance the tree or collapse the file
-    /// to a single whole-file scope. The hazard the old pristine-ordering
-    /// guarded is eliminated by construction (PR #227).
+    /// not from the per-line classification set, so an annotation override
+    /// that clobbers a `ScopeClose` on that set cannot unbalance the tree or
+    /// collapse the file to a single whole-file scope — the hazard is
+    /// eliminated by construction (regression pinned by PR #227).
     #[test]
     fn scope_tree_survives_annotation_on_closing_brace() {
         // A two-method class. An annotation ends on `bar`'s closing brace
@@ -565,10 +565,10 @@ public class Two {
 
         // The scope tree is built from the CST-derived event stream, not from
         // `classifications`, so it recovers the real scopes (class body + two
-        // method bodies) and — unlike the old set-based matcher — cannot be
-        // collapsed by an annotation override that clobbers a `ScopeClose` on
-        // the classification set. That hazard is eliminated by construction
-        // (PR #227): `build_scope_tree` no longer reads the mutated set.
+        // method bodies) and cannot be collapsed by an annotation override
+        // that clobbers a `ScopeClose` on the classification set — that
+        // hazard is eliminated by construction (PR #227):
+        // `build_scope_tree` does not read the mutated set.
         let events = JavaClassifier.scope_events(source);
         let scopes = build_scope_tree(&events, line_count);
         assert!(
@@ -578,7 +578,7 @@ public class Two {
         );
 
         // Overriding the classification set (what `apply_annotation_override`
-        // does) no longer feeds `build_scope_tree`, so the tree is unchanged —
+        // does) does not feed `build_scope_tree`, so the tree is unchanged —
         // demonstrating the reorder hazard is gone rather than merely avoided.
         let mut overridden = classifications.clone();
         stamp_annotation_range(&mut overridden, (6, 8));
@@ -627,10 +627,10 @@ public class Two {
 
     // --- coverage_path_matches ---
     //
-    // These exercise the single suffix rule against every shape the old
-    // four-strategy `paths_match` handled, plus the boundary and same-name
-    // cases. The duvet side is always an *absolute* path, since
-    // the caller absolutizes before matching.
+    // These exercise the single suffix rule against every real-world path
+    // shape (exact, package-relative tail, report-longer), plus the
+    // boundary and same-name cases. The duvet side is always an *absolute*
+    // path, since the caller absolutizes before matching.
 
     #[test]
     fn exact_full_path_matches() {

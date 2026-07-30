@@ -606,7 +606,8 @@ async fn execute_coverage_check(
     // into the verified model's vocabulary (injective file ids, scoring
     // modes). All verdicts below — pair discharge (W1), witnessed/
     // unwitnessed (W2/W6), ever-executed (W3) — are computed by calling
-    // the verified quantifier layer through it (glue obligation G2).
+    // the verified quantifier layer through it (glue obligation G2,
+    // spec §4.4).
     // Translation refuses ambiguous root-span path matches (spec §1.5)
     // rather than selecting.
     let adapter = VerifiedVerdicts::build(&witnesses, &matched, &classification, &index)?;

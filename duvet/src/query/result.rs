@@ -668,7 +668,7 @@ impl fmt::Display for CoverageResult {
                 // Spec §3 (Decision 14): for every discharged pair, name
                 // EVERY bound witness (label + strength) — the discharge
                 // claim is that all of them executed the implementation.
-                // Scoped to verbose output by §3 (amended 2026-07-27):
+                // Scoped to verbose output by §3:
                 // success detail is verbose-gated; failure detail never is.
                 let discharged_by = correlation
                     .bound_witnesses

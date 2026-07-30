@@ -170,9 +170,7 @@ pub async fn produce(
 
 /// Wrap one JaCoCo report file as one witness: claim `ByExecution`,
 /// strength `Executed`, per-file maps exactly as the report states
-/// them (Decision 2: JaCoCo/LCOV is one file → one witness). This
-/// is pure repackaging of what the engine already parsed before
-/// witnesses existed — behavior-preserving by construction.
+/// them (Decision 2: JaCoCo/LCOV is one file → one witness).
 ///
 /// Individuation (spec §4.2) is the operator's responsibility for
 /// runtime artifacts — one instrumented run per test — and duvet
@@ -212,10 +210,10 @@ async fn jacoco_witness(artifact: &str) -> Result<Witness> {
 /// (spec §1.7: the annotations argument is a semantically inert
 /// optimization).
 ///
-/// Witnesses are deduplicated by obligation: two positions owned by
-/// the same discharge unit yield one witness, which is well-defined
-/// because a witness is a function of (artifact, obligation) only
-/// (spec §1.7). Output order is ascending by label within one
+/// Witnesses are deduplicated by discharge-unit label: two positions
+/// rooting the same discharge unit yield one witness, which is
+/// well-defined because a witness is a function of (artifact, unit)
+/// only (spec §1.7). Output order is ascending by label within one
 /// artifact — deterministic regardless of position order.
 fn verus_witnesses_from_graph(
     graph: &verus_sst::structure::ObligationGraph,

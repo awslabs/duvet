@@ -1,7 +1,10 @@
 # Duvet Witness: Design Decisions
 
-**Date:** 2026-07-26
-**Status:** Draft — under discussion. Nothing here is implemented.
+**Date:** 2026-07-26 (amendments through 2026-07-29)
+**Status:** Decisions 1–20 ratified. The feature is implemented
+against Decisions 1–15; the rooting expansion (Decisions 17–20)
+is in progress, and Decision 16's example project ships with the
+LCOV follow-up PR (see work items).
 
 ## Context
 
@@ -67,21 +70,23 @@ These terms are used throughout; the decisions are stated in them.
 
 ## Relationship to the correlation fix
 
-The current engine computes T's and I's execution status
-independently across all reports,
-so no single witness is ever required to have seen both —
-which contradicts the discharge definition above.
-That is being fixed in its own work stream.
+Before this feature, the engine computed T's and I's execution
+status independently across all reports,
+so no single witness was ever required to have seen both —
+contradicting the discharge definition above.
+This document's machinery is that fix for the pair verdict:
+the engine now computes discharge through the verified witness
+layer (spec Property W1), and the old multi-report OR-fold
+survives only as the global, non-correlating Property W3
+(spec §6).
 The position taken here: the original design intent
 (per-witness binding) was right;
 the recorded decision discussed an ambiguity that only exists for
 aggregate reports, and the implementation generalized that
 ambiguity into an overbroad fold.
-**The fix's scope therefore includes clarifying the original
-intent in `design/query/decisions.md` and spec §5.2**,
-not just changing code —
-and if the fix is built on this document's machinery,
-that clarification work expands accordingly.
+**What remains of the fix is documentation, not code:
+clarifying the original intent in `design/query/decisions.md`
+and coverage-model spec §5.2** (see work items).
 This document does not restate that work.
 
 ---
@@ -162,7 +167,7 @@ Provers: one log → one witness per constructed discharge unit.
 
 A witness carries: a label,
 a claim rule (Decision 3),
-provenance (source artifact, production rule, discharge unit,
+provenance (producer, source artifact, discharge unit,
 strength),
 and per-file **closed** line sets (Axiom A1, Decision 4).
 
@@ -964,8 +969,8 @@ files the dogfood does not have.
 
 ### Decision: Option C
 
-The routing choice per file is glue (G3, named in
-`duvet-coverage/src/witness.rs`); both scorers on either side of it
+The routing choice per file is glue (G3, spec §4.4); both scorers on
+either side of it
 were verified before this decision (Phases 1–3). Proof structure
 unchanged; 65 verified, 0 errors.
 
@@ -1312,10 +1317,13 @@ An upstream Verus report is a work item.
   against the existing SST run's constructed witnesses that every
   witness contains its own root span, plus the permanent producer
   unit test asserting `root ∈ closure(root)`.
-- **Per-tool harness example projects (Decision 16).** First:
-  `cargo llvm-cov` one-invocation-per-test example for the Rust
-  dogfood's mixed run; JaCoCo example documents the
-  already-solved pattern.
+- **LCOV-family runtime producer + Decision 16 example project:
+  deferred together to the LCOV follow-up PR** (ruled 2026-07-29).
+  The per-test-harness example that transfers A2 discipline
+  (Decision 16) is documented alongside the runtime producer it
+  demonstrates, not before it exists. First: the `cargo llvm-cov`
+  one-invocation-per-test example for the Rust dogfood's mixed
+  run; a JaCoCo example documents the already-solved pattern.
 - Enumerate the Verus `du` map: annotation position → discharge
   unit, case by case (whole proof fn / lemma; ensures of an exec
   fn; single ensures clause; single conjunct) — inside the Verus
@@ -1334,11 +1342,6 @@ An upstream Verus report is a work item.
 - Amending `design/query/decisions.md` and spec §5.2 to state the
   original per-witness intent (scoped to the correlation-fix work
   stream).
-- **LCOV-family runtime producer + Decision 16 example project:
-  deferred together to the LCOV follow-up PR** (ruled 2026-07-29).
-  The per-test-harness example that transfers A2 discipline
-  (Decision 16) is documented alongside the runtime producer it
-  demonstrates, not before it exists.
 - **Retrofit pass over the pre-existing annotations** (after the
   feature lands): the old `type=implication` annotations on
   `duvet-coverage`'s Phase 1–3 proofs predate any discharge

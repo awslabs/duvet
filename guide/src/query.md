@@ -36,6 +36,13 @@ $ duvet query -c test -q 'MUST encrypt'
 $ duvet query -c implementation,test -s spec.md -q 'header'
 ```
 
+Filters select which requirements are reported on; they never
+filter the covering pool. A covering annotation is paired with a
+requirement only when it targets the same specification text, so
+out-of-scope coverers fall away on their own — narrowing the scope
+can never turn a covered requirement into a miss, or a miss into a
+pass.
+
 ## Coverage checks
 
 The `coverage` and `executed-coverage` checks correlate test annotations with executed implementation annotations using a coverage report:
