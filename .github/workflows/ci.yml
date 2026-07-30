@@ -186,7 +186,7 @@ jobs:
           rustup toolchain install "$TOOLCHAIN"
 
       - name: Verify proofs
-        run: cargo verus build -p duvet-coverage -p duvet-report
+        run: cargo verus build -p duvet-coverage -p duvet
 
   action: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest

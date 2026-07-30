@@ -17,7 +17,6 @@ rust-version = "1.88"
 clap = { version = "4", features = ["derive"] }
 duvet-core = { version = "0.4", path = "../duvet-core" }
 duvet-coverage = { version = "0.1", path = "../duvet-coverage" }
-duvet-report = { version = "0.1", path = "../duvet-report" }
 futures = { version = "0.3" }
 glob = "0.3"
 lazy_static = "1"
@@ -41,6 +40,12 @@ tree-sitter-java = "0.23"
 triple_accel = "0.4"
 url = "2"
 v_jsonescape = "0.7"
+# Keep this exact version aligned with VERUS_VERSION in CI. Verus and vstd are
+# released in lockstep.
+vstd = "=0.0.0-2026-05-24-0157"
+
+[package.metadata.verus]
+verify = true
 
 [dev-dependencies]
 bolero = "0.13"

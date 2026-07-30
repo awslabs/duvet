@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-//! Small, I/O-free report algorithms whose correctness is checked by Verus.
+//! Segment canonicalization whose correctness is checked by Verus.
 
 #![allow(
     unused_imports,

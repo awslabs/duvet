@@ -13,6 +13,7 @@ use clap::Parser;
 use duvet_core::{path::Path, progress};
 use std::{collections::BTreeMap, sync::Arc};
 
+pub(crate) mod canonical;
 mod ci;
 mod html;
 mod json;

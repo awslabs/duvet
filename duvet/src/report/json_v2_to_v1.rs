@@ -4,6 +4,7 @@
 //! Conversion from the merge-friendly v2 report to the legacy v1 wire shape.
 
 use super::{
+    canonical::{canonicalize_spans, SegmentSpan},
     json_v1::{
         AnnotationV1, LineV1, RefStatusV1, ReportV1, RequirementStatusV1, SectionV1,
         SpecificationV1,
@@ -18,7 +19,6 @@ use crate::{
     target::TargetPath,
 };
 use duvet_core::file::SourceFile;
-use duvet_report::{canonicalize_spans, SegmentSpan};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
