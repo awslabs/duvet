@@ -366,6 +366,8 @@ pub fn canonicalize_spans(input: &[SegmentSpan]) -> (output: Vec<SegmentSpan>)
         let span = input[i];
         if !output.is_empty() && output[output.len() - 1].label == span.label {
             let last = output.len() - 1;
+            // Replace the whole span to mirror push_span's Seq::update, making
+            // the executable step directly match the loop invariant.
             output[last] = SegmentSpan {
                 start: output[last].start,
                 end: span.end,
