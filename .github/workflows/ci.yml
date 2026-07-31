@@ -188,7 +188,23 @@ jobs:
       - name: Verify duvet-coverage proofs
         # `--features verify` pulls in vstd, which is verification-only and
         # optional so it stays out of the published dependency graph.
-        run: cargo verus build -p duvet-coverage --features verify
+        # `--log vir-sst` makes the verification run leave its SST record
+        # behind; the dogfood job's witness query consumes it. Same proof
+        # run, no second verification.
+        run: cargo verus build -p duvet-coverage --features verify -- --log vir-sst --log-dir verus-sst-logs
+
+      - name: Compress SST logs
+        # duvet's verus-sst producer reads *-sst.vir.gz transparently and
+        # the SST text compresses ~21:1 (measured on the checked-in golden
+        # corpus), so ship the artifact gzipped.
+        run: gzip -9 verus-sst-logs/*-sst.vir
+
+      - name: Upload SST logs for the witness-query dogfood
+        uses: actions/upload-artifact@v6
+        with:
+          name: verus-sst-logs
+          path: verus-sst-logs/
+          if-no-files-found: error
 
   action: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
@@ -208,7 +224,17 @@ jobs:
     # witness spec's MUST lines), so a coverage regression — or an
     # unintended new citation — fails this job; improving coverage
     # requires regenerating and committing the snapshot.
+    #
+    # The witness-query step then dogfoods the coverage check itself: it
+    # feeds the SST logs the `verify` job left behind to
+    # `duvet query -c coverage`, sliced to the witness properties
+    # (W1–W7, P1–P4), and gates on every property pair discharging.
+    # The full (unsliced) proof-only run is NOT gated here: the runtime
+    # `type=test` annotations are unwitnessed in a proof-only run by
+    # design (design/witness/dogfood.md defers that gate to the LCOV
+    # follow-up).
     runs-on: ubuntu-latest
+    needs: verify
     steps:
       - uses: actions/checkout@v7
 
@@ -232,3 +258,18 @@ jobs:
 
       - name: Run duvet on its own annotations
         run: ./target/debug/duvet report --ci
+
+      - name: Download Verus SST logs
+        uses: actions/download-artifact@v6
+        with:
+          name: verus-sst-logs
+          path: verus-sst-logs
+
+      - name: Witness query dogfood
+        # Gated: every witness-property pair (proof fn ↔ implementation)
+        # must discharge from the proof witnesses. Exit code is the gate —
+        # a failed correlation fails the job.
+        run: |
+          ./target/debug/duvet query -c coverage \
+            --coverage-source verus-sst=verus-sst-logs \
+            -s "design/witness/spec.md#property-w1-same-witness-discharge,design/witness/spec.md#property-w2-test-execution,design/witness/spec.md#property-w3-global-execution,design/witness/spec.md#property-w4-monotonicity,design/witness/spec.md#property-w5-claim-refinement,design/witness/spec.md#property-w6-unwitnessed-test-annotations,design/witness/spec.md#property-w7-positional-binding-map-independence,design/witness/producer-core-spec.md#property-p1-closure-fixpoint,design/witness/producer-core-spec.md#property-p2-most-specific-wins,design/witness/producer-core-spec.md#property-p3-witness-assembly,design/witness/producer-core-spec.md#property-p4-filter-soundness"
