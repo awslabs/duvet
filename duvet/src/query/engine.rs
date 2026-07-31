@@ -181,6 +181,71 @@ async fn load_project_data(verbose: bool) -> Result<ProjectData> {
     })
 }
 
+/// An annotation's role in one check's coverage fold.
+enum CheckRole {
+    /// The requirement side: the annotations the check reports on.
+    Requirement,
+    /// The covering pool: the annotations that tile a requirement's quote.
+    Coverer,
+    /// Pending work (`Todo`), a third bucket only the implementation
+    /// check consumes.
+    Pending,
+}
+
+/// One check's annotation partition: requirement role, covering pool,
+/// and (for the implementation check) pending todos.
+#[derive(Default)]
+struct RolePartition {
+    requirements: Vec<Arc<Annotation>>,
+    coverers: Vec<Arc<Annotation>>,
+    pending: Vec<Arc<Annotation>>,
+}
+
+/// Split the annotation set into each check's roles, applying the
+/// spec-slice filter to the requirement role ONLY. This is the single
+/// home of that rule; every coverage-fold check partitions through it.
+///
+/// `-s`/`-q` are *spec-slice filters*: they cut the words of the spec to
+/// select which requirements are in scope to report on. They are applied
+/// to the requirement role only — never to the covering pool. Coverers
+/// come along transitively: `is_annotation_covered` pairs a coverer with
+/// a requirement only when they share an exact `target` (checks/mod.rs),
+/// so a coverer quoting an out-of-scope slice of the spec simply never
+/// matches an in-scope requirement and falls away on its own — no error.
+///
+/// This is what keeps a filter honest: it narrows *what you look at*, but
+/// can never turn a covered requirement into a miss (or a miss into a
+/// pass). A requirement is covered when its coverers tile its full quote;
+/// filtering the coverer pool by `-q` could drop one tile of that mosaic
+/// and manufacture a false miss. So `in_scope` gates the requirement push
+/// below and nothing else.
+///
+/// `role_of` names every annotation type's role in the calling check
+/// (`None` excludes the type from the check entirely); exhaustive matches
+/// at the call sites keep the exclusions explicit.
+fn partition_check_roles(
+    annotations: &AnnotationSet,
+    mode: &RequirementMode,
+    role_of: impl Fn(AnnotationType) -> Option<CheckRole>,
+) -> RolePartition {
+    let mut partition = RolePartition::default();
+    for annotation in annotations.iter() {
+        match role_of(annotation.anno) {
+            Some(CheckRole::Requirement) => {
+                // Requirement role: the one place the spec-slice filter
+                // applies.
+                if mode.in_scope(annotation) {
+                    partition.requirements.push(annotation.clone());
+                }
+            }
+            Some(CheckRole::Coverer) => partition.coverers.push(annotation.clone()),
+            Some(CheckRole::Pending) => partition.pending.push(annotation.clone()),
+            None => {}
+        }
+    }
+    partition
+}
+
 async fn execute_implementation_check(
     project_data: &ProjectData,
     mode: &RequirementMode,
@@ -190,49 +255,22 @@ async fn execute_implementation_check(
         progress!("Running implementation annotation coverage check...");
     }
 
-    // `-s`/`-q` are *spec-slice filters*: they cut the words of the spec to
-    // select which requirements are in scope to report on. They are applied to
-    // the requirement annotations (`Spec`) ONLY — never to the covering pool.
-    // Coverers come along transitively: `is_annotation_covered` pairs a coverer
-    // with a requirement only when they share an exact `target` (checks/mod.rs),
-    // so a coverer quoting an out-of-scope slice of the spec simply never matches
-    // an in-scope requirement and falls away on its own — no error.
-    //
-    // This is what keeps a filter honest: it narrows *what you look at*, but can
-    // never turn a covered requirement into a miss (or a miss into a pass). A
-    // requirement is covered when its coverers tile its full quote; filtering the
-    // coverer pool by `-q` could drop one tile of that mosaic and manufacture a
-    // false miss. So `in_scope` gates the `Spec` push below and nothing else.
-    let (spec_annotations, implemented_annotations, todo_annotations) = project_data
-        .annotations
-        .iter()
-        .filter(|annotation| !matches!(annotation.anno, AnnotationType::Test))
-        .fold(
-            (Vec::new(), Vec::new(), Vec::new()),
-            |(mut specs, mut impls, mut todos), annotation| {
-                match &annotation.anno {
-                    AnnotationType::Spec => {
-                        // Requirement role: apply the spec-slice filter here.
-                        if mode.in_scope(annotation) {
-                            specs.push(annotation.clone());
-                        }
-                    }
-                    AnnotationType::Citation
-                    | AnnotationType::Implication
-                    | AnnotationType::Exception => {
-                        // Coverer: never filtered — the full pool tiles the quote.
-                        impls.push(annotation.clone());
-                    }
-                    AnnotationType::Todo => {
-                        todos.push(annotation.clone());
-                    }
-                    // Shouldn't happen due to filter, but good to be explicit
-                    _ => unreachable!(),
-                }
-
-                (specs, impls, todos)
-            },
-        );
+    // Requirements are the spec's own annotations; implementations (plus
+    // implications and exceptions) cover them; todos are pending. The
+    // spec-slice filter applies to the requirement role only — see
+    // `partition_check_roles` for the full rationale.
+    let RolePartition {
+        requirements: spec_annotations,
+        coverers: implemented_annotations,
+        pending: todo_annotations,
+    } = partition_check_roles(&project_data.annotations, mode, |anno| match anno {
+        AnnotationType::Spec => Some(CheckRole::Requirement),
+        AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => {
+            Some(CheckRole::Coverer)
+        }
+        AnnotationType::Todo => Some(CheckRole::Pending),
+        AnnotationType::Test => None,
+    });
 
     // 4. Classify each spec annotation
     let ClassifiedCoverage {
@@ -280,53 +318,25 @@ async fn execute_test_check(
         progress!("Running test annotation coverage check...");
     }
 
-    let (implementation_annotations, test_annotations) = project_data
-        .annotations
-        .iter()
-        // 1. Gather annotations that need testing
-        // We are interested in testing things that are implemented
-        // Making sure you have implemented everything is a job for the implementation check.
-        .filter(|annotation| {
-            !matches!(
-                annotation.anno,
-                // A requirement. i.e. something that needs to be implemented
-                AnnotationType::Spec
-            // Not yet been implemented. Test driven development?
-            | AnnotationType::Todo
-            // Fundamentally true or not testable. No test required.
-            | AnnotationType::Implication
-            // You don't do it. not test required.
-            | AnnotationType::Exception
-            )
-        })
-        // 2. Organize the annotations into implementations (things needing tests) and tests.
-        // The `-s`/`-q` spec-slice filter applies to the requirement role only —
-        // here the implementations being tested — never to the covering `Test`
-        // pool. See `execute_implementation_check` for the full rationale: a test
-        // may tile a requirement's quote in several pieces, so filtering the test
-        // pool by `-q` could drop one tile and manufacture a false "not tested".
-        .fold(
-            (Vec::new(), Vec::new()),
-            |(mut impls, mut tests), annotation| {
-                match &annotation.anno {
-                    // An implementation, it needs a test. Requirement role here:
-                    // apply the spec-slice filter.
-                    AnnotationType::Citation => {
-                        if mode.in_scope(annotation) {
-                            impls.push(annotation.clone());
-                        }
-                    }
-                    // A test! Coverer: never filtered.
-                    AnnotationType::Test => {
-                        tests.push(annotation.clone());
-                    }
-                    // Shouldn't happen due to filter, but good to be explicit
-                    _ => unreachable!(),
-                }
-
-                (impls, tests)
-            },
-        );
+    // The requirement role here is the implementations being tested (making
+    // sure everything is implemented is the implementation check's job);
+    // tests cover them. Spec requirements, todos (test-driven development?),
+    // implications (fundamentally true or not testable), and exceptions
+    // (you don't do it) need no test. The spec-slice filter applies to the
+    // requirement role only — see `partition_check_roles` for why filtering
+    // the test pool could manufacture a false "not tested".
+    let RolePartition {
+        requirements: implementation_annotations,
+        coverers: test_annotations,
+        ..
+    } = partition_check_roles(&project_data.annotations, mode, |anno| match anno {
+        AnnotationType::Citation => Some(CheckRole::Requirement),
+        AnnotationType::Test => Some(CheckRole::Coverer),
+        AnnotationType::Spec
+        | AnnotationType::Todo
+        | AnnotationType::Implication
+        | AnnotationType::Exception => None,
+    });
 
     // 4. Classify each annotation
     let ClassifiedCoverage {
@@ -630,30 +640,22 @@ async fn execute_coverage_check(
     //# verified layer's functions
     let adapter = VerifiedVerdicts::build(&witnesses, &matched, &classification, &index)?;
 
-    let mut test_annotations: Vec<_> = Vec::new();
-    let mut implementation_annotations: Vec<_> = Vec::new();
-
-    // The spec-slice filter (`-s`/`-q`) applies to the requirement role only —
-    // here the `Test` annotations being correlated — never to the covering
-    // implementation pool. See `execute_implementation_check` for why filtering
-    // coverers can manufacture a false miss.
-    for annotation in project_data.annotations.iter().filter(|annotation| {
-        !matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo)
-    }) {
-        match &annotation.anno {
-            // Requirement role: apply the spec-slice filter here.
-            AnnotationType::Test => {
-                if mode.in_scope(annotation) {
-                    test_annotations.push(annotation.clone())
-                }
-            }
-            // Coverer: never filtered.
-            AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => {
-                implementation_annotations.push(annotation.clone())
-            }
-            _ => unreachable!(),
+    // The requirement role here is the `Test` annotations being correlated;
+    // implementations (plus implications and exceptions) cover them. The
+    // spec-slice filter applies to the requirement role only — see
+    // `partition_check_roles` for why filtering coverers can manufacture a
+    // false miss.
+    let RolePartition {
+        requirements: test_annotations,
+        coverers: implementation_annotations,
+        ..
+    } = partition_check_roles(&project_data.annotations, mode, |anno| match anno {
+        AnnotationType::Test => Some(CheckRole::Requirement),
+        AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => {
+            Some(CheckRole::Coverer)
         }
-    }
+        AnnotationType::Spec | AnnotationType::Todo => None,
+    });
 
     let ClassifiedCoverage {
         complete_coverage,
@@ -864,11 +866,12 @@ async fn execute_duplicates(
     verbose: bool,
 ) -> Result<CheckResult> {
     // Unlike the coverage-fold checks, duplicates classifies each type against
-    // *itself*, so there is no requirement/coverer split and no coverage mosaic
-    // to dismantle: the worst a spec-slice filter can do here is not *show* you a
-    // duplicate that lies outside the slice — it can never flip a verdict. So the
-    // filter is applied uniformly, which is also what "only look at this slice"
-    // means for a duplicate report.
+    // *itself*, so there is no requirement/coverer split (no
+    // `partition_check_roles`) and no coverage mosaic to dismantle: the worst a
+    // spec-slice filter can do here is not *show* you a duplicate that lies
+    // outside the slice — it can never flip a verdict. So the filter is applied
+    // uniformly, which is also what "only look at this slice" means for a
+    // duplicate report.
     let annotations_by_type: HashMap<AnnotationType, Vec<Arc<Annotation>>> = project_data
         .annotations
         .iter()
