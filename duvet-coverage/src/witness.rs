@@ -47,6 +47,10 @@ use crate::annotation_execution::execution_status_of;
 use crate::degraded::degraded_status_of;
 #[cfg(verus_keep_ghost)]
 use crate::target_resolution::annotation_target_spec;
+use verus_builtin_macros::verus;
+// vstd is ghost-only here (see lib.rs): gated so it stays out of the
+// published dependency graph.
+#[cfg(feature = "verify")]
 use vstd::prelude::*;
 
 verus! {

@@ -25,6 +25,10 @@
 //! trust boundary, exactly as the engine adapter establishes the
 //! witness layer's `requires` before calling it.
 
+use verus_builtin_macros::verus;
+// vstd is ghost-only here (see lib.rs): gated so it stays out of the
+// published dependency graph.
+#[cfg(feature = "verify")]
 use vstd::prelude::*;
 
 verus! {
@@ -288,7 +292,7 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
         let xi = x as usize;
         if !reached[xi] {
             let ghost before = reached@;
-            reached.set(xi, true);
+            reached[xi] = true;
             proof {
                 lemma_count_true_update(before, xi as int);
             }
