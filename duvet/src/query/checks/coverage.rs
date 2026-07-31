@@ -22,6 +22,7 @@ use duvet_coverage::{
         AnnotationSpan, CoverageReport as CoverageReportMap, ExecutionStatus, LineClass,
         LineProperty, Scope,
     },
+    witness::ScoringMode,
 };
 use rustc_hash::FxHashMap;
 use std::{
@@ -61,6 +62,133 @@ pub enum FileClassification {
 
 /// Per-file classification cache.
 pub type ClassificationMap = FxHashMap<PathBuf, FileClassification>;
+
+/// One file's classification flattened to the inputs the verified scoring
+/// layer consumes, plus the [`ScoringMode`] routing decision (G3).
+///
+/// This is THE routing point for the Classified/Degraded/Defeated arms:
+/// every consumer — the diagnostic scorer ([`executed_status`]), target
+/// resolution ([`resolve_target_line`]), and the verified adapter
+/// (`VerifiedVerdicts`) — derives its arm from this view instead of
+/// re-matching [`FileClassification`], so the trust-boundary routing
+/// cannot drift between them.
+#[derive(Clone, Copy, Debug)]
+pub struct ScoringView<'a> {
+    pub mode: ScoringMode,
+    pub classifications: &'a [Option<LineClass>],
+    /// Empty for every mode but `Classified` (the degraded path scores
+    /// without a scope tree).
+    pub scopes: &'a [Scope],
+    pub file_length: u64,
+    /// `Unscorable` (defeated) only: the first classifier issue's line,
+    /// for `Unknown` diagnostics.
+    pub defeat_line: Option<u64>,
+}
+
+impl ScoringView<'static> {
+    /// The view of a file that cannot be scored at all: no
+    /// classification exists, or the annotation's context is otherwise
+    /// refused at the trust boundary. Binds nothing, executes nothing.
+    pub const UNSCORABLE: Self = ScoringView {
+        mode: ScoringMode::Unscorable,
+        classifications: &[],
+        scopes: &[],
+        file_length: 0,
+        defeat_line: None,
+    };
+}
+
+impl ScoringView<'_> {
+    /// Whether the verified scorers' runtime-checkable preconditions hold
+    /// for an annotation ending at `end_line`, scored against `coverage`,
+    /// under this view's mode. Mirrors, exactly, the two
+    /// runtime-checkable preconditions:
+    ///   - `annotation.end_line < u64::MAX` ([`span_in_model`])
+    ///   - for classified files, every coverage key maps to a valid
+    ///     0-based index ([`Self::coverage_in_bounds`])
+    ///
+    /// (The scope-bounds invariants in the verified fn's third/fourth
+    /// `requires` are guaranteed by `build_scope_tree`'s postcondition
+    /// and need no runtime check here.
+    ///
+    /// Property 2's `scopes_match_classifications` hypothesis is *not* a
+    /// `requires` of `is_annotation_executed` and is likewise not checked
+    /// here — but not because of `build_scope_tree`: that postcondition
+    /// governs the scope *tree*, while propagation reads the per-line
+    /// classification *set*, and their silent disagreement was a real bug
+    /// (a `} // comment` line lost `ScopeClose` to the mutual-exclusivity
+    /// post-pass, letting backward propagation cross the brace). It is
+    /// discharged upstream by construction: the verified post-pass
+    /// (`classify_postpass::clean_classifications`) proves
+    /// `ScopeOpen`/`ScopeClose` are never stripped, and the classifier
+    /// property test proves boundary lines carry them in the first
+    /// place.)
+    pub fn preconditions_hold(&self, end_line: u64, coverage: &CoverageReportMap) -> bool {
+        span_in_model(end_line) && self.coverage_in_bounds(coverage)
+    }
+
+    /// The coverage-keys half of the preconditions, shared with the
+    /// verified adapter's per-witness-map drop (which has no annotation
+    /// span in scope): for a classified file, every coverage key `K`
+    /// must map to a valid 0-based index (`1 <= K` and
+    /// `K - 1 < classifications.len()`) — the verified two-phase
+    /// scorer's `requires`. Degraded files carry no such requirement
+    /// (direct observation), and an unscorable file's map is inert
+    /// (nothing in it is ever scored), so both keep their maps.
+    pub fn coverage_in_bounds(&self, coverage: &CoverageReportMap) -> bool {
+        match self.mode {
+            ScoringMode::Classified => {
+                let len = self.classifications.len();
+                coverage.keys().all(|&k| k >= 1 && (k as usize - 1) < len)
+            }
+            ScoringMode::Degraded | ScoringMode::Unscorable => true,
+        }
+    }
+}
+
+/// The span half of the verified scorers' preconditions: they require
+/// `end_line < u64::MAX` (an annotation whose range never resolved).
+/// Trust boundary: ill-formed spans are refused before the verified
+/// fns, never fed to them.
+pub fn span_in_model(end_line: u64) -> bool {
+    end_line < u64::MAX
+}
+
+impl FileClassification {
+    /// Flatten this classification to the [`ScoringView`] the scoring
+    /// paths consume: `Classified` and `Degraded` expose their verified
+    /// inputs; `Defeated` routes to [`ScoringMode::Unscorable`] with the
+    /// defeat's diagnostic line.
+    pub fn scoring_view(&self) -> ScoringView<'_> {
+        match self {
+            FileClassification::Classified {
+                classifications,
+                scopes,
+                file_length,
+            } => ScoringView {
+                mode: ScoringMode::Classified,
+                classifications,
+                scopes,
+                file_length: *file_length,
+                defeat_line: None,
+            },
+            FileClassification::Degraded {
+                classifications,
+                file_length,
+            } => ScoringView {
+                mode: ScoringMode::Degraded,
+                classifications,
+                scopes: &[],
+                file_length: *file_length,
+                defeat_line: None,
+            },
+            FileClassification::Defeated { issues } => ScoringView {
+                defeat_line: issues.first().map(|i| i.line),
+                ..ScoringView::UNSCORABLE
+            },
+        }
+    }
+}
 
 /// Classify a set of files once, in parallel — [`classify_file`] per file.
 /// Classification carries no coverage: that half is per-witness and is
@@ -363,52 +491,40 @@ pub fn executed_status(
         return ExecutionStatus::NotExecuted;
     };
     let (start_line, end_line) = annotation.line_range();
-    match classification {
-        Some(FileClassification::Classified {
-            classifications,
-            scopes,
-            file_length,
-        }) => {
-            let ann_span = AnnotationSpan {
-                start_line,
-                end_line,
-            };
-            // Trust boundary: see `classified_preconditions_hold` for why
-            // ill-formed inputs fall back to `Unknown` rather than
-            // reaching the verified fn.
-            if !classified_preconditions_hold(end_line, coverage, classifications.len()) {
-                ExecutionStatus::Unknown {
-                    line_number: start_line,
-                }
-            } else {
-                is_annotation_executed(&ann_span, classifications, scopes, coverage, *file_length)
-            }
-        }
-        Some(FileClassification::Degraded {
-            classifications,
-            file_length,
-        }) => {
-            if end_line == u64::MAX {
-                ExecutionStatus::Unknown {
-                    line_number: start_line,
-                }
-            } else {
-                let ann_span = AnnotationSpan {
-                    start_line,
-                    end_line,
-                };
-                degraded_execution_status(&ann_span, classifications, coverage, *file_length)
-            }
-        }
-        Some(FileClassification::Defeated { issues }) => {
-            let line_number = issues.first().map(|i| i.line).unwrap_or(0);
-            ExecutionStatus::Unknown { line_number }
-        }
-        // The witness covers the file but nothing classified it. The engine
-        // classifies every witness-matched file, so this arm means a caller
-        // bug; conservative `Unknown` rather than a panic in release.
-        None => ExecutionStatus::Unknown {
+    // The witness covers the file but nothing classified it. The engine
+    // classifies every witness-matched file, so a missing entry means a
+    // caller bug; conservative `Unknown` rather than a panic in release.
+    let Some(view) = classification.map(FileClassification::scoring_view) else {
+        return ExecutionStatus::Unknown {
             line_number: start_line,
+        };
+    };
+    // Trust boundary: ill-formed inputs fall back to `Unknown` rather
+    // than reaching the verified fns — see
+    // `ScoringView::preconditions_hold` for the predicate.
+    if !view.preconditions_hold(end_line, coverage) {
+        return ExecutionStatus::Unknown {
+            line_number: start_line,
+        };
+    }
+    let ann_span = AnnotationSpan {
+        start_line,
+        end_line,
+    };
+    match view.mode {
+        ScoringMode::Classified => is_annotation_executed(
+            &ann_span,
+            view.classifications,
+            view.scopes,
+            coverage,
+            view.file_length,
+        ),
+        ScoringMode::Degraded => {
+            degraded_execution_status(&ann_span, view.classifications, coverage, view.file_length)
+        }
+        // Defeated commitment (spec §1.5): no trustworthy classification.
+        ScoringMode::Unscorable => ExecutionStatus::Unknown {
+            line_number: view.defeat_line.unwrap_or(0),
         },
     }
 }
@@ -434,27 +550,23 @@ pub fn resolve_target_line(
 ) -> Option<u64> {
     let (start_line, end_line) = annotation.line_range();
     // Trust boundary: `annotation_target` requires `end_line < u64::MAX`.
-    if end_line == u64::MAX {
+    if !span_in_model(end_line) {
+        return None;
+    }
+    let view = classification.scoring_view();
+    if matches!(view.mode, ScoringMode::Unscorable) {
         return None;
     }
     let ann_span = AnnotationSpan {
         start_line,
         end_line,
     };
-    let (classifications, file_length) = match classification {
-        FileClassification::Classified {
-            classifications,
-            file_length,
-            ..
-        } => (classifications, *file_length),
-        FileClassification::Degraded {
-            classifications,
-            file_length,
-        } => (classifications, *file_length),
-        FileClassification::Defeated { .. } => return None,
-    };
-    duvet_coverage::target_resolution::annotation_target(&ann_span, classifications, file_length)
-        .map(|t| t.line_number)
+    duvet_coverage::target_resolution::annotation_target(
+        &ann_span,
+        view.classifications,
+        view.file_length,
+    )
+    .map(|t| t.line_number)
 }
 
 /// Override annotation lines using duvet's authoritative parsed annotation data.
@@ -576,37 +688,6 @@ pub async fn parse_coverage_data(
     }
 }
 
-/// Whether the classified inputs satisfy `is_annotation_executed`'s `requires`
-/// clauses. Pure so it can be tested without constructing a full `Annotation`.
-/// Mirrors, exactly, the two runtime-checkable preconditions:
-///   - `annotation.end_line < u64::MAX`
-///   - every coverage key `K` maps to a valid 0-based index: `1 <= K` and
-///     `K - 1 < classifications_len`
-///
-/// (The scope-bounds invariants in the third/fourth `requires` are guaranteed
-/// by `build_scope_tree`'s postcondition and need no runtime check here.
-///
-/// Property 2's `scopes_match_classifications` hypothesis is *not* a
-/// `requires` of `is_annotation_executed` and is likewise not checked here —
-/// but not because of `build_scope_tree`: that postcondition governs the
-/// scope *tree*, while propagation reads the per-line classification *set*,
-/// and their silent disagreement was a real bug (a `} // comment` line lost
-/// `ScopeClose` to the mutual-exclusivity post-pass, letting backward
-/// propagation cross the brace). It is discharged upstream by construction:
-/// the verified post-pass (`classify_postpass::clean_classifications`) proves
-/// `ScopeOpen`/`ScopeClose` are never stripped, and the classifier property
-/// test proves boundary lines carry them in the first place.)
-fn classified_preconditions_hold(
-    end_line: u64,
-    coverage: &CoverageReportMap,
-    classifications_len: usize,
-) -> bool {
-    end_line < u64::MAX
-        && coverage
-            .keys()
-            .all(|&k| k >= 1 && (k as usize - 1) < classifications_len)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -687,11 +768,28 @@ public class Two {
         );
     }
 
+    /// The guard predicate as [`executed_status`]'s Classified arm applies
+    /// it: a view over `len` classified lines, probed with the shared
+    /// [`ScoringView::preconditions_hold`]. Every guard test below routes
+    /// through this — the same predicate the verified adapter's bounds-drop
+    /// consults — so the two trust-boundary responses cannot drift.
+    fn classified_preconditions(end_line: u64, coverage: &CoverageReportMap, len: usize) -> bool {
+        let classifications = vec![None; len];
+        let view = ScoringView {
+            mode: ScoringMode::Classified,
+            classifications: &classifications,
+            scopes: &[],
+            file_length: len as u64,
+            defeat_line: None,
+        };
+        view.preconditions_hold(end_line, coverage)
+    }
+
     #[test]
     fn preconditions_hold_for_in_bounds_coverage() {
         // 5 classified lines; coverage keys 1..=5 all map to valid indices.
         let coverage = coverage_with_keys(&[1, 3, 5]);
-        assert!(classified_preconditions_hold(4, &coverage, 5));
+        assert!(classified_preconditions(4, &coverage, 5));
     }
 
     #[test]
@@ -700,27 +798,95 @@ public class Two {
         // JaCoCo-nr-past-EOF / source-coverage-drift case that would otherwise
         // reach the verified fn with an input it never reasoned about.
         let coverage = coverage_with_keys(&[1, 6]);
-        assert!(!classified_preconditions_hold(4, &coverage, 5));
+        assert!(!classified_preconditions(4, &coverage, 5));
     }
 
     #[test]
     fn zero_coverage_key_violates_precondition() {
         // Line numbers are 1-based; key 0 has no valid 0-based index.
         let coverage = coverage_with_keys(&[0, 1]);
-        assert!(!classified_preconditions_hold(4, &coverage, 5));
+        assert!(!classified_preconditions(4, &coverage, 5));
     }
 
     #[test]
     fn end_line_at_u64_max_violates_precondition() {
         let coverage = coverage_with_keys(&[1]);
-        assert!(!classified_preconditions_hold(u64::MAX, &coverage, 5));
+        assert!(!classified_preconditions(u64::MAX, &coverage, 5));
     }
 
     #[test]
     fn empty_coverage_holds() {
         // No keys -> the forall is vacuously satisfied.
         let coverage = coverage_with_keys(&[]);
-        assert!(classified_preconditions_hold(4, &coverage, 5));
+        assert!(classified_preconditions(4, &coverage, 5));
+    }
+
+    /// The guard behavior of every arm, pinned through the shared
+    /// predicate: only classified views impose the coverage-keys bound
+    /// (degraded is direct observation; an unscorable file's map is
+    /// inert), while the span guard applies to every mode.
+    #[test]
+    fn coverage_bounds_guard_is_classified_only() {
+        let out_of_bounds = coverage_with_keys(&[1, 99]);
+        let classifications = vec![None, None];
+        let classified = ScoringView {
+            mode: ScoringMode::Classified,
+            classifications: &classifications,
+            scopes: &[],
+            file_length: 2,
+            defeat_line: None,
+        };
+        let degraded = ScoringView {
+            mode: ScoringMode::Degraded,
+            ..classified
+        };
+        assert!(!classified.coverage_in_bounds(&out_of_bounds));
+        assert!(degraded.coverage_in_bounds(&out_of_bounds));
+        assert!(ScoringView::UNSCORABLE.coverage_in_bounds(&out_of_bounds));
+        // The span guard applies regardless of mode.
+        assert!(!degraded.preconditions_hold(u64::MAX, &out_of_bounds));
+        assert!(degraded.preconditions_hold(3, &out_of_bounds));
+    }
+
+    /// The Classified/Degraded/Defeated routing decision, pinned at the
+    /// single accessor every consumer derives it from.
+    #[test]
+    fn scoring_view_routes_each_arm_to_its_mode() {
+        use crate::query::classify::{ClassifierFailure, ClassifierIssue};
+        let classified = FileClassification::Classified {
+            classifications: vec![None; 3],
+            scopes: vec![],
+            file_length: 3,
+        };
+        let degraded = FileClassification::Degraded {
+            classifications: vec![None; 3],
+            file_length: 3,
+        };
+        let defeated = FileClassification::Defeated {
+            issues: vec![ClassifierIssue {
+                reason: ClassifierFailure::UnbalancedScopes,
+                line: 7,
+            }],
+        };
+        assert!(matches!(
+            classified.scoring_view().mode,
+            ScoringMode::Classified
+        ));
+        assert!(matches!(
+            degraded.scoring_view().mode,
+            ScoringMode::Degraded
+        ));
+        let view = defeated.scoring_view();
+        assert!(matches!(view.mode, ScoringMode::Unscorable));
+        assert_eq!(
+            view.defeat_line,
+            Some(7),
+            "the defeat's diagnostic line rides on the view"
+        );
+        assert!(
+            degraded.scoring_view().scopes.is_empty(),
+            "degraded scoring has no scope tree"
+        );
     }
 
     // --- coverage_path_matches ---

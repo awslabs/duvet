@@ -40,15 +40,12 @@
 use crate::{
     annotation::Annotation,
     query::{
-        checks::coverage::{ClassificationMap, FileClassification, SourceIndex},
+        checks::coverage::{span_in_model, ClassificationMap, ScoringView, SourceIndex},
         coverage::ExecutionStatus,
     },
     Result,
 };
-use duvet_coverage::{
-    types::{AnnotationSpan, LineClass, Scope},
-    witness::{self as verified, ScoringMode},
-};
+use duvet_coverage::{types::AnnotationSpan, witness as verified};
 use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, fmt, path::PathBuf, sync::Arc};
 
@@ -222,14 +219,14 @@ pub struct VerifiedVerdicts<'a> {
     index: &'a SourceIndex,
 }
 
-/// One annotation's scoring context in verified-model coordinates.
+/// One annotation's scoring context in verified-model coordinates: its
+/// file id plus the shared [`ScoringView`] its file's classification
+/// selected (the same accessor the engine's diagnostic path routes
+/// through).
 struct AnnCtx<'a> {
     file_id: u64,
     span: AnnotationSpan,
-    mode: ScoringMode,
-    classifications: &'a [Option<LineClass>],
-    scopes: &'a [Scope],
-    file_length: u64,
+    view: ScoringView<'a>,
 }
 
 /// Sentinel file id for an annotation whose file is not a project source
@@ -332,14 +329,12 @@ impl<'a> VerifiedVerdicts<'a> {
                 // classification bounds. A map violating them for a
                 // classified file is dropped — the engine's diagnostic path
                 // refuses the same input with `Unknown`; both verdict false.
-                // Degraded files carry no such requirement (direct
-                // observation) and keep their maps.
-                if let Some(FileClassification::Classified {
-                    classifications, ..
-                }) = classification.get(path)
-                {
-                    let len = classifications.len();
-                    if !cov.keys().all(|&k| k >= 1 && (k as usize - 1) < len) {
+                // Same predicate on both paths
+                // (`ScoringView::coverage_in_bounds`): degraded files carry
+                // no such requirement (direct observation) and keep their
+                // maps.
+                if let Some(c) = classification.get(path) {
+                    if !c.scoring_view().coverage_in_bounds(cov) {
                         continue;
                     }
                 }
@@ -362,8 +357,8 @@ impl<'a> VerifiedVerdicts<'a> {
     }
 
     /// The annotation's scoring context in verified coordinates: its file
-    /// id, and the scoring mode its file's classification selected (G3).
-    /// Trust-boundary refusals — no classification, defeated
+    /// id, and the [`ScoringView`] its file's classification selected
+    /// (G3). Trust-boundary refusals — no classification, defeated
     /// classification, ill-formed annotation range — route to
     /// `Unscorable`, which binds nothing and executes nothing.
     fn ctx_of(&self, annotation: &Arc<Annotation>) -> AnnCtx<'_> {
@@ -375,10 +370,7 @@ impl<'a> VerifiedVerdicts<'a> {
         let unscorable = |file_id: u64| AnnCtx {
             file_id,
             span: span.clone(),
-            mode: ScoringMode::Unscorable,
-            classifications: &[],
-            scopes: &[],
-            file_length: 0,
+            view: ScoringView::UNSCORABLE,
         };
 
         let path = annotation.source.to_path_buf();
@@ -390,34 +382,18 @@ impl<'a> VerifiedVerdicts<'a> {
             Some(&id) => id,
             None => return unscorable(NO_FILE),
         };
-        if end_line == u64::MAX {
+        if !span_in_model(end_line) {
             return unscorable(file_id);
         }
         match self.classification.get(&path) {
-            Some(FileClassification::Classified {
-                classifications,
-                scopes,
-                file_length,
-            }) => AnnCtx {
+            // Defeated classifications flatten to `Unscorable` here (the
+            // shared routing decision — see `FileClassification::scoring_view`).
+            Some(classification) => AnnCtx {
                 file_id,
                 span,
-                mode: ScoringMode::Classified,
-                classifications,
-                scopes,
-                file_length: *file_length,
+                view: classification.scoring_view(),
             },
-            Some(FileClassification::Degraded {
-                classifications,
-                file_length,
-            }) => AnnCtx {
-                file_id,
-                span,
-                mode: ScoringMode::Degraded,
-                classifications,
-                scopes: &[],
-                file_length: *file_length,
-            },
-            Some(FileClassification::Defeated { .. }) | None => unscorable(file_id),
+            None => unscorable(file_id),
         }
     }
 
@@ -432,10 +408,10 @@ impl<'a> VerifiedVerdicts<'a> {
         verified::is_unwitnessed(
             ctx.file_id,
             &ctx.span,
-            ctx.mode,
-            ctx.classifications,
-            ctx.scopes,
-            ctx.file_length,
+            ctx.view.mode,
+            ctx.view.classifications,
+            ctx.view.scopes,
+            ctx.view.file_length,
             &self.verified,
         )
     }
@@ -455,10 +431,10 @@ impl<'a> VerifiedVerdicts<'a> {
                 verified::is_bound_by(
                     ctx.file_id,
                     &ctx.span,
-                    ctx.mode,
-                    ctx.classifications,
-                    ctx.scopes,
-                    ctx.file_length,
+                    ctx.view.mode,
+                    ctx.view.classifications,
+                    ctx.view.scopes,
+                    ctx.view.file_length,
                     &self.verified[wi],
                 )
             })
@@ -508,16 +484,16 @@ impl<'a> VerifiedVerdicts<'a> {
         let discharged = verified::report_discharged_given_bound(
             t_ctx.file_id,
             &t_ctx.span,
-            t_ctx.mode,
-            t_ctx.classifications,
-            t_ctx.scopes,
-            t_ctx.file_length,
+            t_ctx.view.mode,
+            t_ctx.view.classifications,
+            t_ctx.view.scopes,
+            t_ctx.view.file_length,
             i_ctx.file_id,
             &i_ctx.span,
-            i_ctx.mode,
-            i_ctx.classifications,
-            i_ctx.scopes,
-            i_ctx.file_length,
+            i_ctx.view.mode,
+            i_ctx.view.classifications,
+            i_ctx.view.scopes,
+            i_ctx.view.file_length,
             &self.verified,
             bound,
         );
@@ -527,10 +503,10 @@ impl<'a> VerifiedVerdicts<'a> {
                 let executed = verified::is_executed_by(
                     i_ctx.file_id,
                     &i_ctx.span,
-                    i_ctx.mode,
-                    i_ctx.classifications,
-                    i_ctx.scopes,
-                    i_ctx.file_length,
+                    i_ctx.view.mode,
+                    i_ctx.view.classifications,
+                    i_ctx.view.scopes,
+                    i_ctx.view.file_length,
                     &self.verified[wi],
                 );
                 PairWitnessResult {
@@ -559,10 +535,10 @@ impl<'a> VerifiedVerdicts<'a> {
         verified::report_ever_executed(
             ctx.file_id,
             &ctx.span,
-            ctx.mode,
-            ctx.classifications,
-            ctx.scopes,
-            ctx.file_length,
+            ctx.view.mode,
+            ctx.view.classifications,
+            ctx.view.scopes,
+            ctx.view.file_length,
             &self.verified,
         )
     }
@@ -582,6 +558,7 @@ impl<'a> VerifiedVerdicts<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::query::checks::coverage::FileClassification;
     use duvet_coverage::types::{CoverageStatus, LineProperty};
 
     fn index(entries: &[(&str, &str)]) -> SourceIndex {
