@@ -18,7 +18,7 @@ use super::{
         DuplicatesResult, ImplementationResult, MissingImplementationTest, NotExecutedAnnotation,
         QueryResult, QueryStatus, TestResult, UnwitnessedTestAnnotation,
     },
-    witness::{ResolvedTarget, VerifiedVerdicts, Witness},
+    witness::{VerifiedVerdicts, Witness},
     CheckType,
 };
 use crate::{
@@ -492,6 +492,10 @@ async fn execute_coverage_check(
         index,
     } = load;
 
+    // Producer-delivered not-proof-testable positions, keyed for the
+    // per-test membership check below.
+    let not_proof_testable: HashSet<RequestedPosition> = not_proof_testable.into_iter().collect();
+
     // Match each witness's per-file maps to project sources (suffix rule,
     // both ambiguity refusals), then classify every matched file once.
     // Classification is witness-invariant, so this cache sits above the
@@ -605,10 +609,10 @@ async fn execute_coverage_check(
     // None when the file was never classified (it had no coverage and no
     // prover producer is configured), classification was defeated, or the
     // walk found no target - all of which bind no positional witness.
-    let resolve = |annotation: &Arc<Annotation>| -> Option<ResolvedTarget> {
+    let resolve = |annotation: &Arc<Annotation>| -> Option<RequestedPosition> {
         let path = annotation.source.to_path_buf();
         let line = resolve_target_line(annotation, classification.get(&path)?)?;
-        Some(ResolvedTarget {
+        Some(RequestedPosition {
             absolute_file: index.absolute_of(&path)?.to_string(),
             line,
         })
@@ -797,11 +801,9 @@ async fn execute_coverage_check(
                 // Reporting refinement only: the annotation is unwitnessed
                 // either way (the verdict above is unchanged); this names the
                 // producer-delivered reason when there is one.
-                not_proof_testable: resolved_target.as_ref().is_some_and(|target| {
-                    not_proof_testable
-                        .iter()
-                        .any(|p| p.absolute_file == target.absolute_file && p.line == target.line)
-                }),
+                not_proof_testable: resolved_target
+                    .as_ref()
+                    .is_some_and(|target| not_proof_testable.contains(target)),
             });
         }
     }

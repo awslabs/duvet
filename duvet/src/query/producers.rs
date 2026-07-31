@@ -67,16 +67,17 @@ pub struct CoverageSource {
     pub globs: Vec<String>,
 }
 
-/// A position a prover producer is asked to witness: a test
-/// annotation's resolved target, in engine coordinates (absolute
-/// source path + target line). Positions, not annotations, cross
-/// this boundary:
+/// A test annotation's resolved target in engine coordinates: the
+/// absolute path of its source file plus the target line the verified
+/// target resolution produced (spec §1.1). This is also the shape a
+/// prover producer is asked to witness — positions, not annotations,
+/// cross that boundary:
 //= design/witness/spec.md#producer
 //# Normatively: every delivered witness MUST be a function of
 //# (artifact, obligation) only — identical regardless of which
 //# annotation caused its materialization, carrying no annotation
 //# identity
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RequestedPosition {
     pub absolute_file: String,
     pub line: u64,

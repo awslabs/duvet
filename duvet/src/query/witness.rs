@@ -157,15 +157,6 @@ impl From<&Witness> for WitnessRef {
     }
 }
 
-/// A test annotation's resolved target in engine coordinates:
-/// the absolute path of its source file plus the target line the
-/// verified target resolution produced (spec §1.1).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ResolvedTarget {
-    pub absolute_file: String,
-    pub line: u64,
-}
-
 /// One bound witness's contribution to a pair verdict.
 //= design/witness/spec.md#verdict-output
 //# the output MUST list
