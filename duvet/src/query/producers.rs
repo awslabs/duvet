@@ -244,6 +244,9 @@ fn verus_witnesses_from_graph(
 
     let mut by_label: BTreeMap<String, Witness> = BTreeMap::new();
     let mut not_proof_testable: Vec<RequestedPosition> = Vec::new();
+    // Closures are pure per root (spec §5.4 fixpoint), so one memo
+    // is shared across every position of this (graph, project) run.
+    let mut memo = verus_sst::witness::ClosureMemo::new();
     for position in positions {
         let Ok(line) = u32::try_from(position.line) else {
             // No real file has 2^32 lines: reaching this means corrupt
@@ -280,20 +283,32 @@ fn verus_witnesses_from_graph(
             }
         };
         // Pass 1 (spec §5.2, Decision 13): what is this position to
-        // the discharge-unit map? `Rooted` falls through to witness
-        // construction; `NotProofTestable` is a fact the report must
-        // carry (distinct from W6); `Unelaborated` feeds W6.
-        match verus_sst::witness::classify_position(graph, file, line) {
-            verus_sst::witness::PositionKind::Rooted(_) => {}
+        // the discharge-unit map? `Rooted` carries the rooting units
+        // straight into witness construction (pass 2) — the payload
+        // IS `find_discharge_units(file, line)`, so no re-derivation;
+        // `NotProofTestable` is a fact the report must carry (distinct
+        // from W6); `Unelaborated` feeds W6.
+        let units = match verus_sst::witness::classify_position(graph, file, line) {
+            verus_sst::witness::PositionKind::Rooted(units) => units,
             verus_sst::witness::PositionKind::NotProofTestable => {
                 not_proof_testable.push(position.clone());
                 continue;
             }
             verus_sst::witness::PositionKind::Unelaborated => continue,
-        }
-        for vw in verus_sst::witness::construct_witnesses(graph, file, line, artifact, &project) {
-            by_label.entry(vw.label.clone()).or_insert_with(|| {
-                let verus_sst::witness::ClaimRule::ByRootSpan(span) = &vw.claim;
+        };
+        for unit in &units {
+            // A witness is a pure function of (artifact, unit) and the
+            // label identifies it (spec §1.7), so a label already in
+            // the map means the identical witness was materialized by
+            // an earlier position: skip before paying for the closure.
+            if by_label.contains_key(&unit.label) {
+                continue;
+            }
+            let vw =
+                verus_sst::witness::witness_for_unit(graph, unit, artifact, &project, &mut memo);
+            let verus_sst::witness::ClaimRule::ByRootSpan(span) = &vw.claim;
+            by_label.insert(
+                vw.label.clone(),
                 Witness {
                     label: vw.label.clone(),
                     claim: ClaimRule::ByRootSpan {
@@ -328,8 +343,8 @@ fn verus_witnesses_from_graph(
                             )
                         })
                         .collect(),
-                }
-            });
+                },
+            );
         }
     }
     Ok(Produced {
@@ -547,5 +562,48 @@ mod tests {
         )
         .unwrap_err();
         assert!(format!("{err:?}").contains("ambiguous"));
+    }
+
+    #[test]
+    #[ignore = "perf harness, run explicitly with --ignored --nocapture"]
+    fn bench_verus_witnesses_from_graph_corpus() {
+        // Full producer pipeline over the checked-in SST corpus, one
+        // requested position per discharge unit (the annotation-heavy
+        // worst case): measures classify + construct + dedup together.
+        use crate::query::parsers::verus_sst;
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/query/parsers/verus_sst/testdata/corpus");
+        let graph = verus_sst::load_dir(&dir).expect("corpus must load");
+        let is_project = |f: &str| f.starts_with("duvet-coverage/");
+        let positions: Vec<RequestedPosition> = verus_sst::witness::all_units(&graph)
+            .iter()
+            .map(|u| {
+                position(
+                    &format!("/abs/{}", u.span.file),
+                    u64::from(u.span.start_line),
+                )
+            })
+            .collect();
+        // Warmup + shape sanity.
+        let produced =
+            verus_witnesses_from_graph(&graph, "bench", &positions, suffix_matches, is_project)
+                .unwrap();
+        let iters = 20u32;
+        let start = std::time::Instant::now();
+        for _ in 0..iters {
+            std::hint::black_box(
+                verus_witnesses_from_graph(&graph, "bench", &positions, suffix_matches, is_project)
+                    .unwrap(),
+            );
+        }
+        let total = start.elapsed();
+        println!(
+            "bench_verus_witnesses_from_graph: positions={} witnesses={} iters={} total={:?} per-iter={:?}",
+            positions.len(),
+            produced.witnesses.len(),
+            iters,
+            total,
+            total / iters
+        );
     }
 }

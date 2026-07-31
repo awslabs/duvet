@@ -998,3 +998,87 @@ fn integration_tomls_embed_line_true_copies_of_the_fixture() {
         }
     }
 }
+
+// ---------------------------------------------------------------
+// Perf measurement harness (not correctness tests; run explicitly:
+//   cargo test --release -p duvet verus_sst::tests::bench \
+//     -- --ignored --nocapture
+// ) — reports wall time over the checked-in corpus so optimization
+// claims carry before/after numbers.
+// ---------------------------------------------------------------
+
+#[test]
+fn memoized_universe_matches_fresh_per_unit_closures() {
+    // Equivalence anchor for the closure memoization: every witness
+    // in the materialized universe must carry exactly the files an
+    // independent, unmemoized `closure()` call computes for its
+    // unit's root. `closure` is pure in (graph, root, project)
+    // (spec §5.4 — the closure is *the* fixpoint), so any divergence
+    // here is a memoization bug, full stop.
+    let graph = corpus();
+    let universe = materialize_all(graph, "eq", is_project);
+    let units = all_units(graph);
+    assert_eq!(universe.len(), units.len(), "one witness per unit");
+    for (w, u) in universe.iter().zip(units.iter()) {
+        assert_eq!(w.label, u.label, "universe order is unit order");
+        let fresh = closure(graph, &u.node.name, is_project).expect("root must exist");
+        assert_eq!(
+            w.files, fresh.files,
+            "memoized closure for unit {} (root {}) diverged from a \
+             fresh computation",
+            u.label, u.node.name
+        );
+    }
+}
+
+#[test]
+#[ignore = "perf harness, run explicitly with --ignored --nocapture"]
+fn bench_materialize_all() {
+    let graph = corpus();
+    // Warmup + shape sanity.
+    let universe = materialize_all(graph, "bench", is_project);
+    let units = all_units(graph).len();
+    let iters = 20u32;
+    let start = std::time::Instant::now();
+    for _ in 0..iters {
+        std::hint::black_box(materialize_all(graph, "bench", is_project));
+    }
+    let total = start.elapsed();
+    println!(
+        "bench_materialize_all: nodes={} units={} witnesses={} iters={} total={:?} per-iter={:?}",
+        graph.nodes.len(),
+        units,
+        universe.len(),
+        iters,
+        total,
+        total / iters
+    );
+}
+
+#[test]
+#[ignore = "perf harness, run explicitly with --ignored --nocapture"]
+fn bench_construct_witnesses_all_rooted_positions() {
+    // Simulates annotation-driven production: one construct call per
+    // rooted position in the corpus (every unit start line), the
+    // worst case for per-position recomputation.
+    let graph = corpus();
+    let positions: Vec<(String, u32)> = all_units(graph)
+        .iter()
+        .map(|u| (u.span.file.clone(), u.span.start_line))
+        .collect();
+    let iters = 20u32;
+    let start = std::time::Instant::now();
+    for _ in 0..iters {
+        for (file, line) in &positions {
+            std::hint::black_box(construct_witnesses(graph, file, *line, "bench", is_project));
+        }
+    }
+    let total = start.elapsed();
+    println!(
+        "bench_construct_witnesses: positions={} iters={} total={:?} per-iter={:?}",
+        positions.len(),
+        iters,
+        total,
+        total / iters
+    );
+}

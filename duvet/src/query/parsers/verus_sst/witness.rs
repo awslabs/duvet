@@ -284,12 +284,52 @@ pub fn find_discharge_units<'g>(
         .collect()
 }
 
+/// Memoized per-root closures for one production run.
+///
+/// Sound to share across positions and units because [`closure`] is
+/// a pure function of `(graph, root, project)` — spec §5.4 defines
+/// the closure as *the* fixpoint of the obligation graph, so
+/// recomputation cannot yield a different value — and a memo never
+/// outlives one `(graph, project)` pairing: every entry point
+/// constructs its own. The closure ceiling (spec §5.4) is exactly
+/// why this pays: all units of one function share the identical
+/// function-level closure, so distinct roots (330 in the corpus)
+/// are far fewer than units (775).
+pub struct ClosureMemo(std::collections::BTreeMap<String, super::closure::Closure>);
+
+impl ClosureMemo {
+    pub fn new() -> Self {
+        Self(std::collections::BTreeMap::new())
+    }
+
+    fn get(
+        &mut self,
+        graph: &ObligationGraph,
+        root: &str,
+        project: impl Fn(&str) -> bool,
+    ) -> &super::closure::Closure {
+        if !self.0.contains_key(root) {
+            let c =
+                closure(graph, root, project).expect("unit came from this graph; root must exist");
+            self.0.insert(root.to_string(), c);
+        }
+        &self.0[root]
+    }
+}
+
+impl Default for ClosureMemo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// The witness of one discharge unit: a pure function of
 /// (artifact, unit) — no annotation identity anywhere
 /// (spec §1.7: the annotations input is a semantically inert
-/// optimization). Shared by [`construct_witnesses`] and
-/// [`materialize_all`] so annotation-driven and full-universe
-/// production cannot diverge by construction.
+/// optimization). Shared by [`construct_witnesses`], the engine
+/// glue's per-position path, and [`materialize_all`] so
+/// annotation-driven and full-universe production cannot diverge by
+/// construction.
 ///
 //= design/witness/spec.md#closure
 //= type=implementation
@@ -301,14 +341,14 @@ pub fn find_discharge_units<'g>(
 //# closure: finer units buy precise identity and legible failures,
 //# not smaller witnesses, and discharge verdicts within one function
 //# do not differ across its units at Consulted strength.
-fn witness_for_unit(
+pub fn witness_for_unit(
     graph: &ObligationGraph,
     unit: &DischargeUnit<'_>,
     artifact: &str,
     project: impl Fn(&str) -> bool,
+    memo: &mut ClosureMemo,
 ) -> VerusWitness {
-    let closure = closure(graph, &unit.node.name, project)
-        .expect("unit came from this graph; root must exist");
+    let closure = memo.get(graph, &unit.node.name, project);
     VerusWitness {
         label: unit.label.clone(),
         claim: ClaimRule::ByRootSpan(unit.span.clone()),
@@ -318,7 +358,7 @@ fn witness_for_unit(
             discharge_unit: Some(unit.node.name.clone()),
             strength: Strength::Consulted,
         },
-        files: closure.files,
+        files: closure.files.clone(),
     }
 }
 
@@ -339,9 +379,10 @@ pub fn construct_witnesses(
     artifact: &str,
     project: impl Fn(&str) -> bool,
 ) -> Vec<VerusWitness> {
+    let mut memo = ClosureMemo::new();
     find_discharge_units(graph, file, line)
         .into_iter()
-        .map(|unit| witness_for_unit(graph, &unit, artifact, &project))
+        .map(|unit| witness_for_unit(graph, &unit, artifact, &project, &mut memo))
         .collect()
 }
 
@@ -378,9 +419,10 @@ pub fn materialize_all(
     artifact: &str,
     project: impl Fn(&str) -> bool,
 ) -> Vec<VerusWitness> {
+    let mut memo = ClosureMemo::new();
     all_units(graph)
         .iter()
-        .map(|unit| witness_for_unit(graph, unit, artifact, &project))
+        .map(|unit| witness_for_unit(graph, unit, artifact, &project, &mut memo))
         .collect()
 }
 
