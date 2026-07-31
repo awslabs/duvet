@@ -716,8 +716,10 @@ mod tests {
     /// verdict false — the annotation counts as executed on neither path.
     #[test]
     fn out_of_bounds_map_verdicts_false_on_both_paths() {
-        use crate::annotation::{Annotation, AnnotationLevel, AnnotationType};
-        use crate::query::checks::coverage::executed_status;
+        use crate::{
+            annotation::{Annotation, AnnotationLevel, AnnotationType},
+            query::checks::coverage::executed_status,
+        };
         use duvet_core::file::SourceFile as CoreSourceFile;
         use std::path::Path;
 
