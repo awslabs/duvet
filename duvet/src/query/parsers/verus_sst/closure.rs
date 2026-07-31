@@ -104,6 +104,24 @@ impl Closure {
 /// References to names with no `FunctionSst` block in the artifact
 /// (externals with no logged body) are not part of the obligation
 /// graph and do not appear in `reached`.
+///
+/// The reached-set computation and witness-line assembly are the
+/// *verified* producer core (`duvet_coverage::producer_core`,
+/// Properties P1, P3, and P4 of
+/// design/witness/producer-core-spec.md): reached is proven to be
+/// exactly the downward-reachable set — reflexive, fixpoint, and
+/// transparent — and the witness's line set is proven to equal the
+/// union of the closure's per-file spans restricted to project
+/// files, with project filtering a view, not a truncation (edge
+/// traversal is unfiltered by the verified model's construction).
+/// This function is the adapter (glue assumptions PG1/PG2/PG3): it
+/// translates node names and file names to dense ids, keeps exactly
+/// the edges that resolve to obligation nodes (spec §5.4 —
+/// unresolved references are not part of the graph), calls the
+/// verified core, and translates the results back. The
+/// `project_obligations` count is report metadata computed in the
+/// adapter, not part of the verified witness surface. The adapter's
+/// faithfulness is what the golden corpus checks.
 pub fn closure(
     graph: &ObligationGraph,
     root: &str,
@@ -111,29 +129,74 @@ pub fn closure(
 ) -> Option<Closure> {
     graph.nodes.get(root)?;
 
+    // PG1: translate the parsed structure into the verified model.
+    // Dense node ids in BTreeMap iteration (name) order; only edges
+    // that resolve to a node become model edges, so the model is
+    // well-formed by construction (`graph_wf`, the verified core's
+    // precondition). File names are interned to dense ids, and the
+    // project predicate is tabulated per file id (PG3).
+    let index: BTreeMap<&str, u64> = graph
+        .nodes
+        .keys()
+        .enumerate()
+        .map(|(i, name)| (name.as_str(), i as u64))
+        .collect();
+    let mut file_ids: BTreeMap<&str, u64> = BTreeMap::new();
+    let mut file_names: Vec<&str> = Vec::new();
+    let mut model: Vec<Vec<u64>> = Vec::new();
+    let mut span_model: Vec<Vec<(u64, u32)>> = Vec::new();
+    for node in graph.nodes.values() {
+        model.push(
+            node.edges
+                .iter()
+                .filter_map(|e| index.get(e.as_str()).copied())
+                .collect(),
+        );
+        let mut rows = Vec::new();
+        for (file, lines) in &node.spans {
+            let id = *file_ids.entry(file.as_str()).or_insert_with(|| {
+                file_names.push(file.as_str());
+                (file_names.len() - 1) as u64
+            });
+            rows.extend(lines.iter().map(|&l| (id, l)));
+        }
+        span_model.push(rows);
+    }
+    let project_flags: Vec<bool> = file_names.iter().map(|f| project(f)).collect();
+    let root_id = index[root];
+
+    // PG2: the reached set and the witness's line set come from the
+    // verified core alone.
+    let reached_mask = duvet_coverage::producer_core::closure_reached(&model, root_id);
+    let lines = duvet_coverage::producer_core::assemble_witness_lines(
+        &model,
+        &span_model,
+        root_id,
+        &project_flags,
+    );
+
+    let mut files: FileLines = BTreeMap::new();
+    for (fid, line) in lines {
+        files
+            .entry(file_names[fid as usize].to_string())
+            .or_default()
+            .insert(line);
+    }
+
     let mut reached = BTreeSet::new();
     let mut project_obligations = BTreeSet::new();
-    let mut files: FileLines = BTreeMap::new();
-    let mut work = vec![root.to_string()];
-
-    while let Some(name) = work.pop() {
-        let Some(node) = graph.nodes.get(&name) else {
-            continue;
-        };
-        if !reached.insert(name.clone()) {
+    for (i, (name, node)) in graph.nodes.iter().enumerate() {
+        if !reached_mask[i] {
             continue;
         }
-        let mut contributes = false;
-        for (file, lines) in &node.spans {
-            if project(file) {
-                contributes = true;
-                files.entry(file.clone()).or_default().extend(lines);
-            }
-        }
-        if contributes {
+        reached.insert(name.clone());
+        if node
+            .spans
+            .keys()
+            .any(|file| files.contains_key(file.as_str()))
+        {
             project_obligations.insert(name.clone());
         }
-        work.extend(node.edges.iter().cloned());
     }
 
     Some(Closure {

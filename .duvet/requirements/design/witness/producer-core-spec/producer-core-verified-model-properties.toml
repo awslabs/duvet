@@ -1,0 +1,35 @@
+target = "design/witness/producer-core-spec.md#producer-core-verified-model-properties"
+
+# Producer core: verified-model properties
+#
+# This document is the normative companion to
+# [spec.md §5](spec.md#prover-producers) for the *verified* producer
+# core (decisions.md, [Follow-ups item 5](decisions.md#follow-ups)).
+# [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
+# define what the Verus producer must do; this document states the
+# properties that MUST be proven with Verus, as a new phase of the
+# verified coverage model, over a verified model of the parsed
+# obligation graph. The properties are stated over the model's
+# vocabulary only — graphs as adjacency over opaque node ids, spans
+# as per-file line sets; no artifact syntax appears.
+# 
+# The Verus proof files MUST carry duvet annotations citing the
+# anchors in this document.
+
+[[spec]]
+level = "MUST"
+quote = '''
+[spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
+define what the Verus producer must do; this document states the
+properties that MUST be proven with Verus, as a new phase of the
+verified coverage model, over a verified model of the parsed
+obligation graph.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The Verus proof files MUST carry duvet annotations citing the
+anchors in this document.
+'''
+

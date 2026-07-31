@@ -1,0 +1,32 @@
+target = "design/witness/producer-core-spec.md#property-p1-closure-fixpoint"
+
+# Property P1: Closure Fixpoint
+#
+# The implementation MUST prove that the computed closure of a
+# discharge unit's root is exactly the downward-reachable set of the
+# obligation graph — the least fixpoint of the edge relation
+# containing the root:
+# 
+# ```
+# t ∈ closure_reached(graph, root)  ⟺  reachable(graph, root, t)
+# ```
+# 
+# where `reachable` is the reflexive-transitive reach along reference
+# edges. Both inclusions are load-bearing: completeness — every
+# reachable node enters, through any number of reference hops, with
+# no truncation at a depth bound
+# ([spec §5.4](spec.md#closure)'s fixpoint requirement, reflexivity
+# included: `reachable(graph, root, root)` holds by zero hops) — and
+# transparency — no node outside the reachable set may be included
+# ([spec §5.4](spec.md#closure): "nothing outside the reachable set
+# may be included").
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that the computed closure of a
+discharge unit's root is exactly the downward-reachable set of the
+obligation graph — the least fixpoint of the edge relation
+containing the root:
+'''
+

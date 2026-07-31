@@ -1,0 +1,41 @@
+target = "design/witness/producer-core-spec.md#model"
+
+# 1. Model
+#
+# The verified model of the parsed obligation graph
+# ([spec §5.5](spec.md#verus-producer) — "parse-into-structure is a
+# MUST"):
+# 
+# - **Nodes** are opaque ids `0..n`, one per `FunctionSst` block.
+# - **Edges** are the symbolic references that resolve to a block in
+#   the artifact; references to names with no block are not part of
+#   the obligation graph ([spec §5.4](spec.md#closure)) and MUST NOT
+#   appear as model edges.
+# - **Spans** are per-node `(file id, line)` sets, the parsed source
+#   extents of everything the node's elaboration consulted.
+# - **Project membership** is a per-file-id boolean view supplied by
+#   the engine's project predicate.
+# 
+# Glue assumptions, named per the
+# [§4.4 pattern](spec.md#engine-glue) and NOT verified here:
+# 
+# - **PG1 (graph translation).** The adapter constructs the model
+#   faithfully from the parsed structure: injective node-id
+#   assignment, exactly the resolving edges, spans as parsed.
+#   Checked by the golden corpus ([spec §4.3](spec.md#obligation-testing));
+#   this is the SST-grammar-faithfulness residue of the trusted base.
+# - **PG2 (call obligation).** The producer computes every closure,
+#   rooting decision, and witness line set by calling this layer's
+#   functions; no parallel computation exists.
+# - **PG3 (project view).** The per-file-id project booleans agree
+#   with the engine's project predicate.
+
+[[spec]]
+level = "MUST"
+quote = '''
+- **Edges** are the symbolic references that resolve to a block in
+the artifact; references to names with no block are not part of
+the obligation graph ([spec §5.4](spec.md#closure)) and MUST NOT
+appear as model edges.
+'''
+

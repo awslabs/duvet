@@ -1,0 +1,27 @@
+target = "design/witness/producer-core-spec.md#property-p3-witness-assembly"
+
+# Property P3: Witness Assembly
+#
+# The implementation MUST prove that a witness's line set equals the
+# union of the closure's per-file spans restricted to project files:
+# 
+# ```
+# (f, l) ∈ witness_files(graph, root, project)
+#     ⟺  project(f)
+#         ∧ ∃ t ∈ closure_reached(graph, root) : (f, l) ∈ spans(t)
+# ```
+# 
+# The verified assembly function's inputs are the graph, the root
+# obligation, and the project view only: the delivered witness is a
+# function of (artifact, obligation) alone, carrying no annotation
+# identity — that requirement is
+# [spec §1.7](spec.md#producer)'s and is discharged here by the
+# model's vocabulary (no annotation appears in it), not restated.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that a witness's line set equals the
+union of the closure's per-file spans restricted to project files:
+'''
+

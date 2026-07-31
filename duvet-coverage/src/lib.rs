@@ -35,6 +35,9 @@
 //     id, annotation, mode, classifications, scopes, length) per side —
 //     the parameters ARE the specification vocabulary
 //     (too_many_arguments)
+//   - `&Vec<Vec<u64>>` parameters where clippy wants `&[Vec<u64>]`:
+//     vstd's specs and the `@` view are on `Vec`, not on slices
+//     (ptr_arg)
 // Suppress these crate-wide; the proof patterns must remain as-is for
 // `cargo verus build` to verify the algorithms.
 #![allow(
@@ -45,7 +48,8 @@
     clippy::needless_lifetimes,
     clippy::match_like_matches_macro,
     clippy::single_match,
-    clippy::too_many_arguments
+    clippy::too_many_arguments,
+    clippy::ptr_arg
 )]
 
 // The Verus proofs assume that u64-to-usize casts are lossless (usize >= 64 bits).
@@ -80,6 +84,7 @@ pub mod classify_postpass;
 pub mod degraded;
 pub mod execution_propagation;
 pub mod predicates;
+pub mod producer_core;
 pub mod proofs;
 pub mod scopes;
 pub mod target_resolution;

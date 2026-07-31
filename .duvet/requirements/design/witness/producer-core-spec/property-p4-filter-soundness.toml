@@ -1,0 +1,37 @@
+target = "design/witness/producer-core-spec.md#property-p4-filter-soundness"
+
+# Property P4: Filter Soundness
+#
+# The implementation MUST prove that project filtering is a view,
+# not a truncation (decisions.md,
+# [Decision 7](decisions.md#decision-7)'s consulted semantics;
+# [spec §5.4](spec.md#closure)'s unfiltered traversal):
+# 
+# ```
+# witness_files(graph, root, project)
+#     = witness_files(graph, root, ⊤) ∩ project files
+# ```
+# 
+# Filtering removes only non-project lines: every project-file line
+# of the unfiltered assembly survives, and nothing else appears.
+# Edge traversal MUST NOT be filtered — `closure_reached` takes no
+# project view, so the reached set is project-independent by the
+# model's construction, and only the span projection is restricted.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that project filtering is a view,
+not a truncation (decisions.md,
+[Decision 7](decisions.md#decision-7)'s consulted semantics;
+[spec §5.4](spec.md#closure)'s unfiltered traversal):
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Edge traversal MUST NOT be filtered — `closure_reached` takes no
+project view, so the reached set is project-independent by the
+model's construction, and only the span projection is restricted.
+'''
+
