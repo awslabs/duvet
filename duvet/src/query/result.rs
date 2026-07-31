@@ -75,7 +75,7 @@ pub struct CoverageResult {
     /// "test ran, implementation did not".
     pub missing_implementation: Vec<MissingImplementationTest>,
     //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
-    //= type=implication
+    //= type=implementation
     //# The engine MUST report every test annotation for which no
     //# delivered witness binds it —
     //# across ALL configured producers —
@@ -199,7 +199,7 @@ pub struct UnwitnessedTestAnnotation {
 }
 
 //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
-//= type=implication
+//= type=implementation
 //# The engine MUST report every test annotation for which no
 //# delivered witness binds it —
 //# across ALL configured producers —
