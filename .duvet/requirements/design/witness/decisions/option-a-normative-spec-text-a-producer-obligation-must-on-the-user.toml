@@ -1,0 +1,16 @@
+target = "design/witness/decisions.md#option-a-normative-spec-text-a-producer-obligation-must-on-the-user"
+
+# Option A: Normative spec text (a producer-obligation MUST on the user)
+#
+# - Con: Duvet cannot check it and the user cannot be held to it
+#   mechanically — a MUST without an enforcer dresses an
+#   operational assumption as a requirement.
+
+[[spec]]
+level = "MUST"
+quote = '''
+- Con: Duvet cannot check it and the user cannot be held to it
+mechanically — a MUST without an enforcer dresses an
+operational assumption as a requirement.
+'''
+

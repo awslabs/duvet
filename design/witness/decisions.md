@@ -1,6 +1,6 @@
 # Duvet Witness: Design Decisions
 
-**Status:** Decisions 1–20 ratified and implemented, except
+**Status:** Decisions 1–21 ratified and implemented, except
 [Decision 16](#decision-16), whose example project ships with the LCOV follow-up
 PR ([Follow-ups](#follow-ups)).
 
@@ -1179,6 +1179,41 @@ not misattribution), but until fixed upstream:
 notes on loop invariants and proof asserts work today;
 for ensures clauses, labels come from span identity.
 An upstream Verus report is tracked in [Follow-ups](#follow-ups).
+
+---
+
+## Decision 21: Dogfood annotation placement — definitional properties split, executable properties pair on the checker {#decision-21}
+
+**Context:** The spec's property inventory
+([Decision 4](#decision-4)) is dogfooded with duvet annotations
+inside `duvet-coverage`, and review flagged that the placement
+looked inconsistent: W1, W2, W3, and W6 carry both annotation
+types on one function, while W4, W5, and W7 split them across
+two. The split is deliberate and follows what each property is
+*about*.
+
+### Decision: Placement follows the property's subject
+
+- **Executable-checker properties (W1, W2, W3, W6):** the
+  property specifies the behavior of an executable engine
+  function (`report_discharged`, `report_test_executed`,
+  `report_ever_executed`, unwitnessed reporting). Both
+  annotations sit on that function: `type=test` on the fn header
+  (the `ensures` clause is the proof) and `type=implementation`
+  on the body that computes the verdict.
+- **Definitional properties (W4, W5, W7):** the property
+  quantifies over a definitional spec fn (`binds`, `discharged`)
+  and is proven by a separate lemma. `type=implementation` sits
+  on the definitional spec fn the property is about;
+  `type=test` sits on the proof lemma that discharges it.
+  One spec fn may accumulate several implementation annotations
+  this way (`binds` carries W5's and W7's) — duvet supports
+  stacked annotation blocks on one item.
+
+Placing both annotations on the proof lemma would claim the
+lemma *implements* the property, which it does not — the
+definition does. Placing the test on the definition would claim
+the definition checks itself.
 
 ---
 

@@ -199,3 +199,36 @@ jobs:
         run: duvet --help
       - name: duvet report
         run: duvet report
+
+  dogfood: # duvet runs on itself: the branch-built duvet checks the repo's own
+    # requirement annotations against .duvet/config.toml. `report --ci`
+    # compares the freshly generated snapshot against the committed
+    # .duvet/snapshot.txt and fails on any drift. The snapshot pins the
+    # per-line coverage state of every registered spec (including the
+    # witness spec's MUST lines), so a coverage regression — or an
+    # unintended new citation — fails this job; improving coverage
+    # requires regenerating and committing the snapshot.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable
+          rustup override set stable
+
+      - uses: camshaft/rust-cache@v1
+
+      - name: Cache node_modules
+        uses: actions/cache@v6
+        continue-on-error: true
+        with:
+          path: duvet/www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
+
+      - name: Build duvet
+        run: |
+          cargo xtask build
+
+      - name: Run duvet on its own annotations
+        run: ./target/debug/duvet report --ci

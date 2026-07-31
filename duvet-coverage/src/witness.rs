@@ -176,6 +176,10 @@ pub open spec fn executed_by(
 //= type=implementation
 //# The implementation MUST prove that binding under `ByExecution`
 //# implies execution of the test in the same witness:
+//= design/witness/spec.md#property-w7-positional-binding-map-independence
+//= type=implementation
+//# The implementation MUST prove that binding under `ByRootSpan` does
+//# not depend on the witness's coverage maps:
 pub open spec fn binds(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -795,7 +799,7 @@ pub proof fn by_execution_binding_implies_executed(
 //= design/witness/spec.md#property-w7-positional-binding-map-independence
 //= type=test
 //# The implementation MUST prove that binding under `ByRootSpan` does
-//# not depend on the witness's coverage maps
+//# not depend on the witness's coverage maps:
 pub proof fn positional_binding_is_map_independent(
     file_id: u64,
     annotation: &AnnotationSpan,
