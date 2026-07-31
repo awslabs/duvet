@@ -104,9 +104,12 @@ pub struct RequestedPosition {
 }
 
 /// What one declared source produced: its witnesses, plus the
-/// pass-1 facts that are not witnesses (spec §4: producers deliver
-/// facts and never render verdicts — "zero witnesses, with a reason
-/// attached" is such a fact).
+/// pass-1 facts that are not witnesses.
+//= design/witness/spec.md#producer-obligations
+//# **producers deliver facts and never render verdicts.**
+//# Delivering zero witnesses for an annotation is a fact
+//# (possibly with a reason attached, [§5.2](#two-pass-construction)'s not-proof-testable),
+//# not a failure
 #[derive(Debug, Default)]
 pub struct Produced {
     pub witnesses: Vec<Witness>,

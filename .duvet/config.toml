@@ -32,6 +32,15 @@ pattern = "duvet/src/query/witness.rs"
 pattern = "duvet/src/query/parsers/verus_sst/structure.rs"
 
 [[source]]
+pattern = "duvet/src/query/parsers/verus_sst/mod.rs"
+
+[[source]]
+pattern = "duvet/src/query/parsers/verus_sst/closure.rs"
+
+[[source]]
+pattern = "duvet/src/query/parsers/verus_sst/tests.rs"
+
+[[source]]
 pattern = "duvet/src/query/parsers/verus_sst/witness.rs"
 
 [[specification]]

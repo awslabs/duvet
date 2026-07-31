@@ -235,8 +235,11 @@ mod tests {
             [1, 2, 10, 11, 20, 21].into_iter().collect()
         );
         assert!(!c.files.contains_key("vstd/x.rs"));
-        // island is not downward-reachable: never enters (spec §5.4
-        // "nothing outside the reachable set may be included").
+        //= design/witness/spec.md#closure
+        //= type=test
+        //# Only reachable nodes contribute;
+        //# nothing outside the reachable set may be included.
+        // island is not downward-reachable: never enters.
         assert!(!c.reached.contains("c::island"));
     }
 

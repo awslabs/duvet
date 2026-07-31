@@ -453,17 +453,22 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
   SECTION: [4. Producer obligations and trusted base](#producer-obligations)
     TEXT[!MUST]: Where an obligation cannot be proven, it is a **named axiom** of
     TEXT[!MUST]: the trusted base and MUST be recorded as such.
+    TEXT[implementation]: **producers deliver facts and never render verdicts.**
+    TEXT[implementation]: Delivering zero witnesses for an annotation is a fact
+    TEXT[implementation]: (possibly with a reason attached, [§5.2](#two-pass-construction)'s not-proof-testable),
+    TEXT[implementation]: not a failure
 
   SECTION: [4.1 Closedness](#obligation-closedness)
     TEXT[!MUST,implementation]: Every delivered `files` map MUST be closed under the producer's
     TEXT[!MUST,implementation]: reachability relation ([§1.2](#witness)).
-    TEXT[!SHOULD]: - Prover producers: closedness splits into
-    TEXT[!SHOULD]:   (a) the verifier's record faithfully reflects what elaboration
-    TEXT[!SHOULD]:   consulted — **axiom**, same category as trusting the verifier
-    TEXT[!SHOULD]:   itself — and
-    TEXT[!SHOULD]:   (b) the closure computation over that record is correct —
-    TEXT[!SHOULD]:   our code, which SHOULD be verified in `duvet-coverage`
-    TEXT[!SHOULD]:   (it is a pure graph fixpoint).
+    TEXT[!SHOULD]: -
+    TEXT[!SHOULD,implementation]: Prover producers: closedness splits into
+    TEXT[!SHOULD,implementation]:   (a) the verifier's record faithfully reflects what elaboration
+    TEXT[!SHOULD,implementation]:   consulted — **axiom**, same category as trusting the verifier
+    TEXT[!SHOULD,implementation]:   itself — and
+    TEXT[!SHOULD,implementation]:   (b) the closure computation over that record is correct —
+    TEXT[!SHOULD,implementation]:   our code, which SHOULD be verified in `duvet-coverage`
+    TEXT[!SHOULD,implementation]:   (it is a pure graph fixpoint).
 
   SECTION: [4.2 Individuation](#obligation-individuation)
     TEXT[!MUST]: Every delivered witness MUST be the record of exactly one act of
@@ -581,22 +586,29 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: A constructed witness's `files` maps MUST equal the source spans
     TEXT[!MUST]: of the downward reachable set of the prover's obligation graph,
     TEXT[!MUST]: starting from the discharge unit.
-    TEXT[!MUST]: The closure MUST be **reflexive**: it includes the discharge
-    TEXT[!MUST]: unit's own root span (`root ∈ closure(root)`), so that a witness
-    TEXT[!MUST]: always scores its own annotation as executed and `ByRootSpan`
-    TEXT[!MUST]: binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
+    TEXT[implementation]: Reachability is transitive: the closure follows the obligation
+    TEXT[implementation]: graph's reference edges through any number of call or reference
+    TEXT[implementation]: hops — a lemma reaching a fn reaching a fn reaching a fn: all of
+    TEXT[implementation]: them enter — until a fixpoint.
+    TEXT[!MUST,test]: The closure MUST be **reflexive**: it includes the discharge
+    TEXT[!MUST,test]: unit's own root span (`root ∈ closure(root)`), so that a witness
+    TEXT[!MUST,test]: always scores its own annotation as executed and `ByRootSpan`
+    TEXT[!MUST,test]: binding implies execution
+    TEXT[!MUST]:  ([§1.5](#claim-rules)'s claim rules are thereby
     TEXT[!MUST]: instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
     TEXT[!MUST]: depends on this).
-    TEXT[!MUST]: Producers MUST carry a unit test asserting reflexivity for every
-    TEXT[!MUST]: constructed witness.
+    TEXT[!MUST,implementation]: Producers MUST carry a unit test asserting reflexivity for every
+    TEXT[!MUST,implementation]: constructed witness.
+    TEXT[test]: Only reachable nodes contribute;
+    TEXT[test]: nothing outside the reachable set may be included.
     TEXT[!MUST]: The closure MUST be computed at the finest granularity the
     TEXT[!MUST]: artifact demonstrably supports
     TEXT[!MUST]: (decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the
     TEXT[!MUST]: artifact's ceiling or across a named architectural boundary);
     TEXT[!MUST]: what is normative now:
-    TEXT[!MUST]: the closure MUST be a fixpoint (no truncation at a depth bound),
-    TEXT[!MUST]: and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
-    TEXT[!MUST]: not load-bearing dependency.
+    TEXT[!MUST,implementation]: the closure MUST be a fixpoint (no truncation at a depth bound),
+    TEXT[!MUST,implementation]: and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
+    TEXT[!MUST,implementation]: not load-bearing dependency.
     TEXT[!MUST,implementation]: **The closure ceiling MUST be stated per producer, because it
     TEXT[!MUST,implementation]: bounds what unit granularity buys.** Where a prover checks a
     TEXT[!MUST,implementation]: function's obligations in one solver query and assumes callee
@@ -615,11 +627,12 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation]:   reference edges and derive everything else from that
     TEXT[!MUST,implementation]:   structure — parse-into-structure is a MUST, not an
     TEXT[!MUST,implementation]:   optimization.
-    TEXT[!MUST]: - The aggregate executability map MUST NOT be delivered as a
-    TEXT[!MUST]:   witness: it is many obligations wearing one map, and delivering
-    TEXT[!MUST]:   it would violate [§4.2](#obligation-individuation) by
-    TEXT[!MUST]:   construction; it exists only as pass-1 scaffolding inside the
-    TEXT[!MUST]:   producer.
+    TEXT[!MUST]: -
+    TEXT[!MUST,implementation]: The aggregate executability map MUST NOT be delivered as a
+    TEXT[!MUST,implementation]:   witness: it is many obligations wearing one map, and delivering
+    TEXT[!MUST,implementation]:   it would violate [§4.2](#obligation-individuation) by
+    TEXT[!MUST,implementation]:   construction; it exists only as pass-1 scaffolding inside the
+    TEXT[!MUST,implementation]:   producer.
     TEXT[!MUST]: -
     TEXT[!MUST,implementation]: The Verus producer MUST treat `FunctionSst` blocks as closure
     TEXT[!MUST,implementation]:   nodes and `Fun :path` references as edges, and MUST support

@@ -596,11 +596,11 @@ impl fmt::Display for CoverageResult {
                     },
                 );
 
-                // Spec §3 (Decision 14): for every failing pair, list
-                // EVERY bound witness with its per-witness result and
-                // strength — the verdict is universal, and the
-                // disagreement must never be silent. ✓/✗ per witness,
-                // in bound order, per failing implementation.
+                //= design/witness/spec.md#verdict-output
+                //# the engine computes all of these to evaluate the verdict,
+                //# and the disagreement MUST never be silent
+                // ✓/✗ per witness, in bound order, per failing
+                // implementation.
                 let mut help_lines: Vec<String> = Vec::new();
                 for not_executed in &correlation.not_executed_implementations {
                     for result in &not_executed.per_witness {

@@ -786,13 +786,18 @@ fn labels_proof_note_when_recorded_span_identity_otherwise() {
 
 #[test]
 fn every_constructed_witness_contains_its_own_root_span() {
-    // Spec §5.4: the closure MUST be reflexive — root ∈
-    // closure(root) — so a witness always scores its own
-    // annotation as executed and ByRootSpan binding implies
-    // execution. Producers MUST carry a unit test asserting
-    // reflexivity for every constructed witness; this is that
-    // test, over the full universe of both artifact sets, at
-    // clause grain (every unit kind, not just extents).
+    //= design/witness/spec.md#closure
+    //= type=test
+    //# The closure MUST be **reflexive**: it includes the discharge
+    //# unit's own root span (`root ∈ closure(root)`), so that a witness
+    //# always scores its own annotation as executed and `ByRootSpan`
+    //# binding implies execution
+
+    //= design/witness/spec.md#closure
+    //# Producers MUST carry a unit test asserting reflexivity for every
+    //# constructed witness.
+    // This is that test, over the full universe of both artifact
+    // sets, at clause grain (every unit kind, not just extents).
     for (graph, project) in [
         (corpus(), is_project as fn(&str) -> bool),
         (vacuity(), vacuity_file as fn(&str) -> bool),

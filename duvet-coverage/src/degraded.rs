@@ -181,9 +181,7 @@ pub fn degraded_execution_status(
     }
 }
 
-/// **P7 (stacking transitivity).** The degraded status depends on the annotation
-/// only through its resolved target line: two annotations that resolve to the
-/// same target receive the same status. Immediate from the functional form of
+/// **P7 (stacking transitivity).** Immediate from the functional form of
 /// [`degraded_status_of`].
 //= design/query/coverage-model-spec.md#property-d3-degraded-stacking
 //= type=implication

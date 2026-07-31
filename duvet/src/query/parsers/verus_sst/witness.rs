@@ -33,9 +33,7 @@ use std::sync::Arc;
 
 pub const PRODUCER: &str = "verus-sst";
 
-/// The report sentence for a not-proof-testable position: this
-/// position was elaborated, but nothing dischargeable is rooted
-/// there.
+/// The report sentence for a not-proof-testable position.
 //= design/witness/spec.md#two-pass-construction
 //# and the report MUST identify the annotation as
 //# *not proof-testable* ("this position carries no dischargeable

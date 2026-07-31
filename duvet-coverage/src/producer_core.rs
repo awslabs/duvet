@@ -37,10 +37,8 @@ verus! {
 // Spec vocabulary (producer-core-spec.md #model, #property-p1-closure-fixpoint)
 // ---------------------------------------------------------------------------
 
-/// Graph well-formedness: every edge lands on a node. The adapter
-/// establishes this by construction (PG1): symbolic references that
-/// resolve to no obligation node are not part of the obligation
-/// graph (spec.md §5.4) and never become model edges.
+/// Graph well-formedness: every edge lands on a node — established
+/// by construction in the adapter (PG1).
 //= design/witness/producer-core-spec.md#model
 //= type=implementation
 //# **Edges** are the symbolic references that resolve to a block in
@@ -411,10 +409,8 @@ pub open spec fn clause_level_populated(units: Seq<UnitSpan>, file_id: u64, line
         )
 }
 
-/// Spec: unit `i` is selected for the position — it contains the
-/// position, sits at the finest populated specificity level, and no
-/// containing unit at that level has a strictly smaller extent.
-/// This is the definitional right-hand side of Property P2.
+/// Spec: unit `i` is selected for the position — the definitional
+/// right-hand side of Property P2.
 //= design/witness/producer-core-spec.md#property-p2-most-specific-wins
 //= type=implementation
 //# Consequences the proof MUST deliver: every selected unit contains
