@@ -7,9 +7,11 @@
 //! Implements the producer side of `design/witness/spec.md`:
 //! §1.2/§1.3 output shapes, §4 producer obligations, §5.2 two-pass
 //! construction, §5.3 discharge units, §5.5 the Verus artifact.
-//! Engine wiring (the `produce` entry point of §1.7 against engine
-//! types) lives in `crate::query::producers`; per §1.7 the types in
-//! this module never escape it.
+//! Engine wiring (the `produce` entry point of §1.7) lives in
+//! `crate::query::producers`; per §1.7 the producer-internal
+//! artifact format (the obligation graph, its spans and
+//! s-expressions) never escapes this module — witnesses are emitted
+//! directly in the engine's vocabulary (see [`witness`]).
 //!
 //! The closure computation is golden-tested here (§4.3).
 

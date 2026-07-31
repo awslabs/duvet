@@ -34,19 +34,37 @@
 //! exactly on all counts.
 
 use super::{
-    closure::{aggregate_map, closure, Closure},
+    closure::{aggregate_map, closure, Closure, FileLines},
     load_dir,
     structure::{parse_module, ObligationGraph, UnitKind},
-    witness::{
-        all_units, classify_position, construct_witnesses, materialize_all, ClaimRule,
-        PositionKind, Strength,
-    },
+    witness::{all_units, classify_position, construct_witnesses, materialize_all, PositionKind},
 };
+use crate::query::witness::{ClaimRule, CoverageReportMap, Strength, Witness};
 use std::{
     collections::BTreeSet,
     path::{Path, PathBuf},
-    sync::OnceLock,
+    sync::{Arc, OnceLock},
 };
+
+/// A closure's per-file line sets in the emitted witness shape
+/// (consulted lines as `Hit` — see `ClosureMemo::get`), for equality
+/// assertions against `Witness::files`.
+fn hit_files(files: &FileLines) -> std::collections::BTreeMap<String, Arc<CoverageReportMap>> {
+    files
+        .iter()
+        .map(|(file, lines)| {
+            (
+                file.clone(),
+                Arc::new(
+                    lines
+                        .iter()
+                        .map(|&l| (u64::from(l), duvet_coverage::types::CoverageStatus::Hit))
+                        .collect(),
+                ),
+            )
+        })
+        .collect()
+}
 
 const LEMMA: &str = "duvet_coverage::proofs::lemma_no_cross_scope_leakage";
 const EXECUTED: &str = "duvet_coverage::proofs::executed_annotation_has_no_cross_scope_leakage";
@@ -290,12 +308,22 @@ fn witness_for_annotation_inside_lemma() {
         panic!("expected exactly one witness, got {}", ws.len())
     };
     assert_eq!(w.label, LEMMA);
-    let ClaimRule::ByRootSpan(root) = &w.claim;
-    assert_eq!((root.start_line, root.end_line), (54, 61));
+    let ClaimRule::ByRootSpan {
+        start_line,
+        end_line,
+        ..
+    } = &w.claim
+    else {
+        panic!("prover witnesses claim by root span")
+    };
+    assert_eq!((*start_line, *end_line), (54, 61));
     assert_eq!(w.provenance.producer, "verus-sst");
     assert_eq!(w.provenance.strength, Strength::Consulted);
     assert_eq!(w.provenance.discharge_unit.as_deref(), Some(LEMMA));
-    assert_eq!(w.files, closure(graph, LEMMA, is_project).unwrap().files);
+    assert_eq!(
+        w.files,
+        hit_files(&closure(graph, LEMMA, is_project).unwrap().files)
+    );
 }
 
 #[test]
@@ -349,7 +377,7 @@ fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
         );
         assert_eq!(
             w.files,
-            closure(graph, &w.label, is_project).unwrap().files,
+            hit_files(&closure(graph, &w.label, is_project).unwrap().files),
             "each witness carries its own obligation's closure"
         );
     }
@@ -520,7 +548,7 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
     let units = all_units(graph);
     assert_eq!(universe.len(), units.len(), "one witness per unit");
     assert_eq!(universe.len(), 775, "330 extents + 445 clause units");
-    let by_label: std::collections::BTreeMap<&str, &super::witness::VerusWitness> =
+    let by_label: std::collections::BTreeMap<&str, &Witness> =
         universe.iter().map(|w| (w.label.as_str(), w)).collect();
     assert_eq!(by_label.len(), universe.len(), "labels are unique");
 
@@ -673,7 +701,7 @@ fn scenario_3_self_inclusion_is_credited() {
     };
     assert_eq!(w.label, "vacuity::self_contained");
     assert!(
-        w.files["vacuity.rs"].contains(&57),
+        w.files["vacuity.rs"].contains_key(&57),
         "witness self-includes the body line carrying the impl annotation"
     );
     // The ensures line roots the clause unit — and ONLY the clause
@@ -685,8 +713,15 @@ fn scenario_3_self_inclusion_is_credited() {
         panic!("expected exactly one witness, got {}", ws.len())
     };
     assert_eq!(w55.label, "vacuity::self_contained ensures[0]");
-    let ClaimRule::ByRootSpan(root) = &w55.claim;
-    assert_eq!((root.start_line, root.end_line), (55, 55));
+    let ClaimRule::ByRootSpan {
+        start_line,
+        end_line,
+        ..
+    } = &w55.claim
+    else {
+        panic!("prover witnesses claim by root span")
+    };
+    assert_eq!((*start_line, *end_line), (55, 55));
     assert_eq!(
         w55.provenance.discharge_unit.as_deref(),
         Some("vacuity::self_contained")
@@ -696,7 +731,7 @@ fn scenario_3_self_inclusion_is_credited() {
         "clause unit carries the function-level closure (spec §5.4 ceiling)"
     );
     assert!(
-        w55.files["vacuity.rs"].contains(&57),
+        w55.files["vacuity.rs"].contains_key(&57),
         "so the vacuous clause still self-includes the body: needed \
          semantics, not granularity, is what catches this"
     );
@@ -771,22 +806,25 @@ fn every_constructed_witness_contains_its_own_root_span() {
         (vacuity(), vacuity_file as fn(&str) -> bool),
     ] {
         for w in materialize_all(graph, "x", project) {
-            let ClaimRule::ByRootSpan(root) = &w.claim;
-            if !project(&root.file) {
+            let ClaimRule::ByRootSpan {
+                file,
+                start_line,
+                end_line,
+            } = &w.claim
+            else {
+                panic!("prover witnesses claim by root span")
+            };
+            if !project(file) {
                 continue; // vstd-rooted units: projected out
             }
-            let lines = w.files.get(&root.file).unwrap_or_else(|| {
-                panic!(
-                    "{}: root file {} missing from witness map",
-                    w.label, root.file
-                )
+            let lines = w.files.get(file).unwrap_or_else(|| {
+                panic!("{}: root file {file} missing from witness map", w.label)
             });
-            for line in root.start_line..=root.end_line {
+            for line in *start_line..=*end_line {
                 assert!(
-                    lines.contains(&line),
-                    "{}: root line {}:{line} not in own closure",
+                    lines.contains_key(&line),
+                    "{}: root line {file}:{line} not in own closure",
                     w.label,
-                    root.file
                 );
             }
         }
@@ -1023,10 +1061,12 @@ fn memoized_universe_matches_fresh_per_unit_closures() {
         assert_eq!(w.label, u.label, "universe order is unit order");
         let fresh = closure(graph, &u.node.name, is_project).expect("root must exist");
         assert_eq!(
-            w.files, fresh.files,
+            w.files,
+            hit_files(&fresh.files),
             "memoized closure for unit {} (root {}) diverged from a \
              fresh computation",
-            u.label, u.node.name
+            u.label,
+            u.node.name
         );
     }
 }

@@ -330,52 +330,9 @@ fn verus_witnesses_from_graph(
             if by_label.contains_key(&unit.label) {
                 continue;
             }
-            let vw =
+            let w =
                 verus_sst::witness::witness_for_unit(graph, unit, artifact, &project, &mut memo);
-            let verus_sst::witness::ClaimRule::ByRootSpan(span) = &vw.claim;
-            by_label.insert(
-                vw.label.clone(),
-                Witness {
-                    label: vw.label.clone(),
-                    claim: ClaimRule::ByRootSpan {
-                        file: span.file.clone(),
-                        start_line: span.start_line.into(),
-                        end_line: span.end_line.into(),
-                    },
-                    provenance: Provenance {
-                        producer: vw.provenance.producer.into(),
-                        artifact: vw.provenance.artifact.clone(),
-                        discharge_unit: vw.provenance.discharge_unit.clone(),
-                        strength: match vw.provenance.strength {
-                            verus_sst::witness::Strength::Consulted => Strength::Consulted,
-                        },
-                    },
-                    // Consulted lines enter the witness map as Hit: the
-                    // verified per-annotation scoring is reused unchanged
-                    // (spec §1.4), with "the elaboration reached this
-                    // line" playing the role of "this line ran".
-                    files: vw
-                        .files
-                        .iter()
-                        .map(|(file, lines)| {
-                            (
-                                file.clone(),
-                                std::sync::Arc::new(
-                                    lines
-                                        .iter()
-                                        .map(|&l| {
-                                            (
-                                                u64::from(l),
-                                                duvet_coverage::types::CoverageStatus::Hit,
-                                            )
-                                        })
-                                        .collect(),
-                                ),
-                            )
-                        })
-                        .collect(),
-                },
-            );
+            by_label.insert(w.label.clone(), w);
         }
     }
     Ok(Produced {

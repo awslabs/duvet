@@ -3,77 +3,33 @@
 
 //! Discharge-unit mapping and witness construction (spec §5.3, §5.5).
 //!
-//! The types below are the *producer's own* output shapes. They
-//! anticipate spec §1.2 (Witness) and §1.3 (Provenance) but are
-//! deliberately not the engine's types: engine wiring lives in
-//! `producers.rs`, and per spec §1.7 the producer-internal artifact
-//! format must not escape — these types are the boundary at which
-//! it stops.
+//! Witnesses are emitted directly in the engine's vocabulary
+//! (spec §1.2 Witness, §1.3 Provenance — `crate::query::witness`),
+//! so no producer→engine conversion layer exists to drift. What
+//! spec §1.7 forbids escaping is the producer-internal *artifact*
+//! format — the [`ObligationGraph`], its spans and s-expressions —
+//! and that boundary is this module: only file/line coordinates,
+//! labels, and per-file line maps flow into the emitted witnesses.
+//! Engine wiring (the `produce` entry point of §1.7) lives in
+//! `producers.rs`.
 //!
 //! Discharge units exist at every granularity the artifact records
 //! (spec §5.3): obligation extents, ensures clauses, loop
 //! invariants, and proof asserts. Every unit inside a function
 //! carries the function's consulted closure (spec §5.4 — the
 //! closure ceiling).
+//!
+//! A prover producer only ever delivers strength `Consulted`
+//! (Decision 7: consulted semantics, execution parity, no
+//! stronger); the runtime rung (`Executed`) is never constructed
+//! here.
 
 use super::{
-    closure::{closure, FileLines},
+    closure::closure,
     structure::{ClauseUnit, ObligationGraph, ObligationNode, Span, UnitKind},
 };
-
-/// How a test annotation claims this witness (spec §1.5).
-///
-/// Prover witnesses are constructed from the annotation's own
-/// position, so the claim is positional: the discharge unit's
-/// extent. `ByExecution` is a runtime-producer rule and never
-/// constructed here.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ClaimRule {
-    ByRootSpan(Span),
-}
-
-/// Witness strength (spec §1.3): what kind of claim it supports.
-///
-/// A prover producer only ever delivers `Consulted`. The runtime
-/// rung (`Executed`) lives in the engine's `Strength` taxonomy —
-/// the conversion in `producers.rs` maps this type into it — and
-/// deliberately has no mirror variant here: a variant this module
-/// can never construct would only be unreachable conversion code.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Strength {
-    /// A prover's elaboration reached these lines (Decision 7:
-    /// consulted semantics, execution parity, no stronger).
-    Consulted,
-}
-
-/// Witness provenance (spec §1.3).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Provenance {
-    pub producer: &'static str,
-    /// Source artifact (the log directory or file set).
-    pub artifact: String,
-    /// The obligation the witness was constructed from.
-    pub discharge_unit: Option<String>,
-    pub strength: Strength,
-}
-
-/// One act of checking: a prover obligation's successful
-/// verification, scoped to one discharge unit, with everything the
-/// obligation's elaboration consulted (spec §1.2, restricted to
-/// project files).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VerusWitness {
-    /// Human-readable identity of the discharge unit
-    /// (spec §5.5, Decision 20): the obligation's fully-qualified
-    /// path for extent units; `proof_note` text or span identity
-    /// for clause-kind units.
-    pub label: String,
-    pub claim: ClaimRule,
-    pub provenance: Provenance,
-    /// Closed per-file line sets (§4.1): the fixpoint closure of the
-    /// discharge unit, projected to project files.
-    pub files: FileLines,
-}
+use crate::query::witness::{ClaimRule, CoverageReportMap, Provenance, Strength, Witness};
+use std::sync::Arc;
 
 pub const PRODUCER: &str = "verus-sst";
 
@@ -284,7 +240,9 @@ pub fn find_discharge_units<'g>(
         .collect()
 }
 
-/// Memoized per-root closures for one production run.
+/// Memoized per-root witness file maps for one production run: each
+/// root's closure (spec §5.4), projected to project files and
+/// converted to the engine's per-file coverage maps.
 ///
 /// Sound to share across positions and units because [`closure`] is
 /// a pure function of `(graph, root, project)` — spec §5.4 defines
@@ -294,8 +252,12 @@ pub fn find_discharge_units<'g>(
 /// constructs its own. The closure ceiling (spec §5.4) is exactly
 /// why this pays: all units of one function share the identical
 /// function-level closure, so distinct roots (330 in the corpus)
-/// are far fewer than units (775).
-pub struct ClosureMemo(std::collections::BTreeMap<String, super::closure::Closure>);
+/// are far fewer than units (775), and the per-file maps are
+/// `Arc`-shared across every unit of one root.
+pub struct ClosureMemo(std::collections::BTreeMap<String, WitnessFiles>);
+
+/// The engine witness's per-file coverage shape (spec §1.2 `files`).
+type WitnessFiles = std::collections::BTreeMap<String, Arc<CoverageReportMap>>;
 
 impl ClosureMemo {
     pub fn new() -> Self {
@@ -307,11 +269,32 @@ impl ClosureMemo {
         graph: &ObligationGraph,
         root: &str,
         project: impl Fn(&str) -> bool,
-    ) -> &super::closure::Closure {
+    ) -> &WitnessFiles {
         if !self.0.contains_key(root) {
             let c =
                 closure(graph, root, project).expect("unit came from this graph; root must exist");
-            self.0.insert(root.to_string(), c);
+            // Consulted lines enter the witness map as Hit: the
+            // verified per-annotation scoring is reused unchanged
+            // (spec §1.4), with "the elaboration reached this line"
+            // playing the role of "this line ran".
+            let files = c
+                .files
+                .iter()
+                .map(|(file, lines)| {
+                    (
+                        file.clone(),
+                        Arc::new(
+                            lines
+                                .iter()
+                                .map(|&l| {
+                                    (u64::from(l), duvet_coverage::types::CoverageStatus::Hit)
+                                })
+                                .collect(),
+                        ),
+                    )
+                })
+                .collect();
+            self.0.insert(root.to_string(), files);
         }
         &self.0[root]
     }
@@ -347,18 +330,22 @@ pub fn witness_for_unit(
     artifact: &str,
     project: impl Fn(&str) -> bool,
     memo: &mut ClosureMemo,
-) -> VerusWitness {
-    let closure = memo.get(graph, &unit.node.name, project);
-    VerusWitness {
+) -> Witness {
+    let files = memo.get(graph, &unit.node.name, project).clone();
+    Witness {
         label: unit.label.clone(),
-        claim: ClaimRule::ByRootSpan(unit.span.clone()),
+        claim: ClaimRule::ByRootSpan {
+            file: unit.span.file.clone(),
+            start_line: unit.span.start_line.into(),
+            end_line: unit.span.end_line.into(),
+        },
         provenance: Provenance {
-            producer: PRODUCER,
+            producer: PRODUCER.into(),
             artifact: artifact.to_string(),
             discharge_unit: Some(unit.node.name.clone()),
             strength: Strength::Consulted,
         },
-        files: closure.files.clone(),
+        files,
     }
 }
 
@@ -378,7 +365,7 @@ pub fn construct_witnesses(
     line: u32,
     artifact: &str,
     project: impl Fn(&str) -> bool,
-) -> Vec<VerusWitness> {
+) -> Vec<Witness> {
     let mut memo = ClosureMemo::new();
     find_discharge_units(graph, file, line)
         .into_iter()
@@ -418,7 +405,7 @@ pub fn materialize_all(
     graph: &ObligationGraph,
     artifact: &str,
     project: impl Fn(&str) -> bool,
-) -> Vec<VerusWitness> {
+) -> Vec<Witness> {
     let mut memo = ClosureMemo::new();
     all_units(graph)
         .iter()
@@ -613,11 +600,11 @@ mod tests {
         assert_eq!(w.label, "c::caller");
         assert_eq!(
             w.claim,
-            ClaimRule::ByRootSpan(Span {
+            ClaimRule::ByRootSpan {
                 file: "src/a.rs".into(),
                 start_line: 10,
                 end_line: 20
-            })
+            }
         );
         assert_eq!(w.provenance.producer, "verus-sst");
         assert_eq!(w.provenance.strength, Strength::Consulted);
