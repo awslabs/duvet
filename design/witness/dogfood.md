@@ -39,23 +39,65 @@ Expected shape of the results:
   [Decision 8](decisions.md#decision-8)'s subset-of-producers
   behavior, on purpose. Only the sliced run is green today.
 
-## What is missing before this runs in CI
+## Cross-crate annotation typing {#cross-crate-typing}
 
-- **A gateable proof-only run.** The decided staging: disable the
-  runtime `type=test` annotations with one grep-able marker token
-  (`DUVET-DISABLED-AWAITING-LCOV`) so the full proof-only run
-  exits 0 and CI gates on it; re-enabling is a search, not a
-  memory. Not yet applied.
-- **CI-consumable report output** for the witness verdicts
-  (today's output is human-oriented).
-- **Runtime execution witnesses** — the LCOV-family producer and
-  the per-test harness example
-  ([Decision 16](decisions.md#decision-16)), deferred to the LCOV
-  follow-up PR ([Follow-ups](decisions.md#follow-ups)). Its
-  opening move is re-enabling the marked annotations; its exit
-  criterion is the mixed run green with all pairs discharged —
-  and the mixed run MUST NOT use an aggregate suite report
-  (that would put an A2 violation at the center of the feature's
-  own demo).
+Proof witnesses from `duvet-coverage`'s SST logs can never reach
+`duvet`-crate code: the obligation closure is bounded by the
+verified crate. So an engine-side annotation quoting a witness
+property's spec text is *structurally* undischargeable as an
+implementation pair — not wrong, just not something a proof
+witness can ever execute.
+
+The rule: **engine-side (cross-crate) annotations quoting
+proof-side property text carry `type=implication`** ("fundamentally
+true or not testable [by this producer]"), never a bare citation.
+The engine supports this honestly: implication and exception
+coverers tile the requirement's quote but are never held to the
+witness-executed correlation (`duvet query -c coverage` skips them
+in the per-coverer discharge loop; the integration test
+`query-coverage-implication-not-held` pins this). The LCOV
+follow-up, whose runtime witnesses CAN reach engine code, is
+expected to flip these back to `type=implementation`.
+
+This rule was found the dogfood way. The first sliced run failed
+W2, W3, and W6 while W1 passed, and the initial suspicion fell on
+the both-annotations-on-the-checker-fn placement
+([Decision 21](decisions.md#decision-21)) — discharge-unit
+rooting, target resolution, or body lines being excluded from
+witness maps. The producer's own parser, used as the oracle,
+disconfirmed all three: every checker fn's extent witness contains
+its own body lines, and the in-crate implementation annotations
+all evaluated *executed*. The failing coverers were the
+cross-crate ones — W1 passed simply because it is the one property
+with no engine-side annotation quoting its text. Decision 21's
+placement convention itself needed no change.
+
+## CI wiring {#ci-wiring}
+
+The sliced witness-query gate runs in CI (`.github/workflows/ci.yml`):
+
+- The `verify` job passes `--log vir-sst --log-dir` to the proof
+  run (same verification, now leaving its SST record behind),
+  gzips the logs (~21:1), and uploads them as the
+  `verus-sst-logs` artifact.
+- The `dogfood` job (`needs: verify`) downloads the artifact and,
+  after `duvet report --ci`, runs the witness query sliced to the
+  eleven property sections (W1–W7, P1–P4), gated on its exit code:
+  every property pair must discharge.
+
+## What is still missing
+
+- **The full-run (unsliced) proof-only gate.** The runtime
+  `type=test` annotations are unwitnessed in a proof-only run by
+  design ([Decision 8](decisions.md#decision-8)); they stay
+  enabled, and the full-run gate is deferred to the LCOV follow-up
+  ([Decision 16](decisions.md#decision-16),
+  [Follow-ups](decisions.md#follow-ups)). Its exit criterion is
+  the mixed run green with all pairs discharged — and the mixed
+  run MUST NOT use an aggregate suite report (that would put an A2
+  violation at the center of the feature's own demo).
+- **Richer CI-consumable report output** for the witness verdicts.
+  The exit code is the gate today; the human-oriented output is
+  what CI logs show.
 - The expectation that the first CI wiring will be imperfect:
   wire it, watch it, then tighten.
