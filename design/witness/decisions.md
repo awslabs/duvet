@@ -1182,6 +1182,53 @@ An upstream Verus report is tracked in [Follow-ups](#follow-ups).
 
 ---
 
+## Open question: the executed-coverage diagnostic fold vs G2 {#open-g2-diagnostic-fold}
+
+**Context:** [Spec §4.4 G2](spec.md#engine-glue) requires every
+pair, test, and global verdict to come from the verified layer,
+with per-witness failure diagnostics derived from the same
+verified cells — "no parallel engine-side verdict computation may
+exist." In executed-coverage mode
+(`CheckType::ExecutedCoverage`), the engine folds *unverified*
+diagnostic cells (`engine.rs` — `cell` at 582, `fold_statuses` at
+453) to decide which failures reach the output: a
+missing-implementation test whose fold says `NotExecuted` is
+skipped (`engine.rs:668–674`), and an unwitnessed test likewise
+(`engine.rs:757–767`). Those skips feed `QueryStatus`
+(`engine.rs:823–828`): whether the run passes or fails can turn
+on a computation that never passes through the verified layer —
+a verdict-shaped question answered engine-side, which is arguably
+the parallel computation G2 forbids. The per-entry verdicts
+themselves are verified (the fold only *withholds*
+already-decided failures from output, it cannot manufacture a
+pass for a witnessed-but-undischarged pair), but the withholding
+direction is silence — the direction this document's fail-loud
+posture distrusts.
+
+### Option A: Derive the mode filter from adapter facts
+
+Route the executed/not-executed skip predicate through the
+verified adapter — the same cells that decide W1/W6 — so mode
+filtering becomes a projection of verified state rather than a
+parallel engine-side fold.
+
+### Option B: Spec-text carve-out for diagnostic-mode filtering
+
+Amend §4.4 G2 to name output *filtering* (as distinct from
+verdict computation) a permitted engine-side operation, with the
+explicit constraint that filtering may only withhold failures,
+never manufacture passes — making the current code's real
+property normative instead of accidental.
+
+### Open — follow-up, not a decision
+
+Recorded to acknowledge the tension precisely; neither resolution
+is chosen here. Whoever picks it up should also decide whether
+`fold_statuses`'s OR-semantics (Executed wins outright) is part
+of the verdict surface or purely diagnostic detail.
+
+---
+
 ## Follow-ups {#follow-ups}
 
 Work this document defers, with the constraints already ratified

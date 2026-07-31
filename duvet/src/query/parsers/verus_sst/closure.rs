@@ -34,12 +34,17 @@ pub type FileLines = BTreeMap<String, BTreeSet<u32>>;
 pub struct AggregateExecutabilityMap(pub FileLines);
 
 impl AggregateExecutabilityMap {
+    // Golden-test reference surface: no engine-path consumer.
+    #[allow(dead_code)]
     pub fn total_lines(&self) -> usize {
         self.0.values().map(BTreeSet::len).sum()
     }
 }
 
 /// Project every node's spans to one aggregate map (spec §5.2 pass 1).
+// Golden-test reference surface (pass-1 aggregate map): no
+// engine-path consumer.
+#[allow(dead_code)]
 pub fn aggregate_map(
     graph: &ObligationGraph,
     project: impl Fn(&str) -> bool,
@@ -70,6 +75,8 @@ pub struct Closure {
 }
 
 impl Closure {
+    // Golden-test reference surface: no engine-path consumer.
+    #[allow(dead_code)]
     pub fn total_lines(&self) -> usize {
         self.files.values().map(BTreeSet::len).sum()
     }

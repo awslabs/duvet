@@ -236,7 +236,16 @@ fn verus_witnesses_from_graph(
     let mut not_proof_testable: Vec<RequestedPosition> = Vec::new();
     for position in positions {
         let Ok(line) = u32::try_from(position.line) else {
-            continue; // no real file has 2^32 lines; no witness (W6)
+            // No real file has 2^32 lines: reaching this means corrupt
+            // input or an upstream coordinate-type change. Loud in
+            // debug so it cannot fire silently; in release the position
+            // degrades to no-witness (W6) rather than aborting the run.
+            debug_assert!(
+                false,
+                "verus-sst: position {}:{} exceeds the u32 line space",
+                position.absolute_file, position.line
+            );
+            continue;
         };
         // Translate to artifact coordinates by the suffix rule; refuse
         // a genuine ambiguity rather than guessing (same posture as
@@ -287,7 +296,6 @@ fn verus_witnesses_from_graph(
                         artifact: vw.provenance.artifact.clone(),
                         discharge_unit: vw.provenance.discharge_unit.clone(),
                         strength: match vw.provenance.strength {
-                            verus_sst::witness::Strength::Executed => Strength::Executed,
                             verus_sst::witness::Strength::Consulted => Strength::Consulted,
                         },
                     },

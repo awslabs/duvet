@@ -33,10 +33,14 @@ pub enum ClaimRule {
 }
 
 /// Witness strength (spec §1.3): what kind of claim it supports.
+///
+/// A prover producer only ever delivers `Consulted`. The runtime
+/// rung (`Executed`) lives in the engine's `Strength` taxonomy —
+/// the conversion in `producers.rs` maps this type into it — and
+/// deliberately has no mirror variant here: a variant this module
+/// can never construct would only be unreachable conversion code.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Strength {
-    /// A runtime act ran these lines. Never produced here.
-    Executed,
     /// A prover's elaboration reached these lines (Decision 7:
     /// consulted semantics, execution parity, no stronger).
     Consulted,
@@ -315,6 +319,9 @@ pub fn construct_witnesses(
 /// (obligation name, unit kind, clause index) order: obligation
 /// extents plus all clause-kind units of every node (spec §5.3,
 /// Decision 18).
+// Golden-test reference surface (full-universe entry point): no
+// engine-path consumer.
+#[allow(dead_code)]
 pub fn all_units(graph: &ObligationGraph) -> Vec<DischargeUnit<'_>> {
     graph
         .nodes
@@ -333,6 +340,9 @@ pub fn all_units(graph: &ObligationGraph) -> Vec<DischargeUnit<'_>> {
 /// this universe; it never changes their content. This function is
 /// the reference the filter-soundness golden tests compare
 /// annotation-driven construction against.
+// Golden-test reference surface (filter-soundness comparison
+// reference): no engine-path consumer.
+#[allow(dead_code)]
 pub fn materialize_all(
     graph: &ObligationGraph,
     artifact: &str,

@@ -71,6 +71,41 @@ fn corpus() -> &'static ObligationGraph {
     GRAPH.get_or_init(|| load_dir(&corpus_dir()).expect("corpus must load"))
 }
 
+/// Spec §5.2's abort-don't-skip posture, end to end: a module log
+/// whose clause span does not parse aborts the whole directory
+/// load — it must not degrade into a graph whose annotations
+/// silently fall back to extent rooting (the hoisting §5.3
+/// forbids).
+#[test]
+fn malformed_clause_span_aborts_the_load() {
+    let dir = std::env::temp_dir().join(format!(
+        "duvet-sst-malformed-{}-{:?}",
+        std::process::id(),
+        std::thread::current().id()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("bad-sst.vir"),
+        r#"
+(@ "src/u.rs:10:1: 12:2 (#0)"
+ (FunctionSst :name (Fun :path crate::bad)
+  :decl (FuncDeclSst :reqs ()
+   :enss (tuple
+    ((@@ "no location" (Exp Const (Constant Bool true))))
+    ()))))
+"#,
+    )
+    .unwrap();
+    let result = load_dir(&dir);
+    std::fs::remove_dir_all(&dir).unwrap();
+    let err = result.expect_err("load must abort on a malformed clause span");
+    let message = err.to_string();
+    assert!(
+        message.contains("ensures clause span \"no location\" does not parse"),
+        "error must name the malformed span: {message}"
+    );
+}
+
 fn is_project(file: &str) -> bool {
     file.starts_with("duvet-coverage/")
 }

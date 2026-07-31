@@ -83,21 +83,38 @@ impl Drop for Sexpr<'_> {
 }
 
 impl fmt::Display for Sexpr<'_> {
+    /// Iterative formatting (explicit work stack, no call
+    /// recursion). Same rationale as the parser and the manual
+    /// `Drop`: depth-safety has to hold for the whole lifecycle,
+    /// and a derived-style recursive `write!(f, "{item}")` would
+    /// overflow the stack on exactly the deep inputs the parser
+    /// and destructor already survive.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Sexpr::Atom(s) => write!(f, "{s}"),
-            Sexpr::Str(s) => write!(f, "\"{s}\""),
-            Sexpr::List(items) => {
-                write!(f, "(")?;
-                for (i, item) in items.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, " ")?;
+        enum Step<'a, 'b> {
+            Expr(&'b Sexpr<'a>),
+            Text(&'static str),
+        }
+        let mut work = vec![Step::Expr(self)];
+        while let Some(step) = work.pop() {
+            match step {
+                Step::Text(s) => f.write_str(s)?,
+                Step::Expr(Sexpr::Atom(s)) => f.write_str(s)?,
+                Step::Expr(Sexpr::Str(s)) => write!(f, "\"{s}\"")?,
+                Step::Expr(Sexpr::List(items)) => {
+                    f.write_str("(")?;
+                    // Reverse push so items pop in order; a space
+                    // before every item but the first.
+                    work.push(Step::Text(")"));
+                    for (i, item) in items.iter().enumerate().rev() {
+                        work.push(Step::Expr(item));
+                        if i > 0 {
+                            work.push(Step::Text(" "));
+                        }
                     }
-                    write!(f, "{item}")?;
                 }
-                write!(f, ")")
             }
         }
+        Ok(())
     }
 }
 
@@ -290,6 +307,15 @@ mod tests {
         input.push_str(&")".repeat(n));
         let parsed = parse_all(&input).unwrap();
         assert_eq!(parsed.len(), 1);
+        // Depth-safety has to hold for the whole lifecycle (see the
+        // Drop impl): Display must survive the same input. Round-trip
+        // at string level — the derived `PartialEq`/`Debug` recurse,
+        // so a structural comparison would itself overflow.
+        let printed = parsed[0].to_string();
+        assert!(printed == input, "Display diverged from input");
+        drop(parsed);
+        let reparsed = parse_all(&printed).unwrap();
+        assert!(reparsed.len() == 1 && reparsed[0].to_string() == input);
     }
 
     #[test]

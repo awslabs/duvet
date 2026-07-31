@@ -17,11 +17,6 @@
 //! computation over that record is our code, golden-tested here
 //! (§4.3) and a candidate for verification in `duvet-coverage`.
 
-// The full-universe entry points (`materialize_all`, `all_units`)
-// and some structure fields have no non-test consumer in the
-// engine path; they are the golden-test reference surface.
-#![allow(dead_code)]
-
 pub mod closure;
 pub mod sexpr;
 pub mod structure;

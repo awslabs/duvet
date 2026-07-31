@@ -162,6 +162,18 @@ pub enum StructureError {
         name: String,
         head: String,
     },
+    /// A clause-kind unit (ensures clause, loop invariant, or proof
+    /// assert) whose span string does not parse. Same posture as
+    /// [`StructureError::MissingExtent`], for the same reason
+    /// (spec §5.2): silently skipping the unit would make every
+    /// annotation on its lines fall back to extent rooting — the
+    /// hoisting §5.3 forbids — turning a format change into quietly
+    /// wrong verdicts. The golden corpus has no such spans.
+    MissingClauseSpan {
+        name: String,
+        kind: UnitKind,
+        span: String,
+    },
     /// The same fully-qualified name with two different extents.
     ExtentConflict {
         name: String,
@@ -178,6 +190,13 @@ impl fmt::Display for StructureError {
             StructureError::Sexpr(e) => write!(f, "s-expression error: {e}"),
             StructureError::MissingExtent { name, head } => {
                 write!(f, "FunctionSst {name}: head span {head:?} does not parse")
+            }
+            StructureError::MissingClauseSpan { name, kind, span } => {
+                write!(
+                    f,
+                    "FunctionSst {name}: {} clause span {span:?} does not parse",
+                    kind.token()
+                )
             }
             StructureError::ExtentConflict {
                 name,
@@ -233,7 +252,7 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
             head: head_span.to_string(),
         })?;
 
-        let units = clause_units(items);
+        let units = clause_units(items, &name)?;
 
         let mut spans: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
         let mut edges = BTreeSet::new();
@@ -295,6 +314,12 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 /// Extract the sub-function discharge units of one `FunctionSst`
 /// item list.
 ///
+/// A clause-kind node whose span string fails [`Span::parse`] is a
+/// hard [`StructureError::MissingClauseSpan`] — the same posture as
+/// a head span that fails (spec §5.2's abort-don't-skip rule):
+/// skipping the unit would silently re-root its annotations at the
+/// enclosing extent, the hoisting spec §5.3 forbids.
+///
 //= design/witness/spec.md#verus-producer
 //= type=implementation
 //# The Verus producer MUST treat `FunctionSst` blocks as closure
@@ -336,8 +361,13 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 //= type=implementation
 //# Until the upstream `proof_note`-on-ensures defect is fixed,
 //# ensures-clause labels MUST come from span identity.
-fn clause_units(items: &[Sexpr<'_>]) -> Vec<ClauseUnit> {
+fn clause_units(items: &[Sexpr<'_>], name: &str) -> Result<Vec<ClauseUnit>, StructureError> {
     let mut units = Vec::new();
+    let missing = |kind: UnitKind, span: &str| StructureError::MissingClauseSpan {
+        name: name.to_string(),
+        kind,
+        span: span.to_string(),
+    };
 
     // Ensures clauses: both `:enss` tuple slots (inside the
     // `:decl (FuncDeclSst ...)` sub-structure), in order.
@@ -356,9 +386,8 @@ fn clause_units(items: &[Sexpr<'_>]) -> Vec<ClauseUnit> {
                     let Some((span_str, _)) = as_at_node(clause) else {
                         continue;
                     };
-                    let Some(span) = Span::parse(span_str) else {
-                        continue;
-                    };
+                    let span = Span::parse(span_str)
+                        .ok_or_else(|| missing(UnitKind::Ensures, span_str))?;
                     units.push(ClauseUnit {
                         kind: UnitKind::Ensures,
                         index,
@@ -375,7 +404,7 @@ fn clause_units(items: &[Sexpr<'_>]) -> Vec<ClauseUnit> {
 
     // Loop invariants and proof asserts: `:exec_proof_check` only.
     let Some(check) = field_value(items, ":exec_proof_check") else {
-        return units;
+        return Ok(units);
     };
     let (mut inv_index, mut assert_index) = (0usize, 0usize);
     let mut work: Vec<&Sexpr> = vec![check];
@@ -386,15 +415,15 @@ fn clause_units(items: &[Sexpr<'_>]) -> Vec<ClauseUnit> {
             [Sexpr::Atom("LoopInv"), rest @ ..] => {
                 if let Some(inv) = field_value(rest, ":inv") {
                     if let Some((span_str, exp)) = as_at_node(inv) {
-                        if let Some(span) = Span::parse(span_str) {
-                            units.push(ClauseUnit {
-                                kind: UnitKind::LoopInvariant,
-                                index: inv_index,
-                                span,
-                                note: proof_note(exp),
-                            });
-                            inv_index += 1;
-                        }
+                        let span = Span::parse(span_str)
+                            .ok_or_else(|| missing(UnitKind::LoopInvariant, span_str))?;
+                        units.push(ClauseUnit {
+                            kind: UnitKind::LoopInvariant,
+                            index: inv_index,
+                            span,
+                            note: proof_note(exp),
+                        });
+                        inv_index += 1;
                     }
                 }
             }
@@ -402,15 +431,15 @@ fn clause_units(items: &[Sexpr<'_>]) -> Vec<ClauseUnit> {
             [Sexpr::Atom("@") | Sexpr::Atom("@@"), Sexpr::Str(span_str), payload, ..]
                 if is_stm_assert(payload) =>
             {
-                if let Some(span) = Span::parse(span_str) {
-                    units.push(ClauseUnit {
-                        kind: UnitKind::ProofAssert,
-                        index: assert_index,
-                        span,
-                        note: proof_note(payload),
-                    });
-                    assert_index += 1;
-                }
+                let span = Span::parse(span_str)
+                    .ok_or_else(|| missing(UnitKind::ProofAssert, span_str))?;
+                units.push(ClauseUnit {
+                    kind: UnitKind::ProofAssert,
+                    index: assert_index,
+                    span,
+                    note: proof_note(payload),
+                });
+                assert_index += 1;
                 // Do not descend: an assert's expression can carry
                 // further span-shaped strings but no nested units.
                 continue;
@@ -422,7 +451,7 @@ fn clause_units(items: &[Sexpr<'_>]) -> Vec<ClauseUnit> {
         work.extend(list.iter().rev());
     }
 
-    units
+    Ok(units)
 }
 
 /// Match a *user* proof assert: `(Stm Assert (id) None ...)`.
@@ -513,17 +542,6 @@ impl ObligationGraph {
             }
         }
         Ok(graph)
-    }
-
-    /// Parse and merge several module log sources.
-    pub fn from_sources<'a>(
-        sources: impl IntoIterator<Item = &'a str>,
-    ) -> Result<Self, StructureError> {
-        let modules = sources
-            .into_iter()
-            .map(parse_module)
-            .collect::<Result<Vec<_>, _>>()?;
-        Self::merge(modules)
     }
 }
 
@@ -673,6 +691,81 @@ mod tests {
       (LoopInv :at_entry true :at_exit true :inv
        (@@ "src/u.rs:30:13: 30:20 (#0)" (Exp Const (Constant Bool true))))))))))))
 "#;
+
+    // A clause-kind span that fails `Span::parse` must be as loud
+    // as a head span that fails (spec §5.2: silently dropping a
+    // position would convert a format change into extent-hoisted /
+    // missing-witness verdicts — the hoisting §5.3 forbids). The
+    // golden corpus has no such spans (its 113 "no location"
+    // strings are all on non-FunctionSst declaration heads), so
+    // hitting one means the format changed.
+
+    #[test]
+    fn malformed_ensures_span_is_a_hard_error() {
+        let src = r#"
+(@ "src/u.rs:10:1: 12:2 (#0)"
+ (FunctionSst :name (Fun :path crate::bad)
+  :decl (FuncDeclSst :reqs ()
+   :enss (tuple
+    ((@@ "no location" (Exp Const (Constant Bool true))))
+    ()))))
+"#;
+        let err = parse_module(src).unwrap_err();
+        assert!(
+            matches!(
+                &err,
+                StructureError::MissingClauseSpan { name, kind, span }
+                    if name == "crate::bad"
+                        && *kind == UnitKind::Ensures
+                        && span == "no location"
+            ),
+            "expected MissingClauseSpan, got: {err}"
+        );
+    }
+
+    #[test]
+    fn malformed_loop_invariant_span_is_a_hard_error() {
+        let src = r#"
+(@ "src/u.rs:10:1: 12:2 (#0)"
+ (FunctionSst :name (Fun :path crate::bad)
+  :exec_proof_check (FuncCheckSst :reqs ()
+   :body (@ "src/u.rs:13:1: 40:2 (#0)" (Stm Block (
+    (Loop :invs (
+      (LoopInv :at_entry true :at_exit true :inv
+       (@@ "no location" (Exp Const (Constant Bool true))))))))))))
+"#;
+        let err = parse_module(src).unwrap_err();
+        assert!(
+            matches!(
+                &err,
+                StructureError::MissingClauseSpan { kind, .. }
+                    if *kind == UnitKind::LoopInvariant
+            ),
+            "expected MissingClauseSpan, got: {err}"
+        );
+    }
+
+    #[test]
+    fn malformed_proof_assert_span_is_a_hard_error() {
+        let src = r#"
+(@ "src/u.rs:10:1: 12:2 (#0)"
+ (FunctionSst :name (Fun :path crate::bad)
+  :exec_proof_check (FuncCheckSst :reqs ()
+   :body (@ "src/u.rs:13:1: 40:2 (#0)" (Stm Block (
+    (@ "no location"
+     (Stm Assert (0) None
+      (@@ "src/u.rs:35:12: 35:40 (#0)" (Exp Const (Constant Bool true)))))))))))
+"#;
+        let err = parse_module(src).unwrap_err();
+        assert!(
+            matches!(
+                &err,
+                StructureError::MissingClauseSpan { kind, .. }
+                    if *kind == UnitKind::ProofAssert
+            ),
+            "expected MissingClauseSpan, got: {err}"
+        );
+    }
 
     #[test]
     fn clause_units_of_every_kind() {
