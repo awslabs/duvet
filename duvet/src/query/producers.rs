@@ -190,7 +190,10 @@ async fn jacoco_witness(artifact: &str) -> Result<Witness> {
     let generic = data.as_generic();
     let mut files = BTreeMap::new();
     for (path, file_coverage) in &generic.files {
-        files.insert(path.clone(), file_coverage.to_coverage_report());
+        files.insert(
+            path.clone(),
+            std::sync::Arc::new(file_coverage.to_coverage_report()),
+        );
     }
     Ok(Witness {
         label: artifact.to_string(),
@@ -356,12 +359,17 @@ fn verus_witnesses_from_graph(
                         .map(|(file, lines)| {
                             (
                                 file.clone(),
-                                lines
-                                    .iter()
-                                    .map(|&l| {
-                                        (u64::from(l), duvet_coverage::types::CoverageStatus::Hit)
-                                    })
-                                    .collect(),
+                                std::sync::Arc::new(
+                                    lines
+                                        .iter()
+                                        .map(|&l| {
+                                            (
+                                                u64::from(l),
+                                                duvet_coverage::types::CoverageStatus::Hit,
+                                            )
+                                        })
+                                        .collect(),
+                                ),
                             )
                         })
                         .collect(),

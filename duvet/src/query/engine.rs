@@ -594,7 +594,7 @@ async fn execute_coverage_check(
         executed_status(
             annotation,
             classification.get(&path),
-            matched[witness_index].get(&path).copied(),
+            matched[witness_index].get(&path).map(|arc| arc.as_ref()),
         )
     };
 

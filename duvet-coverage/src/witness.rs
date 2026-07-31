@@ -105,6 +105,12 @@ pub enum ClaimRule {
 /// witness so that W1's same-witness conjunction is over one object —
 /// projecting per-file in glue would reintroduce the correlation bug's
 /// shape (decisions.md, Relationship section).
+///
+/// The maps are `Arc`-shared so the glue can hand the SAME report to the
+/// engine's diagnostic cells and the verified witness without doubling
+/// resident coverage data. Semantically inert: in spec land an `Arc<T>`
+/// is its value (the lookup specs deref it), and `==`/`PartialEq` remain
+/// value equality — W4's transport-by-equality argument is unchanged.
 //= design/witness/spec.md#witness
 //# A witness is the record of **one act of checking**:
 //# one test's execution, or one prover obligation's successful
@@ -112,7 +118,7 @@ pub enum ClaimRule {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Witness {
     pub claim: ClaimRule,
-    pub files: Vec<(u64, CoverageReport)>,
+    pub files: Vec<(u64, std::sync::Arc<CoverageReport>)>,
 }
 
 // ---------------------------------------------------------------------------
@@ -124,7 +130,7 @@ pub struct Witness {
 /// duplicate file id (forbidden by G1), the earliest entry wins and later
 /// entries are dead. `None` when no entry matches.
 pub open spec fn witness_file_lookup_from(
-    files: Seq<(u64, CoverageReport)>,
+    files: Seq<(u64, std::sync::Arc<CoverageReport>)>,
     file_id: u64,
     i: int,
 ) -> Option<CoverageReport>
@@ -133,7 +139,7 @@ pub open spec fn witness_file_lookup_from(
     if i < 0 || i >= files.len() {
         None
     } else if files[i].0 == file_id {
-        Some(files[i].1)
+        Some(*files[i].1)
     } else {
         witness_file_lookup_from(files, file_id, i + 1)
     }
@@ -142,7 +148,7 @@ pub open spec fn witness_file_lookup_from(
 /// Spec: the coverage report a witness carries for `file_id`, if any.
 /// First-match semantics (see `witness_file_lookup_from`).
 pub open spec fn witness_file_lookup(
-    files: Seq<(u64, CoverageReport)>,
+    files: Seq<(u64, std::sync::Arc<CoverageReport>)>,
     file_id: u64,
 ) -> Option<CoverageReport> {
     witness_file_lookup_from(files, file_id, 0)
@@ -377,7 +383,7 @@ fn witness_coverage<'a>(w: &'a Witness, file_id: u64) -> (result: Option<&'a Cov
         decreases w.files@.len() - k,
     {
         if w.files[k].0 == file_id {
-            return Some(&w.files[k].1);
+            return Some(&*w.files[k].1);
         }
         k = k + 1;
     }
@@ -1045,8 +1051,8 @@ mod tests {
     fn s(props: &[LineProperty]) -> Option<LineClass> {
         Some(line_class(props))
     }
-    fn cov_hit(lines: &[u64]) -> CoverageReport {
-        lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
+    fn cov_hit(lines: &[u64]) -> std::sync::Arc<CoverageReport> {
+        std::sync::Arc::new(lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect())
     }
 
     // File 1 (the test annotation's file):
@@ -1472,7 +1478,10 @@ mod tests {
     fn duplicate_file_id_first_match_wins() {
         let w = Witness {
             claim: ClaimRule::ByExecution,
-            files: vec![(T_FILE, CoverageReport::new()), (T_FILE, cov_hit(&[3]))],
+            files: vec![
+                (T_FILE, std::sync::Arc::new(CoverageReport::new())),
+                (T_FILE, cov_hit(&[3])),
+            ],
         };
         assert!(!report_test_executed(
             T_FILE,
@@ -1524,7 +1533,10 @@ mod tests {
         // NotExecuted: binds nothing under ByExecution.
         let w_miss = Witness {
             claim: ClaimRule::ByExecution,
-            files: vec![(T_FILE, [(3u64, CoverageStatus::Miss)].into_iter().collect())],
+            files: vec![(
+                T_FILE,
+                std::sync::Arc::new([(3u64, CoverageStatus::Miss)].into_iter().collect()),
+            )],
         };
         assert!(is_unwitnessed(
             T_FILE,
@@ -1687,7 +1699,10 @@ mod tests {
         let w_t_miss = || Witness {
             claim: ClaimRule::ByExecution,
             files: vec![
-                (T_FILE, [(3u64, CoverageStatus::Miss)].into_iter().collect()),
+                (
+                    T_FILE,
+                    std::sync::Arc::new([(3u64, CoverageStatus::Miss)].into_iter().collect()),
+                ),
                 (I_FILE, cov_hit(&[2])),
             ],
         };

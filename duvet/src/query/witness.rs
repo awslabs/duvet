@@ -74,8 +74,9 @@ pub struct Witness {
     pub provenance: Provenance,
     /// Per file: line → CoverageStatus. Closedness (spec §4.1) is a
     /// producer obligation; the engine never learns how it was
-    /// achieved.
-    pub files: BTreeMap<String, CoverageReportMap>,
+    /// achieved. `Arc`-shared with the verified adapter's witnesses
+    /// (same maps, one resident copy — see `VerifiedVerdicts::build`).
+    pub files: BTreeMap<String, Arc<CoverageReportMap>>,
 }
 
 //= design/witness/spec.md#claim-rules
@@ -260,7 +261,7 @@ impl<'a> VerifiedVerdicts<'a> {
     /// carries: it binds nothing, by construction rather than by scan.
     pub fn build(
         engine: &'a [Witness],
-        matched: &[FxHashMap<PathBuf, &CoverageReportMap>],
+        matched: &[FxHashMap<PathBuf, Arc<CoverageReportMap>>],
         classification: &'a ClassificationMap,
         index: &'a SourceIndex,
     ) -> Result<Self> {
@@ -319,7 +320,7 @@ impl<'a> VerifiedVerdicts<'a> {
                 }
             };
 
-            let mut files: Vec<(u64, CoverageReportMap)> = Vec::new();
+            let mut files: Vec<(u64, Arc<CoverageReportMap>)> = Vec::new();
             for (path, cov) in &matched[wi] {
                 let Some(absolute) = index.absolute_of(path) else {
                     // matched keys come from the index; unreachable, but a
@@ -342,7 +343,7 @@ impl<'a> VerifiedVerdicts<'a> {
                         continue;
                     }
                 }
-                files.push((ids[absolute], (*cov).clone()));
+                files.push((ids[absolute], Arc::clone(cov)));
             }
             // Deterministic order; keys unique (matched is a map), so
             // first-match lookup semantics never engage (G1).
@@ -610,8 +611,8 @@ mod tests {
         }
     }
 
-    fn cov_hit(lines: &[u64]) -> CoverageReportMap {
-        lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
+    fn cov_hit(lines: &[u64]) -> Arc<CoverageReportMap> {
+        Arc::new(lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect())
     }
 
     /// Finding 5 pinning test — the two-files-same-suffix scenario.
@@ -718,8 +719,8 @@ mod tests {
         // Both files carry a key beyond their 2-line classification.
         let cov = cov_hit(&[1, 99]);
         let mut m = FxHashMap::default();
-        m.insert(PathBuf::from("c.java"), &cov);
-        m.insert(PathBuf::from("d.rs"), &cov);
+        m.insert(PathBuf::from("c.java"), Arc::clone(&cov));
+        m.insert(PathBuf::from("d.rs"), Arc::clone(&cov));
 
         let witnesses = [witness];
         let matched = vec![m];
@@ -900,6 +901,77 @@ mod tests {
         assert!(
             adapter.is_unwitnessed(&annotation("b/src/x.rs")),
             "annotation in the same-suffix OTHER file must not borrow the witness"
+        );
+    }
+
+    /// Perf harness (run explicitly: `cargo test --release -p duvet
+    /// bench_adapter_build -- --ignored --nocapture`): total
+    /// `VerifiedVerdicts::build` cost vs the price of deep-cloning every
+    /// matched map once — the latter is what build paid per witness
+    /// before the maps became `Arc`-shared, kept as the reference the
+    /// item-4 win is measured against.
+    #[test]
+    #[ignore = "perf harness, run explicitly with --ignored --nocapture"]
+    fn bench_adapter_build_clone_share() {
+        // 200 witnesses x 5 files x 2000 covered lines each.
+        let n_wit = 200usize;
+        let n_files = 5usize;
+        let lines: Vec<u64> = (1..=2000u64).collect();
+        let entries: Vec<(PathBuf, String)> = (0..n_files)
+            .map(|f| {
+                (
+                    PathBuf::from(format!("src/f{f}.rs")),
+                    format!("/proj/src/f{f}.rs"),
+                )
+            })
+            .collect();
+        let idx = SourceIndex::from_entries(entries.clone());
+        let cov = cov_hit(&lines);
+        let witnesses: Vec<Witness> = (0..n_wit)
+            .map(|i| {
+                let mut w = root_witness(&format!("c::w{i}"), "src/f0.rs", 1, 10);
+                w.files = (0..n_files)
+                    .map(|f| (format!("src/f{f}.rs"), cov.clone()))
+                    .collect();
+                w
+            })
+            .collect();
+        let matched: Vec<FxHashMap<PathBuf, Arc<CoverageReportMap>>> = witnesses
+            .iter()
+            .map(|w| idx.match_witness_files(&w.files).expect("unambiguous"))
+            .collect();
+        let mut classification = ClassificationMap::default();
+        for (p, _) in &entries {
+            classification.insert(
+                p.clone(),
+                FileClassification::Degraded {
+                    classifications: vec![None; 2001],
+                    file_length: 2001,
+                },
+            );
+        }
+        let iters = 10u32;
+        let t0 = std::time::Instant::now();
+        for _ in 0..iters {
+            std::hint::black_box(
+                VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx)
+                    .expect("builds"),
+            );
+        }
+        let build = t0.elapsed();
+        let t1 = std::time::Instant::now();
+        for _ in 0..iters {
+            for m in &matched {
+                for cov in m.values() {
+                    std::hint::black_box(CoverageReportMap::clone(cov));
+                }
+            }
+        }
+        let clones = t1.elapsed();
+        println!(
+            "bench_adapter_build_clone_share: witnesses={n_wit} files/witness={n_files} \
+             lines/file={} iters={iters} build-total={build:?} clone-only={clones:?}",
+            lines.len(),
         );
     }
 }

@@ -268,12 +268,18 @@ impl SourceIndex {
 
     /// Match one witness's per-file maps to project sources by the suffix
     /// rule, refusing both ambiguity directions (one source matching two
-    /// entries; one entry claimed by two sources) rather than guessing.
-    pub fn match_witness_files<'a>(
+    /// entries; one entry claimed by two sources) rather than guessing —
+    /// the same refusals `build_execution_data` applies per report.
+    /// Returned maps are `Arc` clones of the witness's own — shared, not
+    /// copied.
+    pub fn match_witness_files(
         &self,
-        files: &'a std::collections::BTreeMap<String, duvet_coverage::types::CoverageReport>,
-    ) -> Result<FxHashMap<PathBuf, &'a duvet_coverage::types::CoverageReport>> {
-        let mut matched: FxHashMap<PathBuf, &'a duvet_coverage::types::CoverageReport> =
+        files: &std::collections::BTreeMap<
+            String,
+            std::sync::Arc<duvet_coverage::types::CoverageReport>,
+        >,
+    ) -> Result<FxHashMap<PathBuf, std::sync::Arc<duvet_coverage::types::CoverageReport>>> {
+        let mut matched: FxHashMap<PathBuf, std::sync::Arc<duvet_coverage::types::CoverageReport>> =
             FxHashMap::default();
         let mut files_for_coverage: FxHashMap<&str, Vec<&Path>> = FxHashMap::default();
         // Hits per entry, indexed like `entries`. Bucket lookups visit
@@ -291,7 +297,7 @@ impl SourceIndex {
                     .entry(coverage_path.as_str())
                     .or_default()
                     .push(duvet_path);
-                matched.insert(duvet_path.clone(), report);
+                matched.insert(duvet_path.clone(), std::sync::Arc::clone(report));
             }
         }
 
@@ -892,14 +898,14 @@ public class Two {
             PathBuf::from("src/Foo.java"),
             "/proj/src/Foo.java".to_string(),
         )]);
-        let mut files = std::collections::BTreeMap::<String, CoverageReport>::new();
+        let mut files = std::collections::BTreeMap::<String, std::sync::Arc<CoverageReport>>::new();
         files.insert(
             "src/Foo.java".into(),
-            [(1u64, CoverageStatus::Hit)].into_iter().collect(),
+            std::sync::Arc::new([(1u64, CoverageStatus::Hit)].into_iter().collect()),
         );
         files.insert(
             "proj/src/Foo.java".into(),
-            [(1u64, CoverageStatus::Hit)].into_iter().collect(),
+            std::sync::Arc::new([(1u64, CoverageStatus::Hit)].into_iter().collect()),
         );
         let err = index.match_witness_files(&files).unwrap_err();
         let msg = format!("{err:?}");
@@ -923,10 +929,10 @@ public class Two {
                 "/b/com/example/Foo.java".to_string(),
             ),
         ]);
-        let mut files = std::collections::BTreeMap::<String, CoverageReport>::new();
+        let mut files = std::collections::BTreeMap::<String, std::sync::Arc<CoverageReport>>::new();
         files.insert(
             "com/example/Foo.java".into(),
-            [(1u64, CoverageStatus::Hit)].into_iter().collect(),
+            std::sync::Arc::new([(1u64, CoverageStatus::Hit)].into_iter().collect()),
         );
         let err = index.match_witness_files(&files).unwrap_err();
         let msg = format!("{err:?}");
@@ -944,20 +950,20 @@ public class Two {
             ),
             (PathBuf::from("b/Bar.java"), "/proj/b/Bar.java".to_string()),
         ]);
-        let mut files = std::collections::BTreeMap::<String, CoverageReport>::new();
+        let mut files = std::collections::BTreeMap::<String, std::sync::Arc<CoverageReport>>::new();
         files.insert(
             "com/x/Foo.java".into(),
-            [(1u64, CoverageStatus::Hit)].into_iter().collect(),
+            std::sync::Arc::new([(1u64, CoverageStatus::Hit)].into_iter().collect()),
         );
         files.insert(
             "unrelated/Other.java".into(),
-            [(2u64, CoverageStatus::Hit)].into_iter().collect(),
+            std::sync::Arc::new([(2u64, CoverageStatus::Hit)].into_iter().collect()),
         );
         let matched = index.match_witness_files(&files).unwrap();
         assert_eq!(matched.len(), 1);
         assert_eq!(
             matched[&PathBuf::from("a/Foo.java")],
-            &files["com/x/Foo.java"]
+            files["com/x/Foo.java"]
         );
     }
 
