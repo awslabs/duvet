@@ -13,8 +13,8 @@
 //! This module is unit-tested per §4.3.
 
 use super::{
-    checks::coverage::{parse_coverage_data, CoverageFormat},
-    parsers::verus_sst,
+    coverage::CoverageParser,
+    parsers::{verus_sst, JacocoParser},
     witness::{ClaimRule, Provenance, Strength, Witness},
 };
 use crate::Result;
@@ -33,6 +33,26 @@ pub enum CoverageProducer {
     /// witness per discharge unit that certifies a requested
     /// position (spec §5).
     VerusSst,
+}
+
+/// The legacy `-f`/`--coverage-format` vocabulary (Decision 10: the
+/// `-r`/`-f` pair is the one-source degenerate shorthand for
+/// `--coverage-source`). Report formats only — prover producers take
+/// log directories, not report files, so they are deliberately not
+/// accepted here.
+#[derive(Clone, Debug, clap::ValueEnum)]
+pub enum CoverageFormat {
+    JacocoXml,
+    // Future: Lcov, Clover
+}
+
+impl CoverageFormat {
+    /// The producer that interprets reports of this format.
+    pub fn producer(&self) -> CoverageProducer {
+        match self {
+            CoverageFormat::JacocoXml => CoverageProducer::JacocoXml,
+        }
+    }
 }
 
 impl CoverageProducer {
@@ -187,7 +207,7 @@ pub async fn produce(
 //# The artifact does not record how it was produced,
 //# so duvet does not attempt detection
 async fn jacoco_witness(artifact: &str) -> Result<Witness> {
-    let data = parse_coverage_data(&artifact.to_string(), &CoverageFormat::JacocoXml).await?;
+    let data = JacocoParser.parse(std::path::Path::new(artifact)).await?;
     let generic = data.as_generic();
     let mut files = BTreeMap::new();
     for (path, file_coverage) in &generic.files {

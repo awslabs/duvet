@@ -6,12 +6,12 @@ use super::{
         classify_annotation_coverage,
         coverage::{
             classify_files, coverage_path_matches, executed_status, resolve_target_line,
-            ClassificationMap, CoverageFormat, FileClassification, SourceIndex,
+            ClassificationMap, FileClassification, SourceIndex,
         },
         ClassifiedCoverage,
     },
     coverage::ExecutionStatus,
-    producers::{produce, CoverageProducer, CoverageSource, RequestedPosition},
+    producers::{produce, CoverageFormat, CoverageProducer, CoverageSource, RequestedPosition},
     requirements::RequirementMode,
     result::{
         AnnotationCoverage, CheckResult, CoverageResult, CoveredTestAnnotation, Duplicates,
@@ -73,11 +73,8 @@ pub async fn execute_checks(
                     let format = coverage_format.ok_or_else(|| {
                         duvet_core::error!("Coverage format is required. Use --coverage-format")
                     })?;
-                    let producer = match format {
-                        CoverageFormat::JacocoXml => CoverageProducer::JacocoXml,
-                    };
                     sources.push(CoverageSource {
-                        producer,
+                        producer: format.producer(),
                         globs: report_globs.clone(),
                     });
                 }
@@ -740,7 +737,7 @@ async fn execute_coverage_check(
                 } else {
                     // Headline status for the failing implementation:
                     // fold over the witnesses that did NOT execute it
-                    // (Unknown preferred — it carries a line number).
+                    // (preference order: `fold_statuses`).
                     let status = fold_statuses(
                         verdict
                             .per_witness
@@ -773,9 +770,8 @@ async fn execute_coverage_check(
             //= type=implementation
             //# ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
             //
-            // Diagnostic detail: fold the test's own execution status across
-            // ALL witnesses (Unknown is preferred over Structural /
-            // NotExecuted because it carries line information).
+            // Diagnostic detail: fold the test's own execution status
+            // across ALL witnesses (preference order: `fold_statuses`).
             let diagnostic_status =
                 fold_statuses((0..witnesses.len()).map(|wi| cell(&test.target, wi)));
 

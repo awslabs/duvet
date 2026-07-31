@@ -33,6 +33,22 @@ pub mod witness;
 use std::path::Path;
 use structure::{ObligationGraph, StructureError};
 
+/// Read one module log, decompressing `*.gz` transparently — the
+/// gzipped and plain forms are semantically identical (see
+/// [`load_dir`]). Shared with the golden tests' raw-block count so
+/// the two readers cannot diverge.
+pub(crate) fn read_log(path: &Path) -> std::io::Result<String> {
+    if path.extension().is_some_and(|e| e == "gz") {
+        use std::io::Read;
+        let file = std::fs::File::open(path)?;
+        let mut text = String::new();
+        flate2::read::GzDecoder::new(file).read_to_string(&mut text)?;
+        Ok(text)
+    } else {
+        std::fs::read_to_string(path)
+    }
+}
+
 /// Load and merge every `*-sst.vir` (or gzipped `*-sst.vir.gz`)
 /// module log in a directory.
 ///
@@ -71,17 +87,7 @@ pub fn load_dir(dir: &Path) -> Result<ObligationGraph, LoadError> {
 
     let mut modules = Vec::new();
     for (display, path) in &paths {
-        let text = if display.ends_with(".gz") {
-            use std::io::Read;
-            let file = std::fs::File::open(path).map_err(|e| LoadError::Io(display.clone(), e))?;
-            let mut text = String::new();
-            flate2::read::GzDecoder::new(file)
-                .read_to_string(&mut text)
-                .map_err(|e| LoadError::Io(display.clone(), e))?;
-            text
-        } else {
-            std::fs::read_to_string(path).map_err(|e| LoadError::Io(display.clone(), e))?
-        };
+        let text = read_log(path).map_err(|e| LoadError::Io(display.clone(), e))?;
         modules.push(
             structure::parse_module(&text).map_err(|e| LoadError::Parse(display.clone(), e))?,
         );

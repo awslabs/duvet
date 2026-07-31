@@ -16,7 +16,7 @@ pub mod producers;
 mod requirements;
 pub mod witness;
 
-use checks::coverage::CoverageFormat;
+use producers::CoverageFormat;
 use requirements::RequirementMode;
 
 #[derive(Debug, Parser)]

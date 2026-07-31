@@ -369,11 +369,6 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 //# ensures-clause labels MUST come from span identity.
 fn clause_units(items: &[Sexpr<'_>], name: &str) -> Result<Vec<ClauseUnit>, StructureError> {
     let mut units = Vec::new();
-    let missing = |kind: UnitKind, span: &str| StructureError::MissingClauseSpan {
-        name: name.to_string(),
-        kind,
-        span: span.to_string(),
-    };
 
     // Ensures clauses: both `:enss` tuple slots (inside the
     // `:decl (FuncDeclSst ...)` sub-structure), in order.
@@ -392,16 +387,9 @@ fn clause_units(items: &[Sexpr<'_>], name: &str) -> Result<Vec<ClauseUnit>, Stru
                     let Some((span_str, _)) = as_at_node(clause) else {
                         continue;
                     };
-                    let span = Span::parse(span_str)
-                        .ok_or_else(|| missing(UnitKind::Ensures, span_str))?;
-                    units.push(ClauseUnit {
-                        kind: UnitKind::Ensures,
-                        index,
-                        span,
-                        // Never consumed for ensures (Decision 20
-                        // hazard rule): span identity only.
-                        note: None,
-                    });
+                    // Note never consumed for ensures (Decision 20
+                    // hazard rule): span identity only.
+                    push_unit(&mut units, name, UnitKind::Ensures, index, span_str, None)?;
                     index += 1;
                 }
             }
@@ -416,41 +404,38 @@ fn clause_units(items: &[Sexpr<'_>], name: &str) -> Result<Vec<ClauseUnit>, Stru
     let mut work: Vec<&Sexpr> = vec![check];
     while let Some(e) = work.pop() {
         let Sexpr::List(list) = e else { continue };
-        match list.as_slice() {
-            // (LoopInv :at_entry _ :at_exit _ :inv (@@ "span" exp))
-            [Sexpr::Atom("LoopInv"), rest @ ..] => {
-                if let Some(inv) = field_value(rest, ":inv") {
-                    if let Some((span_str, exp)) = as_at_node(inv) {
-                        let span = Span::parse(span_str)
-                            .ok_or_else(|| missing(UnitKind::LoopInvariant, span_str))?;
-                        units.push(ClauseUnit {
-                            kind: UnitKind::LoopInvariant,
-                            index: inv_index,
-                            span,
-                            note: proof_note(exp),
-                        });
-                        inv_index += 1;
-                    }
-                }
-            }
-            // (@ "span" (Stm Assert (id) _ exp ...))
-            [Sexpr::Atom("@") | Sexpr::Atom("@@"), Sexpr::Str(span_str), payload, ..]
-                if is_stm_assert(payload) =>
-            {
-                let span = Span::parse(span_str)
-                    .ok_or_else(|| missing(UnitKind::ProofAssert, span_str))?;
-                units.push(ClauseUnit {
-                    kind: UnitKind::ProofAssert,
-                    index: assert_index,
-                    span,
-                    note: proof_note(payload),
-                });
+        // (@ "span" (Stm Assert (id) None exp ...)) — user proof asserts.
+        if let Some((span_str, payload)) = as_at_node(e) {
+            if is_stm_assert(payload) {
+                push_unit(
+                    &mut units,
+                    name,
+                    UnitKind::ProofAssert,
+                    assert_index,
+                    span_str,
+                    proof_note(payload),
+                )?;
                 assert_index += 1;
                 // Do not descend: an assert's expression can carry
                 // further span-shaped strings but no nested units.
                 continue;
             }
-            _ => {}
+        }
+        // (LoopInv :at_entry _ :at_exit _ :inv (@@ "span" exp))
+        if let [Sexpr::Atom("LoopInv"), rest @ ..] = list.as_slice() {
+            if let Some(inv) = field_value(rest, ":inv") {
+                if let Some((span_str, exp)) = as_at_node(inv) {
+                    push_unit(
+                        &mut units,
+                        name,
+                        UnitKind::LoopInvariant,
+                        inv_index,
+                        span_str,
+                        proof_note(exp),
+                    )?;
+                    inv_index += 1;
+                }
+            }
         }
         // Reverse push so the worklist pops in document order —
         // unit indices are document-order positions.
@@ -458,6 +443,34 @@ fn clause_units(items: &[Sexpr<'_>], name: &str) -> Result<Vec<ClauseUnit>, Stru
     }
 
     Ok(units)
+}
+
+/// Parse one clause-kind unit's span and push the unit — the shared
+/// arm of ensures/invariant/assert collection in [`clause_units`]. A
+/// span string that fails [`Span::parse`] is a hard
+/// [`StructureError::MissingClauseSpan`] (spec §5.2's abort-don't-skip
+/// posture; see [`clause_units`]'s docs for why skipping would re-root
+/// annotations at the enclosing extent).
+fn push_unit(
+    units: &mut Vec<ClauseUnit>,
+    name: &str,
+    kind: UnitKind,
+    index: usize,
+    span_str: &str,
+    note: Option<String>,
+) -> Result<(), StructureError> {
+    let span = Span::parse(span_str).ok_or_else(|| StructureError::MissingClauseSpan {
+        name: name.to_string(),
+        kind,
+        span: span_str.to_string(),
+    })?;
+    units.push(ClauseUnit {
+        kind,
+        index,
+        span,
+        note,
+    });
+    Ok(())
 }
 
 /// Match a *user* proof assert: `(Stm Assert (id) None ...)`.
@@ -581,8 +594,7 @@ fn as_fun_path<'a>(list: &[Sexpr<'a>]) -> Option<&'a str> {
 
 /// Find `:name (Fun :path X)` in a `FunctionSst` item list.
 fn function_name<'a>(items: &[Sexpr<'a>]) -> Option<&'a str> {
-    let pos = items.iter().position(|e| e.as_atom() == Some(":name"))?;
-    as_fun_path(items.get(pos + 1)?.as_list()?)
+    as_fun_path(field_value(items, ":name")?.as_list()?)
 }
 
 #[cfg(test)]

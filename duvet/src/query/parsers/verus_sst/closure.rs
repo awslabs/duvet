@@ -27,6 +27,14 @@ use std::collections::{BTreeMap, BTreeSet};
 /// Per-file line sets: `{file → set of lines}`.
 pub type FileLines = BTreeMap<String, BTreeSet<u32>>;
 
+/// Total line count of a per-file line-set map — shared by the
+/// aggregate map and per-unit closures.
+// Golden-test reference surface: no engine-path consumer.
+#[allow(dead_code)]
+pub fn total_lines(files: &FileLines) -> usize {
+    files.values().map(BTreeSet::len).sum()
+}
+
 /// Pass-1 scaffolding: every project line any obligation elaborated.
 ///
 /// This is a newtype on purpose. Its only legitimate consumer is
@@ -42,14 +50,6 @@ pub type FileLines = BTreeMap<String, BTreeSet<u32>>;
 //# producer.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AggregateExecutabilityMap(pub FileLines);
-
-impl AggregateExecutabilityMap {
-    // Golden-test reference surface: no engine-path consumer.
-    #[allow(dead_code)]
-    pub fn total_lines(&self) -> usize {
-        self.0.values().map(BTreeSet::len).sum()
-    }
-}
 
 /// Project every node's spans to one aggregate map (spec §5.2 pass 1).
 // Golden-test reference surface (pass-1 aggregate map): no
@@ -82,14 +82,6 @@ pub struct Closure {
     /// Union of project-file spans over `reached`: the witness's
     /// `files` content (before conversion to coverage types).
     pub files: FileLines,
-}
-
-impl Closure {
-    // Golden-test reference surface: no engine-path consumer.
-    #[allow(dead_code)]
-    pub fn total_lines(&self) -> usize {
-        self.files.values().map(BTreeSet::len).sum()
-    }
 }
 
 /// Compute the closure from `root` to fixpoint. `None` if `root` is
@@ -271,7 +263,7 @@ mod tests {
         // is in no other node's closure, and no node reaches all.
         for root in g.nodes.keys() {
             let c = closure(&g, root, project).unwrap();
-            assert!(agg.total_lines() > c.total_lines());
+            assert!(total_lines(&agg.0) > total_lines(&c.files));
         }
     }
 }

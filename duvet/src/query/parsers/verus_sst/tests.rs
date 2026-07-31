@@ -34,7 +34,7 @@
 //! exactly on all counts.
 
 use super::{
-    closure::{aggregate_map, closure, Closure, FileLines},
+    closure::{aggregate_map, closure, total_lines, Closure, FileLines},
     load_dir,
     structure::{parse_module, ObligationGraph, UnitKind},
     witness::{all_units, classify_position, construct_witnesses, materialize_all, PositionKind},
@@ -147,18 +147,10 @@ fn corpus_node_counts() {
     for entry in std::fs::read_dir(corpus_dir()).unwrap() {
         let path = entry.unwrap().path();
         let Some(p) = path.to_str() else { continue };
-        let text = if p.ends_with("-sst.vir") {
-            std::fs::read_to_string(&path).unwrap()
-        } else if p.ends_with("-sst.vir.gz") {
-            use std::io::Read;
-            let mut text = String::new();
-            flate2::read::GzDecoder::new(std::fs::File::open(&path).unwrap())
-                .read_to_string(&mut text)
-                .unwrap();
-            text
-        } else {
+        if !(p.ends_with("-sst.vir") || p.ends_with("-sst.vir.gz")) {
             continue;
-        };
+        }
+        let text = super::read_log(&path).unwrap();
         raw_blocks += parse_module(&text).unwrap().len();
     }
     assert_eq!(raw_blocks, 1065, "top-level FunctionSst blocks, 10 files");
@@ -268,7 +260,7 @@ fn aggregate_map_dominates_every_closure_strictly() {
     let agg = aggregate_map(graph, is_project);
 
     assert_eq!(agg.0.len(), 10, "all ten project source files");
-    assert_eq!(agg.total_lines(), 1990);
+    assert_eq!(total_lines(&agg.0), 1990);
 
     // Every closure is a projection of a reachable subset, so it
     // must embed in the aggregate; and no single obligation's
@@ -282,7 +274,7 @@ fn aggregate_map_dominates_every_closure_strictly() {
             );
         }
         assert!(
-            agg.total_lines() > c.total_lines(),
+            total_lines(&agg.0) > total_lines(&c.files),
             "aggregate must be strictly larger than the closure of {root}"
         );
     }

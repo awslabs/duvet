@@ -3,13 +3,9 @@
 
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
-    query::{
-        classify::{
-            classifier_for_path, Classification, ClassifierFailure, ClassifierIssue,
-            DefaultClassifier, LineClassifier,
-        },
-        coverage::{CoverageData, CoverageParser},
-        parsers::JacocoParser,
+    query::classify::{
+        classifier_for_path, Classification, ClassifierFailure, ClassifierIssue, DefaultClassifier,
+        LineClassifier,
     },
     source::SourceFile,
     Result,
@@ -30,12 +26,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-
-#[derive(Clone, Debug, clap::ValueEnum)]
-pub enum CoverageFormat {
-    JacocoXml,
-    // Future: Lcov, Clover
-}
 
 /// Coverage-independent classification of one source file — the expensive,
 /// witness-invariant input to [`executed_status`]. Classification depends
@@ -673,19 +663,6 @@ pub(crate) fn suffix_key(path: &str) -> &str {
     path.rsplit(['/', '\\'])
         .next()
         .expect("rsplit yields at least one segment")
-}
-
-/// Parse coverage data from file.
-pub async fn parse_coverage_data(
-    coverage_path: &String,
-    format: &CoverageFormat,
-) -> Result<CoverageData> {
-    match format {
-        CoverageFormat::JacocoXml => {
-            let parser = JacocoParser;
-            parser.parse(Path::new(coverage_path)).await
-        }
-    }
 }
 
 #[cfg(test)]
