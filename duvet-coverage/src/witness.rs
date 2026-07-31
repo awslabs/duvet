@@ -7,26 +7,34 @@
 //! score ONE annotation against ONE coverage map (`is_annotation_executed`);
 //! this phase states and proves the load-bearing quantifiers over a set of
 //! delivered witnesses — the spec's engine properties
-//! (design/witness/spec.md#engine-properties). `executed(X, w)` is exactly
-//! the existing
-//! verified scoring applied to w's map for X's file (spec §1.4); nothing in
-//! Phases 1–3 is re-specified here.
+//! (design/witness/spec.md#engine-properties). Nothing in Phases 1–3 is
+//! re-specified here (see `executed_by`).
 //!
-//! Named glue assumptions (trusted base, NOT verified here) are specified
-//! in design/witness/spec.md §4.4 (#engine-glue): **G1** (file identity —
-//! the adapter
-//! delivers injective, duplicate-free file ids), **G2** (call obligation —
-//! the engine computes every verdict by calling this layer's functions;
-//! no parallel verdict computation exists), and **G3** (mode routing —
-//! each annotation's file is scored in the [`ScoringMode`] its
-//! classification actually selected).
-//! Producer obligations A1 (closedness) and A2 (individuation) per spec §4.
-//!
+//! The named trusted-base glue assumptions (G1 file identity, G2 call
+//! obligation, G3 mode routing) are NOT verified here; the engine side of
+//! the glue lives in `duvet/src/query/witness.rs` (`VerifiedVerdicts`).
 //! The `requires` on the report functions (coverage keys within
 //! classification bounds for `Classified`-mode scoring; scope line bounds)
-//! are the engine adapter's obligation to establish at the trust boundary —
-//! filter/degrade before calling, never assume
+//! are the engine adapter's obligation to establish at the trust boundary
 //! (design/witness/spec.md#engine-glue, G3).
+
+// What this layer is (spec §1.4) and what it rests on (spec §4):
+//= design/witness/spec.md#executed
+//# This is exactly the existing verified Phases 1–3
+//# (`is_annotation_executed`, or the degraded path),
+//# applied to one witness's coverage maps.
+//# This specification adds no new per-annotation scoring semantics.
+//= design/witness/spec.md#engine-glue
+//# The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
+//# unverified engine glue. Each glue component is named, bounded,
+//# and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
+//= design/witness/spec.md#engine-glue
+//# The adapter MUST establish
+//# the verified functions' preconditions at the boundary —
+//# filter or degrade before calling, never assume.
+//= design/witness/spec.md#obligation-closedness
+//# Every delivered `files` map MUST be closed under the producer's
+//# reachability relation ([§1.2](#witness)).
 
 use crate::{
     annotation_execution::is_annotation_executed, degraded::degraded_execution_status,
@@ -52,11 +60,15 @@ verus! {
 ///   (`is_annotation_executed`), for files with a classifier.
 /// - `Degraded` — the verified classifier-less path
 ///   (`degraded_execution_status`), for files without one.
-/// - `Unscorable` — the engine's trust-boundary refusals (defeated
-///   classification, `end_line == u64::MAX`, unclassified file): the
-///   annotation resolves nothing, so it executes in no witness and binds no
-///   witness (its `Unknown` diagnostic is engine reporting; the verdict
+/// - `Unscorable` — the trust-boundary refusals: defeated
+///   classification, `end_line == u64::MAX`, unclassified file (its
+///   `Unknown` diagnostic is engine reporting; the verdict
 ///   contribution is uniformly `false`).
+//= design/witness/spec.md#executed
+//# The verified Phase 4 layer implements the "or" per file: a
+//# `ScoringMode` routes each file to the classified or the degraded
+//# scorer, and engine trust-boundary refusals are encoded as
+//# `Unscorable` — binds nothing, executes nothing
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoringMode {
     Classified,
@@ -65,24 +77,38 @@ pub enum ScoringMode {
 }
 
 /// How a test annotation claims a witness (spec §1.5).
+//= design/witness/spec.md#claim-rules
+//# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClaimRule {
-    /// Runtime rule: T claims w by evidence — T's own lines are executed
-    /// in w. Sound only under witness individuation (spec §4.2, axiom A2).
+    //= design/witness/spec.md#claim-rules
+    //# `ByExecution` is the runtime rule:
+    //# the report cannot record which test produced it,
+    //# so the test claims the witness by evidence —
+    //# its own lines are executed in it.
+    //# This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
     ByExecution,
-    /// Prover rule: ownership is positional — T's resolved target falls
-    /// within the discharge unit's extent. File identity is an opaque id
-    /// (glue assumption G1); the line range is inclusive.
+    //= design/witness/spec.md#claim-rules
+    //# `ByRootSpan` is the prover rule:
+    //# the witness was constructed from the annotation's own position
+    //# ([§5](#prover-producers)), so ownership is positional and holds by
+    //# construction
+    /// File identity is an opaque id (glue assumption G1); the line
+    /// range is inclusive.
     ByRootSpan { file_id: u64, start_line: u64, end_line: u64 },
 }
 
-/// The record of ONE act of checking (spec §1.2), verified-model projection:
-/// claim rule plus per-file coverage. Label and provenance are engine
-/// concerns and deliberately absent. `files` maps an opaque file id (G1) to
-/// the existing verified `CoverageReport` type; the multi-file map lives
-/// INSIDE the verified witness so that W1's same-witness conjunction is over
-/// one object — projecting per-file in glue would reintroduce the
-/// correlation bug's shape (decisions.md, Relationship section).
+/// Verified-model projection of a witness: claim rule plus per-file
+/// coverage. Label and provenance are engine concerns and deliberately
+/// absent. `files` maps an opaque file id (G1) to the existing verified
+/// `CoverageReport` type; the multi-file map lives INSIDE the verified
+/// witness so that W1's same-witness conjunction is over one object —
+/// projecting per-file in glue would reintroduce the correlation bug's
+/// shape (decisions.md, Relationship section).
+//= design/witness/spec.md#witness
+//# A witness is the record of **one act of checking**:
+//# one test's execution, or one prover obligation's successful
+//# verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Witness {
     pub claim: ClaimRule,
@@ -122,19 +148,30 @@ pub open spec fn witness_file_lookup(
     witness_file_lookup_from(files, file_id, 0)
 }
 
-/// Spec §1.4: `executed(X, w)` — the coverage model scores X's resolved
-/// target Executed against w's map for X's file, through the scoring path
-/// the engine's routing selected for that file ([`ScoringMode`], G3):
-/// the existing verified Phases 1–3 (`execution_status_of`, the proven spec
-/// twin of `is_annotation_executed`) for classified files, the verified
-/// degraded path (`degraded_status_of`) for classifier-less files. This
-/// phase adds no per-annotation scoring semantics; `Unscorable` is the
-/// trust-boundary refusal and never executes.
+/// Spec §1.4 `executed(X, w)`, through the scoring path the engine's
+/// routing selected for X's file ([`ScoringMode`], G3). Phases 1–3 here
+/// are `execution_status_of` (the proven spec twin of
+/// `is_annotation_executed`) for classified files and `degraded_status_of`
+/// for classifier-less files; `Unscorable` never executes.
 ///
-/// A witness with no map for X's file cannot have executed X: `Executed`
-/// requires a Hit line, and an absent map carries none, so `None => false`
-/// coincides with scoring against an empty report (definitional choice,
-/// recorded here).
+/// `None => false` on the map lookup is coherent with scoring: `Executed`
+/// requires a Hit line, and an absent map carries none, so it coincides
+/// with scoring against an empty report.
+//= design/witness/spec.md#executed
+//# For an annotation X and witness w:
+//#
+//# ```
+//# executed(X, w)  ⟺  the coverage model scores X's resolved target
+//#                     Executed against w.files
+//# ```
+//#
+//# This is exactly the existing verified Phases 1–3
+//# (`is_annotation_executed`, or the degraded path),
+//# applied to one witness's coverage maps.
+//# This specification adds no new per-annotation scoring semantics.
+//= design/witness/spec.md#executed
+//# If w's `files` contains no map for X's file at all,
+//# `executed(X, w)` is false.
 pub open spec fn executed_by(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -162,16 +199,27 @@ pub open spec fn executed_by(
     }
 }
 
-/// Spec §1.5: `binds(T, w)` — total over (annotation, witness) pairs.
-///
-/// - `ByExecution` → `executed(T, w)` (the runtime evidence rule).
-/// - `ByRootSpan(f, r)` → T's resolved target EXISTS and falls within r in
-///   file f. An annotation with no resolved target binds no ByRootSpan
-///   witness — empty-target containment MUST NOT bind vacuously (spec §1.5).
-///   Resolution yields at most one target line in the current model, so
-///   containment is membership of that single line. An `Unscorable`
-///   annotation has no trustworthy resolution and binds nothing (either
-///   arm): the ByRootSpan conjunct makes the refusal explicit.
+/// Spec §1.5 `binds(T, w)`. Local refusal note: an `Unscorable`
+/// annotation has no trustworthy resolution and binds nothing (either
+/// arm) — the ByRootSpan conjunct makes the refusal explicit.
+//= design/witness/spec.md#claim-rules
+//# Each witness carries one claim rule;
+//# `binds` is total over (annotation, witness) pairs:
+//#
+//# ```
+//# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
+//#
+//# binds(T, w)  ⟺  match w.claim:
+//#     ByExecution        → executed(T, w)
+//#     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
+//#                           within r in file f
+//# ```
+//#
+//# An annotation with no resolved target (e.g. a Structural
+//# annotation) binds no ByRootSpan witness —
+//# empty-target containment MUST NOT bind vacuously.
+//# (Resolution yields at most one target line in the current model,
+//# so containment is membership of that single line.)
 //= design/witness/spec.md#property-w5-claim-refinement
 //= type=implementation
 //# The implementation MUST prove that binding under `ByExecution`
@@ -203,16 +251,20 @@ pub open spec fn binds(
     }
 }
 
-/// Spec §1.6 (Decision 14): `witnesses_for(T) = { w ∈ delivered : binds(T, w) }`,
-/// and
-///
-/// `discharged(T, I) ⟺ witnesses_for(T) ≠ ∅ ∧ ∀w ∈ witnesses_for(T) : executed(I, w)`
-///
-/// The test binds at least one witness and EVERY witness it binds executed
-/// the implementation. Each bound witness individually must see both sides;
-/// one bound witness that never reaches I is a vacuous claim and fails the
-/// pair (the goal is no vacuous test annotations, not at least one executed
-/// test annotation).
+/// Spec §1.6 (Decision 14 form).
+//= design/witness/spec.md#discharge
+//# ```
+//# witnesses_for(T)  =  { w ∈ delivered : binds(T, w) }
+//#
+//# discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
+//#                       ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
+//# ```
+//#
+//# In words: a pair (T, I) is discharged when the test binds at
+//# least one witness and **every** witness it binds executed the
+//# implementation. Each bound witness individually must see both
+//# sides; one bound witness that never reaches the implementation is
+//# a vacuous claim and fails the pair
 //= design/witness/spec.md#property-w4-monotonicity
 //= type=implementation
 //# The implementation MUST prove that adding a witness never flips a
@@ -332,10 +384,12 @@ fn witness_coverage<'a>(w: &'a Witness, file_id: u64) -> (result: Option<&'a Cov
     None
 }
 
-/// `executed(X, w)` as executable code: the verified scorer the file's
-/// routing selected (`is_annotation_executed` for classified files,
-/// `degraded_execution_status` for classifier-less ones) applied to w's map
-/// for X's file, proven equivalent to the `executed_by` spec.
+/// `executed(X, w)` as executable code, proven equivalent to the
+/// `executed_by` spec.
+//= design/witness/spec.md#executed
+//# This is exactly the existing verified Phases 1–3
+//# (`is_annotation_executed`, or the degraded path),
+//# applied to one witness's coverage maps.
 pub fn is_executed_by(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -579,13 +633,22 @@ pub fn report_test_executed(
     false
 }
 
-/// Property W3: Global Execution. Deliberately weaker than W1 (no
-/// correlation, no `binds`); MUST NOT be used to discharge pairs.
+/// Property W3: Global Execution.
 //= design/witness/spec.md#property-w3-global-execution
 //= type=test
 //# The implementation MUST prove that an implementation annotation is
 //# reported ever-executed if and only if some delivered witness
 //# executed it:
+//#
+//# ```
+//# report_ever_executed(I, witnesses) = true
+//#     ⟺  ∃ w ∈ witnesses : executed(I, w)
+//# ```
+//#
+//# This is a global property requiring no correlation;
+//# it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
+//# and MUST NOT be used to
+//# discharge pairs.
 pub fn report_ever_executed(
     i_file_id: u64,
     i_annotation: &AnnotationSpan,
@@ -681,16 +744,9 @@ pub open spec fn witness_subset(ws: Seq<Witness>, ws2: Seq<Witness>) -> bool {
         ==> exists|j: int| 0 <= j < ws2.len() && ws2[j] == #[trigger] ws[k]
 }
 
-/// Property W4: Failure Monotonicity (Decision 14 form — this INVERTS the
-/// original monotonicity direction; the old "adding never un-discharges" is
-/// now false by design, since an added witness that binds T but misses I is
-/// exactly the vacuity being caught).
-///
-/// Statement: `ws ⊆ ws' ⟹ (discharged(ws') ⟹ discharged(ws) ∨ T unwitnessed
-/// in ws)`. Equivalently (the form proved here, by case split on whether T
-/// is witnessed in ws): the only way adding witnesses turns a non-discharged
-/// pair into a discharged one is by witnessing a previously *unwitnessed*
-/// test — never by outvoting a bound witness that failed.
+/// Property W4: Failure Monotonicity (the Decision 14 direction —
+/// decisions.md#decision-14). The form proved here is the equivalent
+/// case split on whether T is witnessed in `ws`.
 ///
 /// Proof shape (falls out of the ∀, as the design analysis predicted): if T
 /// is witnessed in `ws` and the pair fails in `ws`, the failure is some
@@ -702,6 +758,22 @@ pub open spec fn witness_subset(ws: Seq<Witness>, ws2: Seq<Witness>) -> bool {
 //= type=test
 //# The implementation MUST prove that adding a witness never flips a
 //# failing pair to passing:
+//#
+//# ```
+//# witnesses ⊆ witnesses'  ⟹
+//#     (report_discharged(T, I, witnesses')
+//#         ⟹ report_discharged(T, I, witnesses)
+//#            ∨ ¬∃ w ∈ witnesses : binds(T, w))
+//# ```
+//#
+//# Adding a witness MAY newly fail a previously-discharged pair —
+//# that is deliberate: the added witness is a claim T now makes, and
+//# if it does not reach I it is the vacuity being caught
+//# (decisions.md, [Decision 14](decisions.md#decision-14)).
+//# The only way adding witnesses turns a non-discharged pair into a
+//# discharged one is by witnessing a previously *unwitnessed* test
+//# (the `witnesses_for(T) = ∅` case), never by outvoting a bound
+//# witness that failed.
 pub proof fn failure_monotonicity(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -788,18 +860,27 @@ pub proof fn by_execution_binding_implies_executed(
     // the refinement holds under every scoring mode.
 }
 
-/// W5's complement, and the property that makes cross-witness capture
-/// unrepresentable for proof witnesses: which annotations a `ByRootSpan`
-/// witness binds is a function of its root span alone — the witness's
-/// coverage maps have no influence. Enlarging a proof witness's closure
-/// can never extend the set of test annotations it witnesses; a map that
-/// Hit-covers another test annotation's lines still does not witness it.
 /// REGRESSION TRIPWIRE: if `binds`'s `ByRootSpan` arm ever grows a
 /// map-consulting conjunct, this proof breaks loudly.
 //= design/witness/spec.md#property-w7-positional-binding-map-independence
 //= type=test
 //# The implementation MUST prove that binding under `ByRootSpan` does
 //# not depend on the witness's coverage maps:
+//#
+//# ```
+//# w.claim = w'.claim = ByRootSpan(f, r)
+//#     ⟹  (binds(T, w) ⟺ binds(T, w'))
+//# ```
+//#
+//# Which annotations a positional witness binds is a function of its
+//# root span alone. Consequences: enlarging a proof witness's closure
+//# never extends the set of test annotations it witnesses, and a
+//# witness whose maps Hit-cover another test annotation's lines still
+//# does not witness it — one proof's witness cannot capture another
+//# proof's test annotation, however deep the dependency chain between
+//# the proofs. This is [W5](#property-w5-claim-refinement)'s
+//# complement: `ByExecution` binding is exactly map evidence;
+//# `ByRootSpan` binding is exactly geometry.
 pub proof fn positional_binding_is_map_independent(
     file_id: u64,
     annotation: &AnnotationSpan,
