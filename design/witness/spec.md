@@ -18,7 +18,7 @@ interpreted as described in RFC 2119.
 
 The existing coverage model (Phases 1–3: target resolution,
 execution propagation, annotation execution) is unchanged by this
-specification and is referenced here as `executed` (§1.4).
+specification and is referenced here as `executed` ([§1.4](#executed)).
 
 ---
 
@@ -30,7 +30,8 @@ specification and is referenced here as `executed` (§1.4).
 **I** denotes a `type=implementation` annotation,
 each resolved to the source lines it governs by the coverage
 model's target resolution
-(coverage-model-spec §2, including the degraded path).
+([coverage-model-spec §2](../query/coverage-model-spec.md#annotation-target-resolution),
+including the degraded path).
 Nothing in this specification depends on *how* resolution happens,
 only that every annotation has a resolved target.
 Placement note (degraded files): in a file with no language
@@ -40,7 +41,7 @@ only blank lines and annotation lines are skipped — so an annotation
 targets; an intervening ordinary comment (e.g. a doc comment between
 the annotation and a proof fn header) becomes the resolved target
 itself, which a prover producer sees as an unelaborated position
-(Property W6).
+([Property W6](#property-w6-unwitnessed-test-annotations)).
 
 ### 1.2 Witness {#witness}
 
@@ -64,7 +65,7 @@ they contain every line the act touched,
 under the producer's reachability relation
 (execution for runtime producers,
 obligation-graph closure for prover producers).
-Closedness is a producer obligation (§4.1);
+Closedness is a producer obligation ([§4.1](#obligation-closedness));
 the engine never learns how it was achieved.
 
 ### 1.3 Provenance {#provenance}
@@ -84,9 +85,10 @@ Provenance = {
 `Executed` (a runtime act ran these lines) or
 `Consulted` (a prover's elaboration reached these lines).
 Verdict output MUST report every bound witness's label and
-strength with its per-witness result (§3), so a reader can judge
+strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
 each claim
-(decisions.md, Decisions 7 and 14).
+(decisions.md, [Decision 7](decisions.md#decision-7) and
+[Decision 14](decisions.md#decision-14)).
 
 ### 1.4 Executed {#executed}
 
@@ -105,16 +107,15 @@ The verified Phase 4 layer implements the "or" per file: a
 `ScoringMode` routes each file to the classified or the degraded
 scorer, and engine trust-boundary refusals are encoded as
 `Unscorable` — binds nothing, executes nothing
-(decisions.md, Decision 15).
+(decisions.md, [Decision 15](decisions.md#decision-15)).
 
 If w's `files` contains no map for X's file at all,
 `executed(X, w)` is false.
-Under §1.6's universal discharge this is verdict-determining, not
+Under [§1.6](#discharge)'s universal discharge this is verdict-determining, not
 merely credit-withholding: a bound witness whose act never touched
 the implementation's *file* is a failing vote on the pair — a
-vacuous claim, per Decision 14 — never a skipped one.
-(Surfaced during Phase 4 verification, 2026-07-27;
-pinned by the verified layer's Decision-14 test.)
+vacuous claim, per [Decision 14](decisions.md#decision-14) —
+never a skipped one.
 
 ### 1.5 Claim rules and binding {#claim-rules}
 
@@ -135,26 +136,40 @@ An annotation with no resolved target (e.g. a Structural
 annotation) binds no ByRootSpan witness —
 empty-target containment MUST NOT bind vacuously.
 (Resolution yields at most one target line in the current model,
-so containment is membership of that single line;
-found during Phase 4 formalization, 2026-07-27.)
+so containment is membership of that single line.)
 
 `ByExecution` is the runtime rule:
 the report cannot record which test produced it,
 so the test claims the witness by evidence —
 its own lines are executed in it.
-This rule is sound only under witness individuation (§4.2).
+This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
 
 `ByRootSpan` is the prover rule:
 the witness was constructed from the annotation's own position
-(§5), so ownership is positional and holds by construction.
-Positional comparison requires file identity: if the engine's
-path-matching relation associates an annotation's file with more
-than one witness file (or one witness file with more than one
-source file), the engine MUST refuse the bind and report the
-ambiguity rather than select — the same posture the producer takes
-when translating positions into artifact coordinates.
+([§5](#prover-producers)), so ownership is positional and holds by
+construction — binding is a function of the root span alone,
+never of the witness's maps
+([Property W7](#property-w7-positional-binding-map-independence)).
+
+Positional comparison presupposes **file identity**: before any
+line of w's root span is compared with T's resolved target, the
+engine must resolve which project file the witness's recorded
+path refers to — and a recorded path can collide with several
+project files (the witness says `src/x.rs`; the project contains
+both `/a/src/x.rs` and `/b/src/x.rs`).
+If the engine's path-matching relation associates an annotation's
+file with more than one witness file (or one witness file with
+more than one source file), the engine MUST refuse the bind and
+report the ambiguity rather than select — the same posture the
+producer takes when translating positions into artifact
+coordinates.
+The refused ambiguity is file identity and nothing else:
+a position rooting several obligations yields several witnesses
+([§5.3](#discharge-unit), one per obligation), and a closure
+spanning several files is one witness with several per-file maps —
+neither is ambiguous, and neither is refused.
 Suffix matching that silently crosses two files ending in the same
-path is a G1 (file-identity injectivity, §4.4) violation and can
+path is a G1 (file-identity injectivity, [§4.4](#engine-glue)) violation and can
 manufacture both false failures and, when closures overlap, false
 discharges.
 
@@ -172,7 +187,7 @@ least one witness and **every** witness it binds executed the
 implementation. Each bound witness individually must see both
 sides; one bound witness that never reaches the implementation is
 a vacuous claim and fails the pair
-(decisions.md, Decision 14 — the goal is no vacuous test
+(decisions.md, [Decision 14](decisions.md#decision-14) — the goal is no vacuous test
 annotations, not at least one executed test annotation).
 
 Discharge is a bookkeeping claim and nothing more:
@@ -193,7 +208,7 @@ produce : (artifacts, annotations) → Vec<Witness>
 
 Runtime producers MAY ignore the `annotations` argument
 (their witnesses pre-exist in the artifact).
-Prover producers use it to construct witnesses (§5).
+Prover producers use it to construct witnesses ([§5](#prover-producers)).
 The producer-internal artifact format MUST NOT escape the
 producer; the engine consumes only `Vec<Witness>`.
 
@@ -212,9 +227,18 @@ for every requested annotation, binding and discharge verdicts
 over the materialized set MUST equal the verdicts over the full
 universe.
 (The filter only removes witnesses binding no requested
-annotation; W1, W2, and W6 quantify only over witnesses binding
+annotation; [W1](#property-w1-same-witness-discharge),
+[W2](#property-w2-test-execution), and
+[W6](#property-w6-unwitnessed-test-annotations) quantify only
+over witnesses binding
 the annotation in question, so soundness follows.
-W3 quantifies over delivered witnesses by definition.)
+Stated as the consequence users rely on: every proof-testable
+test annotation is witnessed by its own obligations' witnesses,
+and no other annotation — and no other witness's contents
+([Property W7](#property-w7-positional-binding-map-independence)
+for the verified half) — influences that.
+[W3](#property-w3-global-execution) quantifies over delivered
+witnesses by definition.)
 
 ---
 
@@ -246,7 +270,7 @@ its implementation.
 Evidence assembled from two different witnesses
 (T bound by one, I executed by another) MUST NOT discharge;
 a bound witness that did not execute I MUST fail the pair
-(decisions.md, Decision 14).
+(decisions.md, [Decision 14](decisions.md#decision-14)).
 
 ### Property W2: Test Execution {#property-w2-test-execution}
 
@@ -270,7 +294,8 @@ report_ever_executed(I, witnesses) = true
 ```
 
 This is a global property requiring no correlation;
-it is deliberately weaker than W1 and MUST NOT be used to
+it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
+and MUST NOT be used to
 discharge pairs.
 
 ### Property W4: Failure Monotonicity {#property-w4-monotonicity}
@@ -288,8 +313,7 @@ witnesses ⊆ witnesses'  ⟹
 Adding a witness MAY newly fail a previously-discharged pair —
 that is deliberate: the added witness is a claim T now makes, and
 if it does not reach I it is the vacuity being caught
-(decisions.md, Decision 14; this inverts the direction of the
-original monotonicity property).
+(decisions.md, [Decision 14](decisions.md#decision-14)).
 The only way adding witnesses turns a non-discharged pair into a
 discharged one is by witnessing a previously *unwitnessed* test
 (the `witnesses_for(T) = ∅` case), never by outvoting a bound
@@ -306,9 +330,6 @@ w.claim = ByExecution ∧ binds(T, w)  ⟹  executed(T, w)
 
 so that positional claiming (`ByRootSpan`) is a refinement of
 evidence claiming, never a loophole.
-*(Tentative: if this resists proof as stated,
-it may be restated or demoted to a tested property
-without weakening W1–W4; see decisions.md, Decision 4.)*
 
 ### Property W6: Unwitnessed Test Annotations Are Failures {#property-w6-unwitnessed-test-annotations}
 
@@ -324,18 +345,38 @@ as a failure, never silently:
 Consequence (intended): running a subset of producers MAY fail a
 test annotation that the full set passes;
 that behavior is correct
-(decisions.md, Decision 8).
+(decisions.md, [Decision 8](decisions.md#decision-8)).
+
+### Property W7: Positional Binding is Map-Independent {#property-w7-positional-binding-map-independence}
+
+The implementation MUST prove that binding under `ByRootSpan` does
+not depend on the witness's coverage maps:
+
+```
+w.claim = w'.claim = ByRootSpan(f, r)
+    ⟹  (binds(T, w) ⟺ binds(T, w'))
+```
+
+Which annotations a positional witness binds is a function of its
+root span alone. Consequences: enlarging a proof witness's closure
+never extends the set of test annotations it witnesses, and a
+witness whose maps Hit-cover another test annotation's lines still
+does not witness it — one proof's witness cannot capture another
+proof's test annotation, however deep the dependency chain between
+the proofs. This is [W5](#property-w5-claim-refinement)'s
+complement: `ByExecution` binding is exactly map evidence;
+`ByRootSpan` binding is exactly geometry.
 
 ---
 
 ## 3. Verdict output requirements {#verdict-output}
 
 For every discharged pair, the output MUST name, in verbose
-output, every bound witness (its label) and its strength (§1.3).
-(Scoped to verbose output, 2026-07-27: a run at real scale
+output, every bound witness (its label) and its strength ([§1.3](#provenance)).
+Verbose-gated because a run at real scale
 discharges hundreds of pairs, and naming every witness for each of
 them by default would bury the failure reports this check exists
-to surface. Failure output is never verbose-gated.)
+to surface; failure output is never verbose-gated.
 For every pair that fails because a bound witness did not execute
 the implementation (W1's universal clause), the output MUST list
 **every** bound witness with its per-witness result
@@ -343,8 +384,9 @@ the implementation (W1's universal clause), the output MUST list
 so the failing claim is identifiable —
 the engine computes all of these to evaluate the verdict,
 and the disagreement MUST never be silent
-(decisions.md, Decision 14; legibility improvements are tracked
-as Open Question 2 and never weaken the verdict).
+(decisions.md, [Decision 14](decisions.md#decision-14);
+legibility improvements are tracked in
+[Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
 For every unwitnessed test annotation (W6), the output MUST
 identify the annotation and state that no configured producer
 yielded a witness for it.
@@ -353,7 +395,7 @@ yielded a witness for it.
 
 ## 4. Producer obligations and trusted base {#producer-obligations}
 
-The engine properties in §2 hold only relative to the following
+The engine properties in [§2](#engine-properties) hold only relative to the following
 producer obligations.
 Where an obligation cannot be proven, it is a **named axiom** of
 the trusted base and MUST be recorded as such.
@@ -361,14 +403,14 @@ the trusted base and MUST be recorded as such.
 One invariant frames all of them:
 **producers deliver facts and never render verdicts.**
 Delivering zero witnesses for an annotation is a fact
-(possibly with a reason attached, §5.2's not-proof-testable),
-not a failure; every failure — unwitnessed (W6),
-undischarged (W1) — is an engine verdict over the delivered set.
+(possibly with a reason attached, [§5.2](#two-pass-construction)'s not-proof-testable),
+not a failure; every failure — unwitnessed ([W6](#property-w6-unwitnessed-test-annotations)),
+undischarged ([W1](#property-w1-same-witness-discharge)) — is an engine verdict over the delivered set.
 
 ### 4.1 Closedness {#obligation-closedness}
 
 Every delivered `files` map MUST be closed under the producer's
-reachability relation (§1.2).
+reachability relation ([§1.2](#witness)).
 
 - Runtime producers: closedness is delegated to the external tool
   (the runtime physically performed the closure).
@@ -392,8 +434,8 @@ checking.
   responsibility — one instrumented run per test.
   The artifact does not record how it was produced,
   so duvet does not attempt detection
-  (decisions.md, Decision 11). **Axiom.**
-- Prover producers: individuation holds by construction (§5);
+  (decisions.md, [Decision 11](decisions.md#decision-11)). **Axiom.**
+- Prover producers: individuation holds by construction ([§5](#prover-producers));
   no axiom needed.
 
 ### 4.3 Producer testing {#obligation-testing}
@@ -404,22 +446,24 @@ since producers are unverified glue at the trust boundary.
 
 ### 4.4 Engine glue {#engine-glue}
 
-The verified layer's guarantees (§2) reach the user only through
+The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
 unverified engine glue. Each glue component is named, bounded,
-and unit-tested (the posture §4.3 takes for producers):
+and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
 
 - **G1 (file identity).** The engine adapter MUST map file paths
   to the model's file identities injectively and consistently
   across all annotations and witnesses in one run, and MUST
   deliver each witness's per-file maps free of duplicate
   identities. Ambiguous producer-path matches are refused at
-  bind time, never selected among (§1.5).
+  bind time, never selected among ([§1.5](#claim-rules)).
   What remains axiomatic: an absolute path is a faithful file
   identity.
 - **G2 (call obligation).** The engine MUST compute every pair,
-  test, and global verdict (Properties W1–W4, W6) by calling the
+  test, and global verdict (Properties
+  [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
+  [W6](#property-w6-unwitnessed-test-annotations)) by calling the
   verified layer's functions, and MUST derive per-witness
-  failure diagnostics (§3) from the same verified cells;
+  failure diagnostics ([§3](#verdict-output)) from the same verified cells;
   no parallel engine-side verdict computation may exist.
   The verified layer cannot check its own callers, so G2 is a
   trusted-base item — enforced by review and by the engine's
@@ -428,7 +472,7 @@ and unit-tested (the posture §4.3 takes for producers):
   annotation's file the scoring mode its classification actually
   selected — classified, degraded, or the trust-boundary refusal
   that binds nothing and executes nothing
-  (§1.4; decisions.md, Decision 15). The adapter MUST establish
+  ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)). The adapter MUST establish
   the verified functions' preconditions at the boundary —
   filter or degrade before calling, never assume.
 
@@ -436,32 +480,34 @@ and unit-tested (the posture §4.3 takes for producers):
 
 ## 5. Prover producers {#prover-producers}
 
+A prover producer turns one prover's artifact into witnesses.
+Its requirements come in two layers: this section's, which are
+artifact-independent, and a per-producer statement of how that
+producer meets them ([§5.5](#verus-producer) for Verus).
+Every prover producer owes its artifact an investigation before
+it ships: the discharge-unit and closure granularity the artifact
+demonstrably records — demonstrated by inspection of real
+artifacts, not assumed — MUST be established and consumed as that
+producer's shipped floor
+(decisions.md, [Decision 17](decisions.md#decision-17)).
+
 ### 5.1 Witnessable annotations {#witnessable-annotations}
 
 Prover producers MUST construct witnesses for `type=test`
 annotations only
-(decisions.md, Decision 6;
+(decisions.md, [Decision 6](decisions.md#decision-6);
 self-discharging implication annotations are a deferred separate
 feature).
 
-### 5.2 Two-pass construction {#two-pass-construction}
+### 5.2 Construction from annotations {#two-pass-construction}
 
-A prover producer MUST parse its artifact once into a structure
-of obligation nodes and reference edges,
-and derive both of the following from it:
-
-1. **Pass 1 — liveness.** An *aggregate executability map*
-   (every line the verifier elaborated),
-   used with the existing resolve/classify/score machinery to
-   determine which witnessable annotations are live.
-2. **Pass 2 — construction.** For each live annotation:
-   its discharge unit (§5.3), that unit's closure (§5.4),
-   and from the closure one witness with claim rule
-   `ByRootSpan(discharge unit's extent)`.
-
-The aggregate executability map MUST NOT be delivered as a
-witness: it is many obligations wearing one map,
-and delivering it would violate §4.2 by construction.
+Prover witnesses are constructed, not found: for each witnessable
+annotation ([§5.1](#witnessable-annotations)) that is **live** —
+its resolved target was elaborated by the verifier — the producer
+determines the discharge unit(s) rooted at that position
+([§5.3](#discharge-unit)), computes each unit's closure
+([§5.4](#closure)), and delivers one witness per unit with claim
+rule `ByRootSpan(discharge unit's extent)`.
 
 If the producer cannot unambiguously translate an annotation's
 position into artifact coordinates (e.g. the source path matches
@@ -472,7 +518,7 @@ This is a deliberate posture, not an accident of implementation.
 
 A source position is **proof-testable** iff at least one
 obligation is rooted there — iff it is in the domain of the
-discharge-unit map (§5.3).
+discharge-unit map ([§5.3](#discharge-unit)).
 If a live annotation's resolved target is not proof-testable,
 the producer MUST deliver no witness for it,
 and the report MUST identify the annotation as
@@ -489,7 +535,7 @@ The discharge unit of an annotation position is the prover
 obligation that certifies that position
 (the proof-world analog of "the test containing this annotation").
 The mapping from position to unit is prover-specific and lives
-inside each producer (decisions.md, Decision 9).
+inside each producer (decisions.md, [Decision 9](decisions.md#decision-9)).
 Its domain (`dom(du)`) MUST contain only positions where an
 obligation is *rooted* — proof-element positions,
 at every granularity the artifact demonstrably records
@@ -497,9 +543,12 @@ at every granularity the artifact demonstrably records
 fn/lemma headers (obligation extents), ensures clauses,
 loop invariants, and proof asserts.
 Executable body lines MUST NOT be in the domain:
-they are proof ingredients (consulted material), not claims,
-and a test annotation there is not a proof-world test
-(decisions.md, Decision 13).
+no obligation is rooted at a body line —
+body lines are material a proof consults,
+not claims a prover discharges —
+so a test annotation there is category-mismatched,
+and is reported *not proof-testable* rather than unwitnessed
+(decisions.md, [Decision 13](decisions.md#decision-13)).
 
 **Rooting is most-specific-wins** (decisions.md, Decision 19):
 an annotation roots the finest unit whose span contains its
@@ -516,7 +565,7 @@ the same level.
 When N obligations root a position at the chosen level, the
 producer MUST deliver one witness per rooting obligation and
 MUST NOT select among them (decisions.md, Decision 12).
-Under Decision 14 the annotation is held to **all** of them:
+Under [Decision 14](decisions.md#decision-14) the annotation is held to **all** of them:
 every delivered witness at that position must execute I for the
 pair to discharge, and the verdict's per-witness results name
 which obligation(s) failed.
@@ -524,7 +573,7 @@ An ambiguous position that fails is correct pressure to
 disambiguate — e.g. splitting a conjoined
 `ensures A && B && C && D` into separate clauses and annotating
 the intended one. Conjunct arms do not root units
-(decisions.md, Decision 18); clause splitting is the remediation
+(decisions.md, [Decision 18](decisions.md#decision-18)); clause splitting is the remediation
 for a claim about one conjunct.
 
 ### 5.4 Closure {#closure}
@@ -532,11 +581,15 @@ for a claim about one conjunct.
 A constructed witness's `files` maps MUST equal the source spans
 of the downward reachable set of the prover's obligation graph,
 starting from the discharge unit.
+Reachability is transitive: the closure follows the obligation
+graph's reference edges through any number of call or reference
+hops — a lemma reaching a fn reaching a fn reaching a fn: all of
+them enter — until a fixpoint.
 The closure MUST be **reflexive**: it includes the discharge
 unit's own root span (`root ∈ closure(root)`), so that a witness
 always scores its own annotation as executed and `ByRootSpan`
-binding implies execution (§1.5's claim rules are thereby
-instances of one predicate; Property W5's refinement claim
+binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
+instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
 depends on this).
 Producers MUST carry a unit test asserting reflexivity for every
 constructed witness.
@@ -544,11 +597,11 @@ Only reachable nodes contribute;
 nothing outside the reachable set may be included.
 The closure MUST be computed at the finest granularity the
 artifact demonstrably supports
-(decisions.md, Decision 17 — deferral is legitimate only at the
+(decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the
 artifact's ceiling or across a named architectural boundary);
 what is normative now:
 the closure MUST be a fixpoint (no truncation at a depth bound),
-and the semantics is *consulted* (strength `Consulted`, §1.3),
+and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
 not load-bearing dependency.
 
 **The closure ceiling MUST be stated per producer, because it
@@ -566,8 +619,8 @@ implying clause-level evidence.
 
 Grounded empirically (2026-07-26, Verus 0.2026.05.24.ecee80a,
 `cargo verus build -p duvet-coverage -- --log vir-sst`;
-artifact granularity investigation and solver-replay spike
-concluded 2026-07-29):
+artifact granularity investigation and solver-replay spike,
+2026-07-29):
 
 - The artifact is per-module `*-sst.vir` S-expression files.
   Top-level `FunctionSst` blocks carry a fully-qualified name
@@ -576,8 +629,24 @@ concluded 2026-07-29):
 - Cross-obligation references appear as symbolic
   `(Fun :path ...)` forms, not inlined spans — these are the
   edges. A flat span inventory of one block covers essentially
-  only its own extent, which is why §5.2's parse-into-structure
-  requirement is a MUST and not an optimization.
+  only its own extent, so the Verus producer MUST parse its
+  artifact once into a structure of obligation nodes and
+  reference edges and derive everything else from that
+  structure — parse-into-structure is a MUST, not an
+  optimization.
+- Construction ([§5.2](#two-pass-construction)) is two-pass over
+  that structure.
+  Pass 1 (liveness) projects an *aggregate executability map* —
+  every line the verifier elaborated — and runs the existing
+  resolve/classify/score machinery over it to determine which
+  witnessable annotations are live.
+  Pass 2 (construction) re-interrogates the structure per live
+  annotation: discharge units, closures, witnesses.
+- The aggregate executability map MUST NOT be delivered as a
+  witness: it is many obligations wearing one map, and delivering
+  it would violate [§4.2](#obligation-individuation) by
+  construction; it exists only as pass-1 scaffolding inside the
+  producer.
 - Sub-function structure carries per-unit spans: `:enss` clause
   lists (one span per ensures clause), `LoopInv` nodes, and
   proof-assert spans. Clause-level discharge units are the
@@ -589,15 +658,17 @@ concluded 2026-07-29):
   assumed at every call site. Per-clause needed sets exist only
   at the solver level (recoverable by z3 replay with cores —
   demonstrated, and deliberately not consumed; decisions.md,
-  Decision 7).
+  [Decision 7](decisions.md#decision-7)).
 - The Verus producer MUST treat `FunctionSst` blocks as closure
   nodes and `Fun :path` references as edges, and MUST support
   discharge units of all four kinds: obligation extents,
   `:enss` clause spans, `LoopInv` spans, and proof-assert spans
   (decisions.md, Decision 18).
-  Rooting is most-specific-wins (§5.3, Decision 19);
+  Rooting is most-specific-wins ([§5.3](#discharge-unit),
+  [Decision 19](decisions.md#decision-19));
   ties at one specificity level yield all owners
-  (Decisions 12 and 13).
+  ([Decision 12](decisions.md#decision-12) and
+  [Decision 13](decisions.md#decision-13)).
   Own-span (body-line) ownership is NOT attribution:
   executable body lines are outside `dom(du)`.
   Loop header lines are excluded from `dom(du)` initially
@@ -613,11 +684,12 @@ concluded 2026-07-29):
 
 ## 6. Relationship to the coverage model specification {#relationship}
 
-- Phases 1–3 of coverage-model-spec.md are unchanged;
-  `executed` (§1.4) is defined in terms of them.
-- coverage-model-spec.md §5.2 (multi-report folding) is
-  superseded by Property W1 for pair discharge;
-  the OR-fold shape survives only as Property W3
-  (global, non-correlating).
-  Amending that section's text is scoped to the correlation-fix
-  work stream.
+- Phases 1–3 of
+  [coverage-model-spec.md](../query/coverage-model-spec.md) are
+  unchanged; `executed` ([§1.4](#executed)) is defined in terms of them.
+- Pair discharge is
+  [Property W1](#property-w1-same-witness-discharge)'s
+  same-witness rule; a non-correlating OR over all delivered
+  witnesses survives only as
+  [Property W3](#property-w3-global-execution)
+  (global, and never used to discharge pairs).

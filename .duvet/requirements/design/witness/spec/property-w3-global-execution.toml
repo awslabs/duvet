@@ -12,7 +12,8 @@ target = "design/witness/spec.md#property-w3-global-execution"
 # ```
 # 
 # This is a global property requiring no correlation;
-# it is deliberately weaker than W1 and MUST NOT be used to
+# it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
+# and MUST NOT be used to
 # discharge pairs.
 
 [[spec]]
@@ -27,7 +28,8 @@ executed it:
 level = "MUST"
 quote = '''
 This is a global property requiring no correlation;
-it is deliberately weaker than W1 and MUST NOT be used to
+it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
+and MUST NOT be used to
 discharge pairs.
 '''
 

@@ -4,7 +4,7 @@ target = "design/witness/spec.md#witnessable-annotations"
 #
 # Prover producers MUST construct witnesses for `type=test`
 # annotations only
-# (decisions.md, Decision 6;
+# (decisions.md, [Decision 6](decisions.md#decision-6);
 # self-discharging implication annotations are a deferred separate
 # feature).
 
@@ -13,7 +13,7 @@ level = "MUST"
 quote = '''
 Prover producers MUST construct witnesses for `type=test`
 annotations only
-(decisions.md, Decision 6;
+(decisions.md, [Decision 6](decisions.md#decision-6);
 self-discharging implication annotations are a deferred separate
 feature).
 '''

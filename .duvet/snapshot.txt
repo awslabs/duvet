@@ -165,20 +165,21 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
 
   SECTION: [1.3 Provenance](#provenance)
     TEXT[!MUST]: Verdict output MUST report every bound witness's label and
-    TEXT[!MUST]: strength with its per-witness result (§3), so a reader can judge
+    TEXT[!MUST]: strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
     TEXT[!MUST]: each claim
-    TEXT[!MUST]: (decisions.md, Decisions 7 and 14).
+    TEXT[!MUST]: (decisions.md, [Decision 7](decisions.md#decision-7) and
+    TEXT[!MUST]: [Decision 14](decisions.md#decision-14)).
 
   SECTION: [1.5 Claim rules and binding](#claim-rules)
     TEXT[!MUST]: a Structural
     TEXT[!MUST]: annotation) binds no ByRootSpan witness —
     TEXT[!MUST]: empty-target containment MUST NOT bind vacuously.
-    TEXT[!MUST]: Positional comparison requires file identity: if the engine's
-    TEXT[!MUST]: path-matching relation associates an annotation's file with more
-    TEXT[!MUST]: than one witness file (or one witness file with more than one
-    TEXT[!MUST]: source file), the engine MUST refuse the bind and report the
-    TEXT[!MUST]: ambiguity rather than select — the same posture the producer takes
-    TEXT[!MUST]: when translating positions into artifact coordinates.
+    TEXT[!MUST]: If the engine's path-matching relation associates an annotation's
+    TEXT[!MUST]: file with more than one witness file (or one witness file with
+    TEXT[!MUST]: more than one source file), the engine MUST refuse the bind and
+    TEXT[!MUST]: report the ambiguity rather than select — the same posture the
+    TEXT[!MUST]: producer takes when translating positions into artifact
+    TEXT[!MUST]: coordinates.
 
   SECTION: [1.7 Producer](#producer)
     TEXT[!MAY]: Runtime producers MAY ignore the `annotations` argument
@@ -207,7 +208,7 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: Evidence assembled from two different witnesses
     TEXT[!MUST]: (T bound by one, I executed by another) MUST NOT discharge;
     TEXT[!MUST]: a bound witness that did not execute I MUST fail the pair
-    TEXT[!MUST]: (decisions.md, Decision 14).
+    TEXT[!MUST]: (decisions.md, [Decision 14](decisions.md#decision-14)).
 
   SECTION: [Property W2: Test Execution](#property-w2-test-execution)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that a test annotation is reported
@@ -218,7 +219,8 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: reported ever-executed if and only if some delivered witness
     TEXT[!MUST,implementation,test]: executed it:
     TEXT[!MUST]: This is a global property requiring no correlation;
-    TEXT[!MUST]: it is deliberately weaker than W1 and MUST NOT be used to
+    TEXT[!MUST]: it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
+    TEXT[!MUST]: and MUST NOT be used to
     TEXT[!MUST]: discharge pairs.
 
   SECTION: [Property W4: Failure Monotonicity](#property-w4-monotonicity)
@@ -227,8 +229,7 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MAY]: Adding a witness MAY newly fail a previously-discharged pair —
     TEXT[!MAY]: that is deliberate: the added witness is a claim T now makes, and
     TEXT[!MAY]: if it does not reach I it is the vacuity being caught
-    TEXT[!MAY]: (decisions.md, Decision 14; this inverts the direction of the
-    TEXT[!MAY]: original monotonicity property).
+    TEXT[!MAY]: (decisions.md, [Decision 14](decisions.md#decision-14)).
 
   SECTION: [Property W5: Claim Refinement](#property-w5-claim-refinement)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that binding under `ByExecution`
@@ -242,12 +243,16 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MAY]: Consequence (intended): running a subset of producers MAY fail a
     TEXT[!MAY]: test annotation that the full set passes;
     TEXT[!MAY]: that behavior is correct
-    TEXT[!MAY]: (decisions.md, Decision 8).
+    TEXT[!MAY]: (decisions.md, [Decision 8](decisions.md#decision-8)).
+
+  SECTION: [Property W7: Positional Binding is Map-Independent](#property-w7-positional-binding-map-independence)
+    TEXT[!MUST,test]: The implementation MUST prove that binding under `ByRootSpan` does
+    TEXT[!MUST,test]: not depend on the witness's coverage maps
+    TEXT[!MUST]: :
 
   SECTION: [3. Verdict output requirements](#verdict-output)
     TEXT[!MUST]: For every discharged pair, the output MUST name, in verbose
-    TEXT[!MUST]: output, every bound witness (its label) and its strength (§1.3).
-    TEXT[!MUST]: Failure output is never verbose-gated.)
+    TEXT[!MUST]: output, every bound witness (its label) and its strength ([§1.3](#provenance)).
     TEXT[!MUST]: For every pair that fails because a bound witness did not execute
     TEXT[!MUST]: the implementation (W1's universal clause), the output MUST list
     TEXT[!MUST]: **every** bound witness with its per-witness result
@@ -255,8 +260,9 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: so the failing claim is identifiable —
     TEXT[!MUST]: the engine computes all of these to evaluate the verdict,
     TEXT[!MUST]: and the disagreement MUST never be silent
-    TEXT[!MUST]: (decisions.md, Decision 14; legibility improvements are tracked
-    TEXT[!MUST]: as Open Question 2 and never weaken the verdict).
+    TEXT[!MUST]: (decisions.md, [Decision 14](decisions.md#decision-14);
+    TEXT[!MUST]: legibility improvements are tracked in
+    TEXT[!MUST]: [Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
     TEXT[!MUST]: For every unwitnessed test annotation (W6), the output MUST
     TEXT[!MUST]: identify the annotation and state that no configured producer
     TEXT[!MUST]: yielded a witness for it.
@@ -267,7 +273,7 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
 
   SECTION: [4.1 Closedness](#obligation-closedness)
     TEXT[!MUST]: Every delivered `files` map MUST be closed under the producer's
-    TEXT[!MUST]: reachability relation (§1.2).
+    TEXT[!MUST]: reachability relation ([§1.2](#witness)).
     TEXT[!SHOULD]: - Prover producers: closedness splits into
     TEXT[!SHOULD]:   (a) the verifier's record faithfully reflects what elaboration
     TEXT[!SHOULD]:   consulted — **axiom**, same category as trusting the verifier
@@ -292,33 +298,37 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]:   deliver each witness's per-file maps free of duplicate
     TEXT[!MUST]:   identities.
     TEXT[!MUST]: - **G2 (call obligation).** The engine MUST compute every pair,
-    TEXT[!MUST]:   test, and global verdict (Properties W1–W4, W6) by calling the
+    TEXT[!MUST]:   test, and global verdict (Properties
+    TEXT[!MUST]:   [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
+    TEXT[!MUST]:   [W6](#property-w6-unwitnessed-test-annotations)) by calling the
     TEXT[!MUST]:   verified layer's functions, and MUST derive per-witness
-    TEXT[!MUST]:   failure diagnostics (§3) from the same verified cells;
+    TEXT[!MUST]:   failure diagnostics ([§3](#verdict-output)) from the same verified cells;
     TEXT[!MUST]:   no parallel engine-side verdict computation may exist.
     TEXT[!MUST]: - **G3 (mode routing).** The adapter MUST assign each
     TEXT[!MUST]:   annotation's file the scoring mode its classification actually
     TEXT[!MUST]:   selected — classified, degraded, or the trust-boundary refusal
     TEXT[!MUST]:   that binds nothing and executes nothing
-    TEXT[!MUST]:   (§1.4; decisions.md, Decision 15).
+    TEXT[!MUST]:   ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
     TEXT[!MUST]: The adapter MUST establish
     TEXT[!MUST]:   the verified functions' preconditions at the boundary —
     TEXT[!MUST]:   filter or degrade before calling, never assume.
 
+  SECTION: [5. Prover producers](#prover-producers)
+    TEXT[!MUST]: Every prover producer owes its artifact an investigation before
+    TEXT[!MUST]: it ships: the discharge-unit and closure granularity the artifact
+    TEXT[!MUST]: demonstrably records — demonstrated by inspection of real
+    TEXT[!MUST]: artifacts, not assumed — MUST be established and consumed as that
+    TEXT[!MUST]: producer's shipped floor
+    TEXT[!MUST]: (decisions.md, [Decision 17](decisions.md#decision-17)).
+
   SECTION: [5.1 Witnessable annotations](#witnessable-annotations)
     TEXT[!MUST]: Prover producers MUST construct witnesses for `type=test`
     TEXT[!MUST]: annotations only
-    TEXT[!MUST]: (decisions.md, Decision 6;
+    TEXT[!MUST]: (decisions.md, [Decision 6](decisions.md#decision-6);
     TEXT[!MUST]: self-discharging implication annotations are a deferred separate
     TEXT[!MUST]: feature).
 
-  SECTION: [5.2 Two-pass construction](#two-pass-construction)
-    TEXT[!MUST]: A prover producer MUST parse its artifact once into a structure
-    TEXT[!MUST]: of obligation nodes and reference edges,
-    TEXT[!MUST]: and derive both of the following from it:
-    TEXT[!MUST]: The aggregate executability map MUST NOT be delivered as a
-    TEXT[!MUST]: witness: it is many obligations wearing one map,
-    TEXT[!MUST]: and delivering it would violate §4.2 by construction.
+  SECTION: [5.2 Construction from annotations](#two-pass-construction)
     TEXT[!MUST]: the source path matches
     TEXT[!MUST]: several artifact paths), it MUST abort the run with the ambiguity
     TEXT[!MUST]: rather than skip the position: silently dropping a position would
@@ -341,9 +351,12 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: fn/lemma headers (obligation extents), ensures clauses,
     TEXT[!MUST]: loop invariants, and proof asserts.
     TEXT[!MUST]: Executable body lines MUST NOT be in the domain:
-    TEXT[!MUST]: they are proof ingredients (consulted material), not claims,
-    TEXT[!MUST]: and a test annotation there is not a proof-world test
-    TEXT[!MUST]: (decisions.md, Decision 13).
+    TEXT[!MUST]: no obligation is rooted at a body line —
+    TEXT[!MUST]: body lines are material a proof consults,
+    TEXT[!MUST]: not claims a prover discharges —
+    TEXT[!MUST]: so a test annotation there is category-mismatched,
+    TEXT[!MUST]: and is reported *not proof-testable* rather than unwitnessed
+    TEXT[!MUST]: (decisions.md, [Decision 13](decisions.md#decision-13)).
     TEXT[!MUST]: A producer MUST NOT hoist an
     TEXT[!MUST]: annotation placed on a clause, invariant, or assert to the
     TEXT[!MUST]: enclosing function's unit.
@@ -363,18 +376,18 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: The closure MUST be **reflexive**: it includes the discharge
     TEXT[!MUST]: unit's own root span (`root ∈ closure(root)`), so that a witness
     TEXT[!MUST]: always scores its own annotation as executed and `ByRootSpan`
-    TEXT[!MUST]: binding implies execution (§1.5's claim rules are thereby
-    TEXT[!MUST]: instances of one predicate; Property W5's refinement claim
+    TEXT[!MUST]: binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
+    TEXT[!MUST]: instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
     TEXT[!MUST]: depends on this).
     TEXT[!MUST]: Producers MUST carry a unit test asserting reflexivity for every
     TEXT[!MUST]: constructed witness.
     TEXT[!MUST]: The closure MUST be computed at the finest granularity the
     TEXT[!MUST]: artifact demonstrably supports
-    TEXT[!MUST]: (decisions.md, Decision 17 — deferral is legitimate only at the
+    TEXT[!MUST]: (decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the
     TEXT[!MUST]: artifact's ceiling or across a named architectural boundary);
     TEXT[!MUST]: what is normative now:
     TEXT[!MUST]: the closure MUST be a fixpoint (no truncation at a depth bound),
-    TEXT[!MUST]: and the semantics is *consulted* (strength `Consulted`, §1.3),
+    TEXT[!MUST]: and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
     TEXT[!MUST]: not load-bearing dependency.
     TEXT[!MUST]: **The closure ceiling MUST be stated per producer, because it
     TEXT[!MUST]: bounds what unit granularity buys.** Where a prover checks a
@@ -389,8 +402,16 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
 
   SECTION: [5.5 The Verus producer](#verus-producer)
     TEXT[!MUST]: A flat span inventory of one block covers essentially
-    TEXT[!MUST]:   only its own extent, which is why §5.2's parse-into-structure
-    TEXT[!MUST]:   requirement is a MUST and not an optimization.
+    TEXT[!MUST]:   only its own extent, so the Verus producer MUST parse its
+    TEXT[!MUST]:   artifact once into a structure of obligation nodes and
+    TEXT[!MUST]:   reference edges and derive everything else from that
+    TEXT[!MUST]:   structure — parse-into-structure is a MUST, not an
+    TEXT[!MUST]:   optimization.
+    TEXT[!MUST]: - The aggregate executability map MUST NOT be delivered as a
+    TEXT[!MUST]:   witness: it is many obligations wearing one map, and delivering
+    TEXT[!MUST]:   it would violate [§4.2](#obligation-individuation) by
+    TEXT[!MUST]:   construction; it exists only as pass-1 scaffolding inside the
+    TEXT[!MUST]:   producer.
     TEXT[!MUST]: - The Verus producer MUST treat `FunctionSst` blocks as closure
     TEXT[!MUST]:   nodes and `Fun :path` references as edges, and MUST support
     TEXT[!MUST]:   discharge units of all four kinds: obligation extents,

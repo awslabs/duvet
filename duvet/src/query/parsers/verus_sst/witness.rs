@@ -163,9 +163,12 @@ impl<'g> DischargeUnit<'g> {
 //= design/witness/spec.md#discharge-unit
 //= type=implementation
 //# Executable body lines MUST NOT be in the domain:
-//# they are proof ingredients (consulted material), not claims,
-//# and a test annotation there is not a proof-world test
-//# (decisions.md, Decision 13).
+//# no obligation is rooted at a body line —
+//# body lines are material a proof consults,
+//# not claims a prover discharges —
+//# so a test annotation there is category-mismatched,
+//# and is reported *not proof-testable* rather than unwitnessed
+//# (decisions.md, [Decision 13](decisions.md#decision-13)).
 pub fn classify_position<'g>(
     graph: &'g ObligationGraph,
     file: &str,

@@ -219,12 +219,12 @@ impl<'a> VerifiedVerdicts<'a> {
     ///
     //= design/witness/spec.md#claim-rules
     //= type=implementation
-    //# Positional comparison requires file identity: if the engine's
-    //# path-matching relation associates an annotation's file with more
-    //# than one witness file (or one witness file with more than one
-    //# source file), the engine MUST refuse the bind and report the
-    //# ambiguity rather than select — the same posture the producer takes
-    //# when translating positions into artifact coordinates.
+    //# If the engine's path-matching relation associates an annotation's
+    //# file with more than one witness file (or one witness file with
+    //# more than one source file), the engine MUST refuse the bind and
+    //# report the ambiguity rather than select — the same posture the
+    //# producer takes when translating positions into artifact
+    //# coordinates.
     ///
     /// A `ByRootSpan` producer-path coordinate that suffix-matches more
     /// than one project source is refused here — at translation, before

@@ -3,7 +3,7 @@ target = "design/witness/spec.md#obligation-closedness"
 # 4.1 Closedness
 #
 # Every delivered `files` map MUST be closed under the producer's
-# reachability relation (§1.2).
+# reachability relation ([§1.2](#witness)).
 # 
 # - Runtime producers: closedness is delegated to the external tool
 #   (the runtime physically performed the closure).
@@ -22,7 +22,7 @@ target = "design/witness/spec.md#obligation-closedness"
 level = "MUST"
 quote = '''
 Every delivered `files` map MUST be closed under the producer's
-reachability relation (§1.2).
+reachability relation ([§1.2](#witness)).
 '''
 
 [[spec]]

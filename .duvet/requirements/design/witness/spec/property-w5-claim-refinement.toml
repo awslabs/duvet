@@ -11,9 +11,6 @@ target = "design/witness/spec.md#property-w5-claim-refinement"
 # 
 # so that positional claiming (`ByRootSpan`) is a refinement of
 # evidence claiming, never a loophole.
-# *(Tentative: if this resists proof as stated,
-# it may be restated or demoted to a tested property
-# without weakening W1–W4; see decisions.md, Decision 4.)*
 
 [[spec]]
 level = "MUST"

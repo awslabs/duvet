@@ -17,16 +17,18 @@ target = "design/witness/spec.md#provenance"
 # `Executed` (a runtime act ran these lines) or
 # `Consulted` (a prover's elaboration reached these lines).
 # Verdict output MUST report every bound witness's label and
-# strength with its per-witness result (§3), so a reader can judge
+# strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
 # each claim
-# (decisions.md, Decisions 7 and 14).
+# (decisions.md, [Decision 7](decisions.md#decision-7) and
+# [Decision 14](decisions.md#decision-14)).
 
 [[spec]]
 level = "MUST"
 quote = '''
 Verdict output MUST report every bound witness's label and
-strength with its per-witness result (§3), so a reader can judge
+strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
 each claim
-(decisions.md, Decisions 7 and 14).
+(decisions.md, [Decision 7](decisions.md#decision-7) and
+[Decision 14](decisions.md#decision-14)).
 '''
 

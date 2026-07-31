@@ -18,7 +18,7 @@ target = "design/witness/spec.md#property-w1-same-witness-discharge"
 # Evidence assembled from two different witnesses
 # (T bound by one, I executed by another) MUST NOT discharge;
 # a bound witness that did not execute I MUST fail the pair
-# (decisions.md, Decision 14).
+# (decisions.md, [Decision 14](decisions.md#decision-14)).
 
 [[spec]]
 level = "MUST"
@@ -34,6 +34,6 @@ quote = '''
 Evidence assembled from two different witnesses
 (T bound by one, I executed by another) MUST NOT discharge;
 a bound witness that did not execute I MUST fail the pair
-(decisions.md, Decision 14).
+(decisions.md, [Decision 14](decisions.md#decision-14)).
 '''
 

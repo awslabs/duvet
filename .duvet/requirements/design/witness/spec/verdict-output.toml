@@ -3,11 +3,11 @@ target = "design/witness/spec.md#verdict-output"
 # 3. Verdict output requirements
 #
 # For every discharged pair, the output MUST name, in verbose
-# output, every bound witness (its label) and its strength (§1.3).
-# (Scoped to verbose output, 2026-07-27: a run at real scale
+# output, every bound witness (its label) and its strength ([§1.3](#provenance)).
+# Verbose-gated because a run at real scale
 # discharges hundreds of pairs, and naming every witness for each of
 # them by default would bury the failure reports this check exists
-# to surface. Failure output is never verbose-gated.)
+# to surface; failure output is never verbose-gated.
 # For every pair that fails because a bound witness did not execute
 # the implementation (W1's universal clause), the output MUST list
 # **every** bound witness with its per-witness result
@@ -15,8 +15,9 @@ target = "design/witness/spec.md#verdict-output"
 # so the failing claim is identifiable —
 # the engine computes all of these to evaluate the verdict,
 # and the disagreement MUST never be silent
-# (decisions.md, Decision 14; legibility improvements are tracked
-# as Open Question 2 and never weaken the verdict).
+# (decisions.md, [Decision 14](decisions.md#decision-14);
+# legibility improvements are tracked in
+# [Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
 # For every unwitnessed test annotation (W6), the output MUST
 # identify the annotation and state that no configured producer
 # yielded a witness for it.
@@ -27,13 +28,12 @@ target = "design/witness/spec.md#verdict-output"
 level = "MUST"
 quote = '''
 For every discharged pair, the output MUST name, in verbose
-output, every bound witness (its label) and its strength (§1.3).
+output, every bound witness (its label) and its strength ([§1.3](#provenance)).
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-Failure output is never verbose-gated.)
 For every pair that fails because a bound witness did not execute
 the implementation (W1's universal clause), the output MUST list
 **every** bound witness with its per-witness result
@@ -41,8 +41,9 @@ the implementation (W1's universal clause), the output MUST list
 so the failing claim is identifiable —
 the engine computes all of these to evaluate the verdict,
 and the disagreement MUST never be silent
-(decisions.md, Decision 14; legibility improvements are tracked
-as Open Question 2 and never weaken the verdict).
+(decisions.md, [Decision 14](decisions.md#decision-14);
+legibility improvements are tracked in
+[Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
 '''
 
 [[spec]]

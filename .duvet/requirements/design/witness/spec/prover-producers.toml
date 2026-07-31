@@ -1,0 +1,26 @@
+target = "design/witness/spec.md#prover-producers"
+
+# 5. Prover producers
+#
+# A prover producer turns one prover's artifact into witnesses.
+# Its requirements come in two layers: this section's, which are
+# artifact-independent, and a per-producer statement of how that
+# producer meets them ([§5.5](#verus-producer) for Verus).
+# Every prover producer owes its artifact an investigation before
+# it ships: the discharge-unit and closure granularity the artifact
+# demonstrably records — demonstrated by inspection of real
+# artifacts, not assumed — MUST be established and consumed as that
+# producer's shipped floor
+# (decisions.md, [Decision 17](decisions.md#decision-17)).
+
+[[spec]]
+level = "MUST"
+quote = '''
+Every prover producer owes its artifact an investigation before
+it ships: the discharge-unit and closure granularity the artifact
+demonstrably records — demonstrated by inspection of real
+artifacts, not assumed — MUST be established and consumed as that
+producer's shipped floor
+(decisions.md, [Decision 17](decisions.md#decision-17)).
+'''
+

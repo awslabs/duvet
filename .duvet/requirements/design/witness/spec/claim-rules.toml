@@ -19,26 +19,40 @@ target = "design/witness/spec.md#claim-rules"
 # annotation) binds no ByRootSpan witness —
 # empty-target containment MUST NOT bind vacuously.
 # (Resolution yields at most one target line in the current model,
-# so containment is membership of that single line;
-# found during Phase 4 formalization, 2026-07-27.)
+# so containment is membership of that single line.)
 # 
 # `ByExecution` is the runtime rule:
 # the report cannot record which test produced it,
 # so the test claims the witness by evidence —
 # its own lines are executed in it.
-# This rule is sound only under witness individuation (§4.2).
+# This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
 # 
 # `ByRootSpan` is the prover rule:
 # the witness was constructed from the annotation's own position
-# (§5), so ownership is positional and holds by construction.
-# Positional comparison requires file identity: if the engine's
-# path-matching relation associates an annotation's file with more
-# than one witness file (or one witness file with more than one
-# source file), the engine MUST refuse the bind and report the
-# ambiguity rather than select — the same posture the producer takes
-# when translating positions into artifact coordinates.
+# ([§5](#prover-producers)), so ownership is positional and holds by
+# construction — binding is a function of the root span alone,
+# never of the witness's maps
+# ([Property W7](#property-w7-positional-binding-map-independence)).
+# 
+# Positional comparison presupposes **file identity**: before any
+# line of w's root span is compared with T's resolved target, the
+# engine must resolve which project file the witness's recorded
+# path refers to — and a recorded path can collide with several
+# project files (the witness says `src/x.rs`; the project contains
+# both `/a/src/x.rs` and `/b/src/x.rs`).
+# If the engine's path-matching relation associates an annotation's
+# file with more than one witness file (or one witness file with
+# more than one source file), the engine MUST refuse the bind and
+# report the ambiguity rather than select — the same posture the
+# producer takes when translating positions into artifact
+# coordinates.
+# The refused ambiguity is file identity and nothing else:
+# a position rooting several obligations yields several witnesses
+# ([§5.3](#discharge-unit), one per obligation), and a closure
+# spanning several files is one witness with several per-file maps —
+# neither is ambiguous, and neither is refused.
 # Suffix matching that silently crosses two files ending in the same
-# path is a G1 (file-identity injectivity, §4.4) violation and can
+# path is a G1 (file-identity injectivity, [§4.4](#engine-glue)) violation and can
 # manufacture both false failures and, when closures overlap, false
 # discharges.
 
@@ -53,11 +67,11 @@ empty-target containment MUST NOT bind vacuously.
 [[spec]]
 level = "MUST"
 quote = '''
-Positional comparison requires file identity: if the engine's
-path-matching relation associates an annotation's file with more
-than one witness file (or one witness file with more than one
-source file), the engine MUST refuse the bind and report the
-ambiguity rather than select — the same posture the producer takes
-when translating positions into artifact coordinates.
+If the engine's path-matching relation associates an annotation's
+file with more than one witness file (or one witness file with
+more than one source file), the engine MUST refuse the bind and
+report the ambiguity rather than select — the same posture the
+producer takes when translating positions into artifact
+coordinates.
 '''
 

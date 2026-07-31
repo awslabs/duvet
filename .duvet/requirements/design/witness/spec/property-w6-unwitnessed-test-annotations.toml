@@ -14,9 +14,7 @@ target = "design/witness/spec.md#property-w6-unwitnessed-test-annotations"
 # Consequence (intended): running a subset of producers MAY fail a
 # test annotation that the full set passes;
 # that behavior is correct
-# (decisions.md, Decision 8).
-# 
-# ---
+# (decisions.md, [Decision 8](decisions.md#decision-8)).
 
 [[spec]]
 level = "MUST"
@@ -33,6 +31,6 @@ quote = '''
 Consequence (intended): running a subset of producers MAY fail a
 test annotation that the full set passes;
 that behavior is correct
-(decisions.md, Decision 8).
+(decisions.md, [Decision 8](decisions.md#decision-8)).
 '''
 

@@ -4,8 +4,8 @@ target = "design/witness/spec.md#verus-producer"
 #
 # Grounded empirically (2026-07-26, Verus 0.2026.05.24.ecee80a,
 # `cargo verus build -p duvet-coverage -- --log vir-sst`;
-# artifact granularity investigation and solver-replay spike
-# concluded 2026-07-29):
+# artifact granularity investigation and solver-replay spike,
+# 2026-07-29):
 # 
 # - The artifact is per-module `*-sst.vir` S-expression files.
 #   Top-level `FunctionSst` blocks carry a fully-qualified name
@@ -14,8 +14,24 @@ target = "design/witness/spec.md#verus-producer"
 # - Cross-obligation references appear as symbolic
 #   `(Fun :path ...)` forms, not inlined spans — these are the
 #   edges. A flat span inventory of one block covers essentially
-#   only its own extent, which is why §5.2's parse-into-structure
-#   requirement is a MUST and not an optimization.
+#   only its own extent, so the Verus producer MUST parse its
+#   artifact once into a structure of obligation nodes and
+#   reference edges and derive everything else from that
+#   structure — parse-into-structure is a MUST, not an
+#   optimization.
+# - Construction ([§5.2](#two-pass-construction)) is two-pass over
+#   that structure.
+#   Pass 1 (liveness) projects an *aggregate executability map* —
+#   every line the verifier elaborated — and runs the existing
+#   resolve/classify/score machinery over it to determine which
+#   witnessable annotations are live.
+#   Pass 2 (construction) re-interrogates the structure per live
+#   annotation: discharge units, closures, witnesses.
+# - The aggregate executability map MUST NOT be delivered as a
+#   witness: it is many obligations wearing one map, and delivering
+#   it would violate [§4.2](#obligation-individuation) by
+#   construction; it exists only as pass-1 scaffolding inside the
+#   producer.
 # - Sub-function structure carries per-unit spans: `:enss` clause
 #   lists (one span per ensures clause), `LoopInv` nodes, and
 #   proof-assert spans. Clause-level discharge units are the
@@ -27,15 +43,17 @@ target = "design/witness/spec.md#verus-producer"
 #   assumed at every call site. Per-clause needed sets exist only
 #   at the solver level (recoverable by z3 replay with cores —
 #   demonstrated, and deliberately not consumed; decisions.md,
-#   Decision 7).
+#   [Decision 7](decisions.md#decision-7)).
 # - The Verus producer MUST treat `FunctionSst` blocks as closure
 #   nodes and `Fun :path` references as edges, and MUST support
 #   discharge units of all four kinds: obligation extents,
 #   `:enss` clause spans, `LoopInv` spans, and proof-assert spans
 #   (decisions.md, Decision 18).
-#   Rooting is most-specific-wins (§5.3, Decision 19);
+#   Rooting is most-specific-wins ([§5.3](#discharge-unit),
+#   [Decision 19](decisions.md#decision-19));
 #   ties at one specificity level yield all owners
-#   (Decisions 12 and 13).
+#   ([Decision 12](decisions.md#decision-12) and
+#   [Decision 13](decisions.md#decision-13)).
 #   Own-span (body-line) ownership is NOT attribution:
 #   executable body lines are outside `dom(du)`.
 #   Loop header lines are excluded from `dom(du)` initially
@@ -53,8 +71,21 @@ target = "design/witness/spec.md#verus-producer"
 level = "MUST"
 quote = '''
 A flat span inventory of one block covers essentially
-only its own extent, which is why §5.2's parse-into-structure
-requirement is a MUST and not an optimization.
+only its own extent, so the Verus producer MUST parse its
+artifact once into a structure of obligation nodes and
+reference edges and derive everything else from that
+structure — parse-into-structure is a MUST, not an
+optimization.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- The aggregate executability map MUST NOT be delivered as a
+witness: it is many obligations wearing one map, and delivering
+it would violate [§4.2](#obligation-individuation) by
+construction; it exists only as pass-1 scaffolding inside the
+producer.
 '''
 
 [[spec]]

@@ -22,7 +22,7 @@ target = "design/witness/spec.md#witness"
 # under the producer's reachability relation
 # (execution for runtime producers,
 # obligation-graph closure for prover producers).
-# Closedness is a producer obligation (§4.1);
+# Closedness is a producer obligation ([§4.1](#obligation-closedness));
 # the engine never learns how it was achieved.
 
 [[spec]]

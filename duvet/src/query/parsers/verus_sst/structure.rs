@@ -3,7 +3,7 @@
 
 //! Obligation structure extracted from parsed SST logs.
 //!
-//! Per `design/witness/spec.md` §5.2, the parser MUST emit
+//! Per `design/witness/spec.md` §5.5, the parser MUST emit
 //! *structure* — obligation nodes and reference edges — not just a
 //! flat span map. Pass 1 (aggregate executability map) and pass 2
 //! (per-discharge-unit closure) are both projections of the

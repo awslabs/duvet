@@ -6,7 +6,8 @@ target = "design/witness/spec.md#annotations"
 # **I** denotes a `type=implementation` annotation,
 # each resolved to the source lines it governs by the coverage
 # model's target resolution
-# (coverage-model-spec §2, including the degraded path).
+# ([coverage-model-spec §2](../query/coverage-model-spec.md#annotation-target-resolution),
+# including the degraded path).
 # Nothing in this specification depends on *how* resolution happens,
 # only that every annotation has a resolved target.
 # Placement note (degraded files): in a file with no language
@@ -16,7 +17,7 @@ target = "design/witness/spec.md#annotations"
 # targets; an intervening ordinary comment (e.g. a doc comment between
 # the annotation and a proof fn header) becomes the resolved target
 # itself, which a prover producer sees as an unelaborated position
-# (Property W6).
+# ([Property W6](#property-w6-unwitnessed-test-annotations)).
 
 [[spec]]
 level = "MUST"

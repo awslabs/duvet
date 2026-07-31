@@ -2,7 +2,7 @@ target = "design/witness/spec.md#producer-obligations"
 
 # 4. Producer obligations and trusted base
 #
-# The engine properties in §2 hold only relative to the following
+# The engine properties in [§2](#engine-properties) hold only relative to the following
 # producer obligations.
 # Where an obligation cannot be proven, it is a **named axiom** of
 # the trusted base and MUST be recorded as such.
@@ -10,9 +10,9 @@ target = "design/witness/spec.md#producer-obligations"
 # One invariant frames all of them:
 # **producers deliver facts and never render verdicts.**
 # Delivering zero witnesses for an annotation is a fact
-# (possibly with a reason attached, §5.2's not-proof-testable),
-# not a failure; every failure — unwitnessed (W6),
-# undischarged (W1) — is an engine verdict over the delivered set.
+# (possibly with a reason attached, [§5.2](#two-pass-construction)'s not-proof-testable),
+# not a failure; every failure — unwitnessed ([W6](#property-w6-unwitnessed-test-annotations)),
+# undischarged ([W1](#property-w1-same-witness-discharge)) — is an engine verdict over the delivered set.
 
 [[spec]]
 level = "MUST"

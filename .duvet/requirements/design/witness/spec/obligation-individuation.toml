@@ -9,8 +9,8 @@ target = "design/witness/spec.md#obligation-individuation"
 #   responsibility — one instrumented run per test.
 #   The artifact does not record how it was produced,
 #   so duvet does not attempt detection
-#   (decisions.md, Decision 11). **Axiom.**
-# - Prover producers: individuation holds by construction (§5);
+#   (decisions.md, [Decision 11](decisions.md#decision-11)). **Axiom.**
+# - Prover producers: individuation holds by construction ([§5](#prover-producers));
 #   no axiom needed.
 
 [[spec]]
