@@ -756,3 +756,209 @@ fn every_constructed_witness_contains_its_own_root_span() {
         }
     }
 }
+
+// ---------------------------------------------------------------
+// Integration-toml fixture parity (the embedded-copy divergence
+// class)
+// ---------------------------------------------------------------
+
+/// Extracts the embedded `vacuity.rs` virtual-file contents from an
+/// integration toml. String-based on purpose: the duvet crate has no
+/// TOML dependency, and the tomls under `integration/` are our own,
+/// with a fixed shape (no escape sequences inside the block).
+fn embedded_vacuity<'a>(toml_text: &'a str, toml_name: &str) -> Vec<&'a str> {
+    let marker = "path = \"vacuity.rs\"";
+    let start = toml_text
+        .find(marker)
+        .unwrap_or_else(|| panic!("{toml_name}: no vacuity.rs virtual file"));
+    let open = "contents = \"\"\"\n";
+    let start = toml_text[start..]
+        .find(open)
+        .map(|i| start + i + open.len())
+        .unwrap_or_else(|| panic!("{toml_name}: vacuity.rs entry has no contents block"));
+    let end = toml_text[start..]
+        .find("\"\"\"")
+        .map(|i| start + i)
+        .unwrap_or_else(|| panic!("{toml_name}: unterminated contents block"));
+    toml_text[start..end].lines().collect()
+}
+
+/// Duvet-annotation runs in an embedded source and the code line each
+/// one resolves to: a run is a maximal block of `//=`/`//#` lines; the
+/// target is the first non-comment line after it (plain `//` filler
+/// lines are skipped, matching duvet's resolution).
+fn annotation_targets(lines: &[&str]) -> BTreeSet<u32> {
+    let is_annotation = |l: &str| {
+        let l = l.trim_start();
+        l.starts_with("//=") || l.starts_with("//#")
+    };
+    let mut targets = BTreeSet::new();
+    let mut i = 0;
+    while i < lines.len() {
+        if is_annotation(lines[i]) {
+            while i < lines.len() && is_annotation(lines[i]) {
+                i += 1;
+            }
+            while i < lines.len() && lines[i].trim_start().starts_with("//") {
+                i += 1;
+            }
+            if i < lines.len() {
+                targets.insert(i as u32 + 1);
+            }
+        } else {
+            i += 1;
+        }
+    }
+    targets
+}
+
+#[test]
+fn integration_tomls_embed_line_true_copies_of_the_fixture() {
+    // The witness integration tomls embed copies of the vacuity
+    // fixture's source with line-count-preserving annotation swaps,
+    // because the checked-in SST log's spans are line-keyed against
+    // testdata/vacuity/vacuity.rs. The duplication is a divergence
+    // class: regenerating the fixture shifts every span and silently
+    // strands the embedded annotations on unrooted lines — the
+    // integration snapshots then fail with a cryptic verdict diff
+    // (this broke PR #247's CI when the fixture gained its copyright
+    // header and scenario D). This test pins the class in the unit
+    // suite, where the failure message says exactly what drifted:
+    //
+    //   1. line-count parity between each embedded copy and the
+    //      fixture;
+    //   2. every embedded line is byte-identical to the fixture's
+    //      same-numbered line, or is a comment line (the only legal
+    //      swap);
+    //   3. the embedded annotations resolve to exactly the target
+    //      lines each toml's documented intent names, those targets
+    //      carry the same code as the fixture, and the SST classifies
+    //      each one as the toml expects (rooted binder, closure
+    //      membership, or not-proof-testable).
+    enum Expect {
+        /// Test-annotation target: binds exactly this witness.
+        RootedWitness(&'static str),
+        /// Impl-annotation target: credited by this unit's closure.
+        InClosureOf(&'static str),
+        /// Test-annotation target on an executable body line.
+        NotProofTestable,
+    }
+    use Expect::*;
+
+    let common: &[(u32, &str, Expect)] = &[
+        (
+            9,
+            "pub open spec fn spec_add_one",
+            InClosureOf("vacuity::honest_proof"),
+        ),
+        (
+            24,
+            "pub proof fn honest_proof",
+            RootedWitness("vacuity::honest_proof"),
+        ),
+    ];
+    let npt_only: &[(u32, &str, Expect)] = &[
+        (
+            32,
+            "pub proof fn vacuous_proof(",
+            InClosureOf("vacuity::vacuous_proof"),
+        ),
+        (
+            54,
+            "pub fn self_contained",
+            RootedWitness("vacuity::self_contained"),
+        ),
+        (57, "    let y = x;", NotProofTestable),
+    ];
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let fixture = std::fs::read_to_string(
+        root.join("src/query/parsers/verus_sst/testdata/vacuity/vacuity.rs"),
+    )
+    .expect("fixture source must be readable");
+    let fixture: Vec<&str> = fixture.lines().collect();
+    let g = vacuity();
+
+    for (name, extra) in [
+        ("query-witness-mixed-producers", false),
+        ("query-witness-verus-discharge", false),
+        ("query-witness-not-proof-testable", true),
+    ] {
+        let toml_path = root.join(format!("../integration/{name}.toml"));
+        let toml_text = std::fs::read_to_string(&toml_path)
+            .unwrap_or_else(|e| panic!("{}: {e}", toml_path.display()));
+        let embedded = embedded_vacuity(&toml_text, name);
+
+        assert_eq!(
+            embedded.len(),
+            fixture.len(),
+            "{name}: embedded vacuity.rs lost line-count parity with the \
+             fixture — its annotations no longer land where the SST's \
+             spans root; re-author the embedded copy against the current \
+             fixture layout"
+        );
+        for (i, (e, f)) in embedded.iter().zip(fixture.iter()).enumerate() {
+            assert!(
+                e == f || e.trim_start().starts_with("//"),
+                "{name}: line {}: embedded copy diverges from the fixture \
+                 with non-comment content\n  embedded: {e}\n  fixture:  {f}",
+                i + 1
+            );
+        }
+
+        let expectations = common.iter().chain(if extra { npt_only } else { &[] });
+        let expected_targets: BTreeSet<u32> = common
+            .iter()
+            .chain(if extra { npt_only } else { &[] })
+            .map(|(line, ..)| *line)
+            .collect();
+        assert_eq!(
+            annotation_targets(&embedded),
+            expected_targets,
+            "{name}: the embedded annotations do not resolve to the target \
+             lines the toml's intent documents"
+        );
+
+        for (line, prefix, expect) in expectations {
+            let idx = (*line - 1) as usize;
+            assert_eq!(
+                embedded[idx], fixture[idx],
+                "{name}: target line {line} differs from the fixture"
+            );
+            assert!(
+                embedded[idx].starts_with(prefix),
+                "{name}: target line {line} is not the intended code: \
+                 {:?} (expected prefix {prefix:?})",
+                embedded[idx]
+            );
+            match expect {
+                RootedWitness(label) => {
+                    let ws = construct_witnesses(g, "vacuity.rs", *line, "guard", vacuity_file);
+                    let [w] = ws.as_slice() else {
+                        panic!(
+                            "{name}: line {line}: expected exactly one \
+                             witness, got {}",
+                            ws.len()
+                        )
+                    };
+                    assert_eq!(w.label, *label, "{name}: line {line} binder");
+                }
+                InClosureOf(unit) => {
+                    let c = closure(g, unit, vacuity_file).unwrap();
+                    assert!(
+                        lines(&c).contains(line),
+                        "{name}: line {line} is no longer in {unit}'s \
+                         closure — the impl side of the pair is stranded"
+                    );
+                }
+                NotProofTestable => {
+                    assert_eq!(
+                        classify_position(g, "vacuity.rs", *line),
+                        PositionKind::NotProofTestable,
+                        "{name}: line {line} must be not-proof-testable"
+                    );
+                }
+            }
+        }
+    }
+}

@@ -13,17 +13,26 @@ report_output = false
 # regenerate testdata/vacuity, this test fails loudly; keep the annotation
 # swap line-for-line (2 comment lines -> 2-line impl annotation, 3 comment
 # lines -> 3-line test annotation) so every span still points at the same
-# code.
+# code. The producer unit test
+# integration_tomls_embed_line_true_copies_of_the_fixture
+# (verus_sst/tests.rs) pins this parity and fails first, with a precise
+# message, when the fixture and the embedded copies drift.
 #
 # The test annotation's resolved target is honest_proof's signature line
-# (22), which is exactly the obligation's (signature-only) extent, so the
+# (24), which is exactly the obligation's (signature-only) extent, so the
 # witness binds ByRootSpan. honest_proof's ensures references spec_add_one,
-# so the obligation-graph closure reaches spec_add_one's spans (line 7),
+# so the obligation-graph closure reaches spec_add_one's spans (line 9),
 # where the implementation annotation resolves: one single witness saw both
 # sides, and the pair is discharged at strength CONSULTED (Decision 7) by a
 # proof that executed nothing. The verbose verdict must name the
 # discharging witness: "discharged by vacuity::honest_proof (consulted)"
 # (spec §3).
+#
+# Note: since Decision 18, honest_proof's ensures line (25) roots its own
+# clause unit, so an annotation there would exercise a clause-rooted
+# discharge ("vacuity::honest_proof ensures[0]"). This test deliberately
+# stays on the signature extent — clause-grain rooting is pinned by the
+# producer unit tests (verus_sst/tests.rs, scenario_3 and the labels test).
 [[file]]
 path = ".duvet/config.toml"
 contents = """
@@ -39,6 +48,8 @@ source = "spec.md"
 [[file]]
 path = "vacuity.rs"
 contents = """
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 use vstd::prelude::*;
 
 verus! {
@@ -95,6 +106,32 @@ pub fn self_contained(x: u32) -> (r: u32)
 {
     let y = x;
     y
+}
+
+// ---- Scenario D: unit labels from the artifact ----------------------
+// A loop with a proof_note'd invariant and a proof_note'd assert,
+// plus unnoted siblings. Pins Decision 20 label extraction:
+// ProofNoteLabel text when recorded, span identity otherwise.
+pub fn noted_loop(n: u32) -> (r: u32)
+    requires n <= 100,
+    ensures r <= 100,
+{
+    let mut i: u32 = 0;
+    while i < n
+        invariant
+            #[verifier::proof_note("i stays bounded")]
+            i <= n,
+            n <= 100,
+        decreases n - i,
+    {
+        i = i + 1;
+    }
+    proof {
+        #[verifier::proof_note("loop exit bound")]
+        assert(i <= 100);
+        assert(i >= 0);
+    }
+    i
 }
 
 } // verus!

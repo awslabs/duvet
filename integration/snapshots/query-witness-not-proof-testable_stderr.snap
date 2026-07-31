@@ -28,12 +28,12 @@ Coverage: ✗ FAIL
   Unwitnessed tests: 1
 
   × Unwitnessed test annotation
-    ╭─[vacuity.rs:53:5]
- 52 │ pub fn self_contained(x: u32) -> (r: u32)
- 53 │ //= spec.md#body
+    ╭─[vacuity.rs:55:5]
+ 54 │ pub fn self_contained(x: u32) -> (r: u32)
+ 55 │ //= spec.md#body
     ·     ──────┬─────
     ·           ╰── Not proof-testable test target
- 54 │ //= type=test
+ 56 │ //= type=test
     ╰────
   help: A prover elaborated this annotation's target, but this position
         carries no dischargeable obligation; it can only be witnessed by an
@@ -44,13 +44,13 @@ Coverage: ✗ FAIL
 
 
   × Failed correlation
-    ╭─[vacuity.rs:49:5]
- 48 │     //
- 49 │ ╭─▶ //= spec.md#add-one
- 50 │ │   //= type=test
- 51 │ ├─▶ //# Adding one MUST produce the successor
+    ╭─[vacuity.rs:51:5]
+ 50 │     //
+ 51 │ ╭─▶ //= spec.md#add-one
+ 52 │ │   //= type=test
+ 53 │ ├─▶ //# Adding one MUST produce the successor
     · ╰──── Executed test
- 52 │     pub fn self_contained(x: u32) -> (r: u32)
+ 54 │     pub fn self_contained(x: u32) -> (r: u32)
     ╰────
   help: Every witness bound to this test, with its per-witness result (a pair
         is discharged only when ALL bound witnesses executed the
@@ -61,24 +61,24 @@ Coverage: ✗ FAIL
 Advice: 
   ☞ Related context for:
   │  Failed correlation
-   ╭─[vacuity.rs:5:5]
- 4 │     
- 5 │ ╭─▶ //= spec.md#add-one
- 6 │ ├─▶ //# Adding one MUST produce the successor
+   ╭─[vacuity.rs:7:5]
+ 6 │     
+ 7 │ ╭─▶ //= spec.md#add-one
+ 8 │ ├─▶ //# Adding one MUST produce the successor
    · ╰──── Not executed because of an unknown not executable line.
- 7 │     pub open spec fn spec_add_one(x: int) -> int {
+ 9 │     pub open spec fn spec_add_one(x: int) -> int {
    ╰────
 
 Advice: 
   ☞ Related context for:
   │  Failed correlation
-   ╭─[vacuity.rs:7:1]
- 6 │ //# Adding one MUST produce the successor
- 7 │ pub open spec fn spec_add_one(x: int) -> int {
-   · ───────────────────────┬──────────────────────
-   ·                        ╰── Problematic line
- 8 │     x + 1
-   ╰────
+    ╭─[vacuity.rs:9:1]
+  8 │ //# Adding one MUST produce the successor
+  9 │ pub open spec fn spec_add_one(x: int) -> int {
+    · ───────────────────────┬──────────────────────
+    ·                        ╰── Problematic line
+ 10 │     x + 1
+    ╰────
 
 
 

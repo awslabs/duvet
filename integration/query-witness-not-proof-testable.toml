@@ -9,19 +9,21 @@ report_output = false
 # Proof-only run over the checked-in SST golden fixture. Two test
 # annotations sit on `self_contained`:
 #
-#   - line 49 (the fn header): rooted — `vacuity::self_contained` is its
-#     discharge unit, so it binds that witness positionally and the pair
-#     fails honestly (the closure never reaches `add_one`).
-#   - line 53 (a body line, `let y = x;` under the annotation): the
-#     prover ELABORATED that line — it is inside the bound-elsewhere
-#     witness's closure, so the test's own lines score Executed — but no
-#     obligation is rooted there, so NO witness binds it (binding for
-#     ByRootSpan is positional, spec §1.5). Executed-yet-unbound is
-#     exactly the state the old `unreachable!("an executed test is
-#     bound")` arm in result.rs declared impossible: that comment encoded
-#     ByExecution logic (executed ⟹ bound), false for ByRootSpan.
+#   - the annotation at lines 51-53, targeting the fn header (line 54):
+#     rooted — `vacuity::self_contained` is its discharge unit, so it
+#     binds that witness positionally and the pair fails honestly (the
+#     closure never reaches `add_one`).
+#   - the annotation at lines 55-56, targeting a body line (57, `let y =
+#     x;` under the annotation): the prover ELABORATED that line — it is
+#     inside the bound-elsewhere witness's closure, so the test's own
+#     lines score Executed — but no obligation is rooted there, so NO
+#     witness binds it (binding for ByRootSpan is positional, spec §1.5).
+#     Executed-yet-unbound is exactly the state the old `unreachable!("an
+#     executed test is bound")` arm in result.rs declared impossible: that
+#     comment encoded ByExecution logic (executed ⟹ bound), false for
+#     ByRootSpan.
 #
-# The verdict for line 53's annotation is still W6-unwitnessed (FAIL) —
+# The verdict for the body-line annotation is still W6-unwitnessed (FAIL) —
 # only the report is refined: it must carry the producer's
 # not-proof-testable fact, verbatim ("this position carries no
 # dischargeable obligation; it can only be witnessed by an
@@ -47,6 +49,8 @@ source = "spec.md"
 [[file]]
 path = "vacuity.rs"
 contents = """
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 use vstd::prelude::*;
 
 verus! {
@@ -103,6 +107,32 @@ pub fn self_contained(x: u32) -> (r: u32)
 //= type=test
     let y = x;
     y
+}
+
+// ---- Scenario D: unit labels from the artifact ----------------------
+// A loop with a proof_note'd invariant and a proof_note'd assert,
+// plus unnoted siblings. Pins Decision 20 label extraction:
+// ProofNoteLabel text when recorded, span identity otherwise.
+pub fn noted_loop(n: u32) -> (r: u32)
+    requires n <= 100,
+    ensures r <= 100,
+{
+    let mut i: u32 = 0;
+    while i < n
+        invariant
+            #[verifier::proof_note("i stays bounded")]
+            i <= n,
+            n <= 100,
+        decreases n - i,
+    {
+        i = i + 1;
+    }
+    proof {
+        #[verifier::proof_note("loop exit bound")]
+        assert(i <= 100);
+        assert(i >= 0);
+    }
+    i
 }
 
 } // verus!

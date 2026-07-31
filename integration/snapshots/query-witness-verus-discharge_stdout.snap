@@ -31,25 +31,25 @@ Coverage: ✓ PASS
   Unwitnessed tests: 0
 
   ☞ Successful correlation
-    ╭─[vacuity.rs:19:5]
- 18 │     
- 19 │ ╭─▶ //= spec.md#add-one
- 20 │ │   //= type=test
- 21 │ ├─▶ //# Adding one MUST produce the successor
+    ╭─[vacuity.rs:21:5]
+ 20 │     
+ 21 │ ╭─▶ //= spec.md#add-one
+ 22 │ │   //= type=test
+ 23 │ ├─▶ //# Adding one MUST produce the successor
     · ╰──── Test annotation
- 22 │     pub proof fn honest_proof()
+ 24 │     pub proof fn honest_proof()
     ╰────
   help: discharged by vacuity::honest_proof (consulted)
 
 Advice: 
   ☞ Related context for:
   │  Successful correlation
-   ╭─[vacuity.rs:5:5]
- 4 │     
- 5 │ ╭─▶ //= spec.md#add-one
- 6 │ ├─▶ //# Adding one MUST produce the successor
+   ╭─[vacuity.rs:7:5]
+ 6 │     
+ 7 │ ╭─▶ //= spec.md#add-one
+ 8 │ ├─▶ //# Adding one MUST produce the successor
    · ╰──── Executed implementation
- 7 │     pub open spec fn spec_add_one(x: int) -> int {
+ 9 │     pub open spec fn spec_add_one(x: int) -> int {
    ╰────
 
   ☞ Executed annotations
@@ -57,24 +57,24 @@ Advice:
 Advice: 
   ☞ Related context for:
   │  Executed annotations
-    ╭─[vacuity.rs:19:5]
- 18 │     
- 19 │ ╭─▶ //= spec.md#add-one
- 20 │ │   //= type=test
- 21 │ ├─▶ //# Adding one MUST produce the successor
+    ╭─[vacuity.rs:21:5]
+ 20 │     
+ 21 │ ╭─▶ //= spec.md#add-one
+ 22 │ │   //= type=test
+ 23 │ ├─▶ //# Adding one MUST produce the successor
     · ╰──── Executed test
- 22 │     pub proof fn honest_proof()
+ 24 │     pub proof fn honest_proof()
     ╰────
 
 Advice: 
   ☞ Related context for:
   │  Executed annotations
-   ╭─[vacuity.rs:5:5]
- 4 │     
- 5 │ ╭─▶ //= spec.md#add-one
- 6 │ ├─▶ //# Adding one MUST produce the successor
+   ╭─[vacuity.rs:7:5]
+ 6 │     
+ 7 │ ╭─▶ //= spec.md#add-one
+ 8 │ ├─▶ //# Adding one MUST produce the successor
    · ╰──── Executed implementation
- 7 │     pub open spec fn spec_add_one(x: int) -> int {
+ 9 │     pub open spec fn spec_add_one(x: int) -> int {
    ╰────
 
 
