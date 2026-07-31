@@ -220,6 +220,12 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
                 t,
             )),
 {
+    //= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
+    //= type=implementation
+    //# The implementation MUST prove that the computed closure of a
+    //# discharge unit's root is exactly the downward-reachable set of the
+    //# obligation graph — the least fixpoint of the edge relation
+    //# containing the root:
     let n = g.len();
     let mut reached: Vec<bool> = Vec::new();
     let mut i: usize = 0;
@@ -352,6 +358,233 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
         }
     }
     reached
+}
+
+// ---------------------------------------------------------------------------
+// Property P2: Most-Specific-Wins Rooting
+// ---------------------------------------------------------------------------
+
+/// A discharge-unit candidate in the verified model: its span in
+/// model coordinates (opaque file id — PG1/PG3) plus its
+/// specificity level. Two levels exist (spec.md §5.3): clause-kind
+/// units (ensures clauses, loop invariants, proof asserts) are
+/// finer; obligation extents are the fallback.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnitSpan {
+    pub file_id: u64,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub is_clause: bool,
+}
+
+/// Named precondition: every unit's span is a non-empty line range.
+/// The adapter's obligation (the artifact's spans satisfy it by
+/// parsing; the golden corpus is the check).
+pub open spec fn units_wf(units: Seq<UnitSpan>) -> bool {
+    forall|i: int| 0 <= i < units.len() ==> (#[trigger] units[i]).start_line <= units[i].end_line
+}
+
+/// Spec: the unit's span contains the position (inclusive range,
+/// same file).
+pub open spec fn unit_contains(u: UnitSpan, file_id: u64, line: u32) -> bool {
+    u.file_id == file_id && u.start_line <= line <= u.end_line
+}
+
+/// Spec: extent size in lines.
+pub open spec fn unit_line_count(u: UnitSpan) -> int {
+    u.end_line - u.start_line + 1
+}
+
+/// Spec: some clause-kind unit contains the position — the finest
+/// populated specificity level is then the clause level, and extent
+/// units never apply.
+pub open spec fn clause_level_populated(units: Seq<UnitSpan>, file_id: u64, line: u32) -> bool {
+    exists|j: int|
+        0 <= j < units.len() && (#[trigger] units[j]).is_clause && unit_contains(
+            units[j],
+            file_id,
+            line,
+        )
+}
+
+/// Spec: unit `i` is selected for the position — it contains the
+/// position, sits at the finest populated specificity level, and no
+/// containing unit at that level has a strictly smaller extent.
+/// This is the definitional right-hand side of Property P2.
+//= design/witness/producer-core-spec.md#property-p2-most-specific-wins
+//= type=implementation
+//# Consequences the proof MUST deliver: every selected unit contains
+//# the position; no containing unit at a strictly finer specificity
+//# level exists when an extent-level unit is selected; and ties at the
+//# winning level and minimal extent are all selected — never chosen
+//# among (decisions.md, [Decision 12](decisions.md#decision-12)).
+pub open spec fn selected(units: Seq<UnitSpan>, file_id: u64, line: u32, i: int) -> bool {
+    &&& 0 <= i < units.len()
+    &&& unit_contains(units[i], file_id, line)
+    &&& (units[i].is_clause <==> clause_level_populated(units, file_id, line))
+    &&& forall|j: int|
+        0 <= j < units.len() && unit_contains(#[trigger] units[j], file_id, line)
+            && units[j].is_clause == units[i].is_clause ==> unit_line_count(units[i])
+            <= unit_line_count(units[j])
+}
+
+/// Property P2: the selection mask marks exactly the most-specific
+/// containing units.
+///
+/// Proof shape: pass 1 decides the winning specificity level
+/// (clause iff any clause-kind unit contains the position); pass 2
+/// computes the minimal extent among containing units at that
+/// level; pass 3 marks exactly the containing units at the winning
+/// level achieving the minimum. A unit is `selected` iff it
+/// survives all three, and minimality-as-equality-with-the-minimum
+/// coincides with minimality-against-all because pass 2's minimum
+/// is both achieved and a lower bound.
+//
+// Placement: the annotation block is the LAST comment block before
+// the fn header so its resolved target is the header.
+//= design/witness/producer-core-spec.md#property-p2-most-specific-wins
+//= type=test
+//# The implementation MUST prove that the units selected for a
+//# position are exactly the minimal-extent containing units at the
+//# finest populated specificity level
+pub fn select_units(units: &Vec<UnitSpan>, file_id: u64, line: u32) -> (sel: Vec<bool>)
+    requires
+        units_wf(units@),
+    ensures
+        sel@.len() == units@.len(),
+        forall|i: int|
+            0 <= i < units@.len() ==> (#[trigger] sel@[i] <==> selected(units@, file_id, line, i)),
+{
+    //= design/witness/producer-core-spec.md#property-p2-most-specific-wins
+    //= type=implementation
+    //# The implementation MUST prove that the units selected for a
+    //# position are exactly the minimal-extent containing units at the
+    //# finest populated specificity level
+    let n = units.len();
+
+    // Pass 1: the winning specificity level.
+    let mut clause_present = false;
+    let mut i: usize = 0;
+    while i < n
+        invariant
+            i <= n,
+            n == units@.len(),
+            units_wf(units@),
+            clause_present <==> exists|j: int|
+                0 <= j < i && (#[trigger] units@[j]).is_clause && unit_contains(
+                    units@[j],
+                    file_id,
+                    line,
+                ),
+        decreases n - i,
+    {
+        let u = &units[i];
+        if u.is_clause && u.file_id == file_id && u.start_line <= line && line <= u.end_line {
+            clause_present = true;
+        }
+        i = i + 1;
+    }
+
+    // Pass 2: the minimal extent among containing units at the
+    // winning level. `found` tracks whether any such unit exists.
+    let mut found = false;
+    let mut min_count: u64 = 0;
+    let mut i: usize = 0;
+    while i < n
+        invariant
+            i <= n,
+            n == units@.len(),
+            units_wf(units@),
+            clause_present <==> clause_level_populated(units@, file_id, line),
+            found <==> exists|j: int|
+                0 <= j < i && unit_contains(#[trigger] units@[j], file_id, line)
+                    && units@[j].is_clause == clause_present,
+            found ==> exists|j: int|
+                0 <= j < i && unit_contains(#[trigger] units@[j], file_id, line)
+                    && units@[j].is_clause == clause_present && unit_line_count(units@[j])
+                    == min_count,
+            found ==> forall|j: int|
+                0 <= j < i && unit_contains(#[trigger] units@[j], file_id, line)
+                    && units@[j].is_clause == clause_present ==> min_count <= unit_line_count(
+                    units@[j],
+                ),
+        decreases n - i,
+    {
+        let u = &units[i];
+        if u.file_id == file_id && u.start_line <= line && line <= u.end_line && u.is_clause
+            == clause_present {
+            let count = (u.end_line - u.start_line) as u64 + 1;
+            if !found || count < min_count {
+                min_count = count;
+                found = true;
+            }
+        }
+        i = i + 1;
+    }
+
+    // Pass 3: mark exactly the containing units at the winning
+    // level whose extent achieves the minimum.
+    let mut sel: Vec<bool> = Vec::new();
+    let mut i: usize = 0;
+    while i < n
+        invariant
+            i <= n,
+            n == units@.len(),
+            units_wf(units@),
+            sel@.len() == i,
+            clause_present <==> clause_level_populated(units@, file_id, line),
+            found <==> exists|j: int|
+                0 <= j < n && unit_contains(#[trigger] units@[j], file_id, line)
+                    && units@[j].is_clause == clause_present,
+            found ==> exists|j: int|
+                0 <= j < n && unit_contains(#[trigger] units@[j], file_id, line)
+                    && units@[j].is_clause == clause_present && unit_line_count(units@[j])
+                    == min_count,
+            found ==> forall|j: int|
+                0 <= j < n && unit_contains(#[trigger] units@[j], file_id, line)
+                    && units@[j].is_clause == clause_present ==> min_count <= unit_line_count(
+                    units@[j],
+                ),
+            forall|k: int|
+                0 <= k < i ==> (#[trigger] sel@[k] <==> selected(units@, file_id, line, k)),
+        decreases n - i,
+    {
+        let u = &units[i];
+        let mark = if u.file_id == file_id && u.start_line <= line && line <= u.end_line
+            && u.is_clause == clause_present {
+            let count = (u.end_line - u.start_line) as u64 + 1;
+            count == min_count
+        } else {
+            false
+        };
+        proof {
+            // Minimality-as-equality coincides with the spec's
+            // minimality-against-all: the minimum is a lower bound
+            // (pass 2's invariant) and unit i achieving it makes it
+            // minimal; conversely a minimal containing unit at the
+            // winning level achieves the minimum because the
+            // minimum is achieved by some containing unit.
+            if mark {
+                assert(selected(units@, file_id, line, i as int));
+            } else if unit_contains(units@[i as int], file_id, line) && units@[i as int].is_clause
+                == clause_present {
+                // Containing at the winning level, but not achieving
+                // the minimum: the achieving witness is strictly
+                // smaller, so unit i is not minimal.
+                let j0 = choose|j: int|
+                    0 <= j < n && unit_contains(#[trigger] units@[j], file_id, line)
+                        && units@[j].is_clause == clause_present && unit_line_count(units@[j])
+                        == min_count;
+                assert(unit_line_count(units@[j0]) < unit_line_count(units@[i as int]));
+                assert(!selected(units@, file_id, line, i as int));
+            } else {
+                assert(!selected(units@, file_id, line, i as int));
+            }
+        }
+        sel.push(mark);
+        i = i + 1;
+    }
+    sel
 }
 
 } // verus!

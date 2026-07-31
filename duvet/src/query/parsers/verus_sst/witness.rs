@@ -217,6 +217,16 @@ pub fn classify_position<'g>(
 /// fallback. Within the winning level, nesting resolves to the
 /// units of minimal line extent.
 ///
+/// The selection is the *verified* most-specific-wins rule
+/// (`duvet_coverage::producer_core::select_units`, Property P2 of
+/// design/witness/producer-core-spec.md). This function is the
+/// adapter (PG1/PG2/PG3): it interns file names to opaque ids,
+/// translates every discharge-unit candidate into the verified
+/// model in deterministic order, and materializes the units the
+/// verified mask marks. Inverted spans contain no line, so
+/// filtering them establishes the verified layer's `units_wf`
+/// precondition without changing the selection.
+///
 //= design/witness/spec.md#discharge-unit
 //= type=implementation
 //# When N obligations root a position at the chosen level, the
@@ -230,33 +240,48 @@ pub fn find_discharge_units<'g>(
     file: &str,
     line: u32,
 ) -> Vec<DischargeUnit<'g>> {
-    let minimal = |mut units: Vec<DischargeUnit<'g>>| -> Vec<DischargeUnit<'g>> {
-        let Some(min_size) = units.iter().map(|u| u.span.line_count()).min() else {
-            return Vec::new();
-        };
-        units.retain(|u| u.span.line_count() == min_size);
-        units
+    use duvet_coverage::producer_core::{select_units, UnitSpan};
+    use std::collections::BTreeMap;
+
+    let mut file_ids: BTreeMap<&'g str, u64> = BTreeMap::new();
+    let mut candidates: Vec<(&'g ObligationNode, Option<&'g ClauseUnit>)> = Vec::new();
+    let mut model: Vec<UnitSpan> = Vec::new();
+    for node in graph.nodes.values() {
+        for (span, unit) in std::iter::once((&node.extent, None))
+            .chain(node.units.iter().map(|u| (&u.span, Some(u))))
+        {
+            if span.start_line > span.end_line {
+                // Contains no line; excluded to establish `units_wf`.
+                continue;
+            }
+            let next = file_ids.len() as u64;
+            let id = *file_ids.entry(span.file.as_str()).or_insert(next);
+            model.push(UnitSpan {
+                file_id: id,
+                start_line: span.start_line,
+                end_line: span.end_line,
+                is_clause: unit.is_some(),
+            });
+            candidates.push((node, unit));
+        }
+    }
+    // A file no unit lives in roots nothing.
+    let Some(&query_id) = file_ids.get(file) else {
+        return Vec::new();
     };
 
-    let clause_level: Vec<DischargeUnit<'g>> = graph
-        .nodes
-        .values()
-        .flat_map(|n| n.units.iter().map(move |u| (n, u)))
-        .filter(|(_, u)| u.span.contains(file, line))
-        .map(|(n, u)| DischargeUnit::clause(n, u))
-        .collect();
-    if !clause_level.is_empty() {
-        return minimal(clause_level);
-    }
+    // PG2: the rooting decision comes from the verified selection.
+    let mask = select_units(&model, query_id, line);
 
-    minimal(
-        graph
-            .nodes
-            .values()
-            .filter(|n| n.extent.contains(file, line))
-            .map(DischargeUnit::extent)
-            .collect(),
-    )
+    candidates
+        .iter()
+        .zip(mask)
+        .filter(|(_, selected)| *selected)
+        .map(|((node, unit), _)| match unit {
+            Some(u) => DischargeUnit::clause(node, u),
+            None => DischargeUnit::extent(node),
+        })
+        .collect()
 }
 
 /// The witness of one discharge unit: a pure function of
