@@ -31,7 +31,10 @@ use crate::{
     annotation_execution::is_annotation_executed, execution_propagation::execution_set,
     target_resolution::annotation_target, types::*,
 };
+// Ghost-only import; see the note in `lib.rs`.
+#[cfg(feature = "verify")]
 use vstd::prelude::*;
+use verus_builtin_macros::verus;
 
 verus! {
 
