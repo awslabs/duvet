@@ -786,6 +786,40 @@ pub proof fn by_execution_binding_implies_executed(
     // the refinement holds under every scoring mode.
 }
 
+/// W5's complement, and the property that makes cross-witness capture
+/// unrepresentable for proof witnesses: which annotations a `ByRootSpan`
+/// witness binds is a function of its root span alone — the witness's
+/// coverage maps have no influence. Enlarging a proof witness's closure
+/// can never extend the set of test annotations it witnesses; a map that
+/// Hit-covers another test annotation's lines still does not witness it.
+/// REGRESSION TRIPWIRE: if `binds`'s `ByRootSpan` arm ever grows a
+/// map-consulting conjunct, this proof breaks loudly.
+//= design/witness/spec.md#property-w7-positional-binding-map-independence
+//= type=test
+//# The implementation MUST prove that binding under `ByRootSpan` does
+//# not depend on the witness's coverage maps
+pub proof fn positional_binding_is_map_independent(
+    file_id: u64,
+    annotation: &AnnotationSpan,
+    mode: ScoringMode,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    file_length: u64,
+    w1: Witness,
+    w2: Witness,
+)
+    requires
+        w1.claim == w2.claim,
+        w1.claim is ByRootSpan,
+    ensures
+        binds(file_id, annotation, mode, classifications, scopes, file_length, w1)
+            == binds(file_id, annotation, mode, classifications, scopes, file_length, w2),
+{
+    // Definitional: the `ByRootSpan` arm of `binds` mentions only the
+    // claim's fields and the annotation's resolved target — never
+    // `w.files` — so equal claims give equal binding verdicts.
+}
+
 } // verus!
 
 #[cfg(test)]
@@ -1033,6 +1067,104 @@ mod tests {
             &[],
             2,
             &[root(T_FILE, 2, 4)],
+        ));
+    }
+
+    /// The fat-witness capture question, both claim rules head-to-head
+    /// (ryanemer, 2026-07-31). One coverage map — T's own lines Hit
+    /// (consulted by some other proof's closure), I's lines absent — carried
+    /// by two witnesses differing ONLY in claim rule:
+    ///
+    /// - `ByRootSpan` rooted elsewhere: `binds` is pure geometry and never
+    ///   reads the map, so the witness does not witness T and does not
+    ///   enter the pair's ∀-set. T stays unwitnessed; the pair is neither
+    ///   passed nor failed by it.
+    /// - `ByExecution`: the same map DOES bind T (evidence rule) — the
+    ///   trench coat — and under Decision 14 the bound witness that never
+    ///   reaches I fails the pair.
+    ///
+    /// The difference between the fat proof witness and the trench coat is
+    /// exactly the claim rule the witness carries.
+    #[test]
+    fn fat_witness_map_containing_t_does_not_capture_t_by_root_span() {
+        let t = t_annotation();
+        let c = t_classifications();
+        // T's target is line 3 in T_FILE; the map Hit-covers it.
+        let fat_map = vec![(T_FILE, cov_hit(&[3])), (I_FILE, cov_hit(&[]))];
+        let by_root_elsewhere = Witness {
+            claim: ClaimRule::ByRootSpan {
+                file_id: T_FILE,
+                start_line: 7,
+                end_line: 9,
+            },
+            files: fat_map.clone(),
+        };
+        // executed(T, w) is TRUE for this witness...
+        assert!(is_executed_by(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &by_root_elsewhere
+        ));
+        // ...but it does not witness T (binding never consults the map)...
+        assert!(!report_test_executed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[by_root_elsewhere.clone()]
+        ));
+        // ...so the pair is untouched: not discharged (unwitnessed), and
+        // the fat witness cannot fail it either — it is not in the ∀-set.
+        assert!(!report_discharged(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Classified,
+            &i_classifications(),
+            &[],
+            2,
+            &[by_root_elsewhere],
+        ));
+        // The SAME map under ByExecution is the trench coat: it binds T by
+        // evidence, and having never reached I, fails the pair (Decision 14).
+        let trench_coat = Witness {
+            claim: ClaimRule::ByExecution,
+            files: fat_map,
+        };
+        assert!(report_test_executed(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            &[trench_coat.clone()]
+        ));
+        assert!(!report_discharged(
+            T_FILE,
+            &t,
+            ScoringMode::Classified,
+            &c,
+            &[],
+            3,
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Classified,
+            &i_classifications(),
+            &[],
+            2,
+            &[trench_coat],
         ));
     }
 
