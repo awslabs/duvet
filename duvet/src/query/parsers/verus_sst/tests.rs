@@ -1033,6 +1033,79 @@ fn memoized_universe_matches_fresh_per_unit_closures() {
 
 #[test]
 #[ignore = "perf harness, run explicitly with --ignored --nocapture"]
+fn bench_merge_unit_heavy_relogged_nodes() {
+    // The structure.rs merge unit-union path at adversarial scale: one
+    // node with 500 clause units, re-logged in 10 modules (the corpus
+    // itself has few units per node, so this path is invisible in
+    // bench_load_dir_corpus). Old shape: contains() + re-sort per
+    // duplicate — O(units²) scans.
+    use super::structure::{ClauseUnit, ObligationNode, Span, UnitKind};
+    use std::collections::BTreeMap;
+    let node = || {
+        let units: Vec<ClauseUnit> = (0..500)
+            .map(|i| ClauseUnit {
+                kind: UnitKind::ProofAssert,
+                index: i,
+                span: Span {
+                    file: "src/a.rs".into(),
+                    start_line: 10 + i as u32,
+                    end_line: 10 + i as u32,
+                },
+                note: None,
+            })
+            .collect();
+        ObligationNode {
+            name: "c::heavy".into(),
+            extent: Span {
+                file: "src/a.rs".into(),
+                start_line: 1,
+                end_line: 1000,
+            },
+            units,
+            spans: BTreeMap::new(),
+            edges: std::collections::BTreeSet::new(),
+        }
+    };
+    let iters = 20u32;
+    let start = std::time::Instant::now();
+    for _ in 0..iters {
+        let modules: Vec<Vec<ObligationNode>> = (0..10).map(|_| vec![node()]).collect();
+        std::hint::black_box(ObligationGraph::merge(modules).unwrap());
+    }
+    let total = start.elapsed();
+    println!(
+        "bench_merge_unit_heavy: units=500 relogs=10 iters={} total={:?} per-iter={:?}",
+        iters,
+        total,
+        total / iters
+    );
+}
+
+#[test]
+#[ignore = "perf harness, run explicitly with --ignored --nocapture"]
+fn bench_load_dir_corpus() {
+    // Decompress + parse + merge of the checked-in 10-module corpus:
+    // covers the structure.rs merge path and the one-text-at-a-time
+    // load restructuring.
+    let dir = corpus_dir();
+    let g = load_dir(&dir).expect("corpus must load");
+    let iters = 10u32;
+    let start = std::time::Instant::now();
+    for _ in 0..iters {
+        std::hint::black_box(load_dir(&dir).expect("corpus must load"));
+    }
+    let total = start.elapsed();
+    println!(
+        "bench_load_dir_corpus: nodes={} iters={} total={:?} per-iter={:?}",
+        g.nodes.len(),
+        iters,
+        total,
+        total / iters
+    );
+}
+
+#[test]
+#[ignore = "perf harness, run explicitly with --ignored --nocapture"]
 fn bench_materialize_all() {
     let graph = corpus();
     // Warmup + shape sanity.

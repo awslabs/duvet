@@ -43,7 +43,11 @@ use structure::{ObligationGraph, StructureError};
 /// to the engine boundary, and the golden tests want a
 /// plain entry point.
 pub fn load_dir(dir: &Path) -> Result<ObligationGraph, LoadError> {
-    let mut sources = Vec::new();
+    // Collect matching paths first, then read+parse one at a time so at
+    // most one decompressed module text is resident at once (module
+    // texts run to tens of MB for real projects; the parsed nodes are
+    // far smaller).
+    let mut paths: Vec<(String, std::path::PathBuf)> = Vec::new();
     let entries =
         std::fs::read_dir(dir).map_err(|e| LoadError::Io(dir.display().to_string(), e))?;
     for entry in entries {
@@ -52,33 +56,35 @@ pub fn load_dir(dir: &Path) -> Result<ObligationGraph, LoadError> {
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
-        if name.ends_with("-sst.vir") {
-            let text = std::fs::read_to_string(&path)
-                .map_err(|e| LoadError::Io(path.display().to_string(), e))?;
-            sources.push((path.display().to_string(), text));
-        } else if name.ends_with("-sst.vir.gz") {
+        if name.ends_with("-sst.vir") || name.ends_with("-sst.vir.gz") {
+            paths.push((path.display().to_string(), path));
+        }
+    }
+    if paths.is_empty() {
+        return Err(LoadError::NoLogs(dir.display().to_string()));
+    }
+    // Deterministic merge order regardless of readdir order (same key
+    // as before: the display string).
+    paths.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut modules = Vec::new();
+    for (display, path) in &paths {
+        let text = if display.ends_with(".gz") {
             use std::io::Read;
-            let file = std::fs::File::open(&path)
-                .map_err(|e| LoadError::Io(path.display().to_string(), e))?;
+            let file = std::fs::File::open(path).map_err(|e| LoadError::Io(display.clone(), e))?;
             let mut text = String::new();
             flate2::read::GzDecoder::new(file)
                 .read_to_string(&mut text)
-                .map_err(|e| LoadError::Io(path.display().to_string(), e))?;
-            sources.push((path.display().to_string(), text));
-        }
+                .map_err(|e| LoadError::Io(display.clone(), e))?;
+            text
+        } else {
+            std::fs::read_to_string(path).map_err(|e| LoadError::Io(display.clone(), e))?
+        };
+        modules.push(
+            structure::parse_module(&text).map_err(|e| LoadError::Parse(display.clone(), e))?,
+        );
+        // `text` drops here, before the next file is read.
     }
-    if sources.is_empty() {
-        return Err(LoadError::NoLogs(dir.display().to_string()));
-    }
-    // Deterministic merge order regardless of readdir order.
-    sources.sort_by(|a, b| a.0.cmp(&b.0));
-
-    let modules = sources
-        .iter()
-        .map(|(path, text)| {
-            structure::parse_module(text).map_err(|e| LoadError::Parse(path.clone(), e))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
     ObligationGraph::merge(modules).map_err(|e| LoadError::Parse(dir.display().to_string(), e))
 }
 

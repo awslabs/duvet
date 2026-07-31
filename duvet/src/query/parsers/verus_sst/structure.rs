@@ -537,12 +537,14 @@ impl ObligationGraph {
                         // Re-logged declarations repeat the same
                         // clause units (and only the defining module
                         // carries a proof check): union by value.
-                        for unit in node.units {
-                            if !existing.units.contains(&unit) {
-                                existing.units.push(unit);
-                            }
-                        }
-                        existing.units.sort();
+                        // ClauseUnit's derived Ord agrees with its
+                        // derived Eq, so a sorted-set union equals the
+                        // old contains-then-sort exactly, without the
+                        // O(units²) membership scans.
+                        let mut units: std::collections::BTreeSet<ClauseUnit> =
+                            existing.units.drain(..).collect();
+                        units.extend(node.units);
+                        existing.units = units.into_iter().collect();
                     }
                 }
             }
