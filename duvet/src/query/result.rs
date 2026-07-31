@@ -493,13 +493,7 @@ impl fmt::Display for CoverageResult {
                         ExecutionStatus::Executed => {
                             "Test lines reached only by witnesses bound elsewhere"
                         }
-                        ExecutionStatus::NotExecuted => "Not executed test",
-                        ExecutionStatus::Structural => {
-                            "Test target is purely declarative; no executable code to verify"
-                        }
-                        ExecutionStatus::Unknown { .. } => {
-                            "Not executed because of an unknown not executable line."
-                        }
+                        status => status_message(status, MessageRole::Test),
                     }
                 };
                 let mut error = error!("Unwitnessed test annotation")
@@ -570,16 +564,8 @@ impl fmt::Display for CoverageResult {
             for correlation in &self.failed {
                 let mut error = error!("Failed correlation");
 
-                let test_annotation_message = match correlation.test_execution_status {
-                    ExecutionStatus::Executed => "Executed test",
-                    ExecutionStatus::NotExecuted => "Not executed test",
-                    ExecutionStatus::Structural => {
-                        "Test target is purely declarative; no executable code to verify"
-                    }
-                    ExecutionStatus::Unknown { .. } => {
-                        "Not executed because of an unknown not executable line."
-                    }
-                };
+                let test_annotation_message =
+                    status_message(correlation.test_execution_status, MessageRole::Test);
 
                 // Add test annotation context
                 error = error.with_source_slice(
@@ -605,14 +591,8 @@ impl fmt::Display for CoverageResult {
                     error,
                     &correlation.not_executed_implementations,
                     |status| match status {
-                        ExecutionStatus::NotExecuted => "Not executed implementation",
-                        ExecutionStatus::Structural => {
-                            "Structural implementation target — no executable code to verify"
-                        }
-                        ExecutionStatus::Unknown { .. } => {
-                            "Not executed because of an unknown not executable line."
-                        }
                         ExecutionStatus::Executed => unreachable!("Executed implementation"), // shouldn't happen
+                        status => status_message(status, MessageRole::Implementation),
                     },
                 );
 
@@ -765,6 +745,43 @@ impl fmt::Display for DuplicatesResult {
         }
 
         Ok(())
+    }
+}
+
+/// Which kind of annotation a diagnostic message describes. The
+/// [`ExecutionStatus`] wording differs by role (a `Structural` test
+/// target reads differently from a `Structural` implementation target),
+/// so the role is part of the lookup key.
+#[derive(Clone, Copy)]
+enum MessageRole {
+    Test,
+    Implementation,
+}
+
+/// Single source of truth for the human-readable message attached to an
+/// annotation with a given execution status. Every display site routes
+/// through this mapping so the wording cannot drift between sites.
+/// (Context-specific `Executed` messages — the unwitnessed report's
+/// "reached only by witnesses bound elsewhere", the failing-pair
+/// closure's unreachable arm — stay at their sites; everything else is
+/// this table.)
+fn status_message(status: ExecutionStatus, role: MessageRole) -> &'static str {
+    match (status, role) {
+        (ExecutionStatus::Executed, MessageRole::Test) => "Executed test",
+        (ExecutionStatus::Executed, MessageRole::Implementation) => "Executed implementation",
+        (ExecutionStatus::NotExecuted, MessageRole::Test) => "Not executed test",
+        (ExecutionStatus::NotExecuted, MessageRole::Implementation) => {
+            "Not executed implementation"
+        }
+        (ExecutionStatus::Structural, MessageRole::Test) => {
+            "Test target is purely declarative; no executable code to verify"
+        }
+        (ExecutionStatus::Structural, MessageRole::Implementation) => {
+            "Structural implementation target — no executable code to verify"
+        }
+        (ExecutionStatus::Unknown { .. }, _) => {
+            "Not executed because of an unknown not executable line."
+        }
     }
 }
 
