@@ -1117,7 +1117,7 @@ mod tests {
             &c,
             &[],
             3,
-            &[by_root_elsewhere.clone()]
+            std::slice::from_ref(&by_root_elsewhere)
         ));
         // ...so the pair is untouched: not discharged (unwitnessed), and
         // the fat witness cannot fail it either — it is not in the ∀-set.
@@ -1149,7 +1149,7 @@ mod tests {
             &c,
             &[],
             3,
-            &[trench_coat.clone()]
+            std::slice::from_ref(&trench_coat)
         ));
         assert!(!report_discharged(
             T_FILE,
@@ -1244,7 +1244,7 @@ mod tests {
             files: vec![],
         };
         // One bound obligation-witness reaching I: discharged.
-        assert!(discharged_verdict(&[root_with_i.clone()]));
+        assert!(discharged_verdict(std::slice::from_ref(&root_with_i)));
         // Two obligations own the position; only one reaches I: FAILS.
         assert!(!discharged_verdict(&[root_with_i, root_without_i]));
     }
