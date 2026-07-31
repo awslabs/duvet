@@ -621,11 +621,19 @@ pub open spec fn consulted_line(
 
 /// Spec: line `(f, l)` is in the assembled witness — consulted by
 /// the closure and in a project file. This is the definitional
-/// right-hand side of Property P3.
+/// right-hand side of Property P3, and the subject P4's view/truncation
+/// claim quantifies over (Decision 21 placement: implementation on the
+/// definition, test on the proof lemma).
 //= design/witness/producer-core-spec.md#property-p3-witness-assembly
 //= type=implementation
 //# The implementation MUST prove that a witness's line set equals the
 //# union of the closure's per-file spans restricted to project files:
+//= design/witness/producer-core-spec.md#property-p4-filter-soundness
+//= type=implementation
+//# The implementation MUST prove that project filtering is a view,
+//# not a truncation (decisions.md,
+//# [Decision 7](decisions.md#decision-7)'s consulted semantics;
+//# [spec §5.4](spec.md#closure)'s unfiltered traversal):
 pub open spec fn assembled_line(
     g: Seq<Vec<u64>>,
     spans: Seq<Vec<(u64, u32)>>,

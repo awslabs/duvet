@@ -389,7 +389,7 @@ impl<'a> VerifiedVerdicts<'a> {
     }
 
     //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
-    //= type=implementation
+    //= type=implication
     //# ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
     ///
     /// The W6/W2 verdict for one test annotation, computed by the verified
@@ -408,7 +408,7 @@ impl<'a> VerifiedVerdicts<'a> {
     }
 
     //= design/witness/spec.md#property-w2-test-execution
-    //= type=implementation
+    //= type=implication
     //# report_test_executed(T, witnesses) = true
     //#     ⟺  ∃ w ∈ witnesses : binds(T, w)
     ///
@@ -514,7 +514,7 @@ impl<'a> VerifiedVerdicts<'a> {
     }
 
     //= design/witness/spec.md#property-w3-global-execution
-    //= type=implementation
+    //= type=implication
     //# report_ever_executed(I, witnesses) = true
     //#     ⟺  ∃ w ∈ witnesses : executed(I, w)
     ///

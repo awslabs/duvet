@@ -712,6 +712,7 @@ async fn execute_coverage_check(
         if !test_is_unwitnessed {
             // The test is witnessed:
             //= design/witness/spec.md#property-w2-test-execution
+            //= type=implication
             //# The implementation MUST prove that a test annotation is reported
             //# executed if and only if some delivered witness binds it:
             //
@@ -784,7 +785,7 @@ async fn execute_coverage_check(
             }
         } else {
             //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
-            //= type=implementation
+            //= type=implication
             //# ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
             //
             // Diagnostic detail: fold the test's own execution status
@@ -837,7 +838,7 @@ async fn execute_coverage_check(
         .collect::<BTreeSet<_>>();
 
     //= design/witness/spec.md#property-w3-global-execution
-    //= type=implementation
+    //= type=implication
     //# report_ever_executed(I, witnesses) = true
     //#     ⟺  ∃ w ∈ witnesses : executed(I, w)
     //
