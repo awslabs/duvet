@@ -747,7 +747,7 @@ mod tests {
             files: BTreeMap::new(), // adapter reads `matched`, not this
         };
         let mut m = FxHashMap::default();
-        m.insert(PathBuf::from("c.java"), &cov);
+        m.insert(PathBuf::from("c.java"), Arc::clone(&cov));
         let witnesses = [witness];
         let matched = vec![m];
         let adapter =

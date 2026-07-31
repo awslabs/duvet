@@ -78,11 +78,17 @@ impl Span {
     }
 
     /// Whether `line` falls inside this extent.
+    // Test-oracle surface (independent rooting predicate the golden
+    // tests check `select_units` against): no engine-path consumer
+    // since the verified core took over unit selection.
+    #[allow(dead_code)]
     pub fn contains(&self, file: &str, line: u32) -> bool {
         self.file == file && self.start_line <= line && line <= self.end_line
     }
 
     /// Number of lines in the extent.
+    // Test-oracle surface: see `contains`.
+    #[allow(dead_code)]
     pub fn line_count(&self) -> u64 {
         u64::from(self.end_line) - u64::from(self.start_line) + 1
     }

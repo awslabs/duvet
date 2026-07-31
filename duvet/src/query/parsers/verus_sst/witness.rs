@@ -359,6 +359,10 @@ pub fn witness_for_unit(
 /// all of them. Empty when the position is outside `dom(du)` — use
 /// [`classify_position`] to distinguish not-proof-testable
 /// (Decision 13 report) from unelaborated (Property W6).
+// Golden-test reference surface (spec §5.2 pass-2 entry point; the
+// engine path consumes the Rooted payload and calls
+// `witness_for_unit` directly): no engine-path consumer.
+#[allow(dead_code)]
 pub fn construct_witnesses(
     graph: &ObligationGraph,
     file: &str,
