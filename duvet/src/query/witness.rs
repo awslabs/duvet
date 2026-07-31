@@ -40,9 +40,7 @@
 use crate::{
     annotation::Annotation,
     query::{
-        checks::coverage::{
-            coverage_path_matches, ClassificationMap, FileClassification, SourceIndex,
-        },
+        checks::coverage::{ClassificationMap, FileClassification, SourceIndex},
         coverage::ExecutionStatus,
     },
     Result,
@@ -287,9 +285,7 @@ impl<'a> VerifiedVerdicts<'a> {
                     end_line,
                 } => {
                     let mut hits: Vec<&str> = index
-                        .entries()
-                        .iter()
-                        .filter(|(_, abs)| coverage_path_matches(abs, file))
+                        .matching_entries(file)
                         .map(|(_, abs)| abs.as_str())
                         .collect();
                     let file_id = match hits.len() {

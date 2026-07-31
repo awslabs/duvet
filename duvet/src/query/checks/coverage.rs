@@ -165,6 +165,14 @@ pub async fn classify_file(
 /// [`coverage_path_matches`].
 pub struct SourceIndex {
     entries: Vec<(PathBuf, String)>,
+    /// Exact project-path lookup for [`Self::absolute_of`].
+    by_path: FxHashMap<PathBuf, usize>,
+    /// Suffix-rule pre-filter: [`suffix_key`] of the absolute path →
+    /// entry indices. Sound because [`coverage_path_matches`] implies
+    /// equal suffix keys (see `suffix_key`), so a bucket lookup never
+    /// drops a true match — in particular every ambiguity the full
+    /// scan would refuse is still seen and refused.
+    by_suffix: FxHashMap<String, Vec<usize>>,
 }
 
 impl SourceIndex {
@@ -186,15 +194,31 @@ impl SourceIndex {
                 absolute.to_string_lossy().into_owned(),
             ));
         }
-        Ok(Self { entries })
+        Ok(Self::index(entries))
+    }
+
+    /// Build the lookup maps over the entry list. Every constructor
+    /// funnels through here so the maps can never drift from the list.
+    fn index(entries: Vec<(PathBuf, String)>) -> Self {
+        let mut by_path = FxHashMap::default();
+        let mut by_suffix: FxHashMap<String, Vec<usize>> = FxHashMap::default();
+        for (i, (path, absolute)) in entries.iter().enumerate() {
+            by_path.entry(path.clone()).or_insert(i);
+            by_suffix
+                .entry(suffix_key(absolute).to_string())
+                .or_default()
+                .push(i);
+        }
+        Self {
+            entries,
+            by_path,
+            by_suffix,
+        }
     }
 
     /// The absolute path of a project source, if it is one.
     pub fn absolute_of(&self, path: &Path) -> Option<&str> {
-        self.entries
-            .iter()
-            .find(|(p, _)| p == path)
-            .map(|(_, abs)| abs.as_str())
+        self.by_path.get(path).map(|&i| self.entries[i].1.as_str())
     }
 
     /// Every project source with its absolute path, in build order. The
@@ -209,15 +233,37 @@ impl SourceIndex {
     /// touching the filesystem.
     #[cfg(test)]
     pub fn from_entries(entries: Vec<(PathBuf, String)>) -> Self {
-        Self { entries }
+        Self::index(entries)
+    }
+
+    /// Every entry whose absolute path suffix-matches `coverage_path`,
+    /// in entry (build) order. Exactly the entries a full
+    /// [`coverage_path_matches`] scan would keep — the suffix-key
+    /// bucket only skips entries the matcher must reject — so callers'
+    /// ambiguity refusals (>1 candidate) are preserved verbatim.
+    pub fn matching_entries<'a>(
+        &'a self,
+        coverage_path: &'a str,
+    ) -> impl Iterator<Item = &'a (PathBuf, String)> + 'a {
+        self.matching_indices(coverage_path)
+            .map(|i| &self.entries[i])
+    }
+
+    /// Indices of [`Self::matching_entries`], ascending (bucket vectors
+    /// are filled in entry order).
+    fn matching_indices<'a>(&'a self, coverage_path: &'a str) -> impl Iterator<Item = usize> + 'a {
+        self.by_suffix
+            .get(suffix_key(coverage_path))
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(move |&i| coverage_path_matches(&self.entries[i].1, coverage_path))
     }
 
     /// Whether a producer-recorded path refers to any project source
     /// (the `project` predicate for prover-producer closures).
     pub fn matches_any(&self, coverage_path: &str) -> bool {
-        self.entries
-            .iter()
-            .any(|(_, abs)| coverage_path_matches(abs, coverage_path))
+        self.matching_entries(coverage_path).next().is_some()
     }
 
     /// Match one witness's per-file maps to project sources by the suffix
@@ -230,26 +276,33 @@ impl SourceIndex {
         let mut matched: FxHashMap<PathBuf, &'a duvet_coverage::types::CoverageReport> =
             FxHashMap::default();
         let mut files_for_coverage: FxHashMap<&str, Vec<&Path>> = FxHashMap::default();
+        // Hits per entry, indexed like `entries`. Bucket lookups visit
+        // exactly the (entry, coverage_path) pairs the full scan would
+        // match (suffix_key invariant), and both iteration orders —
+        // entries ascending within a bucket, `files` in BTreeMap order —
+        // reproduce the full scan's hit lists verbatim.
+        let mut hits_per_entry: Vec<Vec<&str>> = vec![Vec::new(); self.entries.len()];
 
-        for (duvet_path, absolute) in &self.entries {
-            let mut hits: Vec<&str> = Vec::new();
-            for (coverage_path, report) in files {
-                if coverage_path_matches(absolute, coverage_path) {
-                    hits.push(coverage_path.as_str());
-                    files_for_coverage
-                        .entry(coverage_path.as_str())
-                        .or_default()
-                        .push(duvet_path);
-                    matched.insert(duvet_path.clone(), report);
-                }
+        for (coverage_path, report) in files {
+            for i in self.matching_indices(coverage_path) {
+                let (duvet_path, _) = &self.entries[i];
+                hits_per_entry[i].push(coverage_path.as_str());
+                files_for_coverage
+                    .entry(coverage_path.as_str())
+                    .or_default()
+                    .push(duvet_path);
+                matched.insert(duvet_path.clone(), report);
             }
+        }
+
+        for (i, mut hits) in hits_per_entry.into_iter().enumerate() {
             if hits.len() > 1 {
                 hits.sort_unstable();
                 let entries = hits.join(", ");
                 return Err(duvet_core::error!(
                     "coverage is ambiguous for {}: its path matches multiple report \
                      entries ({}). duvet cannot tell which entry refers to this file.",
-                    duvet_path.display(),
+                    self.entries[i].0.display(),
                     entries
                 ));
             }
@@ -485,6 +538,25 @@ pub(crate) fn coverage_path_matches(absolute_duvet_path: &str, coverage_path: &s
     prefix_len == 0 || absolute.as_bytes()[prefix_len - 1] == b'/'
 }
 
+/// The final path component of `path` under the same separator
+/// normalization [`coverage_path_matches`] applies (both `/` and `\`
+/// split components).
+///
+/// Invariant (the bucket pre-filter's license, pinned by
+/// `suffix_key_agrees_with_coverage_path_matches`):
+/// `coverage_path_matches(abs, cov)` implies
+/// `suffix_key(abs) == suffix_key(cov)`. Proof shape: a match makes
+/// the normalized `cov` a suffix of the normalized `abs` beginning at
+/// a separator boundary, so the text after the last separator is the
+/// same string on both sides. Hence bucketing candidate paths by
+/// suffix key never hides a true match — including the matches an
+/// ambiguity refusal needs to see.
+pub(crate) fn suffix_key(path: &str) -> &str {
+    path.rsplit(['/', '\\'])
+        .next()
+        .expect("rsplit yields at least one segment")
+}
+
 /// Parse coverage data from file.
 pub async fn parse_coverage_data(
     coverage_path: &String,
@@ -717,6 +789,239 @@ public class Two {
             "com/example/Foo.java",
             "/proj/src/main/java/com/example/Foo.java"
         ));
+    }
+
+    // --- suffix_key bucket pre-filter equivalence ---
+
+    /// Adversarial path shapes for the bucket-invariant cross-product:
+    /// same filenames under different roots, filename-only entries,
+    /// non-boundary near-misses, backslash separators, mixed
+    /// separators, trailing separators, empty string.
+    fn adversarial_paths() -> Vec<&'static str> {
+        vec![
+            "/proj/src/main/java/com/example/Foo.java",
+            "/other/src/main/java/com/example/Foo.java",
+            "/proj/com/example/Foo.java",
+            "com/example/Foo.java",
+            "example/Foo.java",
+            "Foo.java",
+            "myexample/Foo.java",
+            "/proj/src/main/java/com/myexample/Foo.java",
+            "otherFoo.java",
+            "com\\example\\Foo.java",
+            "C:\\proj\\src\\com\\example\\Foo.java",
+            "com/example\\Foo.java",
+            "src/lib.rs",
+            "duvet-coverage/src/lib.rs",
+            "/abs/duvet-coverage/src/lib.rs",
+            "lib.rs",
+            "b.rs",
+            "src/b.rs",
+            "other/src/b.rs",
+            "/proj/other/src/b.rs",
+            "trailing/",
+            "",
+        ]
+    }
+
+    /// The license for every suffix-key bucket in the codebase
+    /// (SourceIndex::matching_entries, the producer's graph-file
+    /// buckets): a match implies equal suffix keys, so bucketing by
+    /// suffix key never hides a match — nor an ambiguity. Checked as a
+    /// full cross-product over the adversarial shapes, both argument
+    /// orders.
+    #[test]
+    fn suffix_key_agrees_with_coverage_path_matches() {
+        let paths = adversarial_paths();
+        for a in &paths {
+            for b in &paths {
+                if coverage_path_matches(a, b) {
+                    assert_eq!(
+                        suffix_key(a),
+                        suffix_key(b),
+                        "match with unequal suffix keys: ({a:?}, {b:?}) — the \
+                         bucket pre-filter would hide this match"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Bucket-backed SourceIndex lookups are extensionally equal to the
+    /// full linear scan they replaced, over the adversarial
+    /// cross-product: same candidate sets (so the same ambiguity
+    /// refusals), same matches_any, same absolute_of.
+    #[test]
+    fn source_index_bucket_lookups_match_full_scan() {
+        let paths = adversarial_paths();
+        let entries: Vec<(PathBuf, String)> = paths
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (PathBuf::from(format!("rel{i}")), p.to_string()))
+            .collect();
+        let index = SourceIndex::from_entries(entries.clone());
+        for probe in &paths {
+            let full_scan: Vec<&str> = entries
+                .iter()
+                .filter(|(_, abs)| coverage_path_matches(abs, probe))
+                .map(|(_, abs)| abs.as_str())
+                .collect();
+            let bucketed: Vec<&str> = index
+                .matching_entries(probe)
+                .map(|(_, abs)| abs.as_str())
+                .collect();
+            assert_eq!(
+                bucketed, full_scan,
+                "candidate set diverged for probe {probe:?}"
+            );
+            assert_eq!(index.matches_any(probe), !full_scan.is_empty());
+        }
+        for (path, abs) in &entries {
+            assert_eq!(index.absolute_of(path), Some(abs.as_str()));
+        }
+        assert_eq!(index.absolute_of(Path::new("not-an-entry")), None);
+    }
+
+    /// The loop-inversion equivalence evidence for
+    /// `match_witness_files`: both refusal directions still fire with
+    /// the same messages, and the happy path returns the same map.
+    #[test]
+    fn match_witness_files_refuses_source_matching_two_report_entries() {
+        use duvet_coverage::types::{CoverageReport, CoverageStatus};
+        let index = SourceIndex::from_entries(vec![(
+            PathBuf::from("src/Foo.java"),
+            "/proj/src/Foo.java".to_string(),
+        )]);
+        let mut files = std::collections::BTreeMap::<String, CoverageReport>::new();
+        files.insert(
+            "src/Foo.java".into(),
+            [(1u64, CoverageStatus::Hit)].into_iter().collect(),
+        );
+        files.insert(
+            "proj/src/Foo.java".into(),
+            [(1u64, CoverageStatus::Hit)].into_iter().collect(),
+        );
+        let err = index.match_witness_files(&files).unwrap_err();
+        let msg = format!("{err:?}");
+        assert!(msg.contains("coverage is ambiguous for"), "{msg}");
+        assert!(
+            msg.contains("proj/src/Foo.java, src/Foo.java"),
+            "hits must be listed sorted: {msg}"
+        );
+    }
+
+    #[test]
+    fn match_witness_files_refuses_report_entry_matching_two_sources() {
+        use duvet_coverage::types::{CoverageReport, CoverageStatus};
+        let index = SourceIndex::from_entries(vec![
+            (
+                PathBuf::from("a/Foo.java"),
+                "/a/com/example/Foo.java".to_string(),
+            ),
+            (
+                PathBuf::from("b/Foo.java"),
+                "/b/com/example/Foo.java".to_string(),
+            ),
+        ]);
+        let mut files = std::collections::BTreeMap::<String, CoverageReport>::new();
+        files.insert(
+            "com/example/Foo.java".into(),
+            [(1u64, CoverageStatus::Hit)].into_iter().collect(),
+        );
+        let err = index.match_witness_files(&files).unwrap_err();
+        let msg = format!("{err:?}");
+        assert!(msg.contains("coverage report entry"), "{msg}");
+        assert!(msg.contains("a/Foo.java, b/Foo.java"), "{msg}");
+    }
+
+    #[test]
+    fn match_witness_files_unambiguous_maps_each_source_to_its_entry() {
+        use duvet_coverage::types::{CoverageReport, CoverageStatus};
+        let index = SourceIndex::from_entries(vec![
+            (
+                PathBuf::from("a/Foo.java"),
+                "/proj/a/com/x/Foo.java".to_string(),
+            ),
+            (PathBuf::from("b/Bar.java"), "/proj/b/Bar.java".to_string()),
+        ]);
+        let mut files = std::collections::BTreeMap::<String, CoverageReport>::new();
+        files.insert(
+            "com/x/Foo.java".into(),
+            [(1u64, CoverageStatus::Hit)].into_iter().collect(),
+        );
+        files.insert(
+            "unrelated/Other.java".into(),
+            [(2u64, CoverageStatus::Hit)].into_iter().collect(),
+        );
+        let matched = index.match_witness_files(&files).unwrap();
+        assert_eq!(matched.len(), 1);
+        assert_eq!(
+            matched[&PathBuf::from("a/Foo.java")],
+            &files["com/x/Foo.java"]
+        );
+    }
+
+    /// Perf harness (run explicitly: `cargo test --release -p duvet
+    /// bench_source_index -- --ignored --nocapture`): bucket lookups vs
+    /// the full linear scan they replaced. The scan closure below IS
+    /// the old implementation shape, so this both measures the win and
+    /// re-checks agreement on every probe.
+    #[test]
+    #[ignore = "perf harness, run explicitly with --ignored --nocapture"]
+    fn bench_source_index_lookups() {
+        let n = 500usize;
+        let entries: Vec<(PathBuf, String)> = (0..n)
+            .map(|i| {
+                (
+                    PathBuf::from(format!("mod{i}/src/file{i}.rs")),
+                    format!("/proj/mod{i}/src/file{i}.rs"),
+                )
+            })
+            .collect();
+        let index = SourceIndex::from_entries(entries.clone());
+        // Probe mix: hits (recorded tails), misses (foreign files),
+        // same-filename near-misses.
+        let probes: Vec<String> = (0..n)
+            .flat_map(|i| {
+                [
+                    format!("src/file{i}.rs"),
+                    format!("other{i}/nope.rs"),
+                    format!("wrong{i}/src/file{i}.rs"),
+                ]
+            })
+            .collect();
+        let full_scan = |probe: &str| -> bool {
+            entries
+                .iter()
+                .any(|(_, abs)| coverage_path_matches(abs, probe))
+        };
+        for p in &probes {
+            assert_eq!(index.matches_any(p), full_scan(p), "probe {p}");
+        }
+        let iters = 10u32;
+        let t0 = std::time::Instant::now();
+        for _ in 0..iters {
+            for p in &probes {
+                std::hint::black_box(full_scan(p));
+            }
+        }
+        let scan = t0.elapsed();
+        let t1 = std::time::Instant::now();
+        for _ in 0..iters {
+            for p in &probes {
+                std::hint::black_box(index.matches_any(p));
+            }
+        }
+        let bucketed = t1.elapsed();
+        println!(
+            "bench_source_index_lookups: entries={} probes={} iters={} \
+             full-scan={:?} bucketed={:?}",
+            n,
+            probes.len(),
+            iters,
+            scan,
+            bucketed
+        );
     }
 
     // --- forward-walk fallback (degraded path) integration ---

@@ -233,13 +233,29 @@ fn verus_witnesses_from_graph(
     project: impl Fn(&str) -> bool,
 ) -> Result<Produced> {
     // Every file string the artifact mentions, for translating an
-    // engine (absolute) position into artifact coordinates.
+    // engine (absolute) position into artifact coordinates. Bucketed
+    // by suffix key so each position consults only same-filename
+    // candidates: `path_matches` MUST imply equal final path
+    // components (both production matchers — coverage_path_matches
+    // and the tests' suffix rule — are component-suffix relations, so
+    // they do; see `suffix_key`), which makes the bucket lookup
+    // candidate-preserving: every match AND every ambiguity the full
+    // scan would see is still seen. BTreeSet iteration keeps each
+    // bucket sorted, so refusal messages list candidates in the same
+    // order as the full scan did.
     let mut graph_files: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
     for node in graph.nodes.values() {
         graph_files.insert(node.extent.file.as_str());
         for file in node.spans.keys() {
             graph_files.insert(file.as_str());
         }
+    }
+    let mut files_by_suffix: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for f in &graph_files {
+        files_by_suffix
+            .entry(crate::query::checks::coverage::suffix_key(f))
+            .or_default()
+            .push(f);
     }
 
     let mut by_label: BTreeMap<String, Witness> = BTreeMap::new();
@@ -262,8 +278,14 @@ fn verus_witnesses_from_graph(
         };
         // Translate to artifact coordinates by the suffix rule; refuse
         // a genuine ambiguity rather than guessing (same posture as
-        // report path matching).
-        let candidates: Vec<&str> = graph_files
+        // report path matching). Only the position's suffix-key bucket
+        // can contain matches (see files_by_suffix above).
+        let candidates: Vec<&str> = files_by_suffix
+            .get(crate::query::checks::coverage::suffix_key(
+                &position.absolute_file,
+            ))
+            .map(Vec::as_slice)
+            .unwrap_or_default()
             .iter()
             .copied()
             .filter(|f| path_matches(&position.absolute_file, f))
