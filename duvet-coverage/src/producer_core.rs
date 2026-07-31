@@ -587,4 +587,386 @@ pub fn select_units(units: &Vec<UnitSpan>, file_id: u64, line: u32) -> (sel: Vec
     sel
 }
 
+// ---------------------------------------------------------------------------
+// Properties P3 and P4: Witness Assembly and Filter Soundness
+// ---------------------------------------------------------------------------
+
+/// Spec: `file_id` is a project file under the project view
+/// (PG3). Out-of-range ids are non-project by definition.
+pub open spec fn project_file(project: Seq<bool>, file_id: u64) -> bool {
+    (file_id as int) < project.len() && project[file_id as int]
+}
+
+/// Spec: the closure of `root` consulted line `(f, l)` — some
+/// reachable node's spans contain it. Deliberately project-free:
+/// this is the P4 sentence's unfiltered traversal, in the model's
+/// vocabulary.
+//= design/witness/producer-core-spec.md#property-p4-filter-soundness
+//= type=implementation
+//# Edge traversal MUST NOT be filtered — `closure_reached` takes no
+//# project view, so the reached set is project-independent by the
+//# model's construction, and only the span projection is restricted.
+pub open spec fn consulted_line(
+    g: Seq<Vec<u64>>,
+    spans: Seq<Vec<(u64, u32)>>,
+    root: u64,
+    f: u64,
+    l: u32,
+) -> bool {
+    exists|t: u64|
+        (t as int) < g.len() && reachable(g, root, t) && #[trigger] spans[t as int]@.contains(
+            (f, l),
+        )
+}
+
+/// Spec: line `(f, l)` is in the assembled witness — consulted by
+/// the closure and in a project file. This is the definitional
+/// right-hand side of Property P3.
+//= design/witness/producer-core-spec.md#property-p3-witness-assembly
+//= type=implementation
+//# The implementation MUST prove that a witness's line set equals the
+//# union of the closure's per-file spans restricted to project files:
+pub open spec fn assembled_line(
+    g: Seq<Vec<u64>>,
+    spans: Seq<Vec<(u64, u32)>>,
+    root: u64,
+    project: Seq<bool>,
+    f: u64,
+    l: u32,
+) -> bool {
+    project_file(project, f) && consulted_line(g, spans, root, f, l)
+}
+
+/// Push extends membership by exactly the pushed element.
+proof fn lemma_push_contains<T>(s: Seq<T>, x: T)
+    ensures
+        forall|v: T| s.push(x).contains(v) <==> s.contains(v) || v == x,
+{
+    assert forall|v: T| s.push(x).contains(v) <==> s.contains(v) || v == x by {
+        if s.contains(v) {
+            let i = choose|i: int| 0 <= i < s.len() && s[i] == v;
+            assert(s.push(x)[i] == v);
+        }
+        if v == x {
+            assert(s.push(x)[s.len() as int] == v);
+        }
+        if s.push(x).contains(v) {
+            let i = choose|i: int| 0 <= i < s.push(x).len() && s.push(x)[i] == v;
+            if i < s.len() {
+                assert(s[i] == v);
+            }
+        }
+    }
+}
+
+/// Property P3: the assembled line set is exactly the union of the
+/// closure's spans restricted to project files.
+///
+/// Proof shape: the reached mask is the verified closure (P1's
+/// iff-ensures ties it to `reachable`); the two nested loops then
+/// maintain a membership iff over the emitted pairs — everything
+/// emitted was consulted-and-project, and every consulted project
+/// line of a visited node was emitted.
+//
+// Placement: the annotation block is the LAST comment block before
+// the fn header so its resolved target is the header.
+//= design/witness/producer-core-spec.md#property-p3-witness-assembly
+//= type=test
+//# The implementation MUST prove that a witness's line set equals the
+//# union of the closure's per-file spans restricted to project files:
+pub fn assemble_witness_lines(
+    g: &Vec<Vec<u64>>,
+    spans: &Vec<Vec<(u64, u32)>>,
+    root: u64,
+    project: &Vec<bool>,
+) -> (out: Vec<(u64, u32)>)
+    requires
+        graph_wf(g@),
+        (root as int) < g@.len(),
+        spans@.len() == g@.len(),
+    ensures
+        forall|f: u64, l: u32|
+            #[trigger] out@.contains((f, l)) <==> assembled_line(g@, spans@, root, project@, f, l),
+{
+    let reached = closure_reached(g, root);
+    let n = spans.len();
+    let mut out: Vec<(u64, u32)> = Vec::new();
+    let mut t: usize = 0;
+    while t < n
+        invariant
+            t <= n,
+            n == spans@.len(),
+            spans@.len() == g@.len(),
+            graph_wf(g@),
+            (root as int) < g@.len(),
+            reached@.len() == g@.len(),
+            forall|u: u64|
+                (u as int) < g@.len() ==> (#[trigger] reached@[u as int] <==> reachable(
+                    g@,
+                    root,
+                    u,
+                )),
+            forall|f: u64, l: u32|
+                #[trigger] out@.contains((f, l)) <==> (project_file(project@, f) && exists|u: int|
+                    0 <= u < t && reached@[u] && #[trigger] spans@[u]@.contains((f, l))),
+        decreases n - t,
+    {
+        if reached[t] {
+            let row = &spans[t];
+            let mut j: usize = 0;
+            while j < row.len()
+                invariant
+                    t < n,
+                    n == spans@.len(),
+                    spans@.len() == g@.len(),
+                    graph_wf(g@),
+                    (root as int) < g@.len(),
+                    reached@.len() == g@.len(),
+                    j <= spans@[t as int]@.len(),
+                    row == &spans[t as int],
+                    reached@[t as int],
+                    forall|u: u64|
+                        (u as int) < g@.len() ==> (#[trigger] reached@[u as int] <==> reachable(
+                            g@,
+                            root,
+                            u,
+                        )),
+                    forall|f: u64, l: u32|
+                        #[trigger] out@.contains((f, l)) <==> (project_file(project@, f) && ((
+                        exists|u: int|
+                            0 <= u < t && reached@[u] && #[trigger] spans@[u]@.contains((f, l)))
+                            || (exists|jj: int|
+                            0 <= jj < j && spans@[t as int]@[jj] == (f, l)))),
+                decreases spans@[t as int]@.len() - j,
+            {
+                let (f, l) = row[j];
+                let fi = f as usize;
+                let is_project = fi < project.len() && project[fi];
+                let ghost old_out = out@;
+                if is_project {
+                    out.push((f, l));
+                }
+                proof {
+                    assert(is_project == project_file(project@, f));
+                    lemma_push_contains(old_out, (f, l));
+                    assert(spans@[t as int]@[j as int] == (f, l));
+                    // Re-establish the membership iff at j+1 with
+                    // explicit witness transport in both directions.
+                    assert forall|f2: u64, l2: u32|
+                        #[trigger] out@.contains((f2, l2)) <==> (project_file(project@, f2) && ((
+                        exists|u: int|
+                            0 <= u < t && reached@[u] && #[trigger] spans@[u]@.contains((f2, l2)))
+                            || (exists|jj: int|
+                            0 <= jj < j + 1 && spans@[t as int]@[jj] == (f2, l2)))) by {
+                        if out@.contains((f2, l2)) {
+                            if old_out.contains((f2, l2)) {
+                                if exists|jj: int|
+                                    0 <= jj < j && spans@[t as int]@[jj] == (f2, l2) {
+                                    let jj = choose|jj: int|
+                                        0 <= jj < j && spans@[t as int]@[jj] == (f2, l2);
+                                    assert(0 <= jj < j + 1 && spans@[t as int]@[jj] == (f2, l2));
+                                }
+                            } else {
+                                // Freshly pushed: it is row[j], and
+                                // it passed the project check.
+                                assert((f2, l2) == (f, l));
+                                assert(spans@[t as int]@[j as int] == (f2, l2));
+                            }
+                        }
+                        if project_file(project@, f2) && ((exists|u: int|
+                            0 <= u < t && reached@[u] && #[trigger] spans@[u]@.contains((f2, l2)))
+                            || (exists|jj: int|
+                            0 <= jj < j + 1 && spans@[t as int]@[jj] == (f2, l2))) {
+                            if exists|jj: int|
+                                0 <= jj < j + 1 && spans@[t as int]@[jj] == (f2, l2) {
+                                let jj = choose|jj: int|
+                                    0 <= jj < j + 1 && spans@[t as int]@[jj] == (f2, l2);
+                                if jj == j {
+                                    // Row[j] itself: pushed this
+                                    // iteration (project holds).
+                                    assert((f2, l2) == (f, l));
+                                    assert(project_file(project@, f));
+                                    assert(is_project);
+                                    assert(out@ == old_out.push((f, l)));
+                                    assert(old_out.push((f, l))[old_out.len() as int] == (f, l));
+                                    assert(out@[old_out.len() as int] == (f2, l2));
+                                    assert(out@.contains((f2, l2)));
+                                } else {
+                                    assert(0 <= jj < j && spans@[t as int]@[jj] == (f2, l2));
+                                    assert(old_out.contains((f2, l2)));
+                                }
+                            } else {
+                                assert(old_out.contains((f2, l2)));
+                            }
+                        }
+                    }
+                }
+                j = j + 1;
+            }
+            proof {
+                // The row is exhausted: fold node t into the outer
+                // accumulation (exists over the full row is
+                // Seq::contains; index t is a reached witness).
+                assert forall|f2: u64, l2: u32|
+                    #[trigger] out@.contains((f2, l2)) <==> (project_file(project@, f2) && exists|
+                        u: int,
+                    |
+                        0 <= u < t + 1 && reached@[u] && #[trigger] spans@[u]@.contains(
+                            (f2, l2),
+                        )) by {
+                    if out@.contains((f2, l2)) {
+                        if exists|jj: int|
+                            0 <= jj < spans@[t as int]@.len() && spans@[t as int]@[jj] == (
+                            f2,
+                            l2,
+                            ) {
+                            assert(spans@[t as int]@.contains((f2, l2)));
+                            assert(0 <= (t as int) < t + 1 && reached@[t as int]
+                                && spans@[t as int]@.contains((f2, l2)));
+                        }
+                    }
+                    if project_file(project@, f2) && exists|u: int|
+                        0 <= u < t + 1 && reached@[u] && #[trigger] spans@[u]@.contains((f2, l2)) {
+                        let u = choose|u: int|
+                            0 <= u < t + 1 && reached@[u] && #[trigger] spans@[u]@.contains(
+                                (f2, l2),
+                            );
+                        if u == t {
+                            assert(j == spans@[t as int]@.len());
+                            assert(spans@[t as int]@.contains((f2, l2)));
+                            let jj = choose|jj: int|
+                                0 <= jj < spans@[t as int]@.len() && spans@[t as int]@[jj] == (
+                                f2,
+                                l2,
+                                );
+                            assert(0 <= jj < j && spans@[t as int]@[jj] == (f2, l2));
+                            assert(out@.contains((f2, l2)));
+                        } else {
+                            assert(0 <= u < t && reached@[u] && spans@[u]@.contains((f2, l2)));
+                        }
+                    }
+                }
+            }
+        } else {
+            proof {
+                // Node t is not reached: extending the index bound
+                // adds nothing.
+                assert forall|f2: u64, l2: u32|
+                    #[trigger] out@.contains((f2, l2)) <==> (project_file(project@, f2) && exists|
+                        u: int,
+                    |
+                        0 <= u < t + 1 && reached@[u] && #[trigger] spans@[u]@.contains(
+                            (f2, l2),
+                        )) by {
+                    if project_file(project@, f2) && exists|u: int|
+                        0 <= u < t + 1 && reached@[u] && #[trigger] spans@[u]@.contains((f2, l2)) {
+                        let u = choose|u: int|
+                            0 <= u < t + 1 && reached@[u] && #[trigger] spans@[u]@.contains(
+                                (f2, l2),
+                            );
+                        assert(u != t);
+                    }
+                }
+            }
+        }
+        t = t + 1;
+    }
+    proof {
+        // The per-index accumulation coincides with P3's spec: a
+        // consulted witness node is a reached index and vice versa
+        // (P1's iff), and index/id quantifiers transport.
+        assert forall|f: u64, l: u32|
+            #[trigger] out@.contains((f, l)) <==> assembled_line(
+                g@,
+                spans@,
+                root,
+                project@,
+                f,
+                l,
+            ) by {
+            if out@.contains((f, l)) {
+                let u = choose|u: int|
+                    0 <= u < n && reached@[u] && #[trigger] spans@[u]@.contains((f, l));
+                assert((u as u64) as int == u);
+                assert(reachable(g@, root, u as u64));
+                assert(spans@[(u as u64) as int]@.contains((f, l)));
+            }
+            if assembled_line(g@, spans@, root, project@, f, l) {
+                let u = choose|u: u64|
+                    (u as int) < g@.len() && reachable(g@, root, u)
+                        && #[trigger] spans@[u as int]@.contains((f, l));
+                assert(reached@[u as int]);
+            }
+        }
+    }
+    out
+}
+
+/// Named precondition for P4: every span's file id is within the
+/// project view's domain (the adapter builds the file table, so
+/// every interned id is in range by construction).
+pub open spec fn spans_files_in_range(spans: Seq<Vec<(u64, u32)>>, nfiles: int) -> bool {
+    forall|t: int, j: int|
+        0 <= t < spans.len() && 0 <= j < spans[t]@.len() ==> ((#[trigger] spans[t]@[j]).0 as int)
+            < nfiles
+}
+
+/// Property P4: project filtering is a view, not a truncation —
+/// the assembly under a project view equals the unfiltered assembly
+/// (the all-true view over the file table) intersected with the
+/// project files. Filtering removes only non-project lines.
+//
+// Placement: the annotation block is the LAST comment block before
+// the fn header so its resolved target is the header.
+//= design/witness/producer-core-spec.md#property-p4-filter-soundness
+//= type=test
+//# The implementation MUST prove that project filtering is a view,
+//# not a truncation (decisions.md,
+//# [Decision 7](decisions.md#decision-7)'s consulted semantics;
+//# [spec §5.4](spec.md#closure)'s unfiltered traversal):
+pub proof fn filter_soundness(
+    g: Seq<Vec<u64>>,
+    spans: Seq<Vec<(u64, u32)>>,
+    root: u64,
+    project: Seq<bool>,
+    top: Seq<bool>,
+)
+    requires
+        spans.len() == g.len(),
+        spans_files_in_range(spans, top.len() as int),
+        forall|i: int| 0 <= i < top.len() ==> #[trigger] top[i],
+    ensures
+        forall|f: u64, l: u32|
+            #[trigger] assembled_line(g, spans, root, project, f, l) <==> (assembled_line(
+                g,
+                spans,
+                root,
+                top,
+                f,
+                l,
+            ) && project_file(project, f)),
+{
+    assert forall|f: u64, l: u32|
+        #[trigger] assembled_line(g, spans, root, project, f, l) <==> (assembled_line(
+            g,
+            spans,
+            root,
+            top,
+            f,
+            l,
+        ) && project_file(project, f)) by {
+        if assembled_line(g, spans, root, project, f, l) {
+            // The consulted line's file id is in the table, so the
+            // unfiltered (all-true) view accepts it.
+            let t = choose|t: u64|
+                (t as int) < g.len() && reachable(g, root, t) && #[trigger] spans[t
+                    as int]@.contains((f, l));
+            let j = choose|j: int|
+                0 <= j < spans[t as int]@.len() && spans[t as int]@[j] == (f, l);
+            assert(((spans[t as int]@[j]).0 as int) < top.len());
+            assert(project_file(top, f));
+        }
+    }
+}
+
 } // verus!
