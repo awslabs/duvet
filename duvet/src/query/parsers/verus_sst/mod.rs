@@ -11,11 +11,17 @@
 //! types) lives in `crate::query::producers`; per §1.7 the types in
 //! this module never escape it.
 //!
-//! Trusted-base note (spec §4.1): this module trusts that the SST
-//! log faithfully records what elaboration consulted — the same
-//! category of axiom as trusting the verifier. The closure
-//! computation over that record is our code, golden-tested here
-//! (§4.3) and a candidate for verification in `duvet-coverage`.
+//! The closure computation is golden-tested here (§4.3).
+
+// Trusted-base note (spec §4.1):
+//= design/witness/spec.md#obligation-closedness
+//# Prover producers: closedness splits into
+//# (a) the verifier's record faithfully reflects what elaboration
+//# consulted — **axiom**, same category as trusting the verifier
+//# itself — and
+//# (b) the closure computation over that record is correct —
+//# our code, which SHOULD be verified in `duvet-coverage`
+//# (it is a pure graph fixpoint).
 
 pub mod closure;
 pub mod sexpr;

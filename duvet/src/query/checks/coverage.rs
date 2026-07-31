@@ -278,13 +278,20 @@ impl SourceIndex {
 }
 
 /// Score one annotation against one witness's coverage for its file — the
-/// `executed(X, w)` cell of spec §1.4: the existing verified Phases 1–3
-/// applied to one witness's maps. Routing follows the annotation's
+/// `executed(X, w)` cell of spec §1.4. Routing follows the annotation's
 /// [`FileClassification`] arm, with the classification supplied from the
 /// per-file cache and the coverage from the witness.
-///
-/// `coverage` is `None` when the witness does not touch the annotation's
-/// file: `NotExecuted`, exactly as a report that does not name the file.
+//= design/witness/spec.md#executed
+//# This is exactly the existing verified Phases 1–3
+//# (`is_annotation_executed`, or the degraded path),
+//# applied to one witness's coverage maps.
+//
+// `coverage` is `None` when the witness does not touch the annotation's
+// file — diagnostic status `NotExecuted`, exactly as a report that does
+// not name the file:
+//= design/witness/spec.md#executed
+//# If w's `files` contains no map for X's file at all,
+//# `executed(X, w)` is false.
 pub fn executed_status(
     annotation: &Arc<Annotation>,
     classification: Option<&FileClassification>,
@@ -347,15 +354,21 @@ pub fn executed_status(
     }
 }
 
-/// Resolve an annotation's target line via the verified target resolution
-/// (spec §1.1: "resolved to the source lines it governs by the coverage
-/// model's target resolution, including the degraded path"). This is
-/// resolution only — no scoring — and is what the `ByRootSpan` claim rule
-/// consumes (spec §1.5: "T's resolved target lines ⊆ r in file f").
-///
-/// `None` when the file's classification is defeated, the annotation's
-/// range is degenerate, or the walk finds no target: an unresolvable
-/// target binds no positional witness (the annotation surfaces via W6).
+/// Resolve an annotation's target line via the verified target resolution.
+/// This is resolution only — no scoring — and is what the `ByRootSpan`
+/// claim rule consumes.
+//= design/witness/spec.md#annotations
+//# each resolved to the source lines it governs by the coverage
+//# model's target resolution
+//# ([coverage-model-spec §2](../query/coverage-model-spec.md#annotation-target-resolution),
+//# including the degraded path).
+//= design/witness/spec.md#claim-rules
+//#     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
+//#                           within r in file f
+//
+// `None` when the file's classification is defeated, the annotation's
+// range is degenerate, or the walk finds no target: an unresolvable
+// target binds no positional witness (the annotation surfaces via W6).
 pub fn resolve_target_line(
     annotation: &Arc<Annotation>,
     classification: &FileClassification,

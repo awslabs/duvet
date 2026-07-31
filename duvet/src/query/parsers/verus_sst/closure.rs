@@ -7,12 +7,19 @@
 //! Both functions take a `project` predicate that selects project
 //! files; spans outside it (vstd, registry crates) never enter the
 //! output. Edge *traversal* is not filtered: the closure is the full
-//! downward fixpoint of the obligation graph (spec §5.4 — "the
-//! closure MUST be a fixpoint"), with only the span *projection*
-//! restricted. Filtering edges instead was the SST POC's shortcut,
-//! and it truncated real closures (POC regexes could not even name
-//! `impl&%N::` obligations); this module deliberately does not
-//! reproduce that.
+//! downward fixpoint of the obligation graph, with only the span
+//! *projection* restricted. Filtering edges instead was the SST POC's
+//! shortcut, and it truncated real closures (POC regexes could not
+//! even name `impl&%N::` obligations); this module deliberately does
+//! not reproduce that.
+
+//= design/witness/spec.md#closure
+//# Reachability is transitive: the closure follows the obligation
+//# graph's reference edges through any number of call or reference
+//# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
+//# them enter — until a fixpoint.
+//= design/witness/spec.md#closure
+//# the closure MUST be a fixpoint (no truncation at a depth bound),
 
 use super::structure::ObligationGraph;
 use std::collections::{BTreeMap, BTreeSet};
@@ -22,14 +29,17 @@ pub type FileLines = BTreeMap<String, BTreeSet<u32>>;
 
 /// Pass-1 scaffolding: every project line any obligation elaborated.
 ///
-/// This is a newtype on purpose. Per spec §5.5 (#verus-producer) the
-/// aggregate map
-/// MUST NOT be delivered as a witness — it is many obligations
-/// wearing one map, an individuation (§4.2) violation by
-/// construction. Its only legitimate consumer is liveness
-/// determination (which annotations are worth constructing witnesses
-/// for). Keeping it a distinct type means it cannot be passed where
-/// witness file maps go without an explicit, visible unwrap.
+/// This is a newtype on purpose. Its only legitimate consumer is
+/// liveness determination (which annotations are worth constructing
+/// witnesses for); keeping it a distinct type means it cannot be
+/// passed where witness file maps go without an explicit, visible
+/// unwrap.
+//= design/witness/spec.md#verus-producer
+//# The aggregate executability map MUST NOT be delivered as a
+//# witness: it is many obligations wearing one map, and delivering
+//# it would violate [§4.2](#obligation-individuation) by
+//# construction; it exists only as pass-1 scaffolding inside the
+//# producer.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AggregateExecutabilityMap(pub FileLines);
 
@@ -85,11 +95,15 @@ impl Closure {
 /// Compute the closure from `root` to fixpoint. `None` if `root` is
 /// not a node in the graph.
 ///
-/// Semantics is *consulted* (Decision 7): every symbolic reference
-/// is followed, whether or not the solver needed it. References to
-/// names with no `FunctionSst` block in the artifact (externals
-/// with no logged body) are not part of the obligation graph and do
-/// not appear in `reached`.
+/// Every symbolic reference is followed, whether or not the solver
+/// needed it (Decision 7):
+//= design/witness/spec.md#closure
+//# and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
+//# not load-bearing dependency.
+///
+/// References to names with no `FunctionSst` block in the artifact
+/// (externals with no logged body) are not part of the obligation
+/// graph and do not appear in `reached`.
 pub fn closure(
     graph: &ObligationGraph,
     root: &str,

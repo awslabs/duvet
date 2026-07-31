@@ -70,8 +70,12 @@ pub struct CoverageSource {
 /// A position a prover producer is asked to witness: a test
 /// annotation's resolved target, in engine coordinates (absolute
 /// source path + target line). Positions, not annotations, cross
-/// this boundary: per spec §1.7 a witness is a function of
-/// (artifact, obligation) only and carries no annotation identity.
+/// this boundary:
+//= design/witness/spec.md#producer
+//# Normatively: every delivered witness MUST be a function of
+//# (artifact, obligation) only — identical regardless of which
+//# annotation caused its materialization, carrying no annotation
+//# identity
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequestedPosition {
     pub absolute_file: String,
@@ -121,13 +125,17 @@ pub fn expand_globs(patterns: &[String]) -> Result<Vec<String>> {
 
 /// Produce the witnesses of one declared source.
 ///
-/// `positions` is the semantically inert optimization argument of
-/// spec §1.7: runtime producers ignore it (their witnesses
-/// pre-exist in the artifact); the prover arm uses it to select
-/// which members of the witness universe to materialize. Verdicts
-/// are independent of the selection (§1.7's soundness requirement:
-/// the filter only omits witnesses binding no requested
-/// annotation).
+/// `positions` is spec §1.7's `annotations` argument: runtime
+/// producers ignore it (their witnesses pre-exist in the artifact);
+/// the prover arm uses it.
+//= design/witness/spec.md#producer
+//# The `annotations` argument is a **semantically inert
+//# optimization**, never a semantic input.
+//# The witness universe is defined by the artifact alone —
+//# conceptually one potential witness per obligation —
+//# and the argument only selects which members are materialized,
+//# so that producers need not close every obligation to serve a few
+//# annotations.
 pub async fn produce(
     source: &CoverageSource,
     positions: &[RequestedPosition],
@@ -171,10 +179,12 @@ pub async fn produce(
 /// Wrap one JaCoCo report file as one witness: claim `ByExecution`,
 /// strength `Executed`, per-file maps exactly as the report states
 /// them (Decision 2: JaCoCo/LCOV is one file → one witness).
-///
-/// Individuation (spec §4.2) is the operator's responsibility for
-/// runtime artifacts — one instrumented run per test — and duvet
-/// does not attempt detection (Decision 11). Named axiom.
+/// Named axiom:
+//= design/witness/spec.md#obligation-individuation
+//# Runtime producers: individuation is the operator's
+//# responsibility — one instrumented run per test.
+//# The artifact does not record how it was produced,
+//# so duvet does not attempt detection
 async fn jacoco_witness(artifact: &str) -> Result<Witness> {
     let data = parse_coverage_data(&artifact.to_string(), &CoverageFormat::JacocoXml).await?;
     let generic = data.as_generic();
@@ -211,10 +221,10 @@ async fn jacoco_witness(artifact: &str) -> Result<Witness> {
 /// optimization).
 ///
 /// Witnesses are deduplicated by discharge-unit label: two positions
-/// rooting the same discharge unit yield one witness, which is
-/// well-defined because a witness is a function of (artifact, unit)
-/// only (spec §1.7). Output order is ascending by label within one
-/// artifact — deterministic regardless of position order.
+/// rooting the same discharge unit yield one witness — well-defined
+/// per §1.7's witness-identity requirement (cited on
+/// [`RequestedPosition`]). Output order is ascending by label within
+/// one artifact — deterministic regardless of position order.
 fn verus_witnesses_from_graph(
     graph: &verus_sst::structure::ObligationGraph,
     artifact: &str,

@@ -8,9 +8,8 @@
 //! The quantifiers themselves — `binds`, the bound-witness set, and the
 //! spec's engine properties (design/witness/spec.md#engine-properties) —
 //! are NOT implemented here. They are proven in `duvet-coverage`
-//! and the engine's verdicts are computed by calling them; no parallel
-//! engine-side verdict computation exists (glue obligation G2,
-//! spec §4.4).
+//! and the engine's verdicts are computed by calling them (glue
+//! obligation G2, cited below).
 //!
 //! What this module still owns is glue, named in spec §4.4:
 //!
@@ -29,6 +28,15 @@
 //!   classified file is dropped (the same input the engine's diagnostic
 //!   path refuses with `Unknown`; both directions verdict `false`).
 
+//= design/witness/spec.md#engine-glue
+//# **G2 (call obligation).** The engine MUST compute every pair,
+//# test, and global verdict (Properties
+//# [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
+//# [W6](#property-w6-unwitnessed-test-annotations)) by calling the
+//# verified layer's functions, and MUST derive per-witness
+//# failure diagnostics ([§3](#verdict-output)) from the same verified cells;
+//# no parallel engine-side verdict computation may exist.
+
 use crate::{
     annotation::Annotation,
     query::{
@@ -46,8 +54,11 @@ use duvet_coverage::{
 use rustc_hash::FxHashMap;
 use std::{collections::BTreeMap, fmt, path::PathBuf, sync::Arc};
 
-/// The verified per-file coverage type a witness carries
-/// (spec §1.2: "line → CoverageStatus, the existing verified type").
+/// The verified per-file coverage type a witness carries.
+//= design/witness/spec.md#witness
+//#     files:      Map<FilePath, CoverageReport>,
+//#                                    -- per file: line → CoverageStatus,
+//#                                    -- the existing verified type
 pub type CoverageReportMap = duvet_coverage::types::CoverageReport;
 
 //= design/witness/spec.md#witness
@@ -74,14 +85,19 @@ pub struct Witness {
 //# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClaimRule {
-    /// Runtime rule: the report cannot record which test produced
-    /// it, so the test claims the witness by evidence — its own
-    /// lines are executed in it. Sound only under witness
-    /// individuation (spec §4.2, a named axiom for runtime
-    /// producers).
+    //= design/witness/spec.md#claim-rules
+    //# `ByExecution` is the runtime rule:
+    //# the report cannot record which test produced it,
+    //# so the test claims the witness by evidence —
+    //# its own lines are executed in it.
+    //# This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
+    /// A named axiom for runtime producers (spec §4.2).
     ByExecution,
-    /// Prover rule: the witness was constructed from the
-    /// annotation's own position, so ownership is positional.
+    //= design/witness/spec.md#claim-rules
+    //# `ByRootSpan` is the prover rule:
+    //# the witness was constructed from the annotation's own position
+    //# ([§5](#prover-producers)), so ownership is positional and holds by
+    //# construction
     /// `file` is in producer (artifact) coordinates; the adapter
     /// translates it to a file identity by the suffix rule, refusing
     /// ambiguity (spec §1.5).
@@ -117,14 +133,19 @@ impl fmt::Display for Strength {
 pub struct Provenance {
     pub producer: String,
     pub artifact: String,
-    /// Prover producers only: the obligation the witness was
-    /// constructed from.
+    //= design/witness/spec.md#provenance
+    //#     discharge_unit: Option<String>,
+    //#                               -- prover producers only: the obligation
+    //#                               -- the witness was constructed from
     pub discharge_unit: Option<String>,
     pub strength: Strength,
 }
 
-/// The (label, strength) pair verdict output must carry
-/// (spec §3; decisions.md Decision 7).
+/// The (label, strength) pair of one bound witness in verdict output
+/// (decisions.md, Decision 7).
+//= design/witness/spec.md#verdict-output
+//# For every discharged pair, the output MUST name, in verbose
+//# output, every bound witness (its label) and its strength
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WitnessRef {
     pub label: String,
@@ -149,8 +170,12 @@ pub struct ResolvedTarget {
     pub line: u64,
 }
 
-/// One bound witness's contribution to a pair verdict
-/// (spec §3: label, strength, and per-witness result).
+/// One bound witness's contribution to a pair verdict.
+//= design/witness/spec.md#verdict-output
+//# the output MUST list
+//# **every** bound witness with its per-witness result
+//# (executed I / did not execute I) and strength,
+//# so the failing claim is identifiable
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PairWitnessResult {
     pub witness: WitnessRef,
@@ -164,13 +189,16 @@ pub struct PairWitnessResult {
 }
 
 /// The verdict for one (T, I) pair over the bound-witness set.
+//= design/witness/spec.md#verdict-output
+//# the engine computes all of these to evaluate the verdict,
+//# and the disagreement MUST never be silent
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DischargeVerdict {
     /// Property W1's verdict, computed by the verified
     /// `report_discharged`.
     pub discharged: bool,
-    /// Every bound witness's result, in bound order (spec §3 requires
-    /// every one of them in failure output).
+    /// Every bound witness's result, in bound order (failure output
+    /// lists every one of them).
     pub per_witness: Vec<PairWitnessResult>,
 }
 

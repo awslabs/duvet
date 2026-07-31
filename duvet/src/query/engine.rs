@@ -373,15 +373,19 @@ struct WitnessLoad {
     index: SourceIndex,
 }
 
-/// Produce every declared source's witnesses (spec §1.7), in declaration
-/// order (which makes the "first discharging witness" named in verdicts
-/// deterministic).
-///
-/// Prover producers are annotation-driven (spec §5.2): they consume the
-/// *resolved positions* of test annotations — positions, not annotations,
-/// per §1.7's inertness requirement — so when one is declared, test files
-/// are classified first and targets resolved via the verified target
-/// resolution.
+/// Produce every declared source's witnesses, in declaration order (which
+/// makes the "first discharging witness" named in verdicts deterministic).
+//= design/witness/spec.md#producer
+//# Runtime producers MAY ignore the `annotations` argument
+//# (their witnesses pre-exist in the artifact).
+//# Prover producers use it to construct witnesses
+//= design/witness/spec.md#two-pass-construction
+//# Prover witnesses are constructed, not found:
+//
+// So when a prover producer is declared, test files are classified first
+// and targets resolved via the verified target resolution — positions,
+// not annotations, cross the boundary (§1.7's inertness requirement,
+// cited on `RequestedPosition`).
 async fn load_witnesses(
     sources: &[CoverageSource],
     project_data: &ProjectData,
@@ -411,8 +415,11 @@ async fn load_witnesses(
                 continue;
             };
             let Some(line) = resolve_target_line(annotation, file_classification) else {
-                // Unresolvable target: no positional witness can bind it
-                // (spec §1.5); the annotation surfaces through W6.
+                // Unresolvable target: the annotation surfaces through W6.
+                //= design/witness/spec.md#claim-rules
+                //# An annotation with no resolved target (e.g. a Structural
+                //# annotation) binds no ByRootSpan witness —
+                //# empty-target containment MUST NOT bind vacuously.
                 continue;
             };
             let Some(absolute) = index.absolute_of(&path) else {
@@ -446,10 +453,11 @@ async fn load_witnesses(
 
 /// Fold execution statuses with OR semantics: `Executed` wins outright;
 /// among the rest `Unknown` is preferred (it carries a diagnostic line);
-/// `NotExecuted` is the base case. The caller chooses the quantifier scope
-/// by choosing the statuses: fold over ALL witnesses for global questions
-/// (Property W3), or over one test's bound witnesses for pair discharge
-/// (Property W1) — same-witness discharge is exactly this scoping.
+/// `NotExecuted` is the base case. Diagnostic detail only, never a
+/// verdict: the quantifier properties of design/witness/spec.md §2 are
+/// implemented by the verified layer (`duvet_coverage::witness`), not by
+/// this fold — callers choose which statuses to feed it purely for
+/// report headlines.
 fn fold_statuses(statuses: impl IntoIterator<Item = ExecutionStatus>) -> ExecutionStatus {
     let mut folded = ExecutionStatus::NotExecuted;
     for status in statuses {
@@ -503,10 +511,13 @@ async fn execute_coverage_check(
 
     // Loud, non-verbose: files whose selected classifier could not produce a
     // trustworthy classification — a parse error, or an unbalanced scope
-    // stream (spec §1.5). We refuse to score against a collapsed/garbage
-    // tree; their annotations are reported `Unknown`. Surfaced unconditionally
-    // because it signals either a mislabeled file or a classifier gap — both
-    // need a human, and silence is the bug we are fixing.
+    // stream. Surfaced unconditionally because it signals either a mislabeled
+    // file or a classifier gap — both need a human, and silence is the bug we
+    // are fixing.
+    //= design/query/coverage-model-spec.md#scopes
+    //# When the stream is unbalanced,
+    //# the coverage model MUST NOT score annotations against the collapsed scope tree;
+    //# it MUST surface the file as a defeated classification and escalate
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
         let mut defeated: std::collections::BTreeMap<&std::path::Path, &Vec<ClassifierIssue>> =
@@ -573,12 +584,11 @@ async fn execute_coverage_check(
         }
     }
 
-    // The executed(X, w) cell (spec §1.4) in DIAGNOSTIC form: the existing
-    // verified Phases 1-3 scored against one witness's maps, with `Unknown`
-    // carrying line detail. Verdicts do not flow through this closure — they
-    // are computed by the verified Phase 4 quantifier layer through the
-    // adapter below; this cell only feeds report detail and the
-    // executed-tests-only mode filter.
+    // The `executed(X, w)` cell in DIAGNOSTIC form (`executed_status`, which
+    // cites spec §1.4), with `Unknown` carrying line detail. Verdicts do not
+    // flow through this closure — they are computed by the verified Phase 4
+    // quantifier layer through the adapter below; this cell only feeds
+    // report detail and the executed-tests-only mode filter.
     let cell = |annotation: &Arc<Annotation>, witness_index: usize| -> ExecutionStatus {
         let path = annotation.source.to_path_buf();
         executed_status(
@@ -588,11 +598,13 @@ async fn execute_coverage_check(
         )
     };
 
-    // A test annotation's resolved target, for the ByRootSpan claim arm
-    // (spec §1.5). None when the file was never classified (it had no
-    // coverage and no prover producer is configured), classification was
-    // defeated, or the walk found no target - all of which bind no
-    // positional witness.
+    // A test annotation's resolved target, for the ByRootSpan claim arm:
+    //= design/witness/spec.md#claim-rules
+    //#     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
+    //#                           within r in file f
+    // None when the file was never classified (it had no coverage and no
+    // prover producer is configured), classification was defeated, or the
+    // walk found no target - all of which bind no positional witness.
     let resolve = |annotation: &Arc<Annotation>| -> Option<ResolvedTarget> {
         let path = annotation.source.to_path_buf();
         let line = resolve_target_line(annotation, classification.get(&path)?)?;
@@ -604,12 +616,14 @@ async fn execute_coverage_check(
 
     // The G1 adapter: witnesses and annotation scoring contexts translated
     // into the verified model's vocabulary (injective file ids, scoring
-    // modes). All verdicts below — pair discharge (W1), witnessed/
-    // unwitnessed (W2/W6), ever-executed (W3) — are computed by calling
-    // the verified quantifier layer through it (glue obligation G2,
-    // spec §4.4).
-    // Translation refuses ambiguous root-span path matches (spec §1.5)
-    // rather than selecting.
+    // modes). Translation refuses ambiguous root-span path matches
+    // (spec §1.5) rather than selecting. All verdicts below flow through it:
+    //= design/witness/spec.md#engine-glue
+    //# The engine MUST compute every pair,
+    //# test, and global verdict (Properties
+    //# [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
+    //# [W6](#property-w6-unwitnessed-test-annotations)) by calling the
+    //# verified layer's functions
     let adapter = VerifiedVerdicts::build(&witnesses, &matched, &classification, &index)?;
 
     let mut test_annotations: Vec<_> = Vec::new();
@@ -693,12 +707,14 @@ async fn execute_coverage_check(
         let bound = adapter.bound_witnesses(&test.target);
 
         if !test_is_unwitnessed {
-            // The test is witnessed (Property W2). Evaluate each covering
-            // implementation against EVERY bound witness: the verdict is
-            // universal (Decision 14) — one bound witness that did not
-            // execute the implementation fails the pair; bound witnesses
-            // are never outvoted.
+            // The test is witnessed:
+            //= design/witness/spec.md#property-w2-test-execution
+            //# The implementation MUST prove that a test annotation is reported
+            //# executed if and only if some delivered witness binds it:
             //
+            // Evaluate each covering implementation against EVERY bound
+            // witness — bound witnesses are never outvoted (decisions.md,
+            // Decision 14):
             //= design/witness/spec.md#discharge
             //= type=implementation
             //# witnesses_for(T)  =  { w ∈ delivered : binds(T, w) }

@@ -3,9 +3,7 @@
 
 //! Obligation structure extracted from parsed SST logs.
 //!
-//! Per `design/witness/spec.md` §5.5, the parser MUST emit
-//! *structure* — obligation nodes and reference edges — not just a
-//! flat span map. Pass 1 (aggregate executability map) and pass 2
+//! Pass 1 (aggregate executability map) and pass 2
 //! (per-discharge-unit closure) are both projections of the
 //! [`ObligationGraph`] built here; see [`super::closure`].
 //!
@@ -26,6 +24,14 @@
 //! extents to agree — a conflict would mean two different source
 //! functions share a fully-qualified path, which would make node
 //! identity unsound, so it is an error rather than a warning.
+
+//= design/witness/spec.md#verus-producer
+//# A flat span inventory of one block covers essentially
+//# only its own extent, so the Verus producer MUST parse its
+//# artifact once into a structure of obligation nodes and
+//# reference edges and derive everything else from that
+//# structure — parse-into-structure is a MUST, not an
+//# optimization.
 
 use super::sexpr::{parse_all, Sexpr, SexprError};
 use std::{

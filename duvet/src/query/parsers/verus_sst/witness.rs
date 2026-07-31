@@ -77,10 +77,15 @@ pub struct VerusWitness {
 
 pub const PRODUCER: &str = "verus-sst";
 
-/// The report sentence for a not-proof-testable position, verbatim
-/// from spec §5.2. Distinct from Property W6's "no witness from any
-/// configured producer": this position was elaborated, but nothing
-/// dischargeable is rooted there.
+/// The report sentence for a not-proof-testable position: this
+/// position was elaborated, but nothing dischargeable is rooted
+/// there.
+//= design/witness/spec.md#two-pass-construction
+//# and the report MUST identify the annotation as
+//# *not proof-testable* ("this position carries no dischargeable
+//# obligation; it can only be witnessed by an execution-style
+//# producer") — a report distinct from Property W6's
+//# "no witness from any configured producer."
 pub const NOT_PROOF_TESTABLE: &str = "this position carries no dischargeable obligation; \
      it can only be witnessed by an execution-style producer";
 
