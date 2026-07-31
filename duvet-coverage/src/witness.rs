@@ -586,6 +586,138 @@ pub fn report_discharged(
     any_bound
 }
 
+/// Property W1 over a precomputed bound set: `report_discharged` with
+/// the `binds` scan hoisted out. The engine evaluates one test against
+/// many implementations; the bound set depends only on the test, so
+/// the glue computes it once (from the verified `is_bound_by` cells)
+/// and discharges each pair by checking `executed(I, ·)` over that set
+/// alone.
+///
+/// The `ensures` is verbatim `report_discharged`'s: the verdict equals
+/// spec §1.6 `discharged` over the FULL delivered set. The bound-set
+/// exactness (`bound` is sound and complete for `binds(T, ·)`, by
+/// index) is a precondition the glue establishes from the verified
+/// cells' postconditions — never by engine-side recomputation.
+//= design/witness/spec.md#engine-glue
+//= type=implementation
+//# **G4 (bound-set precomputation).** The glue MAY compute a test's
+//# bound-witness set once — each membership decided by the verified
+//# binding cell — and pass it to a bound-set-taking verified
+//# discharge entry point, provided the verified layer proves that
+//# entry point's verdict equal to [§1.6](#discharge) discharge over
+//# the full delivered set whenever the supplied set is exactly
+//# `witnesses_for(T)`, sound and complete by index.
+#[allow(clippy::too_many_arguments)]
+pub fn report_discharged_given_bound(
+    t_file_id: u64,
+    t_annotation: &AnnotationSpan,
+    t_mode: ScoringMode,
+    t_classifications: &[Option<LineClass>],
+    t_scopes: &[Scope],
+    t_file_length: u64,
+    i_file_id: u64,
+    i_annotation: &AnnotationSpan,
+    i_mode: ScoringMode,
+    i_classifications: &[Option<LineClass>],
+    i_scopes: &[Scope],
+    i_file_length: u64,
+    witnesses: &[Witness],
+    bound: &[usize],
+) -> (result: bool)
+    requires
+        scoring_ctx_wf(i_mode, i_annotation, i_scopes),
+        witnesses_coverage_in_bounds(witnesses@, i_file_id, i_mode, i_classifications),
+        // Sound: every listed index is in range and binds T.
+        forall|j: int| 0 <= j < bound@.len() ==> (#[trigger] bound@[j]) < witnesses@.len(),
+        forall|j: int| 0 <= j < bound@.len()
+            ==> binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                t_file_length, witnesses@[#[trigger] bound@[j] as int]),
+        // Complete: every witness binding T is listed.
+        forall|k: int| 0 <= k < witnesses@.len()
+            && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                t_file_length, #[trigger] witnesses@[k])
+            ==> exists|j: int| 0 <= j < bound@.len() && bound@[j] == k,
+    ensures
+        result <==> discharged(
+            t_file_id, t_annotation, t_mode, t_classifications, t_scopes, t_file_length,
+            i_file_id, i_annotation, i_mode, i_classifications, i_scopes, i_file_length,
+            witnesses@),
+{
+    if bound.len() == 0 {
+        // Completeness: nothing binds T, so `discharged`'s existential
+        // conjunct is false.
+        proof {
+            assert forall|k: int| 0 <= k < witnesses@.len()
+                implies !binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                    t_file_length, #[trigger] witnesses@[k]) by {
+                if binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                    t_file_length, witnesses@[k]) {
+                    let j = choose|j: int| 0 <= j < bound@.len() && bound@[j] == k;
+                    assert(false);
+                }
+            }
+        }
+        return false;
+    }
+    let mut j: usize = 0;
+    while j < bound.len()
+        invariant
+            0 <= j <= bound@.len(),
+            bound@.len() > 0,
+            scoring_ctx_wf(i_mode, i_annotation, i_scopes),
+            witnesses_coverage_in_bounds(witnesses@, i_file_id, i_mode, i_classifications),
+            forall|a: int| 0 <= a < bound@.len() ==> (#[trigger] bound@[a]) < witnesses@.len(),
+            forall|a: int| 0 <= a < bound@.len()
+                ==> binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                    t_file_length, witnesses@[#[trigger] bound@[a] as int]),
+            forall|k: int| 0 <= k < witnesses@.len()
+                && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                    t_file_length, #[trigger] witnesses@[k])
+                ==> exists|b: int| 0 <= b < bound@.len() && bound@[b] == k,
+            // Every bound index checked so far executed I.
+            forall|a: int| 0 <= a < j
+                ==> executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
+                    i_file_length, witnesses@[#[trigger] bound@[a] as int]),
+        decreases bound@.len() - j,
+    {
+        let wi = bound[j];
+        if !is_executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
+            i_file_length, &witnesses[wi])
+        {
+            // bound[j] binds T (soundness) and did not execute I: the
+            // universal conjunct of `discharged` is violated at index
+            // bound[j].
+            proof {
+                let k = bound@[j as int] as int;
+                assert(binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                    t_file_length, witnesses@[k]));
+                assert(!executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
+                    i_file_length, witnesses@[k]));
+            }
+            return false;
+        }
+        j = j + 1;
+    }
+    // All bound indices executed I; bound is non-empty and sound, so the
+    // existential conjunct holds at bound[0]; completeness carries the
+    // universal conjunct from bound indices to ALL binding witnesses.
+    proof {
+        let k0 = bound@[0] as int;
+        assert(binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+            t_file_length, witnesses@[k0]));
+        assert forall|k: int| 0 <= k < witnesses@.len()
+            && binds(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
+                t_file_length, #[trigger] witnesses@[k])
+            implies executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
+                i_file_length, witnesses@[k]) by {
+            let b = choose|b: int| 0 <= b < bound@.len() && bound@[b] == k;
+            assert(executed_by(i_file_id, i_annotation, i_mode, i_classifications, i_scopes,
+                i_file_length, witnesses@[bound@[b] as int]));
+        }
+    }
+    true
+}
+
 /// Property W2: Test Execution.
 //= design/witness/spec.md#property-w2-test-execution
 //= type=test
@@ -1470,5 +1602,126 @@ mod tests {
             0,
             &[w_both()],
         ));
+    }
+
+    /// The glue's bound-set assembly, mirrored exactly (spec §4.4 G4):
+    /// the indices where the verified `is_bound_by` cell returns true,
+    /// over the same test context and witness list. The context is
+    /// constructed once, as the glue's cached `ctx_of` does.
+    fn bound_from_cells(witnesses: &[Witness]) -> Vec<usize> {
+        let t = t_annotation();
+        let c = t_classifications();
+        (0..witnesses.len())
+            .filter(|&wi| {
+                is_bound_by(
+                    T_FILE,
+                    &t,
+                    ScoringMode::Classified,
+                    &c,
+                    &[],
+                    3,
+                    &witnesses[wi],
+                )
+            })
+            .collect()
+    }
+
+    fn discharged_given_bound(witnesses: &[Witness], bound: &[usize]) -> bool {
+        report_discharged_given_bound(
+            T_FILE,
+            &t_annotation(),
+            ScoringMode::Classified,
+            &t_classifications(),
+            &[],
+            3,
+            I_FILE,
+            &i_annotation(),
+            ScoringMode::Classified,
+            &i_classifications(),
+            &[],
+            2,
+            witnesses,
+            bound,
+        )
+    }
+
+    /// G4 equivalence, runtime half (the proved half is the identical
+    /// `ensures` of the two entry points): over every witness-set shape
+    /// the W1 tests exercise, `report_discharged_given_bound` with the
+    /// cell-assembled bound set returns exactly `report_discharged`.
+    #[test]
+    fn g4_given_bound_equals_report_discharged() {
+        let sets: Vec<Vec<Witness>> = vec![
+            vec![],
+            vec![w_both()],
+            vec![w_t_only()],
+            vec![w_i_only()],
+            vec![w_t_only(), w_i_only()],
+            vec![w_both(), w_t_only()],
+            vec![w_both(), w_i_only()],
+            vec![w_i_only(), w_both(), w_t_only(), w_both()],
+        ];
+        for ws in &sets {
+            let bound = bound_from_cells(ws);
+            assert_eq!(
+                discharged_given_bound(ws, &bound),
+                discharged_verdict(ws),
+                "verdicts diverged for witness set of len {} (bound {bound:?})",
+                ws.len()
+            );
+        }
+    }
+
+    /// Perf harness (run explicitly: `cargo test --release -p
+    /// duvet-coverage bench_discharge -- --ignored --nocapture`): the
+    /// engine's per-test shape — k implementations against one test —
+    /// as k full-scan `report_discharged` calls vs one bound scan plus
+    /// k `report_discharged_given_bound` calls.
+    #[test]
+    #[ignore = "perf harness, run explicitly with --ignored --nocapture"]
+    fn bench_discharge_bound_hoisting() {
+        // 400 witnesses, 4 of which bind T. The non-binding ones still
+        // carry a T-file map (a miss at the target line), so each binds
+        // check pays the real scoring cost — as engine witnesses do —
+        // rather than short-circuiting on a missing file entry.
+        let w_t_miss = || Witness {
+            claim: ClaimRule::ByExecution,
+            files: vec![
+                (T_FILE, [(3u64, CoverageStatus::Miss)].into_iter().collect()),
+                (I_FILE, cov_hit(&[2])),
+            ],
+        };
+        let mut ws: Vec<Witness> = Vec::new();
+        for i in 0..400 {
+            ws.push(if i % 100 == 0 { w_both() } else { w_t_miss() });
+        }
+        let k = 25u32;
+        let iters = 50u32;
+
+        let t0 = std::time::Instant::now();
+        for _ in 0..iters {
+            for _ in 0..k {
+                std::hint::black_box(discharged_verdict(&ws));
+            }
+        }
+        let full = t0.elapsed();
+
+        let t1 = std::time::Instant::now();
+        for _ in 0..iters {
+            let bound = bound_from_cells(&ws);
+            for _ in 0..k {
+                std::hint::black_box(discharged_given_bound(&ws, &bound));
+            }
+        }
+        let hoisted = t1.elapsed();
+        println!(
+            "bench_discharge_bound_hoisting: witnesses={} impls={} iters={} \
+             full-scan={:?} bound-hoisted={:?}",
+            ws.len(),
+            k,
+            iters,
+            full,
+            hoisted
+        );
     }
 }

@@ -475,6 +475,17 @@ and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
   ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)). The adapter MUST establish
   the verified functions' preconditions at the boundary —
   filter or degrade before calling, never assume.
+- **G4 (bound-set precomputation).** The glue MAY compute a test's
+  bound-witness set once — each membership decided by the verified
+  binding cell — and pass it to a bound-set-taking verified
+  discharge entry point, provided the verified layer proves that
+  entry point's verdict equal to [§1.6](#discharge) discharge over
+  the full delivered set whenever the supplied set is exactly
+  `witnesses_for(T)`, sound and complete by index.
+  The exactness precondition MUST be established the G3 way:
+  the set is assembled from the verified binding cells' results
+  for the same test context and witness list, never recomputed
+  engine-side.
 
 ---
 

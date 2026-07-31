@@ -472,15 +472,29 @@ impl<'a> VerifiedVerdicts<'a> {
     //#                       ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
     ///
     /// The W1 verdict for one (T, I) pair, computed by the verified
-    /// `report_discharged` over the full delivered set (Decision 14's
-    /// universal form: one bound witness that never reaches I fails the
-    /// pair — bound witnesses are never outvoted).
+    /// `report_discharged_given_bound` — spec §1.6's discharge over the
+    /// full delivered set, with the `binds(T, ·)` scan hoisted out.
     ///
-    /// `bound` is the list from [`Self::bound_witnesses`]; the per-witness
-    /// results (spec §3: every bound witness, in bound order) use the
-    /// verified `is_executed_by` cell for the executed flag and the
-    /// caller's diagnostic status (the engine's `Unknown`-carrying cell)
-    /// for reporting detail.
+    //= design/witness/spec.md#engine-glue
+    //= type=implementation
+    //# The exactness precondition MUST be established the G3 way:
+    //# the set is assembled from the verified binding cells' results
+    //# for the same test context and witness list, never recomputed
+    //# engine-side.
+    ///
+    /// `bound` is the list from [`Self::bound_witnesses`], which collects
+    /// exactly the indices where the verified `is_bound_by` cell (ensures:
+    /// result ⟺ `binds`) returned true, over this same `self.verified`
+    /// list and the same `ctx_of(t)` context — establishing the sound-
+    /// and-complete-by-index precondition of the verified entry point,
+    /// whose `ensures` then equals `report_discharged`'s verbatim
+    /// (Decision 14's universal form: one bound witness that never
+    /// reaches I fails the pair — bound witnesses are never outvoted).
+    ///
+    /// The per-witness results (spec §3: every bound witness, in bound
+    /// order) use the verified `is_executed_by` cell for the executed
+    /// flag and the caller's diagnostic status (the engine's
+    /// `Unknown`-carrying cell) for reporting detail.
     pub fn discharge_verdict(
         &self,
         t: &Arc<Annotation>,
@@ -490,7 +504,7 @@ impl<'a> VerifiedVerdicts<'a> {
     ) -> DischargeVerdict {
         let t_ctx = self.ctx_of(t);
         let i_ctx = self.ctx_of(i);
-        let discharged = verified::report_discharged(
+        let discharged = verified::report_discharged_given_bound(
             t_ctx.file_id,
             &t_ctx.span,
             t_ctx.mode,
@@ -504,6 +518,7 @@ impl<'a> VerifiedVerdicts<'a> {
             i_ctx.scopes,
             i_ctx.file_length,
             &self.verified,
+            bound,
         );
         let per_witness = bound
             .iter()
