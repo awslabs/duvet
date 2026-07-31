@@ -728,6 +728,23 @@ async fn execute_coverage_check(
             let mut not_executed_implementations = Vec::new();
 
             for annotation in &test.covering_annotations {
+                // Implication and exception coverers tile the quote but are
+                // never held to the witness-executed correlation: an
+                // implication asserts the requirement is fundamentally true
+                // or not testable, an exception that it is deliberately
+                // waived — in both cases there is nothing a witness could
+                // have executed, and holding them to `executed(I, w)` is a
+                // category error (§1.6's discharge is over implementation
+                // annotations). This is what makes cross-crate staging
+                // honest: an engine-side `type=implication` annotation
+                // quoting a proof-side property does not fail the pair
+                // (design/witness/dogfood.md, the W2/W3/W6 finding).
+                if matches!(
+                    annotation.anno,
+                    AnnotationType::Implication | AnnotationType::Exception
+                ) {
+                    continue;
+                }
                 // Verified W1 verdict; the diagnostic closure only feeds the
                 // per-witness `status` detail (`Unknown` line numbers).
                 let verdict = adapter

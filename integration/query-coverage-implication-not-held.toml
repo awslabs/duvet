@@ -1,0 +1,188 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r *.xml -f jacoco-xml --verbose"]
+report_output = false
+
+# Implication (and exception) coverers are quote-tiling only: they are
+# NOT held to the witness-executed correlation (design/witness/spec.md
+# §1.6 discharge applies to implementation annotations — an implication
+# asserts "fundamentally true or not testable", so there is nothing a
+# witness could execute; holding it to executed(I, w) is a category
+# error and made cross-crate implication staging impossible — the
+# W2/W3/W6 dogfood finding, design/witness/dogfood.md).
+#
+# Shape: section-1's quote is covered by an implication whose lines are
+# never executed in the coverage report, plus an executed citation. The
+# citation is held to the check (and passes); the implication is
+# exempt. section-2's quote is covered ONLY by a non-executed
+# implication: the pair still discharges, because the test bound its
+# witness and no citation coverer failed.
+#
+# Expected: PASS with 2 successful correlations. Before the fix the
+# engine held the implications to executed(I, w) and failed both.
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST be implemented and checked
+
+## Section 2
+
+This MUST hold by construction
+
+"""
+
+[[file]]
+path = "src/main/java/com/example/Impl.java"
+contents = """
+package com.example;
+
+public class Impl {
+
+    public static int implemented() {
+        //= spec.md#section-1
+        //= type=implementation
+        //# This MUST be implemented and checked
+        return 1; // line 9: executed
+    }
+
+    public static int neverRuns() {
+        //= spec.md#section-1
+        //= type=implication
+        //# This MUST be implemented and checked
+        return 2; // line 16: NOT executed
+    }
+
+    public static int alsoNeverRuns() {
+        //= spec.md#section-2
+        //= type=implication
+        //# This MUST hold by construction
+        return 3; // line 23: NOT executed
+    }
+}
+
+"""
+
+[[file]]
+path = "src/test/java/com/example/ImplTest.java"
+contents = """
+package com.example;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class ImplTest {
+
+    @Test
+    public void testImplemented() {
+        //= spec.md#section-1
+        //= type=test
+        //# This MUST be implemented and checked
+
+        assertEquals(1, Impl.implemented()); // line 14: executed
+    }
+
+    @Test
+    public void testByConstruction() {
+        //= spec.md#section-2
+        //= type=test
+        //# This MUST hold by construction
+
+        assertTrue(true); // line 23: executed
+    }
+}
+"""
+
+[[file]]
+path = "jacoco-coverage.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="Implication Not Held Test">
+    <sessioninfo id="test-session-1" start="1642000000000" dump="1642000001000"/>
+
+    <package name="com/example">
+        <class name="com/example/Impl" sourcefilename="Impl.java">
+            <method name="implemented" desc="()I" line="9">
+                <counter type="INSTRUCTION" missed="0" covered="2"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <method name="neverRuns" desc="()I" line="16">
+                <counter type="INSTRUCTION" missed="2" covered="0"/>
+                <counter type="LINE" missed="1" covered="0"/>
+                <counter type="COMPLEXITY" missed="1" covered="0"/>
+                <counter type="METHOD" missed="1" covered="0"/>
+            </method>
+            <method name="alsoNeverRuns" desc="()I" line="23">
+                <counter type="INSTRUCTION" missed="2" covered="0"/>
+                <counter type="LINE" missed="1" covered="0"/>
+                <counter type="COMPLEXITY" missed="1" covered="0"/>
+                <counter type="METHOD" missed="1" covered="0"/>
+            </method>
+            <counter type="INSTRUCTION" missed="4" covered="2"/>
+            <counter type="LINE" missed="2" covered="1"/>
+            <counter type="COMPLEXITY" missed="2" covered="1"/>
+            <counter type="METHOD" missed="2" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+
+        <class name="com/example/ImplTest" sourcefilename="ImplTest.java">
+            <method name="testImplemented" desc="()V" line="14">
+                <counter type="INSTRUCTION" missed="0" covered="4"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <method name="testByConstruction" desc="()V" line="23">
+                <counter type="INSTRUCTION" missed="0" covered="4"/>
+                <counter type="LINE" missed="0" covered="1"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="0" covered="8"/>
+            <counter type="LINE" missed="0" covered="2"/>
+            <counter type="COMPLEXITY" missed="0" covered="2"/>
+            <counter type="METHOD" missed="0" covered="2"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+
+        <sourcefile name="Impl.java">
+            <line nr="9" mi="0" ci="2" mb="0" cb="0"/>
+        </sourcefile>
+
+        <sourcefile name="ImplTest.java">
+            <line nr="14" mi="0" ci="4" mb="0" cb="0"/>
+            <line nr="23" mi="0" ci="4" mb="0" cb="0"/>
+        </sourcefile>
+
+        <counter type="INSTRUCTION" missed="4" covered="10"/>
+        <counter type="LINE" missed="2" covered="3"/>
+        <counter type="COMPLEXITY" missed="2" covered="3"/>
+        <counter type="METHOD" missed="2" covered="3"/>
+        <counter type="CLASS" missed="0" covered="2"/>
+    </package>
+
+    <counter type="INSTRUCTION" missed="4" covered="10"/>
+    <counter type="LINE" missed="2" covered="3"/>
+    <counter type="COMPLEXITY" missed="2" covered="3"/>
+    <counter type="METHOD" missed="2" covered="3"/>
+    <counter type="CLASS" missed="0" covered="2"/>
+</report>
+"""
