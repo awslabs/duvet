@@ -29,10 +29,10 @@
 
 use crate::types::*;
 use std::collections::BTreeSet;
+use verus_builtin_macros::verus;
 // Ghost-only import; see the note in `lib.rs`.
 #[cfg(feature = "verify")]
 use vstd::prelude::*;
-use verus_builtin_macros::verus;
 
 verus! {
 

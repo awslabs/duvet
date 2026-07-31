@@ -41,10 +41,10 @@ use crate::{
     target_resolution::annotation_target_spec,
 };
 use crate::{target_resolution::annotation_target, types::*};
+use verus_builtin_macros::verus;
 // Ghost-only import; see the note in `lib.rs`.
 #[cfg(feature = "verify")]
 use vstd::prelude::*;
-use verus_builtin_macros::verus;
 
 verus! {
 

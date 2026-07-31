@@ -6,10 +6,10 @@
 #[cfg(verus_keep_ghost)]
 pub use crate::predicates::line_is_skippable;
 use crate::types::*;
+use verus_builtin_macros::verus;
 // Ghost-only import; see the note in `lib.rs`.
 #[cfg(feature = "verify")]
 use vstd::prelude::*;
-use verus_builtin_macros::verus;
 
 verus! {
 

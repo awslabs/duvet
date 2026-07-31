@@ -45,14 +45,16 @@ const _: () = assert!(
     "duvet-coverage proofs require usize >= u64 (64-bit platform)"
 );
 
-// The Verus prelude is ghost-only: every `vstd` path in this crate sits inside
-// a `verus!` block or a ghost item, so all of them are erased by the non-ghost
-// expansion. Gating the import behind `verify` keeps `vstd` out of the
-// published dependency graph. `verus!` itself comes from the proc-macro crate,
-// which is needed unconditionally to perform that erasure.
+// `verus!` is what performs ghost erasure, so it is needed on every build,
+// verified or not. It is a proc-macro: compiled at build time, never linked
+// into a consumer's binary.
+use verus_builtin_macros::verus;
+// The Verus prelude, by contrast, is ghost-only: every `vstd` path in this
+// crate sits inside a `verus!` block or a ghost item, so the non-ghost
+// expansion erases all of them. Gating it behind `verify` keeps `vstd` out of
+// the published dependency graph.
 #[cfg(feature = "verify")]
 use vstd::prelude::*;
-use verus_builtin_macros::verus;
 
 verus! {
     // Fix the platform pointer width for verification so that u64 <-> usize
