@@ -5,9 +5,9 @@
 //! adapter that carries engine data across the trust boundary into the
 //! verified quantifier layer (`duvet-coverage/src/witness.rs`, Phase 4).
 //!
-//! The quantifiers themselves — `binds`, the bound-witness set,
-//! same-witness discharge (W1), test execution (W2/W6), global execution
-//! (W3) — are NOT implemented here. They are proven in `duvet-coverage`
+//! The quantifiers themselves — `binds`, the bound-witness set, and the
+//! spec's engine properties (design/witness/spec.md#engine-properties) —
+//! are NOT implemented here. They are proven in `duvet-coverage`
 //! and the engine's verdicts are computed by calling them; no parallel
 //! engine-side verdict computation exists (glue obligation G2,
 //! spec §4.4).
@@ -180,7 +180,8 @@ pub struct DischargeVerdict {
 ///
 /// Built once per coverage run. Everything trusted about the translation
 /// is stated in the module docs; the quantifier semantics downstream of
-/// it are proven (duvet-coverage Properties W1–W6).
+/// it are proven in duvet-coverage against the spec's engine properties
+/// (design/witness/spec.md#engine-properties).
 pub struct VerifiedVerdicts<'a> {
     /// Verified-model witnesses, index-aligned with the engine's witness
     /// vector.
@@ -694,6 +695,97 @@ mod tests {
             ids,
             vec![1],
             "classified file's out-of-bounds map dropped; degraded file's kept"
+        );
+    }
+
+    /// The two trust-boundary responses to the SAME ill-formed input — a
+    /// witness map with coverage keys beyond a classified file's bounds —
+    /// agree on the verdict (design/witness/spec.md#engine-glue, G3:
+    /// establish the verified functions' preconditions at the boundary):
+    /// the adapter path drops the map before the verified layer, so no
+    /// witness executed the annotation; the engine's diagnostic path
+    /// (`executed_status`) refuses the same input with `Unknown`. Both
+    /// verdict false — the annotation counts as executed on neither path.
+    #[test]
+    fn out_of_bounds_map_verdicts_false_on_both_paths() {
+        use crate::annotation::{Annotation, AnnotationLevel, AnnotationType};
+        use crate::query::checks::coverage::executed_status;
+        use duvet_core::file::SourceFile as CoreSourceFile;
+        use std::path::Path;
+
+        let idx = index(&[("c.java", "/proj/c.java")]);
+        let mut classification = ClassificationMap::default();
+        classification.insert(
+            PathBuf::from("c.java"),
+            FileClassification::Classified {
+                classifications: vec![None, None],
+                scopes: vec![],
+                file_length: 2,
+            },
+        );
+
+        // Ill-formed input: key 99 exceeds the 2-line classification.
+        let cov = cov_hit(&[1, 99]);
+
+        let witness = Witness {
+            label: "report.xml".into(),
+            claim: ClaimRule::ByExecution,
+            provenance: Provenance {
+                producer: "jacoco".into(),
+                artifact: "report.xml".into(),
+                discharge_unit: None,
+                strength: Strength::Executed,
+            },
+            files: BTreeMap::new(), // adapter reads `matched`, not this
+        };
+        let mut m = FxHashMap::default();
+        m.insert(PathBuf::from("c.java"), &cov);
+        let witnesses = [witness];
+        let matched = vec![m];
+        let adapter =
+            VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx).expect("builds");
+
+        let contents = "//= spec#s\ncode();\n";
+        let source = CoreSourceFile::new("c.java", contents).unwrap();
+        let text = source.substr_range(0..10).unwrap();
+        let target = source.substr_range(4..10).unwrap();
+        let quote = source.substr_range(11..18).unwrap();
+        let annotation = Arc::new(Annotation {
+            source: source.path().clone(),
+            anno_line: 1,
+            original_target: target,
+            original_text: text,
+            original_quote: quote,
+            anno: AnnotationType::Citation,
+            target: "spec#s".to_string(),
+            quote: String::new(),
+            comment: String::new(),
+            manifest_dir: source.path().clone(),
+            level: AnnotationLevel::Auto,
+            format: crate::specification::Format::Auto,
+            tracking_issue: String::new(),
+            feature: String::new(),
+            tags: Default::default(),
+            blob_link: None,
+        });
+
+        // Adapter path: the out-of-bounds map was dropped, so no witness
+        // executed the annotation.
+        assert!(
+            !adapter.ever_executed(&annotation),
+            "adapter path: dropped map means the witness never executed I"
+        );
+
+        // Engine diagnostic path: the same coverage refused with `Unknown`
+        // — not `Executed`, the same false verdict.
+        let status = executed_status(
+            &annotation,
+            classification.get(Path::new("c.java")),
+            Some(&cov),
+        );
+        assert!(
+            matches!(status, ExecutionStatus::Unknown { .. }),
+            "diagnostic path: out-of-bounds coverage refused with Unknown, got {status:?}"
         );
     }
 

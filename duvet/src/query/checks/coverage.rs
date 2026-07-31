@@ -37,7 +37,7 @@ pub enum CoverageFormat {
 }
 
 /// Coverage-independent classification of one source file — the expensive,
-/// witness-invariant half of [`FileExecutionData`]. Classification depends
+/// witness-invariant input to [`executed_status`]. Classification depends
 /// only on the file's content and the annotation set, never on any coverage
 /// report, so it is computed once per file and shared across every witness
 /// (the per-file cache above the witness loop: witness count can exceed
@@ -62,10 +62,9 @@ pub enum FileClassification {
 /// Per-file classification cache.
 pub type ClassificationMap = FxHashMap<PathBuf, FileClassification>;
 
-/// Classify a set of files once, in parallel. The same routing as
-/// [`build_file_execution_data`] (classifier → two-phase inputs; none →
-/// degraded inputs; parse error / unbalanced scopes → defeated), minus the
-/// coverage half, which is per-witness.
+/// Classify a set of files once, in parallel — [`classify_file`] per file.
+/// Classification carries no coverage: that half is per-witness and is
+/// joined back in by [`executed_status`].
 pub async fn classify_files(
     annotations: &AnnotationSet,
     paths: impl IntoIterator<Item = PathBuf>,
@@ -84,9 +83,10 @@ pub async fn classify_files(
     Ok(results.into_iter().collect())
 }
 
-/// Classify a single source file (coverage-independent). See
-/// [`build_file_execution_data`] for the routing rationale; the two share
-/// the classifier/scope-tree/annotation-override pipeline.
+/// Classify a single source file (coverage-independent). The routing:
+/// a tree-sitter classifier → [`FileClassification::Classified`] (verified
+/// two-phase model inputs); no classifier → [`FileClassification::Degraded`];
+/// parse error or unbalanced scopes → [`FileClassification::Defeated`].
 pub async fn classify_file(
     duvet_path: &Path,
     annotations: &AnnotationSet,
@@ -106,9 +106,18 @@ pub async fn classify_file(
             }
         };
 
-        // See `build_file_execution_data` for why the scope tree is built
-        // from the pristine CST event stream, before the annotation
-        // override, and for the precondition discharge notes.
+        // The scope tree below is built from the *pristine* CST event
+        // stream, before `apply_annotation_override`: an annotation
+        // trailing a structural line (e.g. `//= spec.md#x` on a closing
+        // `}`) would otherwise replace that line's ScopeClose and
+        // unbalance the stream, collapsing the tree to a single
+        // whole-file scope. Structure does not depend on which lines
+        // carry annotations, so pristine-first is correct. The
+        // debug_asserts here and below discharge `build_scope_tree`'s
+        // preconditions (`file_length < u64::MAX`; ordered, bounded
+        // events) at this Verus/Rust boundary — physically unfalsifiable
+        // by construction, so debug-weight: a tripwire in tests/CI with
+        // no release panic path.
         debug_assert!(line_count < u64::MAX);
 
         let scope_events = classifier.scope_events(&file_content);
@@ -213,8 +222,7 @@ impl SourceIndex {
 
     /// Match one witness's per-file maps to project sources by the suffix
     /// rule, refusing both ambiguity directions (one source matching two
-    /// entries; one entry claimed by two sources) rather than guessing —
-    /// the same refusals `build_execution_data` applies per report.
+    /// entries; one entry claimed by two sources) rather than guessing.
     pub fn match_witness_files<'a>(
         &self,
         files: &'a std::collections::BTreeMap<String, duvet_coverage::types::CoverageReport>,
@@ -271,8 +279,8 @@ impl SourceIndex {
 
 /// Score one annotation against one witness's coverage for its file — the
 /// `executed(X, w)` cell of spec §1.4: the existing verified Phases 1–3
-/// applied to one witness's maps. Same routing and trust-boundary guards as
-/// [`executed_status_for`], with the classification supplied from the
+/// applied to one witness's maps. Routing follows the annotation's
+/// [`FileClassification`] arm, with the classification supplied from the
 /// per-file cache and the coverage from the witness.
 ///
 /// `coverage` is `None` when the witness does not touch the annotation's
@@ -299,9 +307,9 @@ pub fn executed_status(
                 start_line,
                 end_line,
             };
-            // Trust boundary: see `executed_status_for` /
-            // `classified_preconditions_hold` for why ill-formed inputs
-            // fall back to `Unknown` rather than reaching the verified fn.
+            // Trust boundary: see `classified_preconditions_hold` for why
+            // ill-formed inputs fall back to `Unknown` rather than
+            // reaching the verified fn.
             if !classified_preconditions_hold(end_line, coverage, classifications.len()) {
                 ExecutionStatus::Unknown {
                     line_number: start_line,
@@ -353,7 +361,6 @@ pub fn resolve_target_line(
     classification: &FileClassification,
 ) -> Option<u64> {
     let (start_line, end_line) = annotation.line_range();
-    let _ = start_line;
     // Trust boundary: `annotation_target` requires `end_line < u64::MAX`.
     if end_line == u64::MAX {
         return None;
@@ -703,7 +710,7 @@ public class Two {
 
     /// End-to-end coverage of the non-Java format path (the previously
     /// disclosed gap: "forward-walk fallback has no integration test, no non-Java
-    /// format ships"). Drives the real dispatcher `build_file_execution_data` on a
+    /// format ships"). Drives the real classification routing [`classify_file`] on a
     /// file whose extension has no tree-sitter classifier, then feeds the result
     /// to the verified `degraded_execution_status`.
     ///
@@ -715,11 +722,11 @@ public class Two {
     /// to the classified path, rotting the test. `.xyzzy` will not.
     ///
     /// This exercises the routing decision unique to the fallback — `classifier_for_path`
-    /// returns `None`, so the file must land on `FileExecutionData::Degraded`
-    /// (not `Classified`, not `DefeatedClassification`) — and then the verified
-    /// degraded verdict over the `DefaultClassifier` projection. (`executed_status_for`'s
+    /// returns `None`, so the file must land on `FileClassification::Degraded`
+    /// (not `Classified`, not `Defeated`) — and then the verified
+    /// degraded verdict over the `DefaultClassifier` projection. (`executed_status`'s
     /// `Degraded` arm is a thin guard-and-delegate over `degraded_execution_status`,
-    /// covered by that function's own unit tests.)
+    /// covered by that function's own unit tests in `duvet-coverage/src/degraded.rs`.)
     #[tokio::test]
     async fn unknown_extension_routes_to_verified_degraded_path() {
         use duvet_coverage::types::{AnnotationSpan, CoverageStatus, ExecutionStatus};

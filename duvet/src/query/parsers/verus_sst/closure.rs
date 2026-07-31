@@ -22,7 +22,8 @@ pub type FileLines = BTreeMap<String, BTreeSet<u32>>;
 
 /// Pass-1 scaffolding: every project line any obligation elaborated.
 ///
-/// This is a newtype on purpose. Per spec §5.2 the aggregate map
+/// This is a newtype on purpose. Per spec §5.5 (#verus-producer) the
+/// aggregate map
 /// MUST NOT be delivered as a witness — it is many obligations
 /// wearing one map, an individuation (§4.2) violation by
 /// construction. Its only legitimate consumer is liveness

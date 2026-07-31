@@ -247,8 +247,10 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
         // `(@@ "span" ...)` expression nodes, `:span "span"` fields,
         // and `:spans ("span" ...)` lists (assert/label metadata).
         // Collecting only the @-forms was tried first and silently
-        // lost 13 of the golden corpus's 2003 project lines (all in
-        // types.rs, reachable only through `:span`/`:spans`). Every
+        // lost 13 of the golden corpus's project lines (all in
+        // types.rs, reachable only through `:span`/`:spans`; the
+        // corpus total is pinned by the aggregate golden test in
+        // `tests.rs`). Every
         // span-shaped string in the block is part of what this
         // obligation's elaboration consulted; the span format
         // (`path:l:c: l:c (#n)`) is specific enough that

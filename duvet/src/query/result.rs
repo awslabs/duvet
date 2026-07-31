@@ -171,9 +171,11 @@ pub struct CoveredTestAnnotation {
 pub struct NotExecutedAnnotation {
     pub annotation: Arc<Annotation>,
     pub status: ExecutionStatus,
-    /// Every bound witness's result for this pair, in bound order
-    /// (already computed to evaluate the verdict — surfaced, never
-    /// silent).
+    /// Every bound witness's result for this pair, in bound order —
+    /// recomputed from the same verified cell (`is_executed_by`) that
+    /// the discharge verdict evaluated internally, which is what
+    /// preserves glue obligation G2 (spec §4.4: diagnostics derive
+    /// from the same verified cells; no parallel verdict computation).
     pub per_witness: Vec<PairWitnessResult>,
 }
 

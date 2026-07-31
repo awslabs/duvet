@@ -10,8 +10,9 @@
 //!    `duvet-coverage` (2026-07-26, Verus 0.2026.05.24.ecee80a,
 //!    189 obligations under the POC's naming — see the
 //!    reconciliation test). Location comes from
-//!    `DUVET_SST_LOG_DIR`, defaulting to the shared POC dir; the
-//!    check-in strategy for these logs is decided at PR time.
+//!    `DUVET_SST_LOG_DIR`, defaulting to the checked-in gzipped
+//!    corpus (`testdata/corpus/`, tracked with git-lfs — see
+//!    `corpus_dir` below for regeneration).
 //! 2. The **vacuity fixture** (`testdata/vacuity/`), checked in,
 //!    self-regenerable (see its README).
 //!

@@ -6,29 +6,27 @@
 //! The quantifier layer over the existing per-annotation cells: Phases 1–3
 //! score ONE annotation against ONE coverage map (`is_annotation_executed`);
 //! this phase states and proves the load-bearing quantifiers over a set of
-//! delivered witnesses — universal same-witness discharge (W1), test
-//! execution (W2), global execution (W3), failure monotonicity (W4), claim
-//! refinement (W5), and the
-//! unwitnessed predicate behind W6. `executed(X, w)` is exactly the existing
+//! delivered witnesses — the spec's engine properties
+//! (design/witness/spec.md#engine-properties). `executed(X, w)` is exactly
+//! the existing
 //! verified scoring applied to w's map for X's file (spec §1.4); nothing in
 //! Phases 1–3 is re-specified here.
 //!
 //! Named glue assumptions (trusted base, NOT verified here) are specified
-//! in design/witness/spec.md §4.4: **G1** (file identity — the adapter
+//! in design/witness/spec.md §4.4 (#engine-glue): **G1** (file identity —
+//! the adapter
 //! delivers injective, duplicate-free file ids), **G2** (call obligation —
 //! the engine computes every verdict by calling this layer's functions;
 //! no parallel verdict computation exists), and **G3** (mode routing —
 //! each annotation's file is scored in the [`ScoringMode`] its
-//! classification actually selected). The engine side of the glue lives
-//! in `duvet/src/query/witness.rs` (`VerifiedVerdicts`).
+//! classification actually selected).
 //! Producer obligations A1 (closedness) and A2 (individuation) per spec §4.
 //!
 //! The `requires` on the report functions (coverage keys within
 //! classification bounds for `Classified`-mode scoring; scope line bounds)
 //! are the engine adapter's obligation to establish at the trust boundary —
-//! filter/degrade before calling, never assume (the adapter drops a
-//! witness's out-of-bounds map for a classified file, which coincides with
-//! the engine's `Unknown`-refusal on the same input: both verdict `false`).
+//! filter/degrade before calling, never assume
+//! (design/witness/spec.md#engine-glue, G3).
 
 use crate::{
     annotation_execution::is_annotation_executed, degraded::degraded_execution_status,
@@ -439,7 +437,7 @@ pub fn is_bound_by(
 }
 
 // ---------------------------------------------------------------------------
-// The report functions: Properties W1, W2, W3, W6
+// The report functions (engine-callable verdicts; design/witness/spec.md#engine-properties)
 // ---------------------------------------------------------------------------
 
 /// Property W1: Universal Same-Witness Discharge (Decision 14 form).
@@ -666,7 +664,7 @@ pub fn is_unwitnessed(
 }
 
 // ---------------------------------------------------------------------------
-// Properties W4 and W5
+// Proof-only properties (no report function; design/witness/spec.md#engine-properties)
 // ---------------------------------------------------------------------------
 
 /// Spec: every witness of `ws` occurs (as an equal value) in `ws2`.

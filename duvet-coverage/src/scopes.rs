@@ -73,7 +73,7 @@ pub fn build_scope_tree(events: &[ScopeEvent], file_length: u64) -> (scopes: Vec
     ensures
         scopes_well_formed(scopes@),
         // The scope-bound preconditions of `is_annotation_executed` (#3/#4).
-        // Stated here so the runtime trust boundary in `executed_status_for`
+        // Stated here so the runtime trust boundary in `executed_status`
         // can rely on the *contract*, not on this function's implementation.
         forall|i: int| 0 <= i < scopes@.len() ==>
             (#[trigger] scopes@[i]).open_line >= 1
@@ -87,7 +87,7 @@ pub fn build_scope_tree(events: &[ScopeEvent], file_length: u64) -> (scopes: Vec
     // is legitimate (spec §1.5). NOTE: unlike the old set-based matcher, an
     // *imbalanced* stream can no longer reach here silently — the dispatcher
     // runs the verified `scope_imbalance_site` on this same event stream first
-    // and escalates to `DefeatedClassification`, so a spurious whole-file
+    // and escalates to `FileClassification::Defeated`, so a spurious whole-file
     // collapse from a dropped brace is no longer possible (spec §1.5).
     //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
     //= type=implementation
@@ -514,7 +514,7 @@ mod tests {
     fn unclosed_open_falls_back_to_whole_file() {
         // A single unclosed `{`: no pair is emitted, so build_scope_tree yields
         // the whole-file scope. (The dispatcher's balance gate escalates this
-        // case to DefeatedClassification before it ever reaches here.)
+        // case to `FileClassification::Defeated` before it ever reaches here.)
         let sc = build_scope_tree(&[ev(1, true)], 2);
         assert!(sc.len() >= 1);
         assert_eq!((sc[0].open_line, sc[0].close_line), (1, 2));
