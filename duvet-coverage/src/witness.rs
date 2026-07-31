@@ -1274,21 +1274,7 @@ mod tests {
         ));
         // A ByRootSpan witness carrying I's coverage discharges the pair
         // (prover-shaped witness: positional claim + closure map).
-        assert!(report_discharged(
-            T_FILE,
-            &t,
-            ScoringMode::Classified,
-            &c,
-            &[],
-            3,
-            I_FILE,
-            &i_annotation(),
-            ScoringMode::Classified,
-            &i_classifications(),
-            &[],
-            2,
-            &[root(T_FILE, 2, 4)],
-        ));
+        assert!(discharged_verdict(&[root(T_FILE, 2, 4)]));
     }
 
     /// The fat-witness capture question, both claim rules head-to-head
@@ -1342,21 +1328,9 @@ mod tests {
         ));
         // ...so the pair is untouched: not discharged (unwitnessed), and
         // the fat witness cannot fail it either — it is not in the ∀-set.
-        assert!(!report_discharged(
-            T_FILE,
-            &t,
-            ScoringMode::Classified,
-            &c,
-            &[],
-            3,
-            I_FILE,
-            &i_annotation(),
-            ScoringMode::Classified,
-            &i_classifications(),
-            &[],
-            2,
-            &[by_root_elsewhere],
-        ));
+        assert!(!discharged_verdict(std::slice::from_ref(
+            &by_root_elsewhere
+        )));
         // The SAME map under ByExecution is the trench coat: it binds T by
         // evidence, and having never reached I, fails the pair (Decision 14).
         let trench_coat = Witness {
@@ -1372,21 +1346,7 @@ mod tests {
             3,
             std::slice::from_ref(&trench_coat)
         ));
-        assert!(!report_discharged(
-            T_FILE,
-            &t,
-            ScoringMode::Classified,
-            &c,
-            &[],
-            3,
-            I_FILE,
-            &i_annotation(),
-            ScoringMode::Classified,
-            &i_classifications(),
-            &[],
-            2,
-            &[trench_coat],
-        ));
+        assert!(!discharged_verdict(&[trench_coat]));
     }
 
     /// Spec §1.5 no-vacuous-binding: an annotation with no resolved target
