@@ -31,73 +31,108 @@ cargo run -p duvet -- query -c coverage --coverage-source verus-sst=/tmp/sst \
 
 Expected shape of the results:
 
-- The witness-property pairs (proof fn ↔ engine code) DISCHARGE,
-  each with provenance naming the discharging obligation and
-  strength `consulted`.
+- The **same-crate** witness-property pairs (proof fn ↔
+  `duvet-coverage` implementation) DISCHARGE: their bound
+  witnesses carry coverage for the in-crate implementation
+  annotations, and the verified `is_executed_by` cell confirms it.
+- The **cross-crate** implementation annotations (in
+  `duvet/src/query/{engine,result,witness}.rs`) covering the same
+  spec text FAIL to discharge: proof witnesses from
+  `duvet-coverage`'s SST logs structurally cannot reach
+  `duvet`-crate code. Per [Decision 8](decisions.md#decision-8)
+  (subset of producers), ALL covering implementations must be
+  witnessed — so the pairs fail, and that is **correct behavior**.
 - The runtime `type=test` annotations (on `#[test]` fns) become
-  UNWITNESSED in a proof-only run and fail it — this is
-  [Decision 8](decisions.md#decision-8)'s subset-of-producers
-  behavior, on purpose. Only the sliced run is green today.
+  UNWITNESSED in a proof-only run — also Decision 8, on purpose.
+  Only the sliced run is gated today.
 
-## Cross-crate annotation typing {#cross-crate-typing}
+## Cross-crate pairs: implementation-true, witness-pending {#cross-crate-posture}
 
-Proof witnesses from `duvet-coverage`'s SST logs can never reach
-`duvet`-crate code: the obligation closure is bounded by the
-verified crate. So an engine-side annotation quoting a witness
-property's spec text is *structurally* undischargeable as an
-implementation pair — not wrong, just not something a proof
-witness can ever execute.
+The engine-side annotations quoting witness-property spec text are
+**`type=implementation`** — they genuinely implement the reporting
+requirements (the integration tests exercise exactly that
+behavior), and they ARE testable by runtime witnesses. What's
+missing is witness EVIDENCE for those runtime tests, which arrives
+with the LCOV follow-up.
 
-The rule: **engine-side (cross-crate) annotations quoting
-proof-side property text carry `type=implication`** ("fundamentally
-true or not testable [by this producer]"), never a bare citation.
-The engine supports this honestly: implication and exception
-coverers tile the requirement's quote but are never held to the
-witness-executed correlation (`duvet query -c coverage` skips them
-in the per-coverer discharge loop; the integration test
-`query-coverage-implication-not-held` pins this). The LCOV
-follow-up, whose runtime witnesses CAN reach engine code, is
-expected to flip these back to `type=implementation`.
+`type=implication` means "fundamentally true or not testable" —
+that is false for this code. Reclassifying an obligation because
+its pair can't discharge yet would be deciding a property is true
+instead of proving it.
 
-This rule was found the dogfood way. The first sliced run failed
-W2, W3, and W6 while W1 passed, and the initial suspicion fell on
-the both-annotations-on-the-checker-fn placement
-([Decision 21](decisions.md#decision-21)) — discharge-unit
-rooting, target resolution, or body lines being excluded from
-witness maps. The producer's own parser, used as the oracle,
-disconfirmed all three: every checker fn's extent witness contains
-its own body lines, and the in-crate implementation annotations
-all evaluated *executed*. The failing coverers were the
-cross-crate ones — W1 passed simply because it is the one property
-with no engine-side annotation quoting its text. Decision 21's
-placement convention itself needed no change.
+### Why W2/W3/W6 fail and W1 passes
 
-## CI wiring {#ci-wiring}
+The correlation engine checks ALL covering implementations for a
+test annotation's quoted spec text. When any covering implementation
+is not executed by the bound witnesses, the correlation fails.
+
+- **W2, W3, W6** each have covering implementation annotations in
+  `duvet/src/query/engine.rs`, `duvet/src/query/result.rs`, and/or
+  `duvet/src/query/witness.rs`. Proof witnesses have no coverage
+  data for those `duvet`-crate files, so those impls evaluate
+  `executed=false` — failing the correlation despite the same-crate
+  impl succeeding.
+- **W1** (`property-w1-same-witness-discharge`) has no engine-side
+  annotation quoting its text — its only covering implementation
+  is entirely within `duvet-coverage/src/witness.rs`. No
+  cross-crate impl enters the covering set, so discharge succeeds.
+
+The same-crate discharge mechanism works correctly: the proof
+witness carries coverage for the in-crate implementation target
+lines (confirmed via oracle: `witness[10] executed=true
+has_file_id=true`). The failure is entirely due to cross-crate
+implementations present in the correlation's covering set.
+
+## CI wiring: expected-failure contract {#ci-wiring}
 
 The sliced witness-query gate runs in CI (`.github/workflows/ci.yml`):
 
 - The `verify` job passes `--log vir-sst --log-dir` to the proof
-  run (same verification, now leaving its SST record behind),
-  gzips the logs (~21:1), and uploads them as the
+  run, gzips the logs (~21:1), and uploads them as the
   `verus-sst-logs` artifact.
 - The `dogfood` job (`needs: verify`) downloads the artifact and,
-  after `duvet report --ci`, runs the witness query sliced to the
-  eleven property sections (W1–W7, P1–P4), gated on its exit code:
-  every property pair must discharge.
+  after `duvet report --ci`, runs the **Witness query dogfood**
+  step with the expected-failure contract:
+
+### The contract
+
+The step asserts:
+
+1. **Same-crate pairs discharge:** `Successful correlations ≥ 8`
+   (the proof-fn ↔ in-crate-impl pairs all pass).
+2. **Failed set matches expected-failures exactly:** the count of
+   `Failed correlations` equals the number of LCOV-pending
+   *sections*, and every location listed in
+   [`dogfood-expected-failures.txt`](dogfood-expected-failures.txt)
+   appears in the output as "Not executed implementation".
+3. A **new failure** (unknown to the expected-failures file) fails
+   CI.
+4. An **unexpected pass** (a listed pair no longer appearing as
+   failed) also fails CI — the file cannot rot silently.
+
+The mechanism is intentionally simple: count-and-grep over the
+query output. First wiring: wire it, watch it, then tighten.
+
+### Exit criterion
+
+From [decisions.md Follow-ups](decisions.md#follow-ups): the LCOV
+mixed-coverage producer supplies runtime witnesses that execute the
+engine code. When all cross-crate pairs discharge:
+
+1. `dogfood-expected-failures.txt` is deleted (empty list = fully
+   green).
+2. The CI step simplifies back to exit-code gating (exit 0 = all
+   pairs discharged).
+3. The full-run (unsliced) gate is enabled — the mixed run MUST
+   NOT use an aggregate suite report (A2 violation).
 
 ## What is still missing
 
-- **The full-run (unsliced) proof-only gate.** The runtime
-  `type=test` annotations are unwitnessed in a proof-only run by
-  design ([Decision 8](decisions.md#decision-8)); they stay
-  enabled, and the full-run gate is deferred to the LCOV follow-up
-  ([Decision 16](decisions.md#decision-16),
-  [Follow-ups](decisions.md#follow-ups)). Its exit criterion is
-  the mixed run green with all pairs discharged — and the mixed
-  run MUST NOT use an aggregate suite report (that would put an A2
-  violation at the center of the feature's own demo).
+- **The full-run (unsliced) proof-only gate.** Runtime `type=test`
+  annotations are unwitnessed in a proof-only run by design
+  (Decision 8); they stay enabled, and the full-run gate is
+  deferred to the LCOV follow-up (Decision 16, Follow-ups).
 - **Richer CI-consumable report output** for the witness verdicts.
-  The exit code is the gate today; the human-oriented output is
-  what CI logs show.
-- The expectation that the first CI wiring will be imperfect:
-  wire it, watch it, then tighten.
+  The exit code + grep is the gate today; the human-oriented output
+  is what CI logs show.
+- **LCOV mixed-coverage producer** — the exit criterion above.

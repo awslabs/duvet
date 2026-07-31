@@ -266,10 +266,45 @@ jobs:
           path: verus-sst-logs
 
       - name: Witness query dogfood
-        # Gated: every witness-property pair (proof fn ↔ implementation)
-        # must discharge from the proof witnesses. Exit code is the gate —
-        # a failed correlation fails the job.
+        # Expected-failure contract: the 11-section slice runs; same-crate
+        # pairs MUST discharge, and the set of failed correlations must be
+        # EXACTLY the named cross-crate LCOV-pending pairs (no more, no
+        # less). A new failure or an unexpected pass both fail the gate.
         run: |
-          ./target/debug/duvet query -c coverage \
+          set -euo pipefail
+          SECTIONS="design/witness/spec.md#property-w1-same-witness-discharge,design/witness/spec.md#property-w2-test-execution,design/witness/spec.md#property-w3-global-execution,design/witness/spec.md#property-w4-monotonicity,design/witness/spec.md#property-w5-claim-refinement,design/witness/spec.md#property-w6-unwitnessed-test-annotations,design/witness/spec.md#property-w7-positional-binding-map-independence,design/witness/producer-core-spec.md#property-p1-closure-fixpoint,design/witness/producer-core-spec.md#property-p2-most-specific-wins,design/witness/producer-core-spec.md#property-p3-witness-assembly,design/witness/producer-core-spec.md#property-p4-filter-soundness"
+
+          # Run the query — expect exit 1 (failures present)
+          OUTPUT=$(./target/debug/duvet query -c coverage \
             --coverage-source verus-sst=verus-sst-logs \
-            -s "design/witness/spec.md#property-w1-same-witness-discharge,design/witness/spec.md#property-w2-test-execution,design/witness/spec.md#property-w3-global-execution,design/witness/spec.md#property-w4-monotonicity,design/witness/spec.md#property-w5-claim-refinement,design/witness/spec.md#property-w6-unwitnessed-test-annotations,design/witness/spec.md#property-w7-positional-binding-map-independence,design/witness/producer-core-spec.md#property-p1-closure-fixpoint,design/witness/producer-core-spec.md#property-p2-most-specific-wins,design/witness/producer-core-spec.md#property-p3-witness-assembly,design/witness/producer-core-spec.md#property-p4-filter-soundness"
+            -s "$SECTIONS" 2>&1) || true
+          echo "$OUTPUT"
+
+          # (a) Same-crate pairs must discharge: successful >= 8
+          SUCCESSFUL=$(echo "$OUTPUT" | grep -oP 'Successful correlations: \K\d+')
+          if [ "$SUCCESSFUL" -lt 8 ]; then
+            echo "::error::Same-crate correlations regressed: expected ≥8, got $SUCCESSFUL"
+            exit 1
+          fi
+
+          # (b) Failed set must match expected-failures exactly
+          FAILED=$(echo "$OUTPUT" | grep -oP 'Failed correlations: \K\d+')
+          EXPECTED_FAILURES=$(grep -c '^DUVET-AWAITING-LCOV' design/witness/dogfood-expected-failures.txt)
+          EXPECTED_SECTIONS=$(grep '^DUVET-AWAITING-LCOV' design/witness/dogfood-expected-failures.txt | awk '{print $2}' | sort -u | wc -l)
+
+          if [ "$FAILED" -ne "$EXPECTED_SECTIONS" ]; then
+            echo "::error::Failed correlations count mismatch: got $FAILED, expected $EXPECTED_SECTIONS"
+            echo "Expected failures file lists $EXPECTED_FAILURES LCOV-pending impls across $EXPECTED_SECTIONS sections"
+            exit 1
+          fi
+
+          # Verify each expected "Not executed" impl appears in output
+          while IFS=' ' read -r marker section file_loc; do
+            if ! echo "$OUTPUT" | grep -qF "$file_loc"; then
+              echo "::error::Expected failure NOT found in output: $file_loc ($section)"
+              echo "An LCOV-pending pair unexpectedly passed — update dogfood-expected-failures.txt"
+              exit 1
+            fi
+          done < <(grep '^DUVET-AWAITING-LCOV' design/witness/dogfood-expected-failures.txt)
+
+          echo "✓ Expected-failure contract holds: $SUCCESSFUL successful, $FAILED failed (all LCOV-pending)"

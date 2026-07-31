@@ -363,18 +363,18 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: (decisions.md, [Decision 14](decisions.md#decision-14)).
 
   SECTION: [Property W2: Test Execution](#property-w2-test-execution)
-    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that a test annotation is reported
-    TEXT[!MUST,implementation,implication,test]: executed if and only if some delivered witness binds it:
-    TEXT[implication]: report_test_executed(T, witnesses) = true
-    TEXT[implication]:     ⟺  ∃ w ∈ witnesses : binds(T, w)
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that a test annotation is reported
+    TEXT[!MUST,implementation,test]: executed if and only if some delivered witness binds it:
+    TEXT[implementation]: report_test_executed(T, witnesses) = true
+    TEXT[implementation]:     ⟺  ∃ w ∈ witnesses : binds(T, w)
 
   SECTION: [Property W3: Global Execution](#property-w3-global-execution)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that an implementation annotation is
     TEXT[!MUST,implementation,test]: reported ever-executed if and only if some delivered witness
     TEXT[!MUST,implementation,test]: executed it:
     TEXT[test]: ```
-    TEXT[implication,test]: report_ever_executed(I, witnesses) = true
-    TEXT[implication,test]:     ⟺  ∃ w ∈ witnesses : executed(I, w)
+    TEXT[implementation,test]: report_ever_executed(I, witnesses) = true
+    TEXT[implementation,test]:     ⟺  ∃ w ∈ witnesses : executed(I, w)
     TEXT[test]: ```
     TEXT[!MUST,test]: This is a global property requiring no correlation;
     TEXT[!MUST,test]: it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
@@ -404,12 +404,11 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: implies execution of the test in the same witness:
 
   SECTION: [Property W6: Unwitnessed Test Annotations Are Failures](#property-w6-unwitnessed-test-annotations)
-    TEXT[!MUST,implementation,implication,test]: The engine MUST report every test annotation for which no
-    TEXT[!MUST,implementation,implication,test]: delivered witness binds it —
-    TEXT[!MUST,implementation,implication,test]: across ALL configured producers —
-    TEXT[!MUST,implementation,implication,test]: as a failure, never silently
-    TEXT[!MUST,implementation,test]: :
-    TEXT[implication]: ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
+    TEXT[!MUST,implementation,test]: The engine MUST report every test annotation for which no
+    TEXT[!MUST,implementation,test]: delivered witness binds it —
+    TEXT[!MUST,implementation,test]: across ALL configured producers —
+    TEXT[!MUST,implementation,test]: as a failure, never silently:
+    TEXT[implementation]: ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
     TEXT[!MAY]: Consequence (intended): running a subset of producers MAY fail a
     TEXT[!MAY]: test annotation that the full set passes;
     TEXT[!MAY]: that behavior is correct
