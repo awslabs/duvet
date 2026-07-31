@@ -28,6 +28,9 @@
 #[cfg(verus_keep_ghost)]
 pub use crate::predicates::{scope_contains, scopes_match_classifications, scopes_well_formed};
 use crate::types::*;
+use verus_builtin_macros::verus;
+// Ghost-only import; see the note in `lib.rs`.
+#[cfg(feature = "verify")]
 use vstd::prelude::*;
 
 verus! {

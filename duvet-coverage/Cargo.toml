@@ -1,21 +1,41 @@
 [package]
 name = "duvet-coverage"
-version = "0.1.0"
+version = "0.4.3"
+description = "Internal crate used by duvet"
+authors = ["Ryan Emery <ryanemer@amazon.com>"]
 edition = "2021"
 license = "Apache-2.0"
-description = "Coverage model types and algorithms for duvet"
-publish = false
+repository = "https://github.com/awslabs/duvet"
+rust-version = "1.88"
+
+[features]
+# Verification-only. Pulls in the Verus spec library so `cargo verus build
+# --features verify` can check the proofs. A plain `cargo build` leaves this
+# off: every `vstd` path in this crate is ghost, so the non-ghost expansion
+# erases all of them and nothing verus-shaped reaches the published artifact.
+verify = ["dep:vstd", "dep:verus_builtin"]
 
 [dependencies]
-# vstd ships only as date-pinned pre-release versions on crates.io, and the
-# verus binary and vstd are released in lockstep — the version here MUST match
-# the Verus release verified against (VERUS_VERSION in
+# The `verus!` macro is what performs ghost erasure, so it is needed on every
+# build, verified or not. It is a proc-macro: compiled at build time, never
+# linked into a consumer's binary.
+#
+# The verus crates ship only as date-pinned pre-releases on crates.io, and the
+# verus binary and its libraries are released in lockstep — the versions here
+# MUST match the Verus release verified against (VERUS_VERSION in
 # .github/workflows/ci.yml). Cargo.lock is gitignored, so a floating
-# requirement would let CI resolve a newer vstd than the pinned verus and fail
-# spuriously; an exact `=` pin keeps local and CI reproducible. Bump this
-# together with VERUS_VERSION. publish = false, so it is not propagated into
-# the published duvet artifact.
-vstd = "=0.0.0-2026-05-24-0157"
+# requirement would let CI resolve newer libraries than the pinned verus and
+# fail spuriously; an exact `=` pin keeps local and CI reproducible. Bump these
+# together with VERUS_VERSION.
+#
+# These pins are published constraints: an exact `=` requirement on a
+# pre-release version cannot be unified with any other requirement in a
+# consumer's tree, and a yank upstream would make every duvet release pinning
+# it unbuildable from a fresh registry. Keep the mandatory set as small as it
+# is — one proc-macro — and keep the rest behind `verify`.
+verus_builtin_macros = "=0.0.0-2026-05-24-0157"
+verus_builtin = { version = "=0.0.0-2026-05-17-0151", optional = true }
+vstd = { version = "=0.0.0-2026-05-24-0157", optional = true }
 
 [dev-dependencies]
 # Property-based testing harness, pinned to the same major as the `duvet` crate

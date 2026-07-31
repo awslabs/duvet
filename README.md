@@ -125,11 +125,17 @@ verifier on every push and PR. To verify locally:
 4. **Verify the proofs.**
 
    ```console
-   $ cargo verus build -p duvet-coverage
+   $ cargo verus build -p duvet-coverage --features verify
    ```
 
    Expected output: `verified N functions, 0 errors`. A non-zero error
    count indicates a regression in the proofs.
+
+   The `verify` feature is what pulls in `vstd`. It is off by default so
+   that `vstd` stays out of the published dependency graph — every `vstd`
+   path in `duvet-coverage` is ghost, so a plain `cargo build` erases all
+   of them. Omitting `--features verify` here will fail with unresolved
+   `vstd` imports.
 
 The Verus prebuilt binary (and the `z3` it bundles) are built against
 glibc 2.34+ / 2.31+, so older distributions (Amazon Linux 2, Ubuntu
@@ -145,7 +151,7 @@ check — `vargo build` accepts `--no-solver-version-check`, and the verify
 step uses the `-V` form:
 
 ```console
-$ cargo verus build -p duvet-coverage -- -V no-solver-version-check
+$ cargo verus build -p duvet-coverage --features verify -- -V no-solver-version-check
 ```
 
 Otherwise, rely on CI for verification.

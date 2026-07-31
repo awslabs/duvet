@@ -186,7 +186,9 @@ jobs:
           rustup toolchain install "$TOOLCHAIN"
 
       - name: Verify duvet-coverage proofs
-        run: cargo verus build -p duvet-coverage
+        # `--features verify` pulls in vstd, which is verification-only and
+        # optional so it stays out of the published dependency graph.
+        run: cargo verus build -p duvet-coverage --features verify
 
   action: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
