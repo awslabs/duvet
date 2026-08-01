@@ -18,12 +18,10 @@
 //! are the engine adapter's obligation to establish at the trust boundary
 //! (design/witness/spec.md#engine-glue, G3).
 
-// What this layer is (spec §1.4) and what it rests on (spec §4):
-//= design/witness/spec.md#executed
-//# This is exactly the existing verified Phases 1–3
-//# (`is_annotation_executed`, or the degraded path),
-//# applied to one witness's coverage maps.
-//# This specification adds no new per-annotation scoring semantics.
+// What this layer is (spec §1.4): exactly the existing verified
+// Phases 1–3 applied to one witness's coverage maps — the citation
+// lives on `executed_by`, the definitional site. What it rests on
+// (spec §4):
 //= design/witness/spec.md#engine-glue
 //# The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
 //# unverified engine glue. Each glue component is named, bounded,
@@ -390,10 +388,29 @@ fn witness_coverage<'a>(w: &'a Witness, file_id: u64) -> (result: Option<&'a Cov
 
 /// `executed(X, w)` as executable code, proven equivalent to the
 /// `executed_by` spec.
+//
+// The Verus `ensures` below is the machine-checked evidence for spec
+// §1.4's definition: the reported result is exactly `executed_by`,
+// whose arms are the proven spec twins of Phases 1–3
+// (`execution_status_of` / `degraded_status_of`) and whose missing-map
+// arm is `false`.
 //= design/witness/spec.md#executed
+//= type=test
+//# For an annotation X and witness w:
+//#
+//# ```
+//# executed(X, w)  ⟺  the coverage model scores X's resolved target
+//#                     Executed against w.files
+//# ```
+//#
 //# This is exactly the existing verified Phases 1–3
 //# (`is_annotation_executed`, or the degraded path),
 //# applied to one witness's coverage maps.
+//# This specification adds no new per-annotation scoring semantics.
+//= design/witness/spec.md#executed
+//= type=test
+//# If w's `files` contains no map for X's file at all,
+//# `executed(X, w)` is false.
 pub fn is_executed_by(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -536,6 +553,24 @@ pub fn is_bound_by(
 //# The implementation MUST prove that it reports a pair (T, I)
 //# discharged if and only if at least one delivered witness binds T
 //# and every delivered witness that binds T executed I:
+//
+// The same `ensures` is the machine-checked evidence for spec §1.6:
+// the reported verdict is exactly the `discharged` spec fn, which
+// transcribes the quoted definition.
+//= design/witness/spec.md#discharge
+//= type=test
+//# ```
+//# witnesses_for(T)  =  { w ∈ delivered : binds(T, w) }
+//#
+//# discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
+//#                       ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
+//# ```
+//#
+//# In words: a pair (T, I) is discharged when the test binds at
+//# least one witness and **every** witness it binds executed the
+//# implementation. Each bound witness individually must see both
+//# sides; one bound witness that never reaches the implementation is
+//# a vacuous claim and fails the pair
 pub fn report_discharged(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -620,7 +655,21 @@ pub fn report_discharged(
 /// cells' postconditions — never by engine-side recomputation.
 //= design/witness/spec.md#engine-glue
 //= type=implementation
-//# **G4 (bound-set precomputation).** The glue MAY compute a test's
+//# - **G4 (bound-set precomputation).** The glue MAY compute a test's
+//# bound-witness set once — each membership decided by the verified
+//# binding cell — and pass it to a bound-set-taking verified
+//# discharge entry point, provided the verified layer proves that
+//# entry point's verdict equal to [§1.6](#discharge) discharge over
+//# the full delivered set whenever the supplied set is exactly
+//# `witnesses_for(T)`, sound and complete by index.
+//
+// The `ensures`/`requires` pair below is the machine-checked evidence
+// for G4's proviso: the verdict equals §1.6 discharge over the FULL
+// delivered set, given a sound-and-complete-by-index bound set (the
+// runtime half is `g4_given_bound_equals_report_discharged`).
+//= design/witness/spec.md#engine-glue
+//= type=test
+//# - **G4 (bound-set precomputation).** The glue MAY compute a test's
 //# bound-witness set once — each membership decided by the verified
 //# binding cell — and pass it to a bound-set-taking verified
 //# discharge entry point, provided the verified layer proves that
@@ -743,6 +792,11 @@ pub fn report_discharged_given_bound(
 //= type=test
 //# The implementation MUST prove that a test annotation is reported
 //# executed if and only if some delivered witness binds it:
+//#
+//# ```
+//# report_test_executed(T, witnesses) = true
+//#     ⟺  ∃ w ∈ witnesses : binds(T, w)
+//# ```
 pub fn report_test_executed(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -855,6 +909,10 @@ pub fn report_ever_executed(
 //# delivered witness binds it —
 //# across ALL configured producers —
 //# as a failure, never silently:
+//#
+//# ```
+//# ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
+//# ```
 pub fn is_unwitnessed(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -1460,6 +1518,17 @@ mod tests {
     /// Decision 14 ambiguity ruling: at a position rooting N obligations
     /// (N ByRootSpan witnesses binding the same T), ALL N must execute I —
     /// no best-of-N.
+    ///
+    /// This is also the load-bearing consequence of witness individuation
+    /// (spec §1.2): each witness records ONE act of checking, so two
+    /// obligations at one position are two witnesses, and each must
+    /// individually reach I. If acts were merged into one record, this
+    /// scenario would be inexpressible and the assertion would flip.
+    //= design/witness/spec.md#witness
+    //= type=test
+    //# A witness is the record of **one act of checking**:
+    //# one test's execution, or one prover obligation's successful
+    //# verification.
     #[test]
     fn decision_14_all_bound_root_span_witnesses_must_execute() {
         let root_with_i = Witness {
@@ -1514,6 +1583,11 @@ mod tests {
     /// under Degraded when the coverage hits the forward-nearest lines,
     /// and the split-evidence case still fails (the quantifier layer is
     /// mode-uniform).
+    //= design/witness/spec.md#executed
+    //= type=test
+    //# The verified Phase 4 layer implements the "or" per file: a
+    //# `ScoringMode` routes each file to the classified or the degraded
+    //# scorer, and
     #[test]
     fn degraded_mode_scores_via_the_degraded_path() {
         // Degraded classification: annotation lines known, code lines None.
@@ -1568,6 +1642,10 @@ mod tests {
     /// for the file or a root span that would otherwise contain the
     /// target. The verdict contribution is uniformly false; the pair is
     /// unwitnessed, never discharged.
+    //= design/witness/spec.md#executed
+    //= type=test
+    //# and engine trust-boundary refusals are encoded as
+    //# `Unscorable` — binds nothing, executes nothing
     #[test]
     fn unscorable_binds_nothing_and_executes_nothing() {
         let root = Witness {

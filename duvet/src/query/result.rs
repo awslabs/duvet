@@ -160,7 +160,7 @@ pub struct CoveredTestAnnotation {
 //# the implementation (W1's universal clause), the output MUST list
 //# **every** bound witness with its per-witness result
 //# (executed I / did not execute I) and strength,
-//# so the failing claim is identifiable
+//# so the failing claim is identifiable —
 #[derive(Debug)]
 pub struct NotExecutedAnnotation {
     pub annotation: Arc<Annotation>,
@@ -585,8 +585,10 @@ impl fmt::Display for CoverageResult {
                 );
 
                 //= design/witness/spec.md#verdict-output
-                //# the engine computes all of these to evaluate the verdict,
                 //# and the disagreement MUST never be silent
+                //# (decisions.md, [Decision 14](decisions.md#decision-14);
+                //# legibility improvements are tracked in
+                //# [Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
                 // ✓/✗ per witness, in bound order, per failing
                 // implementation.
                 let mut help_lines: Vec<String> = Vec::new();
@@ -845,4 +847,203 @@ fn get_line_slice(
         .lines_slices()
         // nth is 0 based, but line numbers in source are 1 based.
         .nth(idx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        annotation::AnnotationLevel,
+        query::witness::Strength,
+    };
+    use duvet_core::file::SourceFile as CoreSourceFile;
+    use std::collections::BTreeSet;
+
+    fn annotation(path: &str, anno: AnnotationType) -> Arc<Annotation> {
+        let contents = "//= spec#s\ncode();\n";
+        let source = CoreSourceFile::new(path, contents).unwrap();
+        let text = source.substr_range(0..10).unwrap();
+        let target = source.substr_range(4..10).unwrap();
+        let quote = source.substr_range(11..18).unwrap();
+        Arc::new(Annotation {
+            source: source.path().clone(),
+            anno_line: 1,
+            original_target: target,
+            original_text: text,
+            original_quote: quote,
+            anno,
+            target: "spec#s".to_string(),
+            quote: String::new(),
+            comment: String::new(),
+            manifest_dir: source.path().clone(),
+            level: AnnotationLevel::Auto,
+            format: crate::specification::Format::Auto,
+            tracking_issue: String::new(),
+            feature: String::new(),
+            tags: Default::default(),
+            blob_link: None,
+        })
+    }
+
+    fn witness_ref(label: &str, strength: Strength) -> WitnessRef {
+        WitnessRef {
+            label: label.to_string(),
+            strength,
+        }
+    }
+
+    fn coverage_result() -> CoverageResult {
+        CoverageResult {
+            status: QueryStatus::Pass,
+            report_count: 1,
+            executed_tests: Arc::new(BTreeSet::new()),
+            executed_implementations: Arc::new(BTreeSet::new()),
+            successful: vec![],
+            failed: vec![],
+            missing_implementation: vec![],
+            unwitnessed: vec![],
+            verbose: false,
+        }
+    }
+
+    /// Rendered diagnostics wrap and indent; squash whitespace so the
+    /// assertions are insensitive to the renderer's line-breaking.
+    fn squash(rendered: &str) -> String {
+        rendered
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// Spec §3, failure clause: the failing pair's output lists EVERY
+    /// bound witness with its per-witness result and strength — the ✓
+    /// witness that executed the implementation AND the ✗ witness that
+    /// did not — so the failing claim is identifiable, and the
+    /// disagreement between them is printed, never silent.
+    //= design/witness/spec.md#verdict-output
+    //= type=test
+    //# For every pair that fails because a bound witness did not execute
+    //# the implementation (W1's universal clause), the output MUST list
+    //# **every** bound witness with its per-witness result
+    //# (executed I / did not execute I) and strength,
+    //# so the failing claim is identifiable —
+    //= design/witness/spec.md#verdict-output
+    //= type=test
+    //# and the disagreement MUST never be silent
+    //# (decisions.md, [Decision 14](decisions.md#decision-14);
+    //# legibility improvements are tracked in
+    //# [Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
+    #[test]
+    fn failing_pair_output_lists_every_bound_witness() {
+        let mut result = coverage_result();
+        result.status = QueryStatus::Fail;
+        result.failed = vec![CoveredTestAnnotation {
+            test: annotation("t.rs", AnnotationType::Test),
+            test_execution_status: ExecutionStatus::Executed,
+            bound_witnesses: vec![
+                witness_ref("a.xml", Strength::Executed),
+                witness_ref("c::obl", Strength::Consulted),
+            ],
+            executed_implementations: vec![],
+            not_executed_implementations: vec![NotExecutedAnnotation {
+                annotation: annotation("i.rs", AnnotationType::Citation),
+                status: ExecutionStatus::NotExecuted,
+                per_witness: vec![
+                    PairWitnessResult {
+                        witness: witness_ref("a.xml", Strength::Executed),
+                        executed: true,
+                        status: ExecutionStatus::Executed,
+                    },
+                    PairWitnessResult {
+                        witness: witness_ref("c::obl", Strength::Consulted),
+                        executed: false,
+                        status: ExecutionStatus::NotExecuted,
+                    },
+                ],
+            }],
+        }];
+        let out = squash(&format!("{result}"));
+        // Every bound witness, its per-witness result, and its strength:
+        assert!(
+            out.contains("✓ a.xml (executed): executed the implementation"),
+            "missing the executing witness's result: {out}"
+        );
+        assert!(
+            out.contains("✗ c::obl (consulted): did not execute the implementation"),
+            "missing the failing witness's result: {out}"
+        );
+        // The disagreement is printed with the universal-discharge rule:
+        assert!(
+            out.contains("ALL bound witnesses executed the implementation"),
+            "missing the discharge rule statement: {out}"
+        );
+    }
+
+    /// Spec §3, success clause: verbose output names every bound witness
+    /// (label) and its strength for a discharged pair.
+    //= design/witness/spec.md#verdict-output
+    //= type=test
+    //# For every discharged pair, the output MUST name, in verbose
+    //# output, every bound witness (its label) and its strength ([§1.3](#provenance)).
+    #[test]
+    fn verbose_output_names_every_bound_witness_for_discharged_pairs() {
+        let mut result = coverage_result();
+        result.verbose = true;
+        result.successful = vec![CoveredTestAnnotation {
+            test: annotation("t.rs", AnnotationType::Test),
+            test_execution_status: ExecutionStatus::Executed,
+            bound_witnesses: vec![
+                witness_ref("a.xml", Strength::Executed),
+                witness_ref("c::obl", Strength::Consulted),
+            ],
+            executed_implementations: vec![annotation("i.rs", AnnotationType::Citation)],
+            not_executed_implementations: vec![],
+        }];
+        let out = squash(&format!("{result}"));
+        assert!(
+            out.contains("discharged by a.xml (executed)"),
+            "missing the runtime witness's name and strength: {out}"
+        );
+        assert!(
+            out.contains("discharged by c::obl (consulted)"),
+            "missing the prover witness's name and strength: {out}"
+        );
+
+        // Non-verbose output does NOT name them (the naming is
+        // verbose-gated; failure output never is — see the failing-pair
+        // test above, which runs with verbose off).
+        result.verbose = false;
+        let out = squash(&format!("{result}"));
+        assert!(!out.contains("discharged by a.xml"));
+    }
+
+    /// Spec §3, W6 clause: the unwitnessed report identifies the
+    /// annotation (its source slice is rendered) and states that no
+    /// configured producer yielded a witness for it.
+    //= design/witness/spec.md#verdict-output
+    //= type=test
+    //# For every unwitnessed test annotation (W6), the output MUST
+    //# identify the annotation and state that no configured producer
+    //# yielded a witness for it.
+    #[test]
+    fn unwitnessed_output_identifies_annotation_and_producer_absence() {
+        let mut result = coverage_result();
+        result.status = QueryStatus::Fail;
+        result.unwitnessed = vec![UnwitnessedTestAnnotation {
+            test: annotation("t.rs", AnnotationType::Test),
+            diagnostic_status: ExecutionStatus::NotExecuted,
+            not_proof_testable: false,
+        }];
+        let out = squash(&format!("{result}"));
+        assert!(
+            out.contains("Unwitnessed test annotation"),
+            "missing the report category: {out}"
+        );
+        // The annotation is identified by its rendered source:
+        assert!(out.contains("t.rs"), "missing the annotation's file: {out}");
+        assert!(
+            out.contains("No configured coverage source yielded a witness"),
+            "missing the producer-absence statement: {out}"
+        );
+    }
 }

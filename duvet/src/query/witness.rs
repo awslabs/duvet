@@ -29,7 +29,7 @@
 //!   path refuses with `Unknown`; both directions verdict `false`).
 
 //= design/witness/spec.md#engine-glue
-//# **G2 (call obligation).** The engine MUST compute every pair,
+//# - **G2 (call obligation).** The engine MUST compute every pair,
 //# test, and global verdict (Properties
 //# [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
 //# [W6](#property-w6-unwitnessed-test-annotations)) by calling the
@@ -56,11 +56,12 @@ use std::{collections::BTreeMap, fmt, path::PathBuf, sync::Arc};
 //#                                    -- the existing verified type
 pub type CoverageReportMap = duvet_coverage::types::CoverageReport;
 
-//= design/witness/spec.md#witness
-//= type=implementation
-//# A witness is the record of **one act of checking**:
-//# one test's execution, or one prover obligation's successful
-//# verification.
+/// The engine-side witness record (spec §1.2). The definitional
+/// citation ("one act of checking") lives on the verified projection in
+/// `duvet-coverage/src/witness.rs`; this mirror carries the engine
+/// concerns the projection deliberately omits (label, provenance,
+/// path-keyed maps). Single-type unification across the PG1 boundary is
+/// a pending design discussion.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Witness {
     /// Human-readable identity (report path; obligation path).
@@ -136,7 +137,7 @@ pub struct Provenance {
 /// (decisions.md, Decision 7).
 //= design/witness/spec.md#verdict-output
 //# For every discharged pair, the output MUST name, in verbose
-//# output, every bound witness (its label) and its strength
+//# output, every bound witness (its label) and its strength ([§1.3](#provenance)).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WitnessRef {
     pub label: String,
@@ -152,12 +153,10 @@ impl From<&Witness> for WitnessRef {
     }
 }
 
-/// One bound witness's contribution to a pair verdict.
-//= design/witness/spec.md#verdict-output
-//# the output MUST list
-//# **every** bound witness with its per-witness result
-//# (executed I / did not execute I) and strength,
-//# so the failing claim is identifiable
+/// One bound witness's contribution to a pair verdict — the per-witness
+/// result (executed I / did not execute I) and strength that spec §3's
+/// failure listing is built from (the citation lives on the listing
+/// struct, `NotExecutedAnnotation` in `result.rs`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PairWitnessResult {
     pub witness: WitnessRef,
@@ -173,7 +172,6 @@ pub struct PairWitnessResult {
 /// The verdict for one (T, I) pair over the bound-witness set.
 //= design/witness/spec.md#verdict-output
 //# the engine computes all of these to evaluate the verdict,
-//# and the disagreement MUST never be silent
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DischargeVerdict {
     /// Property W1's verdict, computed by the verified
@@ -383,12 +381,10 @@ impl<'a> VerifiedVerdicts<'a> {
         }
     }
 
-    //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
-    //= type=implementation
-    //# ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
-    ///
     /// The W6/W2 verdict for one test annotation, computed by the verified
-    /// `is_unwitnessed` (= ¬`report_test_executed`).
+    /// `is_unwitnessed` (= ¬`report_test_executed`). The W6 citation
+    /// ("¬∃ w binds ⟹ reported unwitnessed") lives on the engine's
+    /// reporting branch in `engine.rs` — the site that does the reporting.
     pub fn is_unwitnessed(&self, t: &Arc<Annotation>) -> bool {
         let ctx = self.ctx_of(t);
         verified::is_unwitnessed(
@@ -427,16 +423,11 @@ impl<'a> VerifiedVerdicts<'a> {
             .collect()
     }
 
-    //= design/witness/spec.md#discharge
-    //= type=implementation
-    //# witnesses_for(T)  =  { w ∈ delivered : binds(T, w) }
-    //#
-    //# discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
-    //#                       ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
-    ///
     /// The W1 verdict for one (T, I) pair, computed by the verified
     /// `report_discharged_given_bound` — spec §1.6's discharge over the
-    /// full delivered set, with the `binds(T, ·)` scan hoisted out.
+    /// full delivered set, with the `binds(T, ·)` scan hoisted out. (The
+    /// §1.6 citation lives on the verified `discharged` spec fn in
+    /// `duvet-coverage/src/witness.rs`, the definitional site.)
     ///
     //= design/witness/spec.md#engine-glue
     //= type=implementation
@@ -651,6 +642,11 @@ mod tests {
     /// verdict false). A DEGRADED file's map is kept: direct observation
     /// has no bounds requirement, and dropping it would flip real
     /// degraded verdicts.
+    //= design/witness/spec.md#engine-glue
+    //= type=test
+    //# The adapter MUST establish
+    //# the verified functions' preconditions at the boundary —
+    //# filter or degrade before calling, never assume.
     #[test]
     fn out_of_bounds_coverage_dropped_only_for_classified_files() {
         let idx = index(&[("c.java", "/proj/c.java"), ("d.rs", "/proj/d.rs")]);
@@ -870,6 +866,227 @@ mod tests {
             adapter.is_unwitnessed(&annotation("b/src/x.rs")),
             "annotation in the same-suffix OTHER file must not borrow the witness"
         );
+    }
+
+    /// Shared constructor for the e2e tests below: a minimal annotation in
+    /// `path` whose file is `//= spec#s` on line 1 and `code();` on line 2,
+    /// so degraded resolution targets line 2.
+    fn e2e_annotation(path: &str, anno: crate::annotation::AnnotationType) -> Arc<Annotation> {
+        use crate::annotation::AnnotationLevel;
+        use duvet_core::file::SourceFile as CoreSourceFile;
+        let contents = "//= spec#s\ncode();\n";
+        let source = CoreSourceFile::new(path, contents).unwrap();
+        let text = source.substr_range(0..10).unwrap();
+        let target = source.substr_range(4..10).unwrap();
+        let quote = source.substr_range(11..18).unwrap();
+        Arc::new(Annotation {
+            source: source.path().clone(),
+            anno_line: 1,
+            original_target: target,
+            original_text: text,
+            original_quote: quote,
+            anno,
+            target: "spec#s".to_string(),
+            quote: String::new(),
+            comment: String::new(),
+            manifest_dir: source.path().clone(),
+            level: AnnotationLevel::Auto,
+            format: crate::specification::Format::Auto,
+            tracking_issue: String::new(),
+            feature: String::new(),
+            tags: Default::default(),
+            blob_link: None,
+        })
+    }
+
+    fn exec_witness(label: &str, strength: Strength) -> Witness {
+        Witness {
+            label: label.to_string(),
+            claim: ClaimRule::ByExecution,
+            provenance: Provenance {
+                producer: "jacoco".into(),
+                artifact: label.to_string(),
+                discharge_unit: None,
+                strength,
+            },
+            files: BTreeMap::new(), // adapter reads `matched`, not this
+        }
+    }
+
+    /// G2 end-to-end: every verdict the engine reports for this scenario —
+    /// W2/W6 boundness, the W1 pair verdict over a cell-assembled bound
+    /// set, W3 ever-executed, and the per-witness failure diagnostics —
+    /// comes out of one adapter whose entry points call the verified
+    /// layer's functions. The Decision 14 shape is asserted through that
+    /// path: a witness carrying both files discharges the pair; split
+    /// evidence binds the test but fails the pair (and W3 still reports
+    /// the implementation ever-executed, deliberately weaker).
+    //= design/witness/spec.md#engine-glue
+    //= type=test
+    //# The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
+    //# unverified engine glue. Each glue component is named, bounded,
+    //# and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
+    //= design/witness/spec.md#engine-glue
+    //= type=test
+    //# - **G2 (call obligation).** The engine MUST compute every pair,
+    //# test, and global verdict (Properties
+    //# [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
+    //# [W6](#property-w6-unwitnessed-test-annotations)) by calling the
+    //# verified layer's functions, and MUST derive per-witness
+    //# failure diagnostics ([§3](#verdict-output)) from the same verified cells;
+    //# no parallel engine-side verdict computation may exist.
+    //= design/witness/spec.md#engine-glue
+    //= type=test
+    //# The exactness precondition MUST be established the G3 way:
+    //# the set is assembled from the verified binding cells' results
+    //# for the same test context and witness list, never recomputed
+    //# engine-side.
+    //= design/witness/spec.md#verdict-output
+    //= type=test
+    //# the engine computes all of these to evaluate the verdict,
+    #[test]
+    fn g2_verdicts_flow_through_the_verified_layer() {
+        use crate::annotation::AnnotationType;
+
+        let idx = index(&[("t.rs", "/proj/t.rs"), ("i.rs", "/proj/i.rs")]);
+        let mut classification = ClassificationMap::default();
+        for p in ["t.rs", "i.rs"] {
+            classification.insert(
+                PathBuf::from(p),
+                FileClassification::Degraded {
+                    classifications: vec![
+                        Some(duvet_coverage::types::line_class(&[
+                            duvet_coverage::types::LineProperty::Annotation,
+                        ])),
+                        None,
+                    ],
+                    file_length: 2,
+                },
+            );
+        }
+        let t = e2e_annotation("t.rs", AnnotationType::Test);
+        let i = e2e_annotation("i.rs", AnnotationType::Citation);
+
+        let matched_for = |paths: &[&str]| {
+            let mut m = FxHashMap::default();
+            for p in paths {
+                m.insert(PathBuf::from(*p), cov_hit(&[2]));
+            }
+            m
+        };
+
+        // One witness that saw both sides: the pair is discharged, and the
+        // per-witness diagnostics for a failing sibling pair would come from
+        // the same cells (asserted in the split case below).
+        let witnesses = [exec_witness("run-both", Strength::Executed)];
+        let matched = vec![matched_for(&["t.rs", "i.rs"])];
+        let adapter =
+            VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx).expect("builds");
+        assert!(!adapter.is_unwitnessed(&t));
+        let bound = adapter.bound_witnesses(&t);
+        assert_eq!(bound, vec![0], "bound set assembled from the verified cells");
+        let verdict = adapter.discharge_verdict(&t, &i, &bound, |_| ExecutionStatus::Executed);
+        assert!(verdict.discharged);
+        assert_eq!(verdict.per_witness.len(), 1);
+        assert!(verdict.per_witness[0].executed);
+        assert_eq!(verdict.per_witness[0].witness.label, "run-both");
+
+        // Split evidence: the test is witnessed, but its bound witness never
+        // reached the implementation — the pair fails (Decision 14), and the
+        // per-witness diagnostic names the failing claim. W3 stays true.
+        let witnesses = [
+            exec_witness("run-t-only", Strength::Executed),
+            exec_witness("run-i-only", Strength::Executed),
+        ];
+        let matched = vec![matched_for(&["t.rs"]), matched_for(&["i.rs"])];
+        let adapter =
+            VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx).expect("builds");
+        assert!(!adapter.is_unwitnessed(&t));
+        let bound = adapter.bound_witnesses(&t);
+        assert_eq!(bound, vec![0], "only the witness that executed T binds it");
+        let verdict = adapter.discharge_verdict(&t, &i, &bound, |_| ExecutionStatus::NotExecuted);
+        assert!(!verdict.discharged, "split evidence never discharges");
+        assert_eq!(verdict.per_witness.len(), 1);
+        assert!(!verdict.per_witness[0].executed);
+        assert_eq!(verdict.per_witness[0].witness.label, "run-t-only");
+        assert!(adapter.ever_executed(&i), "W3 is deliberately weaker than W1");
+    }
+
+    /// Spec §1.3: `strength` distinguishes the two kinds of claim a
+    /// witness supports, `discharge_unit` names the prover obligation a
+    /// proof witness was constructed from (and is absent for runtime
+    /// witnesses). Both propagate into the report vocabulary
+    /// (`WitnessRef`) unchanged, and the two strengths render distinctly.
+    //= design/witness/spec.md#provenance
+    //= type=test
+    //# `strength` records what kind of claim the witness supports:
+    //# `Executed` (a runtime act ran these lines) or
+    //# `Consulted` (a prover's elaboration reached these lines).
+    //= design/witness/spec.md#provenance
+    //= type=test
+    //#     discharge_unit: Option<String>,
+    //#                               -- prover producers only: the obligation
+    //#                               -- the witness was constructed from
+    #[test]
+    fn provenance_strength_and_discharge_unit_record_the_claim_kind() {
+        let runtime = exec_witness("report.xml", Strength::Executed);
+        assert_eq!(runtime.provenance.discharge_unit, None);
+        let prover = root_witness("c::obligation", "src/x.rs", 1, 10);
+        assert_eq!(prover.provenance.strength, Strength::Consulted);
+        assert_eq!(
+            prover.provenance.discharge_unit.as_deref(),
+            Some("c::obligation"),
+            "prover witnesses carry the obligation they were constructed from"
+        );
+
+        // Strength propagates into the report vocabulary unchanged...
+        assert_eq!(WitnessRef::from(&runtime).strength, Strength::Executed);
+        assert_eq!(WitnessRef::from(&prover).strength, Strength::Consulted);
+        // ...and the two claim kinds render distinctly.
+        assert_eq!(Strength::Executed.to_string(), "executed");
+        assert_eq!(Strength::Consulted.to_string(), "consulted");
+    }
+
+    /// Spec §1.2: a witness's per-file map is the existing verified
+    /// coverage type — the same value (one `Arc`, no translation) is an
+    /// engine map and a verified-model map, and the verified layer scores
+    /// it directly.
+    //= design/witness/spec.md#witness
+    //= type=test
+    //#     files:      Map<FilePath, CoverageReport>,
+    //#                                    -- per file: line → CoverageStatus,
+    //#                                    -- the existing verified type
+    #[test]
+    fn witness_files_carry_the_verified_coverage_type() {
+        use duvet_coverage::types::{AnnotationSpan, LineProperty};
+
+        // One map, engine-keyed by path and verified-keyed by file id.
+        let cov: Arc<CoverageReportMap> = cov_hit(&[2]);
+        let mut engine_files: BTreeMap<String, Arc<CoverageReportMap>> = BTreeMap::new();
+        engine_files.insert("src/x.rs".to_string(), Arc::clone(&cov));
+        let vw = verified::Witness {
+            claim: verified::ClaimRule::ByExecution,
+            files: vec![(0, Arc::clone(engine_files.get("src/x.rs").unwrap()))],
+        };
+        // The verified layer scores the engine's map value directly:
+        // degraded resolution of an annotation on line 1 targets line 2,
+        // which the map records as Hit.
+        let classifications = vec![
+            Some(duvet_coverage::types::line_class(&[LineProperty::Annotation])),
+            None,
+        ];
+        assert!(verified::is_executed_by(
+            0,
+            &AnnotationSpan {
+                start_line: 1,
+                end_line: 1,
+            },
+            verified::ScoringMode::Degraded,
+            &classifications,
+            &[],
+            2,
+            &vw,
+        ));
     }
 
     /// Perf harness (run explicitly: `cargo test --release -p duvet

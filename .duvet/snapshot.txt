@@ -207,12 +207,12 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: targets; an intervening ordinary comment (e.g.
 
   SECTION: [1.2 Witness](#witness)
-    TEXT[implementation]: A witness is the record of **one act of checking**:
-    TEXT[implementation]: one test's execution, or one prover obligation's successful
-    TEXT[implementation]: verification.
-    TEXT[implementation]:     files:      Map<FilePath, CoverageReport>,
-    TEXT[implementation]:                                    -- per file: line → CoverageStatus,
-    TEXT[implementation]:                                    -- the existing verified type
+    TEXT[implementation,test]: A witness is the record of **one act of checking**:
+    TEXT[implementation,test]: one test's execution, or one prover obligation's successful
+    TEXT[implementation,test]: verification.
+    TEXT[implementation,test]:     files:      Map<FilePath, CoverageReport>,
+    TEXT[implementation,test]:                                    -- per file: line → CoverageStatus,
+    TEXT[implementation,test]:                                    -- the existing verified type
     TEXT[!MUST]: A witness's `files` maps MUST be **closed**:
     TEXT[!MUST]: they contain every line the act touched,
     TEXT[!MUST]: under the producer's reachability relation
@@ -220,12 +220,12 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: obligation-graph closure for prover producers).
 
   SECTION: [1.3 Provenance](#provenance)
-    TEXT[implementation]:     discharge_unit: Option<String>,
-    TEXT[implementation]:                               -- prover producers only: the obligation
-    TEXT[implementation]:                               -- the witness was constructed from
-    TEXT[implementation]: `strength` records what kind of claim the witness supports:
-    TEXT[implementation]: `Executed` (a runtime act ran these lines) or
-    TEXT[implementation]: `Consulted` (a prover's elaboration reached these lines).
+    TEXT[implementation,test]:     discharge_unit: Option<String>,
+    TEXT[implementation,test]:                               -- prover producers only: the obligation
+    TEXT[implementation,test]:                               -- the witness was constructed from
+    TEXT[implementation,test]: `strength` records what kind of claim the witness supports:
+    TEXT[implementation,test]: `Executed` (a runtime act ran these lines) or
+    TEXT[implementation,test]: `Consulted` (a prover's elaboration reached these lines).
     TEXT[!MUST]: Verdict output MUST report every bound witness's label and
     TEXT[!MUST]: strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
     TEXT[!MUST]: each claim
@@ -233,21 +233,21 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: [Decision 14](decisions.md#decision-14)).
 
   SECTION: [1.4 Executed](#executed)
-    TEXT[implementation]: For an annotation X and witness w:
-    TEXT[implementation]: ```
-    TEXT[implementation]: executed(X, w)  ⟺  the coverage model scores X's resolved target
-    TEXT[implementation]:                     Executed against w.files
-    TEXT[implementation]: ```
-    TEXT[implementation]: This is exactly the existing verified Phases 1–3
-    TEXT[implementation]: (`is_annotation_executed`, or the degraded path),
-    TEXT[implementation]: applied to one witness's coverage maps.
-    TEXT[implementation]: This specification adds no new per-annotation scoring semantics.
-    TEXT[implementation]: The verified Phase 4 layer implements the "or" per file: a
-    TEXT[implementation]: `ScoringMode` routes each file to the classified or the degraded
-    TEXT[implementation]: scorer, and engine trust-boundary refusals are encoded as
-    TEXT[implementation]: `Unscorable` — binds nothing, executes nothing
-    TEXT[implementation]: If w's `files` contains no map for X's file at all,
-    TEXT[implementation]: `executed(X, w)` is false.
+    TEXT[implementation,test]: For an annotation X and witness w:
+    TEXT[implementation,test]: ```
+    TEXT[implementation,test]: executed(X, w)  ⟺  the coverage model scores X's resolved target
+    TEXT[implementation,test]:                     Executed against w.files
+    TEXT[implementation,test]: ```
+    TEXT[implementation,test]: This is exactly the existing verified Phases 1–3
+    TEXT[implementation,test]: (`is_annotation_executed`, or the degraded path),
+    TEXT[implementation,test]: applied to one witness's coverage maps.
+    TEXT[implementation,test]: This specification adds no new per-annotation scoring semantics.
+    TEXT[implementation,test]: The verified Phase 4 layer implements the "or" per file: a
+    TEXT[implementation,test]: `ScoringMode` routes each file to the classified or the degraded
+    TEXT[implementation,test]: scorer, and engine trust-boundary refusals are encoded as
+    TEXT[implementation,test]: `Unscorable` — binds nothing, executes nothing
+    TEXT[implementation,test]: If w's `files` contains no map for X's file at all,
+    TEXT[implementation,test]: `executed(X, w)` is false.
 
   SECTION: [1.5 Claim rules and binding](#claim-rules)
     TEXT[implementation,test]: A test annotation must find *its own* witness.
@@ -279,16 +279,16 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: coordinates.
 
   SECTION: [1.6 Discharge](#discharge)
-    TEXT[implementation]: ```
-    TEXT[implementation]: witnesses_for(T)  =  { w ∈ delivered : binds(T, w) }
-    TEXT[implementation]: discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
-    TEXT[implementation]:                       ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
-    TEXT[implementation]: ```
-    TEXT[implementation]: In words: a pair (T, I) is discharged when the test binds at
-    TEXT[implementation]: least one witness and **every** witness it binds executed the
-    TEXT[implementation]: implementation. Each bound witness individually must see both
-    TEXT[implementation]: sides; one bound witness that never reaches the implementation is
-    TEXT[implementation]: a vacuous claim and fails the pair
+    TEXT[implementation,test]: ```
+    TEXT[implementation,test]: witnesses_for(T)  =  { w ∈ delivered : binds(T, w) }
+    TEXT[implementation,test]: discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
+    TEXT[implementation,test]:                       ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
+    TEXT[implementation,test]: ```
+    TEXT[implementation,test]: In words: a pair (T, I) is discharged when the test binds at
+    TEXT[implementation,test]: least one witness and **every** witness it binds executed the
+    TEXT[implementation,test]: implementation. Each bound witness individually must see both
+    TEXT[implementation,test]: sides; one bound witness that never reaches the implementation is
+    TEXT[implementation,test]: a vacuous claim and fails the pair
 
   SECTION: [1.7 Producer](#producer)
     TEXT[implementation]: A producer maps declared artifacts to witnesses:
@@ -335,8 +335,10 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
   SECTION: [Property W2: Test Execution](#property-w2-test-execution)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that a test annotation is reported
     TEXT[!MUST,implementation,test]: executed if and only if some delivered witness binds it:
-    TEXT[implementation]: report_test_executed(T, witnesses) = true
-    TEXT[implementation]:     ⟺  ∃ w ∈ witnesses : binds(T, w)
+    TEXT[test]: ```
+    TEXT[implementation,test]: report_test_executed(T, witnesses) = true
+    TEXT[implementation,test]:     ⟺  ∃ w ∈ witnesses : binds(T, w)
+    TEXT[test]: ```
 
   SECTION: [Property W3: Global Execution](#property-w3-global-execution)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that an implementation annotation is
@@ -378,7 +380,9 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: delivered witness binds it —
     TEXT[!MUST,implementation,test]: across ALL configured producers —
     TEXT[!MUST,implementation,test]: as a failure, never silently:
-    TEXT[implementation]: ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
+    TEXT[test]: ```
+    TEXT[implementation,test]: ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
+    TEXT[test]: ```
     TEXT[!MAY]: Consequence (intended): running a subset of producers MAY fail a
     TEXT[!MAY]: test annotation that the full set passes;
     TEXT[!MAY]: that behavior is correct
@@ -402,23 +406,21 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[test]: `ByRootSpan` binding is exactly geometry.
 
   SECTION: [3. Verdict output requirements](#verdict-output)
-    TEXT[!MUST,implementation]: For every discharged pair, the output MUST name, in verbose
-    TEXT[!MUST,implementation]: output, every bound witness (its label) and its strength
-    TEXT[!MUST]:  ([§1.3](#provenance)).
-    TEXT[!MUST,implementation]: For every pair that fails because a bound witness did not execute
-    TEXT[!MUST,implementation]: the implementation (W1's universal clause), the output MUST list
-    TEXT[!MUST,implementation]: **every** bound witness with its per-witness result
-    TEXT[!MUST,implementation]: (executed I / did not execute I) and strength,
-    TEXT[!MUST,implementation]: so the failing claim is identifiable
-    TEXT[!MUST]:  —
-    TEXT[!MUST,implementation]: the engine computes all of these to evaluate the verdict,
-    TEXT[!MUST,implementation]: and the disagreement MUST never be silent
-    TEXT[!MUST]: (decisions.md, [Decision 14](decisions.md#decision-14);
-    TEXT[!MUST]: legibility improvements are tracked in
-    TEXT[!MUST]: [Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
-    TEXT[!MUST,implementation]: For every unwitnessed test annotation (W6), the output MUST
-    TEXT[!MUST,implementation]: identify the annotation and state that no configured producer
-    TEXT[!MUST,implementation]: yielded a witness for it.
+    TEXT[!MUST,implementation,test]: For every discharged pair, the output MUST name, in verbose
+    TEXT[!MUST,implementation,test]: output, every bound witness (its label) and its strength ([§1.3](#provenance)).
+    TEXT[!MUST,implementation,test]: For every pair that fails because a bound witness did not execute
+    TEXT[!MUST,implementation,test]: the implementation (W1's universal clause), the output MUST list
+    TEXT[!MUST,implementation,test]: **every** bound witness with its per-witness result
+    TEXT[!MUST,implementation,test]: (executed I / did not execute I) and strength,
+    TEXT[!MUST,implementation,test]: so the failing claim is identifiable —
+    TEXT[!MUST,implementation,test]: the engine computes all of these to evaluate the verdict,
+    TEXT[!MUST,implementation,test]: and the disagreement MUST never be silent
+    TEXT[!MUST,implementation,test]: (decisions.md, [Decision 14](decisions.md#decision-14);
+    TEXT[!MUST,implementation,test]: legibility improvements are tracked in
+    TEXT[!MUST,implementation,test]: [Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
+    TEXT[!MUST,implementation,test]: For every unwitnessed test annotation (W6), the output MUST
+    TEXT[!MUST,implementation,test]: identify the annotation and state that no configured producer
+    TEXT[!MUST,implementation,test]: yielded a witness for it.
 
   SECTION: [4. Producer obligations and trusted base](#producer-obligations)
     TEXT[!MUST]: Where an obligation cannot be proven, it is a **named axiom** of
@@ -454,42 +456,40 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST]: since producers are unverified glue at the trust boundary.
 
   SECTION: [4.4 Engine glue](#engine-glue)
-    TEXT[implementation]: The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
-    TEXT[implementation]: unverified engine glue. Each glue component is named, bounded,
-    TEXT[implementation]: and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
+    TEXT[implementation,test]: The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
+    TEXT[implementation,test]: unverified engine glue. Each glue component is named, bounded,
+    TEXT[implementation,test]: and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
     TEXT[!MUST]: - **G1 (file identity).** The engine adapter MUST map file paths
     TEXT[!MUST]:   to the model's file identities injectively and consistently
     TEXT[!MUST]:   across all annotations and witnesses in one run, and MUST
     TEXT[!MUST]:   deliver each witness's per-file maps free of duplicate
     TEXT[!MUST]:   identities.
-    TEXT[!MUST]: -
-    TEXT[!MUST,implementation]: **G2 (call obligation).** The engine MUST compute every pair,
-    TEXT[!MUST,implementation]:   test, and global verdict (Properties
-    TEXT[!MUST,implementation]:   [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
-    TEXT[!MUST,implementation]:   [W6](#property-w6-unwitnessed-test-annotations)) by calling the
-    TEXT[!MUST,implementation]:   verified layer's functions, and MUST derive per-witness
-    TEXT[!MUST,implementation]:   failure diagnostics ([§3](#verdict-output)) from the same verified cells;
-    TEXT[!MUST,implementation]:   no parallel engine-side verdict computation may exist.
+    TEXT[!MUST,implementation,test]: - **G2 (call obligation).** The engine MUST compute every pair,
+    TEXT[!MUST,implementation,test]:   test, and global verdict (Properties
+    TEXT[!MUST,implementation,test]:   [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
+    TEXT[!MUST,implementation,test]:   [W6](#property-w6-unwitnessed-test-annotations)) by calling the
+    TEXT[!MUST,implementation,test]:   verified layer's functions, and MUST derive per-witness
+    TEXT[!MUST,implementation,test]:   failure diagnostics ([§3](#verdict-output)) from the same verified cells;
+    TEXT[!MUST,implementation,test]:   no parallel engine-side verdict computation may exist.
     TEXT[!MUST]: - **G3 (mode routing).** The adapter MUST assign each
     TEXT[!MUST]:   annotation's file the scoring mode its classification actually
     TEXT[!MUST]:   selected — classified, degraded, or the trust-boundary refusal
     TEXT[!MUST]:   that binds nothing and executes nothing
     TEXT[!MUST]:   ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
-    TEXT[!MUST,implementation]: The adapter MUST establish
-    TEXT[!MUST,implementation]:   the verified functions' preconditions at the boundary —
-    TEXT[!MUST,implementation]:   filter or degrade before calling, never assume.
-    TEXT[!MAY]: -
-    TEXT[!MAY,implementation]: **G4 (bound-set precomputation).** The glue MAY compute a test's
-    TEXT[!MAY,implementation]:   bound-witness set once — each membership decided by the verified
-    TEXT[!MAY,implementation]:   binding cell — and pass it to a bound-set-taking verified
-    TEXT[!MAY,implementation]:   discharge entry point, provided the verified layer proves that
-    TEXT[!MAY,implementation]:   entry point's verdict equal to [§1.6](#discharge) discharge over
-    TEXT[!MAY,implementation]:   the full delivered set whenever the supplied set is exactly
-    TEXT[!MAY,implementation]:   `witnesses_for(T)`, sound and complete by index.
-    TEXT[!MUST,implementation]:   The exactness precondition MUST be established the G3 way:
-    TEXT[!MUST,implementation]:   the set is assembled from the verified binding cells' results
-    TEXT[!MUST,implementation]:   for the same test context and witness list, never recomputed
-    TEXT[!MUST,implementation]:   engine-side.
+    TEXT[!MUST,implementation,test]: The adapter MUST establish
+    TEXT[!MUST,implementation,test]:   the verified functions' preconditions at the boundary —
+    TEXT[!MUST,implementation,test]:   filter or degrade before calling, never assume.
+    TEXT[!MAY,implementation,test]: - **G4 (bound-set precomputation).** The glue MAY compute a test's
+    TEXT[!MAY,implementation,test]:   bound-witness set once — each membership decided by the verified
+    TEXT[!MAY,implementation,test]:   binding cell — and pass it to a bound-set-taking verified
+    TEXT[!MAY,implementation,test]:   discharge entry point, provided the verified layer proves that
+    TEXT[!MAY,implementation,test]:   entry point's verdict equal to [§1.6](#discharge) discharge over
+    TEXT[!MAY,implementation,test]:   the full delivered set whenever the supplied set is exactly
+    TEXT[!MAY,implementation,test]:   `witnesses_for(T)`, sound and complete by index.
+    TEXT[!MUST,implementation,test]:   The exactness precondition MUST be established the G3 way:
+    TEXT[!MUST,implementation,test]:   the set is assembled from the verified binding cells' results
+    TEXT[!MUST,implementation,test]:   for the same test context and witness list, never recomputed
+    TEXT[!MUST,implementation,test]:   engine-side.
 
   SECTION: [5. Prover producers](#prover-producers)
     TEXT[!MUST]: Every prover producer owes its artifact an investigation before

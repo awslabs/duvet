@@ -627,13 +627,8 @@ async fn execute_coverage_check(
     // The G1 adapter: witnesses and annotation scoring contexts translated
     // into the verified model's vocabulary (injective file ids, scoring
     // modes). Translation refuses ambiguous root-span path matches
-    // (spec §1.5) rather than selecting. All verdicts below flow through it:
-    //= design/witness/spec.md#engine-glue
-    //# The engine MUST compute every pair,
-    //# test, and global verdict (Properties
-    //# [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
-    //# [W6](#property-w6-unwitnessed-test-annotations)) by calling the
-    //# verified layer's functions
+    // (spec §1.5) rather than selecting. All verdicts below flow through it
+    // (glue obligation G2 — cited at the top of `query/witness.rs`):
     let adapter = VerifiedVerdicts::build(&witnesses, &matched, &classification, &index)?;
 
     // The requirement role here is the `Test` annotations being correlated;
@@ -712,13 +707,8 @@ async fn execute_coverage_check(
             // The test is witnessed:
             // Evaluate each covering implementation against EVERY bound
             // witness — bound witnesses are never outvoted (decisions.md,
-            // Decision 14):
-            //= design/witness/spec.md#discharge
-            //= type=implementation
-            //# witnesses_for(T)  =  { w ∈ delivered : binds(T, w) }
-            //#
-            //# discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
-            //#                       ∧  ∀w ∈ witnesses_for(T) : executed(I, w)
+            // Decision 14). Spec §1.6 discharge; the citation lives on the
+            // verified `discharged` spec fn in `duvet-coverage`:
             let mut executed_implementations = Vec::new();
             let mut not_executed_implementations = Vec::new();
 
