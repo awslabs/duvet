@@ -527,9 +527,10 @@ pub fn executed_status(
 //# model's target resolution
 //# ([coverage-model-spec §2](../query/coverage-model-spec.md#annotation-target-resolution),
 //# including the degraded path).
-//= design/witness/spec.md#claim-rules
-//#     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
-//#                           within r in file f
+//
+// This resolution feeds the ByRootSpan claim arm (spec §1.5, quoted at
+// the verified `binds`: the target must EXIST and fall within the root
+// span).
 //
 // `None` when the file's classification is defeated, the annotation's
 // range is degenerate, or the walk finds no target: an unresolvable

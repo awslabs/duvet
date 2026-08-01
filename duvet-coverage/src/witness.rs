@@ -212,24 +212,18 @@ pub open spec fn executed_by(
 /// Spec §1.5 `binds(T, w)`. Local refusal note: an `Unscorable`
 /// annotation has no trustworthy resolution and binds nothing (either
 /// arm) — the ByRootSpan conjunct makes the refusal explicit.
+// The grammar line is quoted at the `ClaimRule` type it declares; the
+// empty-target refusal sentence at the engine's resolution guard
+// (duvet/src/query/engine.rs) — here it is the `target.is_some()`
+// conjunct of the ByRootSpan arm.
 //= design/witness/spec.md#claim-rules
 //# Each witness carries one claim rule;
 //# `binds` is total over (annotation, witness) pairs:
-//#
-//# ```
-//# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
-//#
+//= design/witness/spec.md#claim-rules
 //# binds(T, w)  ⟺  match w.claim:
 //#     ByExecution        → executed(T, w)
 //#     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
 //#                           within r in file f
-//# ```
-//#
-//# An annotation with no resolved target (e.g. a Structural
-//# annotation) binds no ByRootSpan witness —
-//# empty-target containment MUST NOT bind vacuously.
-//# (Resolution yields at most one target line in the current model,
-//# so containment is membership of that single line.)
 //= design/witness/spec.md#property-w5-claim-refinement
 //= type=implementation
 //# The implementation MUST prove that binding under `ByExecution`
@@ -461,6 +455,22 @@ pub fn is_executed_by(
 }
 
 /// `binds(T, w)` as executable code, proven equivalent to the `binds` spec.
+//
+// The test citations below follow the executable-carries-the-spec
+// template: the `ensures result <==> binds(..)` postcondition is the
+// verified evidence that this function decides spec §1.5 binding for
+// EVERY (annotation, witness) pair, both claim arms — Verus is the
+// checker that ran it.
+//= design/witness/spec.md#claim-rules
+//= type=test
+//# Each witness carries one claim rule;
+//# `binds` is total over (annotation, witness) pairs:
+//= design/witness/spec.md#claim-rules
+//= type=test
+//# binds(T, w)  ⟺  match w.claim:
+//#     ByExecution        → executed(T, w)
+//#     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
+//#                           within r in file f
 pub fn is_bound_by(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -982,6 +992,17 @@ pub proof fn failure_monotonicity(
 //= type=test
 //# The implementation MUST prove that binding under `ByExecution`
 //# implies execution of the test in the same witness:
+//
+// The same proof is the verified evidence for the rule's definition in
+// spec §1.5: binding under `ByExecution` IS evidence — the test's own
+// lines executed in the witness — never anything weaker.
+//= design/witness/spec.md#claim-rules
+//= type=test
+//# `ByExecution` is the runtime rule:
+//# the report cannot record which test produced it,
+//# so the test claims the witness by evidence —
+//# its own lines are executed in it.
+//# This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
 pub proof fn by_execution_binding_implies_executed(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -1023,6 +1044,16 @@ pub proof fn by_execution_binding_implies_executed(
 //# the proofs. This is [W5](#property-w5-claim-refinement)'s
 //# complement: `ByExecution` binding is exactly map evidence;
 //# `ByRootSpan` binding is exactly geometry.
+//
+// The same proof is the verified evidence for the rule's definition in
+// spec §1.5: positional ownership is a function of the root span alone
+// — "by construction" made checkable.
+//= design/witness/spec.md#claim-rules
+//= type=test
+//# `ByRootSpan` is the prover rule:
+//# the witness was constructed from the annotation's own position
+//# ([§5](#prover-producers)), so ownership is positional and holds by
+//# construction
 pub proof fn positional_binding_is_map_independent(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -1173,6 +1204,13 @@ mod tests {
     }
 
     /// W2 / W6: bound iff some witness binds; unwitnessed is the negation.
+    //
+    // The w_i_only cases are the own-witness requirement's test evidence:
+    // a delivered witness that executed something ELSE does not count for
+    // T — T is unwitnessed until a witness binds T itself.
+    //= design/witness/spec.md#claim-rules
+    //= type=test
+    //# A test annotation must find *its own* witness.
     #[test]
     fn w2_w6_test_execution_and_unwitnessed() {
         let t = t_annotation();
@@ -1296,6 +1334,13 @@ mod tests {
     ///
     /// The difference between the fat proof witness and the trench coat is
     /// exactly the claim rule the witness carries.
+    //
+    // That head-to-head contrast — one map, the two grammar alternatives,
+    // opposite binding verdicts — is the test evidence for the ClaimRule
+    // grammar itself: the two rules exist and are semantically distinct.
+    //= design/witness/spec.md#claim-rules
+    //= type=test
+    //# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
     #[test]
     fn fat_witness_map_containing_t_does_not_capture_t_by_root_span() {
         let t = t_annotation();
@@ -1356,6 +1401,11 @@ mod tests {
     /// Spec §1.5 no-vacuous-binding: an annotation with no resolved target
     /// (pure scope-close follows it) binds NO ByRootSpan witness, even one
     /// whose range would contain the annotation's own lines.
+    //= design/witness/spec.md#claim-rules
+    //= type=test
+    //# An annotation with no resolved target (e.g. a Structural
+    //# annotation) binds no ByRootSpan witness —
+    //# empty-target containment MUST NOT bind vacuously.
     #[test]
     fn by_root_span_never_binds_empty_target() {
         // 1: Annotation, 2: pure ScopeClose -> no resolved target.

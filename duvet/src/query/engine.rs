@@ -609,10 +609,9 @@ async fn execute_coverage_check(
         )
     };
 
-    // A test annotation's resolved target, for the ByRootSpan claim arm:
-    //= design/witness/spec.md#claim-rules
-    //#     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
-    //#                           within r in file f
+    // A test annotation's resolved target, for the ByRootSpan claim arm
+    // (spec §1.5, quoted at the verified `binds`: the target must EXIST
+    // and fall within the root span).
     // None when the file was never classified (it had no coverage and no
     // prover producer is configured), classification was defeated, or the
     // walk found no target - all of which bind no positional witness.

@@ -76,24 +76,19 @@ pub struct Witness {
     pub files: BTreeMap<String, Arc<CoverageReportMap>>,
 }
 
-//= design/witness/spec.md#claim-rules
-//= type=implementation
-//# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
+// Mirrors the verified `ClaimRule` (spec §1.5) in engine coordinates
+// (producer path strings instead of opaque file ids). The spec text is
+// quoted once, at the verified type it declares
+// (`duvet_coverage::witness::ClaimRule`); unifying the two types is a
+// pending design discussion.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClaimRule {
-    //= design/witness/spec.md#claim-rules
-    //# `ByExecution` is the runtime rule:
-    //# the report cannot record which test produced it,
-    //# so the test claims the witness by evidence —
-    //# its own lines are executed in it.
-    //# This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
+    /// The runtime rule: the test claims the witness by evidence — its
+    /// own lines are executed in it (spec §1.5).
     /// A named axiom for runtime producers (spec §4.2).
     ByExecution,
-    //= design/witness/spec.md#claim-rules
-    //# `ByRootSpan` is the prover rule:
-    //# the witness was constructed from the annotation's own position
-    //# ([§5](#prover-producers)), so ownership is positional and holds by
-    //# construction
+    /// The prover rule: ownership is positional and holds by
+    /// construction (spec §1.5).
     /// `file` is in producer (artifact) coordinates; the adapter
     /// translates it to a file identity by the suffix rule, refusing
     /// ambiguity (spec §1.5).
@@ -588,6 +583,14 @@ mod tests {
     /// Spec §1.5: the engine MUST refuse the bind and report the
     /// ambiguity rather than select. The adapter refuses at translation
     /// time — before any bind — naming the coordinate and both matches.
+    //= design/witness/spec.md#claim-rules
+    //= type=test
+    //# If the engine's path-matching relation associates an annotation's
+    //# file with more than one witness file (or one witness file with
+    //# more than one source file), the engine MUST refuse the bind and
+    //# report the ambiguity rather than select — the same posture the
+    //# producer takes when translating positions into artifact
+    //# coordinates.
     #[test]
     fn ambiguous_root_span_suffix_is_refused_not_selected() {
         let idx = index(&[

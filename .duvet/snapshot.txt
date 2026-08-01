@@ -250,37 +250,33 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[implementation]: `executed(X, w)` is false.
 
   SECTION: [1.5 Claim rules and binding](#claim-rules)
-    TEXT[implementation]: A test annotation must find *its own* witness.
-    TEXT[implementation]: Each witness carries one claim rule;
-    TEXT[implementation]: `binds` is total over (annotation, witness) pairs:
-    TEXT[implementation]: ```
-    TEXT[implementation]: ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
-    TEXT[implementation]: binds(T, w)  ⟺  match w.claim:
-    TEXT[implementation]:     ByExecution        → executed(T, w)
-    TEXT[implementation]:     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
-    TEXT[implementation]:                           within r in file f
-    TEXT[implementation]: ```
-    TEXT[implementation]: An annotation with no resolved target (e.g.
-    TEXT[!MUST,implementation]: a Structural
-    TEXT[!MUST,implementation]: annotation) binds no ByRootSpan witness —
-    TEXT[!MUST,implementation]: empty-target containment MUST NOT bind vacuously.
-    TEXT[implementation]: (Resolution yields at most one target line in the current model,
-    TEXT[implementation]: so containment is membership of that single line.)
-    TEXT[implementation]: `ByExecution` is the runtime rule:
-    TEXT[implementation]: the report cannot record which test produced it,
-    TEXT[implementation]: so the test claims the witness by evidence —
-    TEXT[implementation]: its own lines are executed in it.
-    TEXT[implementation]: This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
-    TEXT[implementation]: `ByRootSpan` is the prover rule:
-    TEXT[implementation]: the witness was constructed from the annotation's own position
-    TEXT[implementation]: ([§5](#prover-producers)), so ownership is positional and holds by
-    TEXT[implementation]: construction
-    TEXT[!MUST,implementation]: If the engine's path-matching relation associates an annotation's
-    TEXT[!MUST,implementation]: file with more than one witness file (or one witness file with
-    TEXT[!MUST,implementation]: more than one source file), the engine MUST refuse the bind and
-    TEXT[!MUST,implementation]: report the ambiguity rather than select — the same posture the
-    TEXT[!MUST,implementation]: producer takes when translating positions into artifact
-    TEXT[!MUST,implementation]: coordinates.
+    TEXT[implementation,test]: A test annotation must find *its own* witness.
+    TEXT[implementation,test]: Each witness carries one claim rule;
+    TEXT[implementation,test]: `binds` is total over (annotation, witness) pairs:
+    TEXT[implementation,test]: ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
+    TEXT[implementation,test]: binds(T, w)  ⟺  match w.claim:
+    TEXT[implementation,test]:     ByExecution        → executed(T, w)
+    TEXT[implementation,test]:     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
+    TEXT[implementation,test]:                           within r in file f
+    TEXT[implementation,test]: An annotation with no resolved target (e.g.
+    TEXT[!MUST,implementation,test]: a Structural
+    TEXT[!MUST,implementation,test]: annotation) binds no ByRootSpan witness —
+    TEXT[!MUST,implementation,test]: empty-target containment MUST NOT bind vacuously.
+    TEXT[implementation,test]: `ByExecution` is the runtime rule:
+    TEXT[implementation,test]: the report cannot record which test produced it,
+    TEXT[implementation,test]: so the test claims the witness by evidence —
+    TEXT[implementation,test]: its own lines are executed in it.
+    TEXT[implementation,test]: This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
+    TEXT[implementation,test]: `ByRootSpan` is the prover rule:
+    TEXT[implementation,test]: the witness was constructed from the annotation's own position
+    TEXT[implementation,test]: ([§5](#prover-producers)), so ownership is positional and holds by
+    TEXT[implementation,test]: construction
+    TEXT[!MUST,implementation,test]: If the engine's path-matching relation associates an annotation's
+    TEXT[!MUST,implementation,test]: file with more than one witness file (or one witness file with
+    TEXT[!MUST,implementation,test]: more than one source file), the engine MUST refuse the bind and
+    TEXT[!MUST,implementation,test]: report the ambiguity rather than select — the same posture the
+    TEXT[!MUST,implementation,test]: producer takes when translating positions into artifact
+    TEXT[!MUST,implementation,test]: coordinates.
 
   SECTION: [1.6 Discharge](#discharge)
     TEXT[implementation]: ```
