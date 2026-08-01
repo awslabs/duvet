@@ -493,7 +493,7 @@ impl fmt::Display for CoverageResult {
                 }
                 //= design/witness/spec.md#two-pass-construction
                 //= type=implementation
-                //# the report MUST identify the annotation as
+                //# and the report MUST identify the annotation as
                 //# *not proof-testable* ("this position carries no dischargeable
                 //# obligation; it can only be witnessed by an execution-style
                 //# producer") — a report distinct from Property W6's
@@ -642,6 +642,14 @@ impl fmt::Display for CoverageResult {
                 // claim is that all of them executed the implementation.
                 // Scoped to verbose output by §3:
                 // success detail is verbose-gated; failure detail never is.
+                //
+                // A witness label may name a clause-level unit; the strength
+                // qualifier rendered beside every label is what keeps unit
+                // granularity from reading as evidence granularity:
+                //= design/witness/spec.md#closure
+                //= type=implementation
+                //# Reports and documentation MUST NOT present clause-level units as
+                //# implying clause-level evidence.
                 let discharged_by = correlation
                     .bound_witnesses
                     .iter()
@@ -852,10 +860,7 @@ fn get_line_slice(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        annotation::AnnotationLevel,
-        query::witness::Strength,
-    };
+    use crate::{annotation::AnnotationLevel, query::witness::Strength};
     use duvet_core::file::SourceFile as CoreSourceFile;
     use std::collections::BTreeSet;
 
@@ -909,10 +914,7 @@ mod tests {
     /// Rendered diagnostics wrap and indent; squash whitespace so the
     /// assertions are insensitive to the renderer's line-breaking.
     fn squash(rendered: &str) -> String {
-        rendered
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ")
+        rendered.split_whitespace().collect::<Vec<_>>().join(" ")
     }
 
     /// Spec §3, failure clause: the failing pair's output lists EVERY
@@ -1044,6 +1046,132 @@ mod tests {
         assert!(
             out.contains("No configured coverage source yielded a witness"),
             "missing the producer-absence statement: {out}"
+        );
+    }
+
+    /// Producer-sections slice helpers (grafted at integration).
+    fn annotation_t(path: &str) -> Arc<Annotation> {
+        annotation(path, AnnotationType::Test)
+    }
+
+    /// The two unwitnessed reports are DISTINCT: the not-proof-testable
+    /// entry carries the producer's verbatim reason sentence, the plain
+    /// W6 entry carries the no-configured-producer help — and neither
+    /// text appears on the other entry.
+    //= design/witness/spec.md#two-pass-construction
+    //= type=test
+    //# and the report MUST identify the annotation as
+    //# *not proof-testable* ("this position carries no dischargeable
+    //# obligation; it can only be witnessed by an execution-style
+    //# producer") — a report distinct from Property W6's
+    //# "no witness from any configured producer."
+    #[test]
+    fn unwitnessed_report_distinguishes_not_proof_testable_from_w6() {
+        let mut result = coverage_result();
+        result.unwitnessed = vec![
+            UnwitnessedTestAnnotation {
+                test: annotation_t("npt.rs"),
+                diagnostic_status: ExecutionStatus::Executed,
+                not_proof_testable: true,
+            },
+            UnwitnessedTestAnnotation {
+                test: annotation_t("w6.rs"),
+                diagnostic_status: ExecutionStatus::NotExecuted,
+                not_proof_testable: false,
+            },
+        ];
+        let rendered = format!("{result}");
+        // The error renderer wraps help text; collapse whitespace before
+        // matching the normative sentence.
+        let normalized = rendered.split_whitespace().collect::<Vec<_>>().join(" ");
+
+        // Both entries are reported (never silently dropped).
+        assert!(rendered.contains("npt.rs"), "{rendered}");
+        assert!(rendered.contains("w6.rs"), "{rendered}");
+
+        // The NPT entry carries the producer's verbatim sentence …
+        assert!(
+            normalized.contains(NOT_PROOF_TESTABLE),
+            "not-proof-testable report must quote the normative sentence:\n{rendered}"
+        );
+        assert!(
+            rendered.contains("Not proof-testable test target"),
+            "{rendered}"
+        );
+        // … and the plain-W6 wording is present for the other entry.
+        assert!(
+            normalized.contains("No configured coverage source yielded a witness"),
+            "plain W6 entry keeps its own distinct wording:\n{rendered}"
+        );
+        // Distinctness: exactly one entry of each kind, so each help
+        // text appears exactly once.
+        assert_eq!(
+            normalized.matches(NOT_PROOF_TESTABLE).count(),
+            1,
+            "{rendered}"
+        );
+        assert_eq!(
+            normalized
+                .matches("No configured coverage source yielded a witness")
+                .count(),
+            1,
+            "{rendered}"
+        );
+    }
+
+    /// Every witness reference in the verdict output carries its
+    /// strength qualifier next to the label — a clause-level unit label
+    /// like `c::f ensures[0]` is always presented as `(consulted)`
+    /// evidence, never bare.
+    //= design/witness/spec.md#closure
+    //= type=test
+    //# Reports and documentation MUST NOT present clause-level units as
+    //# implying clause-level evidence.
+    #[test]
+    fn witness_references_always_carry_their_strength_qualifier() {
+        let clause_label = "c::f ensures[0]";
+        let witness_ref = || WitnessRef {
+            label: clause_label.to_string(),
+            strength: Strength::Consulted,
+        };
+
+        // Success path (verbose): "discharged by <label> (<strength>)".
+        let mut result = coverage_result();
+        result.verbose = true;
+        result.successful = vec![CoveredTestAnnotation {
+            test: annotation_t("ok.rs"),
+            test_execution_status: ExecutionStatus::Executed,
+            bound_witnesses: vec![witness_ref()],
+            executed_implementations: vec![],
+            not_executed_implementations: vec![],
+        }];
+        let rendered = format!("{result}");
+        assert!(
+            rendered.contains("discharged by c::f ensures[0] (consulted)"),
+            "clause-unit label must carry its strength qualifier:\n{rendered}"
+        );
+
+        // Failure path (never verbose-gated): per-witness ✗ lines.
+        let mut result = coverage_result();
+        result.failed = vec![CoveredTestAnnotation {
+            test: annotation_t("fail.rs"),
+            test_execution_status: ExecutionStatus::Executed,
+            bound_witnesses: vec![witness_ref()],
+            executed_implementations: vec![],
+            not_executed_implementations: vec![NotExecutedAnnotation {
+                annotation: annotation_t("impl.rs"),
+                status: ExecutionStatus::NotExecuted,
+                per_witness: vec![PairWitnessResult {
+                    witness: witness_ref(),
+                    executed: false,
+                    status: ExecutionStatus::NotExecuted,
+                }],
+            }],
+        }];
+        let rendered = format!("{result}");
+        assert!(
+            rendered.contains("c::f ensures[0] (consulted)"),
+            "per-witness failure line must carry the strength qualifier:\n{rendered}"
         );
     }
 }

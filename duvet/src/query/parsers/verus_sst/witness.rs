@@ -33,13 +33,11 @@ use std::sync::Arc;
 
 pub const PRODUCER: &str = "verus-sst";
 
-/// The report sentence for a not-proof-testable position.
-//= design/witness/spec.md#two-pass-construction
-//# and the report MUST identify the annotation as
-//# *not proof-testable* ("this position carries no dischargeable
-//# obligation; it can only be witnessed by an execution-style
-//# producer") — a report distinct from Property W6's
-//# "no witness from any configured producer."
+/// The report sentence for a not-proof-testable position
+/// (spec §5.2 quotes it verbatim; the report-identification
+/// requirement is annotated at its rendering site in `result.rs`,
+/// and `report_text_is_the_normative_sentence` below pins this text
+/// against wording drift).
 pub const NOT_PROOF_TESTABLE: &str = "this position carries no dischargeable obligation; \
      it can only be witnessed by an execution-style producer";
 
@@ -51,6 +49,14 @@ pub enum PositionKind<'g> {
     /// Several when byte-identical spans tie at one specificity
     /// level (Decision 12); under Decision 14 the annotation is
     /// held to ALL of them.
+    ///
+    //= design/witness/spec.md#discharge-unit
+    //= type=implementation
+    //# Attribution MAY be ambiguous *within one specificity level*:
+    //# provers stamp generated obligations with the source range of the
+    //# declaration they were generated from,
+    //# so one proof-testable position can root several obligations at
+    //# the same level.
     Rooted(Vec<DischargeUnit<'g>>),
     /// Elaborated by the verifier but rooting nothing: an
     /// executable body line — proof *ingredient*, not a claim. A
@@ -311,6 +317,11 @@ impl Default for ClosureMemo {
 /// glue's per-position path, and [`materialize_all`] so
 /// annotation-driven and full-universe production cannot diverge by
 /// construction.
+///
+//= design/witness/spec.md#obligation-individuation
+//= type=implementation
+//# Every delivered witness MUST be the record of exactly one act of
+//# checking.
 ///
 //= design/witness/spec.md#closure
 //= type=implementation

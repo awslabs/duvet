@@ -775,14 +775,15 @@ async fn execute_coverage_check(
                 diagnostic_status,
                 //= design/witness/spec.md#two-pass-construction
                 //= type=implementation
-                //# the report MUST identify the annotation as
-                //# *not proof-testable* ("this position carries no dischargeable
-                //# obligation; it can only be witnessed by an execution-style
-                //# producer") — a report distinct from Property W6's
-                //# "no witness from any configured producer."
+                //# In a mixed run such an annotation binds runtime witnesses
+                //# normally.
                 //
                 // Reporting refinement only: the annotation is unwitnessed
-                // either way (the verdict above is unchanged); this names the
+                // either way (the verdict above is unchanged), and the
+                // producer's fact is consulted ONLY in this unwitnessed
+                // branch — a not-proof-testable position that bound a
+                // runtime witness never reaches it, so binding stays
+                // normal in mixed runs by construction. This names the
                 // producer-delivered reason when there is one.
                 not_proof_testable: resolved_target
                     .as_ref()

@@ -17,7 +17,7 @@
 
 // Trusted-base note (spec §4.1):
 //= design/witness/spec.md#obligation-closedness
-//# Prover producers: closedness splits into
+//# - Prover producers: closedness splits into
 //# (a) the verifier's record faithfully reflects what elaboration
 //# consulted — **axiom**, same category as trusting the verifier
 //# itself — and

@@ -209,6 +209,27 @@ proof fn lemma_closed_set_contains_reachable(
 //# discharge unit's root is exactly the downward-reachable set of the
 //# obligation graph — the least fixpoint of the edge relation
 //# containing the root:
+//
+// The same iff-ensures is the witness spec's transitive-fixpoint
+// closure claim, in the model's vocabulary (reachable = any number
+// of edge hops; the fixpoint is proven, not depth-bounded):
+//= design/witness/spec.md#closure
+//= type=test
+//# Reachability is transitive: the closure follows the obligation
+//# graph's reference edges through any number of call or reference
+//# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
+//# them enter — until a fixpoint.
+//= design/witness/spec.md#closure
+//= type=test
+//# the closure MUST be a fixpoint (no truncation at a depth bound),
+//
+// And the closedness split's part (b) — the closure computation over
+// the verifier's record — is exactly what this proof verifies:
+//= design/witness/spec.md#obligation-closedness
+//= type=test
+//# (b) the closure computation over that record is correct —
+//# our code, which SHOULD be verified in `duvet-coverage`
+//# (it is a pure graph fixpoint).
 pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
     requires
         graph_wf(g@),
@@ -447,6 +468,18 @@ pub open spec fn selected(units: Seq<UnitSpan>, file_id: u64, line: u32, i: int)
 //# The implementation MUST prove that the units selected for a
 //# position are exactly the minimal-extent containing units at the
 //# finest populated specificity level
+//
+// The proven selection is the witness spec's rooting rule — no
+// hoisting is possible because extent units are selectable only
+// when no clause-kind unit contains the position:
+//= design/witness/spec.md#discharge-unit
+//= type=test
+//# **Rooting is most-specific-wins** (decisions.md, Decision 19):
+//# an annotation roots the finest unit whose span contains its
+//# resolved position; the enclosing extent is the fallback for
+//# positions inside no finer unit. A producer MUST NOT hoist an
+//# annotation placed on a clause, invariant, or assert to the
+//# enclosing function's unit.
 pub fn select_units(units: &Vec<UnitSpan>, file_id: u64, line: u32) -> (sel: Vec<bool>)
     requires
         units_wf(units@),
@@ -682,6 +715,19 @@ proof fn lemma_push_contains<T>(s: Seq<T>, x: T)
 //= type=test
 //# The implementation MUST prove that a witness's line set equals the
 //# union of the closure's per-file spans restricted to project files:
+//
+// Which is the witness spec's construction claim — the delivered
+// line set IS the downward-reachable set's spans (projected), so
+// every delivered map is closed under reachability by this ensures:
+//= design/witness/spec.md#closure
+//= type=test
+//# A constructed witness's `files` maps MUST equal the source spans
+//# of the downward reachable set of the prover's obligation graph,
+//# starting from the discharge unit.
+//= design/witness/spec.md#obligation-closedness
+//= type=test
+//# Every delivered `files` map MUST be closed under the producer's
+//# reachability relation ([§1.2](#witness)).
 pub fn assemble_witness_lines(
     g: &Vec<Vec<u64>>,
     spans: &Vec<Vec<(u64, u32)>>,

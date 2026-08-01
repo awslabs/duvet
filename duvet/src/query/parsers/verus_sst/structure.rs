@@ -334,7 +334,7 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 ///
 //= design/witness/spec.md#verus-producer
 //= type=implementation
-//# The Verus producer MUST treat `FunctionSst` blocks as closure
+//# - The Verus producer MUST treat `FunctionSst` blocks as closure
 //# nodes and `Fun :path` references as edges, and MUST support
 //# discharge units of all four kinds: obligation extents,
 //# `:enss` clause spans, `LoopInv` spans, and proof-assert spans
@@ -363,11 +363,10 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 /// duplicates and keeps generated recommends checks out of
 /// `dom(du)`.
 ///
-//= design/witness/spec.md#verus-producer
-//= type=implementation
-//# Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
-//# when the artifact records it, otherwise span identity
-//# (function path + unit kind + clause index).
+/// Unit labels are decided in `DischargeUnit::clause`
+/// (spec §5.5, Decision 20 — the annotation lives there); this
+/// extractor only carries the `ProofNoteLabel` text through, and
+/// never for ensures clauses:
 ///
 //= design/witness/spec.md#verus-producer
 //= type=implementation

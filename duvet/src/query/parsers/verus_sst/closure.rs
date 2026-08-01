@@ -19,6 +19,11 @@
 //# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
 //# them enter — until a fixpoint.
 //= design/witness/spec.md#closure
+//# The closure MUST be computed at the finest granularity the
+//# artifact demonstrably supports
+//# (decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the
+//# artifact's ceiling or across a named architectural boundary);
+//# what is normative now:
 //# the closure MUST be a fixpoint (no truncation at a depth bound),
 
 use super::structure::ObligationGraph;
@@ -43,7 +48,7 @@ pub fn total_lines(files: &FileLines) -> usize {
 /// passed where witness file maps go without an explicit, visible
 /// unwrap.
 //= design/witness/spec.md#verus-producer
-//# The aggregate executability map MUST NOT be delivered as a
+//# - The aggregate executability map MUST NOT be delivered as a
 //# witness: it is many obligations wearing one map, and delivering
 //# it would violate [§4.2](#obligation-individuation) by
 //# construction; it exists only as pass-1 scaffolding inside the
@@ -86,6 +91,21 @@ pub struct Closure {
 
 /// Compute the closure from `root` to fixpoint. `None` if `root` is
 /// not a node in the graph.
+///
+//= design/witness/spec.md#closure
+//= type=implementation
+//# A constructed witness's `files` maps MUST equal the source spans
+//# of the downward reachable set of the prover's obligation graph,
+//# starting from the discharge unit.
+///
+//= design/witness/spec.md#closure
+//= type=implementation
+//# The closure MUST be **reflexive**: it includes the discharge
+//# unit's own root span (`root ∈ closure(root)`), so that a witness
+//# always scores its own annotation as executed and `ByRootSpan`
+//# binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
+//# instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
+//# depends on this).
 ///
 /// Every symbolic reference is followed, whether or not the solver
 /// needed it (Decision 7):

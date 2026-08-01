@@ -793,6 +793,90 @@ mod tests {
         );
     }
 
+    /// Mixed-run binding normalcy: proof-testability is a prover-side
+    /// fact and is NOT an input to binding — `VerifiedVerdicts` never
+    /// sees it. A test annotation sitting on an executable body line
+    /// (the position a prover producer reports not proof-testable)
+    /// binds a runtime `ByExecution` witness exactly like any other
+    /// executed test annotation; the not-proof-testable fact is
+    /// consulted only when refining the report of an UNWITNESSED
+    /// annotation (engine.rs).
+    //= design/witness/spec.md#two-pass-construction
+    //= type=test
+    //# In a mixed run such an annotation binds runtime witnesses
+    //# normally.
+    #[test]
+    fn by_execution_witness_binds_a_position_a_prover_calls_not_proof_testable() {
+        use crate::annotation::{Annotation, AnnotationLevel, AnnotationType};
+        use duvet_core::file::SourceFile as CoreSourceFile;
+
+        let idx = index(&[("src/x.rs", "/proj/src/x.rs")]);
+        // Degraded classification (the Rust dogfood shape): line 1 is
+        // the annotation, line 2 the executable body line it targets.
+        let mut classification = ClassificationMap::default();
+        classification.insert(
+            PathBuf::from("src/x.rs"),
+            FileClassification::Degraded {
+                classifications: vec![
+                    Some(duvet_coverage::types::line_class(&[
+                        LineProperty::Annotation,
+                    ])),
+                    None,
+                ],
+                file_length: 2,
+            },
+        );
+
+        // The runtime witness executed the body line.
+        let witness = Witness {
+            label: "report.xml".into(),
+            claim: ClaimRule::ByExecution,
+            provenance: Provenance {
+                producer: "jacoco".into(),
+                artifact: "report.xml".into(),
+                discharge_unit: None,
+                strength: Strength::Executed,
+            },
+            files: BTreeMap::new(), // adapter reads `matched`, not this
+        };
+        let mut m = FxHashMap::default();
+        m.insert(PathBuf::from("src/x.rs"), cov_hit(&[2]));
+        let witnesses = [witness];
+        let matched = vec![m];
+        let adapter =
+            VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx).expect("builds");
+
+        let contents = "//= spec#s\ncode();\n";
+        let source = CoreSourceFile::new("src/x.rs", contents).unwrap();
+        let text = source.substr_range(0..10).unwrap();
+        let target = source.substr_range(4..10).unwrap();
+        let quote = source.substr_range(11..18).unwrap();
+        let test_annotation = Arc::new(Annotation {
+            source: source.path().clone(),
+            anno_line: 1,
+            original_target: target,
+            original_text: text,
+            original_quote: quote,
+            anno: AnnotationType::Test,
+            target: "spec#s".to_string(),
+            quote: String::new(),
+            comment: String::new(),
+            manifest_dir: source.path().clone(),
+            level: AnnotationLevel::Auto,
+            format: crate::specification::Format::Auto,
+            tracking_issue: String::new(),
+            feature: String::new(),
+            tags: Default::default(),
+            blob_link: None,
+        });
+
+        assert!(
+            !adapter.is_unwitnessed(&test_annotation),
+            "a runtime witness binds a body-line test annotation normally — \
+             proof-testability never enters the binding decision"
+        );
+    }
+
     /// End-to-end through the verified layer: a witness rooted in file
     /// `a` binds a test annotation only when the annotation lives in `a`
     /// — same-suffix file `b` never silently borrows it. (The ambiguous
@@ -984,7 +1068,11 @@ mod tests {
             VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx).expect("builds");
         assert!(!adapter.is_unwitnessed(&t));
         let bound = adapter.bound_witnesses(&t);
-        assert_eq!(bound, vec![0], "bound set assembled from the verified cells");
+        assert_eq!(
+            bound,
+            vec![0],
+            "bound set assembled from the verified cells"
+        );
         let verdict = adapter.discharge_verdict(&t, &i, &bound, |_| ExecutionStatus::Executed);
         assert!(verdict.discharged);
         assert_eq!(verdict.per_witness.len(), 1);
@@ -1009,7 +1097,10 @@ mod tests {
         assert_eq!(verdict.per_witness.len(), 1);
         assert!(!verdict.per_witness[0].executed);
         assert_eq!(verdict.per_witness[0].witness.label, "run-t-only");
-        assert!(adapter.ever_executed(&i), "W3 is deliberately weaker than W1");
+        assert!(
+            adapter.ever_executed(&i),
+            "W3 is deliberately weaker than W1"
+        );
     }
 
     /// Spec §1.3: `strength` distinguishes the two kinds of claim a
@@ -1072,7 +1163,9 @@ mod tests {
         // degraded resolution of an annotation on line 1 targets line 2,
         // which the map records as Hit.
         let classifications = vec![
-            Some(duvet_coverage::types::line_class(&[LineProperty::Annotation])),
+            Some(duvet_coverage::types::line_class(&[
+                LineProperty::Annotation,
+            ])),
             None,
         ];
         assert!(verified::is_executed_by(

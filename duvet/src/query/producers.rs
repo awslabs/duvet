@@ -12,6 +12,13 @@
 //! closure computation is `verus_sst`'s code, golden-tested there.
 //! This module is unit-tested per §4.3.
 
+// The axiom recordings themselves (the "Named axiom" / trusted-base
+// notes in this module and `verus_sst`) discharge the recording rule:
+//= design/witness/spec.md#producer-obligations
+//= type=implementation
+//# Where an obligation cannot be proven, it is a **named axiom** of
+//# the trusted base and MUST be recorded as such.
+
 use super::{
     coverage::CoverageParser,
     parsers::{verus_sst, JacocoParser},
@@ -112,13 +119,15 @@ pub struct RequestedPosition {
 //# not a failure
 #[derive(Debug, Default)]
 pub struct Produced {
+    //= design/witness/spec.md#producer
+    //= type=implementation
+    //# The producer-internal artifact format MUST NOT escape the
+    //# producer; the engine consumes only `Vec<Witness>`.
     pub witnesses: Vec<Witness>,
     //= design/witness/spec.md#two-pass-construction
     //= type=implementation
     //# If a live annotation's resolved target is not proof-testable,
     //# the producer MUST deliver no witness for it,
-    //# and the report MUST identify the annotation as
-    //# *not proof-testable*
     /// Requested positions a prover artifact elaborated but which
     /// root no obligation (Decision 13): proof ingredients, not
     /// claims. No witness exists for them by definition; the report
@@ -252,6 +261,13 @@ async fn jacoco_witness(artifact: &str) -> Result<Witness> {
 /// per §1.7's witness-identity requirement (cited on
 /// [`RequestedPosition`]). Output order is ascending by label within
 /// one artifact — deterministic regardless of position order.
+///
+//= design/witness/spec.md#producer
+//= type=implementation
+//# — and the filtering MUST be sound:
+//# for every requested annotation, binding and discharge verdicts
+//# over the materialized set MUST equal the verdicts over the full
+//# universe.
 fn verus_witnesses_from_graph(
     graph: &verus_sst::structure::ObligationGraph,
     artifact: &str,
@@ -320,6 +336,12 @@ fn verus_witnesses_from_graph(
         let file = match candidates.as_slice() {
             [] => continue, // artifact never mentions the file; W6
             [one] => *one,
+            //= design/witness/spec.md#two-pass-construction
+            //= type=implementation
+            //# the source path matches
+            //# several artifact paths), it MUST abort the run with the ambiguity
+            //# rather than skip the position: silently dropping a position would
+            //# convert a configuration defect into a missing-witness verdict.
             many => {
                 return Err(duvet_core::error!(
                     "verus-sst: position {}:{} is ambiguous: it matches multiple \
@@ -392,6 +414,23 @@ mod tests {
         }
     }
 
+    //= design/witness/spec.md#producer
+    //= type=test
+    //# A producer maps declared artifacts to witnesses:
+    //#
+    //# ```
+    //# produce : (artifacts, annotations) → Vec<Witness>
+    //# ```
+    //= design/witness/spec.md#producer
+    //= type=test
+    //# Runtime producers MAY ignore the `annotations` argument
+    //# (their witnesses pre-exist in the artifact).
+    //= design/witness/spec.md#obligation-individuation
+    //= type=test
+    //# Runtime producers: individuation is the operator's
+    //# responsibility — one instrumented run per test.
+    //# The artifact does not record how it was produced,
+    //# so duvet does not attempt detection
     #[tokio::test]
     async fn jacoco_report_becomes_one_by_execution_witness() {
         use std::io::Write;
@@ -435,6 +474,19 @@ mod tests {
         assert_eq!(report.get(&9), Some(&CoverageStatus::Miss));
     }
 
+    // The producer's output is consumed here purely in the engine's
+    // vocabulary (`Witness`, `ClaimRule`, `CoverageStatus`) — no
+    // obligation-graph or s-expression type crosses the boundary.
+    //= design/witness/spec.md#producer
+    //= type=test
+    //# Prover producers use it to construct witnesses
+    //= design/witness/spec.md#two-pass-construction
+    //= type=test
+    //# Prover witnesses are constructed, not found:
+    //= design/witness/spec.md#producer
+    //= type=test
+    //# The producer-internal artifact format MUST NOT escape the
+    //# producer; the engine consumes only `Vec<Witness>`.
     #[test]
     fn verus_positions_become_root_span_witnesses_with_hit_maps() {
         let g = graph();
@@ -512,6 +564,16 @@ mod tests {
         );
     }
 
+    //= design/witness/spec.md#two-pass-construction
+    //= type=test
+    //# If a live annotation's resolved target is not proof-testable,
+    //# the producer MUST deliver no witness for it,
+    //= design/witness/spec.md#producer-obligations
+    //= type=test
+    //# **producers deliver facts and never render verdicts.**
+    //# Delivering zero witnesses for an annotation is a fact
+    //# (possibly with a reason attached, [§5.2](#two-pass-construction)'s not-proof-testable),
+    //# not a failure
     #[test]
     fn elaborated_unrooted_position_is_reported_not_proof_testable() {
         // Line 25 is elaborated (a `@@` sub-span of c::caller's body)
@@ -553,6 +615,12 @@ mod tests {
         );
     }
 
+    //= design/witness/spec.md#two-pass-construction
+    //= type=test
+    //# the source path matches
+    //# several artifact paths), it MUST abort the run with the ambiguity
+    //# rather than skip the position: silently dropping a position would
+    //# convert a configuration defect into a missing-witness verdict.
     #[test]
     fn ambiguous_artifact_path_translation_is_refused() {
         // The artifact mentions two path strings that both suffix-match
@@ -573,6 +641,40 @@ mod tests {
         )
         .unwrap_err();
         assert!(format!("{err:?}").contains("ambiguous"));
+    }
+
+    /// Spec §4's recording rule is a documentation obligation, so its
+    /// test pins the documentation: every unprovable producer
+    /// obligation this module and `verus_sst` rely on must be recorded
+    /// as a named axiom at its site. Deleting a recording fails here —
+    /// the exact violation the requirement forbids.
+    //= design/witness/spec.md#producer-obligations
+    //= type=test
+    //# Where an obligation cannot be proven, it is a **named axiom** of
+    //# the trusted base and MUST be recorded as such.
+    #[test]
+    fn unprovable_producer_obligations_are_recorded_as_named_axioms() {
+        // Runtime individuation (§4.2): recorded at the delivery site.
+        let this = include_str!("producers.rs");
+        assert!(
+            this.contains("/// Named axiom:"),
+            "producers.rs lost the named-axiom recording at jacoco_witness"
+        );
+        // Runtime + prover closedness (§4.1): recorded in this module's
+        // trusted-base note and at the prover module's.
+        assert!(
+            this.contains("closedness and\n//! individuation are named axioms"),
+            "producers.rs lost its trusted-base note"
+        );
+        let vsst = include_str!("parsers/verus_sst/mod.rs");
+        assert!(
+            vsst.contains("Trusted-base note (spec §4.1):"),
+            "verus_sst/mod.rs lost its trusted-base note"
+        );
+        assert!(
+            vsst.contains("**axiom**, same category as trusting the verifier"),
+            "verus_sst/mod.rs lost the verifier-record axiom recording"
+        );
     }
 
     #[test]
