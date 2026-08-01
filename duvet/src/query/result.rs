@@ -74,12 +74,6 @@ pub struct CoverageResult {
     /// annotation anywhere (design §2.4). Reported as failures distinct from
     /// "test ran, implementation did not".
     pub missing_implementation: Vec<MissingImplementationTest>,
-    //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
-    //= type=implementation
-    //# The engine MUST report every test annotation for which no
-    //# delivered witness binds it —
-    //# across ALL configured producers —
-    //# as a failure, never silently
     pub unwitnessed: Vec<UnwitnessedTestAnnotation>,
     pub verbose: bool,
 }
@@ -198,12 +192,6 @@ pub struct UnwitnessedTestAnnotation {
     pub not_proof_testable: bool,
 }
 
-//= design/witness/spec.md#property-w6-unwitnessed-test-annotations
-//= type=implementation
-//# The engine MUST report every test annotation for which no
-//# delivered witness binds it —
-//# across ALL configured producers —
-//# as a failure, never silently
 /// A test annotation reported under "no correlated implementation"
 /// (design §2.4). W6 quantifies over EVERY test annotation, including
 /// these — they fail before reaching the unwitnessed check, so the

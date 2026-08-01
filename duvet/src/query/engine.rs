@@ -711,10 +711,6 @@ async fn execute_coverage_check(
 
         if !test_is_unwitnessed {
             // The test is witnessed:
-            //= design/witness/spec.md#property-w2-test-execution
-            //# The implementation MUST prove that a test annotation is reported
-            //# executed if and only if some delivered witness binds it:
-            //
             // Evaluate each covering implementation against EVERY bound
             // witness — bound witnesses are never outvoted (decisions.md,
             // Decision 14):
@@ -819,11 +815,6 @@ async fn execute_coverage_check(
         .flat_map(|result| &result.executed_implementations)
         .collect::<BTreeSet<_>>();
 
-    //= design/witness/spec.md#property-w3-global-execution
-    //= type=implementation
-    //# report_ever_executed(I, witnesses) = true
-    //#     ⟺  ∃ w ∈ witnesses : executed(I, w)
-    //
     // Verified W3 verdict through the adapter. The union with discharged
     // implementations is subsumed by W1 ⟹ W3 (a discharged pair's bound
     // witness executed I), kept for report-shape stability.

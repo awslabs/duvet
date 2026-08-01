@@ -513,11 +513,6 @@ impl<'a> VerifiedVerdicts<'a> {
         }
     }
 
-    //= design/witness/spec.md#property-w3-global-execution
-    //= type=implementation
-    //# report_ever_executed(I, witnesses) = true
-    //#     ⟺  ∃ w ∈ witnesses : executed(I, w)
-    ///
     /// The W3 verdict, computed by the verified `report_ever_executed`.
     /// Deliberately weaker than W1 (no correlation); never used to
     /// discharge pairs.

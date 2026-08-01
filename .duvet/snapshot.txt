@@ -347,8 +347,8 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: reported ever-executed if and only if some delivered witness
     TEXT[!MUST,implementation,test]: executed it:
     TEXT[test]: ```
-    TEXT[implementation,test]: report_ever_executed(I, witnesses) = true
-    TEXT[implementation,test]:     ⟺  ∃ w ∈ witnesses : executed(I, w)
+    TEXT[test]: report_ever_executed(I, witnesses) = true
+    TEXT[test]:     ⟺  ∃ w ∈ witnesses : executed(I, w)
     TEXT[test]: ```
     TEXT[!MUST,test]: This is a global property requiring no correlation;
     TEXT[!MUST,test]: it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
