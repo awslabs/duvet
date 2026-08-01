@@ -50,9 +50,6 @@ source = "design/query/coverage-model-spec.md"
 source = "design/witness/spec.md"
 
 [[specification]]
-source = "design/witness/decisions.md"
-
-[[specification]]
 source = "design/witness/producer-core-spec.md"
 
 [report.html]

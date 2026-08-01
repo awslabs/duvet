@@ -144,32 +144,6 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MUST]: When `report` consumes coverage, a defeated commitment MUST be a hard
     TEXT[!MUST]: error there, because `report` is the authoritative artifact.
 
-SPECIFICATION: [Duvet Witness: Design Decisions](design/witness/decisions.md)
-  SECTION: [Decision: Option C](#decision-option-c-1)
-    TEXT[!MUST]: When units of
-    TEXT[!MUST]: different fineness nest around a position, rooting first
-    TEXT[!MUST]: resolves to the finest containing unit; the tie rule then
-    TEXT[!MUST]: applies among the obligations rooted at that level:
-    TEXT[!MUST]: all of them are the discharge units, one witness each;
-    TEXT[!MUST]: producers MUST NOT select arbitrarily among owners.
-
-  SECTION: [Decision: Option B](#decision-option-b-3)
-    TEXT[!MUST]: - Per-witness ✓/✗ reporting is the **diagnosis attached to
-    TEXT[!MUST]:   failures**:
-    TEXT[!MUST]:   the report MUST list every bound witness with its per-witness
-    TEXT[!MUST]:   result and strength.
-
-  SECTION: [Option A: Normative spec text (a producer-obligation MUST on the user)](#option-a-normative-spec-text-a-producer-obligation-must-on-the-user)
-    TEXT[!MUST]: - Con: Duvet cannot check it and the user cannot be held to it
-    TEXT[!MUST]:   mechanically — a MUST without an enforcer dresses an
-    TEXT[!MUST]:   operational assumption as a requirement.
-
-  SECTION: [Decision: Consume the artifact's demonstrated maximum from day one](#decision-consume-the-artifact-s-demonstrated-maximum-from-day-one)
-    TEXT[!MUST]: A prover producer MUST consume its artifact at the maximum
-    TEXT[!MUST]: granularity the artifact **provably supports** — where "provably
-    TEXT[!MUST]: supports" means demonstrated by inspection of real artifacts, not
-    TEXT[!MUST]: assumed.
-
 SPECIFICATION: [Producer core: verified-model properties](design/witness/producer-core-spec.md)
   SECTION: [Producer core: verified-model properties](#producer-core-verified-model-properties)
     TEXT[!MUST]: [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
