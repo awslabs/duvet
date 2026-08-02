@@ -246,6 +246,14 @@ impl<'a> VerifiedVerdicts<'a> {
         classification: &'a ClassificationMap,
         index: &'a SourceIndex,
     ) -> Result<Self> {
+        //= design/witness/spec.md#engine-glue
+        //= type=implementation
+        //# - **G1 (file identity).** The engine adapter MUST map file paths
+        //# to the model's file identities injectively and consistently
+        //# across all annotations and witnesses in one run, and MUST
+        //# deliver each witness's per-file maps free of duplicate
+        //# identities.
+        //
         // Ids for every project source up front: enumeration order of the
         // index, injective because absolute paths are distinct keys.
         let mut ids: FxHashMap<String, u64> = FxHashMap::default();
@@ -345,6 +353,13 @@ impl<'a> VerifiedVerdicts<'a> {
     /// (G3). Trust-boundary refusals — no classification, defeated
     /// classification, ill-formed annotation range — route to
     /// `Unscorable`, which binds nothing and executes nothing.
+    //= design/witness/spec.md#engine-glue
+    //= type=implementation
+    //# - **G3 (mode routing).** The adapter MUST assign each
+    //# annotation's file the scoring mode its classification actually
+    //# selected — classified, degraded, or the trust-boundary refusal
+    //# that binds nothing and executes nothing
+    //# ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
     fn ctx_of(&self, annotation: &Arc<Annotation>) -> AnnCtx<'_> {
         let (start_line, end_line) = annotation.line_range();
         let span = AnnotationSpan {
@@ -398,10 +413,11 @@ impl<'a> VerifiedVerdicts<'a> {
         )
     }
 
-    //= design/witness/spec.md#property-w2-test-execution
-    //= type=implementation
-    //# report_test_executed(T, witnesses) = true
-    //#     ⟺  ∃ w ∈ witnesses : binds(T, w)
+    // W2's spec text (prose and formula) is owned by the verified
+    // `report_test_executed` in duvet-coverage — the engine-side copy was
+    // removed with the other cross-crate W2/W3/W6 annotations (they
+    // structurally cannot be witnessed by a proof-only run; they return
+    // with the LCOV mixed-coverage producer).
     ///
     /// The indices of the witnesses binding T — the verified `is_bound_by`
     /// cell per witness. W2's verdict is `is_unwitnessed`'s negation; this
@@ -519,6 +535,13 @@ impl<'a> VerifiedVerdicts<'a> {
     /// bound-but-not-discharged, the report lists the bound witnesses by
     /// name (label + strength) so the reader can see which acts of
     /// checking claimed the test without reaching the implementation.
+    //= design/witness/spec.md#provenance
+    //= type=implementation
+    //# Verdict output MUST report every bound witness's label and
+    //# strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
+    //# each claim
+    //# (decisions.md, [Decision 7](decisions.md#decision-7) and
+    //# [Decision 14](decisions.md#decision-14)).
     pub fn witness_refs(&self, bound: &[usize]) -> Vec<WitnessRef> {
         bound
             .iter()
@@ -882,6 +905,13 @@ mod tests {
     /// — same-suffix file `b` never silently borrows it. (The ambiguous
     /// coordinate case is refused at build; this pins the unambiguous
     /// positive and negative binds through the id translation.)
+    //= design/witness/spec.md#engine-glue
+    //= type=test
+    //# - **G1 (file identity).** The engine adapter MUST map file paths
+    //# to the model's file identities injectively and consistently
+    //# across all annotations and witnesses in one run, and MUST
+    //# deliver each witness's per-file maps free of duplicate
+    //# identities.
     #[test]
     fn root_span_binds_only_the_named_file_through_translation() {
         use crate::annotation::{Annotation, AnnotationLevel, AnnotationType};
@@ -950,6 +980,97 @@ mod tests {
             adapter.is_unwitnessed(&annotation("b/src/x.rs")),
             "annotation in the same-suffix OTHER file must not borrow the witness"
         );
+    }
+
+    /// The adapter's mode assignment, pinned per classification arm — and
+    /// the unbalanced-stream chain end to end: the verified detector
+    /// (Property 11) locates the imbalance, the file surfaces as a
+    /// defeated classification carrying that located issue, and the
+    /// adapter assigns the trust-boundary refusal — never the degraded
+    /// (coarse) model, never the classified model over a collapsed tree.
+    //= design/witness/spec.md#engine-glue
+    //= type=test
+    //# - **G3 (mode routing).** The adapter MUST assign each
+    //# annotation's file the scoring mode its classification actually
+    //# selected — classified, degraded, or the trust-boundary refusal
+    //# that binds nothing and executes nothing
+    //# ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
+    //= design/query/coverage-model-spec.md#scopes
+    //= type=test
+    //# When the stream is unbalanced,
+    //# the coverage model MUST NOT score annotations against the collapsed scope tree;
+    //# it MUST surface the file as a defeated classification and escalate
+    //# (see [Classifier Selection and Dispatch](#dispatch)).
+    //= design/query/coverage-model-spec.md#trust-taxonomy
+    //= type=test
+    //# duvet MUST NOT silently substitute the coarse model or score against
+    //# the collapsed scope tree; it MUST escalate, reporting each located issue.
+    #[test]
+    fn adapter_assigns_the_selected_mode_and_defeat_is_never_scored() {
+        use crate::query::classify::{ClassifierFailure, ClassifierIssue};
+        use duvet_coverage::{
+            scopes::scope_imbalance_site, types::ScopeEvent, witness::ScoringMode,
+        };
+
+        // Stray close at line 5 with no open to match: unbalanced, and the
+        // verified detector (Property 11) locates it.
+        let events = vec![ScopeEvent {
+            line: 5,
+            opens: false,
+        }];
+        let witness_line = scope_imbalance_site(&events).expect("stray close must be flagged");
+        assert_eq!(witness_line, 5);
+
+        let idx = index(&[
+            ("a/ok.rs", "/proj/a/ok.rs"),
+            ("a/nolang.rs", "/proj/a/nolang.rs"),
+            ("a/broken.rs", "/proj/a/broken.rs"),
+        ]);
+        let mut classification = ClassificationMap::default();
+        classification.insert(
+            PathBuf::from("a/ok.rs"),
+            FileClassification::Classified {
+                classifications: vec![None; 2],
+                scopes: vec![],
+                file_length: 2,
+            },
+        );
+        classification.insert(
+            PathBuf::from("a/nolang.rs"),
+            FileClassification::Degraded {
+                classifications: vec![None; 2],
+                file_length: 2,
+            },
+        );
+        // The engine surfaces exactly the located issue as a defeated
+        // classification (the `classify_file` unbalanced arm's shape).
+        classification.insert(
+            PathBuf::from("a/broken.rs"),
+            FileClassification::Defeated {
+                issues: vec![ClassifierIssue {
+                    reason: ClassifierFailure::UnbalancedScopes,
+                    line: witness_line,
+                }],
+            },
+        );
+        let adapter = VerifiedVerdicts::build(&[], &[], &classification, &idx).expect("builds");
+
+        let mode_of = |path: &str| {
+            adapter
+                .ctx_of(&e2e_annotation(
+                    path,
+                    crate::annotation::AnnotationType::Test,
+                ))
+                .view
+                .mode
+        };
+        assert!(matches!(mode_of("a/ok.rs"), ScoringMode::Classified));
+        assert!(matches!(mode_of("a/nolang.rs"), ScoringMode::Degraded));
+        // The defeated file: the trust-boundary refusal — NOT the degraded
+        // (coarse) model — so no annotation in it is ever scored against
+        // the collapsed scope tree (Unscorable binds nothing and executes
+        // nothing, per the verified layer).
+        assert!(matches!(mode_of("a/broken.rs"), ScoringMode::Unscorable));
     }
 
     /// Shared constructor for the e2e tests below: a minimal annotation in
@@ -1118,6 +1239,13 @@ mod tests {
     //#     discharge_unit: Option<String>,
     //#                               -- prover producers only: the obligation
     //#                               -- the witness was constructed from
+    //= design/witness/spec.md#provenance
+    //= type=test
+    //# Verdict output MUST report every bound witness's label and
+    //# strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
+    //# each claim
+    //# (decisions.md, [Decision 7](decisions.md#decision-7) and
+    //# [Decision 14](decisions.md#decision-14)).
     #[test]
     fn provenance_strength_and_discharge_unit_record_the_claim_kind() {
         let runtime = exec_witness("report.xml", Strength::Executed);

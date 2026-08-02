@@ -13,18 +13,16 @@
 //! even name `impl&%N::` obligations); this module deliberately does
 //! not reproduce that.
 
-//= design/witness/spec.md#closure
-//# Reachability is transitive: the closure follows the obligation
-//# graph's reference edges through any number of call or reference
-//# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
-//# them enter — until a fixpoint.
+// The closure requirements (transitive reachability, fixpoint — no
+// depth bound) are owned by the verified core: the annotations live in
+// `duvet_coverage::producer_core::closure_reached`, whose iff-`ensures`
+// proves them. This module is the adapter that feeds it (see below).
 //= design/witness/spec.md#closure
 //# The closure MUST be computed at the finest granularity the
 //# artifact demonstrably supports
 //# (decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the
 //# artifact's ceiling or across a named architectural boundary);
 //# what is normative now:
-//# the closure MUST be a fixpoint (no truncation at a depth bound),
 
 use super::structure::ObligationGraph;
 use std::collections::{BTreeMap, BTreeSet};
@@ -92,11 +90,11 @@ pub struct Closure {
 /// Compute the closure from `root` to fixpoint. `None` if `root` is
 /// not a node in the graph.
 ///
-//= design/witness/spec.md#closure
-//= type=implementation
-//# A constructed witness's `files` maps MUST equal the source spans
-//# of the downward reachable set of the prover's obligation graph,
-//# starting from the discharge unit.
+/// The construction claim ("A constructed witness's `files` maps MUST
+/// equal the source spans of the downward reachable set…") is owned by
+/// the verified core: the annotation lives in
+/// `duvet_coverage::producer_core::assemble_witness_lines`, whose
+/// iff-`ensures` proves it. This function is the adapter around it.
 ///
 //= design/witness/spec.md#closure
 //= type=implementation
@@ -241,6 +239,36 @@ mod tests {
         ObligationGraph::merge([parse_module(DIAMOND).unwrap()]).unwrap()
     }
 
+    //= design/witness/producer-core-spec.md#model
+    //= type=test
+    //# - **Edges** are the symbolic references that resolve to a block in
+    //# the artifact; references to names with no block are not part of
+    //# the obligation graph ([spec §5.4](spec.md#closure)) and MUST NOT
+    //# appear as model edges.
+    #[test]
+    fn unresolved_references_are_not_model_edges() {
+        // c::top references c::phantom, which has no FunctionSst block in
+        // the artifact — an external with no logged body. It must not
+        // become a node or an edge: the closure reaches exactly the two
+        // real blocks, and phantom never appears.
+        const GHOST_REF: &str = r#"
+(@ "src/a.rs:1:1: 2:2 (#0)"
+ (FunctionSst :name (Fun :path c::top)
+  ((Fun :path c::phantom) (Fun :path c::real))))
+(@ "src/a.rs:10:1: 11:2 (#0)"
+ (FunctionSst :name (Fun :path c::real) ()))
+"#;
+        let g = ObligationGraph::merge([parse_module(GHOST_REF).unwrap()]).unwrap();
+        let c = closure(&g, "c::top", |f| f.starts_with("src/")).unwrap();
+        assert_eq!(c.reached.len(), 2);
+        assert!(!c.reached.contains("c::phantom"));
+        assert_eq!(
+            c.files["src/a.rs"],
+            [1, 2, 10, 11].into_iter().collect(),
+            "span set is exactly the two real blocks' extents"
+        );
+    }
+
     #[test]
     fn closure_is_a_fixpoint_and_tolerates_cycles() {
         // bottom → top closes a cycle; the worklist must terminate
@@ -255,11 +283,11 @@ mod tests {
             [1, 2, 10, 11, 20, 21].into_iter().collect()
         );
         assert!(!c.files.contains_key("vstd/x.rs"));
+        // island is not downward-reachable: never enters.
         //= design/witness/spec.md#closure
         //= type=test
         //# Only reachable nodes contribute;
         //# nothing outside the reachable set may be included.
-        // island is not downward-reachable: never enters.
         assert!(!c.reached.contains("c::island"));
     }
 

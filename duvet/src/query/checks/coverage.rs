@@ -149,6 +149,11 @@ impl FileClassification {
     /// paths consume: `Classified` and `Degraded` expose their verified
     /// inputs; `Defeated` routes to [`ScoringMode::Unscorable`] with the
     /// defeat's diagnostic line.
+    ///
+    /// This is glue assumption G3's routing decision (spec §4.4); the
+    /// citation lives on the adapter's consumption site in
+    /// `duvet/src/query/witness.rs` (`ctx_of`) — this file is excluded
+    /// from duvet's scan (fixture carrier, see `.duvet/config.toml`).
     pub fn scoring_view(&self) -> ScoringView<'_> {
         match self {
             FileClassification::Classified {
@@ -390,6 +395,11 @@ impl SourceIndex {
     /// the same refusals `build_execution_data` applies per report.
     /// Returned maps are `Arc` clones of the witness's own — shared, not
     /// copied.
+    ///
+    /// This is half of glue assumption G1 (spec §4.4, file identity); the
+    /// citation lives on the adapter's id interning in
+    /// `duvet/src/query/witness.rs` (`VerifiedVerdicts::build`) — this
+    /// file is excluded from duvet's scan (fixture carrier).
     pub fn match_witness_files(
         &self,
         files: &std::collections::BTreeMap<
@@ -827,7 +837,8 @@ public class Two {
     }
 
     /// The Classified/Degraded/Defeated routing decision, pinned at the
-    /// single accessor every consumer derives it from.
+    /// single accessor every consumer derives it from. (G3's duvet
+    /// citations live in `query/witness.rs` — this file is unscannable.)
     #[test]
     fn scoring_view_routes_each_arm_to_its_mode() {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
@@ -1035,6 +1046,8 @@ public class Two {
     /// The loop-inversion equivalence evidence for
     /// `match_witness_files`: both refusal directions still fire with
     /// the same messages, and the happy path returns the same map.
+    /// (G1's duvet citations live in `query/witness.rs` — this file is
+    /// unscannable.)
     #[test]
     fn match_witness_files_refuses_source_matching_two_report_entries() {
         use duvet_coverage::types::{CoverageReport, CoverageStatus};

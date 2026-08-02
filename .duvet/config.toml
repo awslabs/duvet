@@ -20,6 +20,9 @@ pattern = "duvet-coverage/**/*.rs"
 pattern = "duvet/src/query/engine.rs"
 
 [[source]]
+pattern = "duvet/src/report.rs"
+
+[[source]]
 pattern = "duvet/src/query/producers.rs"
 
 [[source]]

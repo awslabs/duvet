@@ -15,15 +15,15 @@
 //!
 //! The closure computation is golden-tested here (§4.3).
 
-// Trusted-base note (spec §4.1):
+// Trusted-base note (spec §4.1). Part (b) of the split — the closure
+// computation — is verified and annotated in
+// `duvet_coverage::producer_core::closure_reached`; only part (a), the
+// axiom, is this producer's trusted-base residue:
 //= design/witness/spec.md#obligation-closedness
 //# - Prover producers: closedness splits into
 //# (a) the verifier's record faithfully reflects what elaboration
 //# consulted — **axiom**, same category as trusting the verifier
 //# itself — and
-//# (b) the closure computation over that record is correct —
-//# our code, which SHOULD be verified in `duvet-coverage`
-//# (it is a pure graph fixpoint).
 
 pub mod closure;
 pub mod sexpr;

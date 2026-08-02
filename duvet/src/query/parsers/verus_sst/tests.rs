@@ -33,6 +33,23 @@
 //! segmentation) before pinning (2026-07-27); the two agree
 //! exactly on all counts.
 
+// This module IS the golden-artifact test bed §4.3 demands, and the
+// checked-in corpus with its pinned counts IS the consumed
+// investigation §5 demands (cross-checked independently, see above):
+//= design/witness/spec.md#obligation-testing
+//= type=implementation
+//# Each producer MUST be unit-tested against golden artifacts
+//# (a real report file; a real prover log),
+//# since producers are unverified glue at the trust boundary.
+//= design/witness/spec.md#prover-producers
+//= type=implementation
+//# Every prover producer owes its artifact an investigation before
+//# it ships: the discharge-unit and closure granularity the artifact
+//# demonstrably records — demonstrated by inspection of real
+//# artifacts, not assumed — MUST be established and consumed as that
+//# producer's shipped floor
+//# (decisions.md, [Decision 17](decisions.md#decision-17)).
+
 use super::{
     closure::{aggregate_map, closure, total_lines, Closure, FileLines},
     load_dir,
@@ -147,6 +164,11 @@ fn file_line_counts(c: &Closure) -> Vec<(&str, usize)> {
 //# reference edges and derive everything else from that
 //# structure — parse-into-structure is a MUST, not an
 //# optimization.
+//= design/witness/spec.md#obligation-testing
+//= type=test
+//# Each producer MUST be unit-tested against golden artifacts
+//# (a real report file; a real prover log),
+//# since producers are unverified glue at the trust boundary.
 #[test]
 fn corpus_node_counts() {
     // Raw per-module block count, before deduplication: imported
@@ -485,6 +507,14 @@ fn body_line_is_not_proof_testable() {
 //# discharge units of all four kinds: obligation extents,
 //# `:enss` clause spans, `LoopInv` spans, and proof-assert spans
 //# (decisions.md, Decision 18).
+//= design/witness/spec.md#prover-producers
+//= type=test
+//# Every prover producer owes its artifact an investigation before
+//# it ships: the discharge-unit and closure granularity the artifact
+//# demonstrably records — demonstrated by inspection of real
+//# artifacts, not assumed — MUST be established and consumed as that
+//# producer's shipped floor
+//# (decisions.md, [Decision 17](decisions.md#decision-17)).
 #[test]
 fn du_map_domain_split_over_the_aggregate() {
     // Decisions 13, 18, 19 partition the 1990 elaborated project
@@ -580,6 +610,8 @@ fn annotation_independence_same_obligation_identical_witness() {
     assert_eq!(a[0].label, LEMMA);
 }
 
+// One witness per discharge unit, each the record of that unit's
+// single checking act (labels unique over the 775-unit universe):
 //= design/witness/spec.md#producer
 //= type=test
 //# The `annotations` argument is a **semantically inert
@@ -595,9 +627,6 @@ fn annotation_independence_same_obligation_identical_witness() {
 //# for every requested annotation, binding and discharge verdicts
 //# over the materialized set MUST equal the verdicts over the full
 //# universe.
-//
-// One witness per discharge unit, each the record of that unit's
-// single checking act (labels unique over the 775-unit universe):
 //= design/witness/spec.md#obligation-individuation
 //= type=test
 //# Every delivered witness MUST be the record of exactly one act of
@@ -890,6 +919,8 @@ fn labels_proof_note_when_recorded_span_identity_otherwise() {
 
 #[test]
 fn every_constructed_witness_contains_its_own_root_span() {
+    // This is that test, over the full universe of both artifact
+    // sets, at clause grain (every unit kind, not just extents).
     //= design/witness/spec.md#closure
     //= type=test
     //# The closure MUST be **reflexive**: it includes the discharge
@@ -906,8 +937,6 @@ fn every_constructed_witness_contains_its_own_root_span() {
     //= type=test
     //# Producers MUST carry a unit test asserting reflexivity for every
     //# constructed witness.
-    // This is that test, over the full universe of both artifact
-    // sets, at clause grain (every unit kind, not just extents).
     for (graph, project) in [
         (corpus(), is_project as fn(&str) -> bool),
         (vacuity(), vacuity_file as fn(&str) -> bool),

@@ -668,7 +668,7 @@ mod tests {
         );
         let vsst = include_str!("parsers/verus_sst/mod.rs");
         assert!(
-            vsst.contains("Trusted-base note (spec §4.1):"),
+            vsst.contains("Trusted-base note (spec §4.1)"),
             "verus_sst/mod.rs lost its trusted-base note"
         );
         assert!(

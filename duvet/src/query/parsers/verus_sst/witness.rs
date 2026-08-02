@@ -161,14 +161,10 @@ pub fn classify_position<'g>(
 /// Map an annotation position to the discharge unit(s) it roots —
 /// `du` (spec §5.3, Decisions 9, 12, 13, 18, 19).
 ///
-//= design/witness/spec.md#discharge-unit
-//= type=implementation
-//# **Rooting is most-specific-wins** (decisions.md, Decision 19):
-//# an annotation roots the finest unit whose span contains its
-//# resolved position; the enclosing extent is the fallback for
-//# positions inside no finer unit. A producer MUST NOT hoist an
-//# annotation placed on a clause, invariant, or assert to the
-//# enclosing function's unit.
+/// The rooting rule ("**Rooting is most-specific-wins**…") is owned by
+/// the verified selection: the annotation lives in
+/// `duvet_coverage::producer_core::select_units`, whose `ensures`
+/// proves it (Property P2). This function is the adapter around it.
 ///
 /// Two specificity levels: clause-kind units (ensures clauses,
 /// loop invariants, proof asserts) and obligation extents. A

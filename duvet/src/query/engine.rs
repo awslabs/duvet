@@ -380,19 +380,32 @@ struct WitnessLoad {
     index: SourceIndex,
 }
 
+/// THE filter deciding which annotations get positions requested from
+/// prover producers — nothing else ever crosses that boundary.
+//= design/witness/spec.md#witnessable-annotations
+//= type=implementation
+//# Prover producers MUST construct witnesses for `type=test`
+//# annotations only
+//# (decisions.md, [Decision 6](decisions.md#decision-6);
+//# self-discharging implication annotations are a deferred separate
+//# feature).
+fn witnessable(anno: AnnotationType) -> bool {
+    matches!(anno, AnnotationType::Test)
+}
+
 /// Produce every declared source's witnesses, in declaration order (which
 /// makes the "first discharging witness" named in verdicts deterministic).
+//
+// So when a prover producer is declared, test files are classified first
+// and targets resolved via the verified target resolution — positions,
+// not annotations, cross the boundary (§1.7's inertness requirement,
+// cited on `RequestedPosition`).
 //= design/witness/spec.md#producer
 //# Runtime producers MAY ignore the `annotations` argument
 //# (their witnesses pre-exist in the artifact).
 //# Prover producers use it to construct witnesses
 //= design/witness/spec.md#two-pass-construction
 //# Prover witnesses are constructed, not found:
-//
-// So when a prover producer is declared, test files are classified first
-// and targets resolved via the verified target resolution — positions,
-// not annotations, cross the boundary (§1.7's inertness requirement,
-// cited on `RequestedPosition`).
 async fn load_witnesses(
     sources: &[CoverageSource],
     project_data: &ProjectData,
@@ -408,14 +421,14 @@ async fn load_witnesses(
         let test_files: HashSet<PathBuf> = project_data
             .annotations
             .iter()
-            .filter(|a| matches!(a.anno, AnnotationType::Test))
+            .filter(|a| witnessable(a.anno))
             .map(|a| a.source.to_path_buf())
             .collect();
         classification.extend(classify_files(&project_data.annotations, test_files).await?);
         for annotation in project_data
             .annotations
             .iter()
-            .filter(|a| matches!(a.anno, AnnotationType::Test))
+            .filter(|a| witnessable(a.anno))
         {
             let path = annotation.source.to_path_buf();
             let Some(file_classification) = classification.get(&path) else {
@@ -529,6 +542,11 @@ async fn execute_coverage_check(
     //# When the stream is unbalanced,
     //# the coverage model MUST NOT score annotations against the collapsed scope tree;
     //# it MUST surface the file as a defeated classification and escalate
+    //# (see [Classifier Selection and Dispatch](#dispatch)).
+    //= design/query/coverage-model-spec.md#trust-taxonomy
+    //= type=implementation
+    //# duvet MUST NOT silently substitute the coarse model or score against
+    //# the collapsed scope tree; it MUST escalate, reporting each located issue.
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
         let mut defeated: std::collections::BTreeMap<&std::path::Path, &Vec<ClassifierIssue>> =
@@ -751,9 +769,11 @@ async fn execute_coverage_check(
                 failed.push(result);
             }
         } else {
-            //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
-            //= type=implementation
-            //# ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
+            // W6's spec text (prose and formula) is owned by the verified
+            // `is_unwitnessed` in duvet-coverage — the engine-side copy was
+            // removed with the other cross-crate W2/W3/W6 annotations (they
+            // structurally cannot be witnessed by a proof-only run; they
+            // return with the LCOV mixed-coverage producer).
             //
             // Diagnostic detail: fold the test's own execution status
             // across ALL witnesses (preference order: `fold_statuses`).
@@ -977,4 +997,30 @@ fn deduplicate_annotation_coverage(
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Executes the actual engine filter (`witnessable`) — the single
+    /// predicate deciding which annotations get positions requested from
+    /// prover producers — over every annotation type.
+    //= design/witness/spec.md#witnessable-annotations
+    //= type=test
+    //# Prover producers MUST construct witnesses for `type=test`
+    //# annotations only
+    //# (decisions.md, [Decision 6](decisions.md#decision-6);
+    //# self-discharging implication annotations are a deferred separate
+    //# feature).
+    #[test]
+    fn only_test_annotations_are_witnessable() {
+        assert!(witnessable(AnnotationType::Test));
+        assert!(!witnessable(AnnotationType::Citation));
+        assert!(!witnessable(AnnotationType::Spec));
+        assert!(!witnessable(AnnotationType::Exception));
+        assert!(!witnessable(AnnotationType::Todo));
+        // Deferred separate feature — deliberately NOT witnessable today:
+        assert!(!witnessable(AnnotationType::Implication));
+    }
 }
