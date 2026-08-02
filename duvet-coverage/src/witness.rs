@@ -30,9 +30,31 @@
 //# The adapter MUST establish
 //# the verified functions' preconditions at the boundary —
 //# filter or degrade before calling, never assume.
-//= design/witness/spec.md#obligation-closedness
-//# Every delivered `files` map MUST be closed under the producer's
-//# reachability relation ([§1.2](#witness)).
+//
+// Closedness (spec §4.1, "Every delivered `files` map MUST be closed…")
+// is owned by the verified constructor: the annotation lives inside
+// `producer_core::assemble_witness_lines`, whose `ensures` proves it.
+//
+// Meta-requirements about this proof file itself: discharged by this
+// file existing (the properties below ARE the Verus phase, and this
+// file DOES carry the citing annotations — CI's verify job enforces
+// the proofs), not testable by duvet's runtime machinery, hence
+// implications ("fundamentally true or not testable"):
+//= design/witness/spec.md#engine-properties
+//= type=implication
+//# These properties MUST be proven with Verus,
+//# as a new phase of the verified coverage model
+//# (the quantifier layer over the existing per-annotation cells).
+//= design/witness/spec.md#engine-properties
+//= type=implication
+//# The Verus proof files MUST carry duvet annotations citing the
+//# anchors in this section.
+//
+// Document-level reading convention, not code:
+//= design/witness/spec.md#duvet-witness-formal-specification
+//= type=implication
+//# The requirement keywords MUST, MUST NOT, SHOULD, and MAY are to be
+//# interpreted as described in RFC 2119.
 
 use crate::{
     annotation_execution::is_annotation_executed, degraded::degraded_execution_status,
@@ -83,18 +105,11 @@ pub enum ScoringMode {
 //# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClaimRule {
-    //= design/witness/spec.md#claim-rules
-    //# `ByExecution` is the runtime rule:
-    //# the report cannot record which test produced it,
-    //# so the test claims the witness by evidence —
-    //# its own lines are executed in it.
-    //# This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
+    // The rule definitions (`ByExecution` is the runtime rule / `ByRootSpan`
+    // is the prover rule) are quoted at their definitional site — the match
+    // arms of the `binds` spec fn below — where the witness's consulted
+    // span can reach them. The variants declare; `binds` defines.
     ByExecution,
-    //= design/witness/spec.md#claim-rules
-    //# `ByRootSpan` is the prover rule:
-    //# the witness was constructed from the annotation's own position
-    //# ([§5](#prover-producers)), so ownership is positional and holds by
-    //# construction
     /// File identity is an opaque id (glue assumption G1); the line
     /// range is inclusive.
     ByRootSpan { file_id: u64, start_line: u64, end_line: u64 },
@@ -240,9 +255,20 @@ pub open spec fn binds(
     w: Witness,
 ) -> bool {
     match w.claim {
+        //= design/witness/spec.md#claim-rules
+        //# `ByExecution` is the runtime rule:
+        //# the report cannot record which test produced it,
+        //# so the test claims the witness by evidence —
+        //# its own lines are executed in it.
+        //# This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
         ClaimRule::ByExecution => executed_by(
             file_id, annotation, mode, classifications, scopes, file_length, w,
         ),
+        //= design/witness/spec.md#claim-rules
+        //# `ByRootSpan` is the prover rule:
+        //# the witness was constructed from the annotation's own position
+        //# ([§5](#prover-producers)), so ownership is positional and holds by
+        //# construction
         ClaimRule::ByRootSpan { file_id: span_file, start_line, end_line } => {
             let target = annotation_target_spec(annotation, classifications, file_length);
             &&& !(mode is Unscorable)
@@ -271,6 +297,12 @@ pub open spec fn binds(
 //= type=implementation
 //# The implementation MUST prove that adding a witness never flips a
 //# failing pair to passing:
+//= design/witness/spec.md#property-w4-monotonicity
+//= type=implementation
+//# Adding a witness MAY newly fail a previously-discharged pair —
+//# that is deliberate: the added witness is a claim T now makes, and
+//# if it does not reach I it is the vacuity being caught
+//# (decisions.md, [Decision 14](decisions.md#decision-14)).
 pub open spec fn discharged(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -544,19 +576,24 @@ pub fn is_bound_by(
 /// bound to its test failed to reach its implementation. A bound witness
 /// that did not execute I fails the pair (early `false` return).
 //
-// Placement: the annotation block is the LAST comment block before the fn
-// header so its resolved target is the header (this file has no language
-// classifier; comment lines are unclassified in degraded resolution and
-// would otherwise become the target — see spec §1.1's placement note).
+// Placement: the annotation blocks are the LAST comment blocks before the
+// fn header so their resolved target is the header (this file has no
+// language classifier; comment lines are unclassified in degraded
+// resolution and would otherwise become the target — see spec §1.1's
+// placement note). The same `ensures` is the machine-checked evidence
+// for spec §1.6: the reported verdict is exactly the `discharged` spec
+// fn, which transcribes the quoted definition.
 //= design/witness/spec.md#property-w1-same-witness-discharge
 //= type=test
 //# The implementation MUST prove that it reports a pair (T, I)
 //# discharged if and only if at least one delivered witness binds T
 //# and every delivered witness that binds T executed I:
-//
-// The same `ensures` is the machine-checked evidence for spec §1.6:
-// the reported verdict is exactly the `discharged` spec fn, which
-// transcribes the quoted definition.
+//= design/witness/spec.md#property-w1-same-witness-discharge
+//= type=test
+//# Evidence assembled from two different witnesses
+//# (T bound by one, I executed by another) MUST NOT discharge;
+//# a bound witness that did not execute I MUST fail the pair
+//# (decisions.md, [Decision 14](decisions.md#decision-14)).
 //= design/witness/spec.md#discharge
 //= type=test
 //# ```
@@ -632,6 +669,12 @@ pub fn report_discharged(
             {
                 // Witness k binds T and did not execute I: the universal
                 // conjunct of `discharged` is violated by witness k.
+                //= design/witness/spec.md#property-w1-same-witness-discharge
+                //= type=implementation
+                //# Evidence assembled from two different witnesses
+                //# (T bound by one, I executed by another) MUST NOT discharge;
+                //# a bound witness that did not execute I MUST fail the pair
+                //# (decisions.md, [Decision 14](decisions.md#decision-14)).
                 return false;
             }
             any_bound = true;
@@ -818,6 +861,11 @@ pub fn report_test_executed(
     //= type=implementation
     //# The implementation MUST prove that a test annotation is reported
     //# executed if and only if some delivered witness binds it:
+    //#
+    //# ```
+    //# report_test_executed(T, witnesses) = true
+    //#     ⟺  ∃ w ∈ witnesses : binds(T, w)
+    //# ```
     let mut k: usize = 0;
     while k < witnesses.len()
         invariant
@@ -877,6 +925,12 @@ pub fn report_ever_executed(
     //# The implementation MUST prove that an implementation annotation is
     //# reported ever-executed if and only if some delivered witness
     //# executed it:
+    //= design/witness/spec.md#property-w3-global-execution
+    //= type=implementation
+    //# This is a global property requiring no correlation;
+    //# it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
+    //# and MUST NOT be used to
+    //# discharge pairs.
     let mut k: usize = 0;
     while k < witnesses.len()
         invariant
@@ -913,6 +967,12 @@ pub fn report_ever_executed(
 //# ```
 //# ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
 //# ```
+//= design/witness/spec.md#property-w6-unwitnessed-test-annotations
+//= type=test
+//# Consequence (intended): running a subset of producers MAY fail a
+//# test annotation that the full set passes;
+//# that behavior is correct
+//# (decisions.md, [Decision 8](decisions.md#decision-8)).
 pub fn is_unwitnessed(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,
@@ -936,6 +996,16 @@ pub fn is_unwitnessed(
     //# delivered witness binds it —
     //# across ALL configured producers —
     //# as a failure, never silently:
+    //#
+    //# ```
+    //# ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
+    //# ```
+    //= design/witness/spec.md#property-w6-unwitnessed-test-annotations
+    //= type=implementation
+    //# Consequence (intended): running a subset of producers MAY fail a
+    //# test annotation that the full set passes;
+    //# that behavior is correct
+    //# (decisions.md, [Decision 8](decisions.md#decision-8)).
     !report_test_executed(t_file_id, t_annotation, t_mode, t_classifications, t_scopes,
         t_file_length, witnesses)
 }
@@ -1046,14 +1116,13 @@ pub proof fn failure_monotonicity(
 /// REGRESSION TRIPWIRE: if `binds`'s `ByExecution` arm ever changes so that
 /// positional claiming stops being a refinement of evidence claiming, this
 /// proof breaks loudly instead of the property silently weakening.
+// The same proof is the verified evidence for the rule's definition in
+// spec §1.5: binding under `ByExecution` IS evidence — the test's own
+// lines executed in the witness — never anything weaker.
 //= design/witness/spec.md#property-w5-claim-refinement
 //= type=test
 //# The implementation MUST prove that binding under `ByExecution`
 //# implies execution of the test in the same witness:
-//
-// The same proof is the verified evidence for the rule's definition in
-// spec §1.5: binding under `ByExecution` IS evidence — the test's own
-// lines executed in the witness — never anything weaker.
 //= design/witness/spec.md#claim-rules
 //= type=test
 //# `ByExecution` is the runtime rule:
@@ -1083,6 +1152,9 @@ pub proof fn by_execution_binding_implies_executed(
 
 /// REGRESSION TRIPWIRE: if `binds`'s `ByRootSpan` arm ever grows a
 /// map-consulting conjunct, this proof breaks loudly.
+// The same proof is the verified evidence for the rule's definition in
+// spec §1.5: positional ownership is a function of the root span alone
+// — "by construction" made checkable.
 //= design/witness/spec.md#property-w7-positional-binding-map-independence
 //= type=test
 //# The implementation MUST prove that binding under `ByRootSpan` does
@@ -1102,10 +1174,6 @@ pub proof fn by_execution_binding_implies_executed(
 //# the proofs. This is [W5](#property-w5-claim-refinement)'s
 //# complement: `ByExecution` binding is exactly map evidence;
 //# `ByRootSpan` binding is exactly geometry.
-//
-// The same proof is the verified evidence for the rule's definition in
-// spec §1.5: positional ownership is a function of the root span alone
-// — "by construction" made checkable.
 //= design/witness/spec.md#claim-rules
 //= type=test
 //# `ByRootSpan` is the prover rule:

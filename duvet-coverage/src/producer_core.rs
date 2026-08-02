@@ -25,6 +25,22 @@
 //! trust boundary, exactly as the engine adapter establishes the
 //! witness layer's `requires` before calling it.
 
+// Meta-requirements about this proof file itself: discharged by this
+// file existing (it IS the verified-model phase and it DOES carry the
+// citing annotations — CI's verify job enforces the proofs), not
+// testable by duvet's runtime machinery, hence implications:
+//= design/witness/producer-core-spec.md#producer-core-verified-model-properties
+//= type=implication
+//# [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
+//# define what the Verus producer must do; this document states the
+//# properties that MUST be proven with Verus, as a new phase of the
+//# verified coverage model, over a verified model of the parsed
+//# obligation graph.
+//= design/witness/producer-core-spec.md#producer-core-verified-model-properties
+//= type=implication
+//# The Verus proof files MUST carry duvet annotations citing the
+//# anchors in this document.
+
 use verus_builtin_macros::verus;
 // vstd is ghost-only here (see lib.rs): gated so it stays out of the
 // published dependency graph.
@@ -41,7 +57,7 @@ verus! {
 /// by construction in the adapter (PG1).
 //= design/witness/producer-core-spec.md#model
 //= type=implementation
-//# **Edges** are the symbolic references that resolve to a block in
+//# - **Edges** are the symbolic references that resolve to a block in
 //# the artifact; references to names with no block are not part of
 //# the obligation graph ([spec §5.4](spec.md#closure)) and MUST NOT
 //# appear as model edges.
@@ -200,19 +216,27 @@ proof fn lemma_closed_set_contains_reachable(
 /// closed-set principle delivers completeness (the "no less" /
 /// fixpoint direction).
 //
-// Placement: the annotation block is the LAST comment block before
-// the fn header so its resolved target is the header (this file has
-// no language classifier; see spec §1.1's placement note).
+// Placement: the annotation blocks are the LAST comment blocks before
+// the fn header so their resolved target is the header (this file has
+// no language classifier; see spec §1.1's placement note — an
+// intervening ordinary comment would become the target, so the prose
+// between quotes lives ABOVE the stack).
+//
+// The same iff-ensures is the witness spec's transitive-fixpoint
+// closure claim, in the model's vocabulary (reachable = any number
+// of edge hops; the fixpoint is proven, not depth-bounded). And the
+// closedness split's part (b) — the closure computation over the
+// verifier's record — is exactly what this proof verifies.
 //= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
 //= type=test
 //# The implementation MUST prove that the computed closure of a
 //# discharge unit's root is exactly the downward-reachable set of the
 //# obligation graph — the least fixpoint of the edge relation
 //# containing the root:
-//
-// The same iff-ensures is the witness spec's transitive-fixpoint
-// closure claim, in the model's vocabulary (reachable = any number
-// of edge hops; the fixpoint is proven, not depth-bounded):
+//= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
+//= type=test
+//# where `reachable` is the reflexive-transitive reach along reference
+//# edges.
 //= design/witness/spec.md#closure
 //= type=test
 //# Reachability is transitive: the closure follows the obligation
@@ -222,9 +246,6 @@ proof fn lemma_closed_set_contains_reachable(
 //= design/witness/spec.md#closure
 //= type=test
 //# the closure MUST be a fixpoint (no truncation at a depth bound),
-//
-// And the closedness split's part (b) — the closure computation over
-// the verifier's record — is exactly what this proof verifies:
 //= design/witness/spec.md#obligation-closedness
 //= type=test
 //# (b) the closure computation over that record is correct —
@@ -249,6 +270,20 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
     //# discharge unit's root is exactly the downward-reachable set of the
     //# obligation graph — the least fixpoint of the edge relation
     //# containing the root:
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# Reachability is transitive: the closure follows the obligation
+    //# graph's reference edges through any number of call or reference
+    //# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
+    //# them enter — until a fixpoint.
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# the closure MUST be a fixpoint (no truncation at a depth bound),
+    //= design/witness/spec.md#obligation-closedness
+    //= type=implementation
+    //# (b) the closure computation over that record is correct —
+    //# our code, which SHOULD be verified in `duvet-coverage`
+    //# (it is a pure graph fixpoint).
     let n = g.len();
     let mut reached: Vec<bool> = Vec::new();
     let mut i: usize = 0;
@@ -461,17 +496,25 @@ pub open spec fn selected(units: Seq<UnitSpan>, file_id: u64, line: u32, i: int)
 /// coincides with minimality-against-all because pass 2's minimum
 /// is both achieved and a lower bound.
 //
-// Placement: the annotation block is the LAST comment block before
-// the fn header so its resolved target is the header.
+// Placement: the annotation blocks are the LAST comment blocks before
+// the fn header so their resolved target is the header. The proven
+// selection is the witness spec's rooting rule — no hoisting is
+// possible because extent units are selectable only when no
+// clause-kind unit contains the position.
 //= design/witness/producer-core-spec.md#property-p2-most-specific-wins
 //= type=test
 //# The implementation MUST prove that the units selected for a
 //# position are exactly the minimal-extent containing units at the
 //# finest populated specificity level
-//
-// The proven selection is the witness spec's rooting rule — no
-// hoisting is possible because extent units are selectable only
-// when no clause-kind unit contains the position:
+//# ([spec §5.3](spec.md#discharge-unit),
+//# decisions.md [Decision 19](decisions.md#decision-19)):
+//= design/witness/producer-core-spec.md#property-p2-most-specific-wins
+//= type=test
+//# Consequences the proof MUST deliver: every selected unit contains
+//# the position; no containing unit at a strictly finer specificity
+//# level exists when an extent-level unit is selected; and ties at the
+//# winning level and minimal extent are all selected — never chosen
+//# among (decisions.md, [Decision 12](decisions.md#decision-12)).
 //= design/witness/spec.md#discharge-unit
 //= type=test
 //# **Rooting is most-specific-wins** (decisions.md, Decision 19):
@@ -493,6 +536,16 @@ pub fn select_units(units: &Vec<UnitSpan>, file_id: u64, line: u32) -> (sel: Vec
     //# The implementation MUST prove that the units selected for a
     //# position are exactly the minimal-extent containing units at the
     //# finest populated specificity level
+    //# ([spec §5.3](spec.md#discharge-unit),
+    //# decisions.md [Decision 19](decisions.md#decision-19)):
+    //= design/witness/spec.md#discharge-unit
+    //= type=implementation
+    //# **Rooting is most-specific-wins** (decisions.md, Decision 19):
+    //# an annotation roots the finest unit whose span contains its
+    //# resolved position; the enclosing extent is the fallback for
+    //# positions inside no finer unit. A producer MUST NOT hoist an
+    //# annotation placed on a clause, invariant, or assert to the
+    //# enclosing function's unit.
     let n = units.len();
 
     // Pass 1: the winning specificity level.
@@ -709,25 +762,36 @@ proof fn lemma_push_contains<T>(s: Seq<T>, x: T)
 /// emitted was consulted-and-project, and every consulted project
 /// line of a visited node was emitted.
 //
-// Placement: the annotation block is the LAST comment block before
-// the fn header so its resolved target is the header.
+// Placement: the annotation blocks are the LAST comment blocks before
+// the fn header so their resolved target is the header. The proven
+// assembly is the witness spec's construction claim — the delivered
+// line set IS the downward-reachable set's spans (projected), so
+// every delivered map is closed under reachability by this ensures,
+// and the iff's ⟸ direction is exactly the reachable-set-only claim.
 //= design/witness/producer-core-spec.md#property-p3-witness-assembly
 //= type=test
 //# The implementation MUST prove that a witness's line set equals the
 //# union of the closure's per-file spans restricted to project files:
-//
-// Which is the witness spec's construction claim — the delivered
-// line set IS the downward-reachable set's spans (projected), so
-// every delivered map is closed under reachability by this ensures:
 //= design/witness/spec.md#closure
 //= type=test
 //# A constructed witness's `files` maps MUST equal the source spans
 //# of the downward reachable set of the prover's obligation graph,
 //# starting from the discharge unit.
+//= design/witness/spec.md#closure
+//= type=test
+//# Only reachable nodes contribute;
+//# nothing outside the reachable set may be included.
 //= design/witness/spec.md#obligation-closedness
 //= type=test
 //# Every delivered `files` map MUST be closed under the producer's
 //# reachability relation ([§1.2](#witness)).
+//= design/witness/spec.md#witness
+//= type=test
+//# A witness's `files` maps MUST be **closed**:
+//# they contain every line the act touched,
+//# under the producer's reachability relation
+//# (execution for runtime producers,
+//# obligation-graph closure for prover producers).
 pub fn assemble_witness_lines(
     g: &Vec<Vec<u64>>,
     spans: &Vec<Vec<(u64, u32)>>,
@@ -742,6 +806,26 @@ pub fn assemble_witness_lines(
         forall|f: u64, l: u32|
             #[trigger] out@.contains((f, l)) <==> assembled_line(g@, spans@, root, project@, f, l),
 {
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# A constructed witness's `files` maps MUST equal the source spans
+    //# of the downward reachable set of the prover's obligation graph,
+    //# starting from the discharge unit.
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# Only reachable nodes contribute;
+    //# nothing outside the reachable set may be included.
+    //= design/witness/spec.md#obligation-closedness
+    //= type=implementation
+    //# Every delivered `files` map MUST be closed under the producer's
+    //# reachability relation ([§1.2](#witness)).
+    //= design/witness/spec.md#witness
+    //= type=implementation
+    //# A witness's `files` maps MUST be **closed**:
+    //# they contain every line the act touched,
+    //# under the producer's reachability relation
+    //# (execution for runtime producers,
+    //# obligation-graph closure for prover producers).
     let reached = closure_reached(g, root);
     let n = spans.len();
     let mut out: Vec<(u64, u32)> = Vec::new();
@@ -978,6 +1062,11 @@ pub open spec fn spans_files_in_range(spans: Seq<Vec<(u64, u32)>>, nfiles: int) 
 //# not a truncation (decisions.md,
 //# [Decision 7](decisions.md#decision-7)'s consulted semantics;
 //# [spec §5.4](spec.md#closure)'s unfiltered traversal):
+//= design/witness/producer-core-spec.md#property-p4-filter-soundness
+//= type=test
+//# Edge traversal MUST NOT be filtered — `closure_reached` takes no
+//# project view, so the reached set is project-independent by the
+//# model's construction, and only the span projection is restricted.
 pub proof fn filter_soundness(
     g: Seq<Vec<u64>>,
     spans: Seq<Vec<(u64, u32)>>,

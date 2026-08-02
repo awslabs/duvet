@@ -35,6 +35,14 @@
 //! not propagate, so its blindness to `NonLinearControl` cannot cause an unsound
 //! inference. It reports only what coverage directly says about the target line.
 
+// Meta-requirement about this proof file itself: discharged by the
+// D-properties below being Verus proofs (CI's verify job enforces
+// them), not testable by duvet's runtime machinery, hence implication:
+//= design/query/coverage-model-spec.md#degraded-properties
+//= type=implication
+//# These properties MUST be proven with Verus for the degraded path,
+//# alongside the Section 5 properties for the classified path.
+
 #[cfg(verus_keep_ghost)]
 use crate::{
     annotation_execution::execution_status_of, predicates::validly_in_exec_set,

@@ -51,6 +51,16 @@ verus! {
 /// For every index `i` where the input `classifications[i]` contains
 /// `ScopeOpen`, the output also contains `ScopeOpen` at that index.
 /// Symmetrically for `ScopeClose`.
+//= design/query/coverage-model-spec.md#classification-function
+//= type=implementation
+//# Classifiers MUST apply a post-processing pass
+//# after AST classification:
+//# for any line that has `Annotation`, `Comment`, or `Whitespace`,
+//# remove `Statement` and `Declaration` from its property set.
+//= design/query/coverage-model-spec.md#classification-function
+//= type=implementation
+//# A line classified as `{Annotation}` MUST NOT also have
+//# `Statement` or `Declaration` in its property set.
 pub fn clean_classifications(
     classifications: &mut [Option<BTreeSet<LineProperty>>],
     code_start: &[bool],
@@ -164,6 +174,10 @@ mod tests {
     }
 
     /// ScopeOpen on an annotation line must also survive.
+    //= design/query/coverage-model-spec.md#classification-function
+    //= type=test
+    //# A line classified as `{Annotation}` MUST NOT also have
+    //# `Statement` or `Declaration` in its property set.
     #[test]
     fn scope_open_preserved_on_annotation_line() {
         let mut classifications = vec![lc(&[
@@ -188,6 +202,12 @@ mod tests {
     }
 
     /// Statement IS stripped from a non-code-start comment line.
+    //= design/query/coverage-model-spec.md#classification-function
+    //= type=test
+    //# Classifiers MUST apply a post-processing pass
+    //# after AST classification:
+    //# for any line that has `Annotation`, `Comment`, or `Whitespace`,
+    //# remove `Statement` and `Declaration` from its property set.
     #[test]
     fn statement_stripped_from_comment_only_line() {
         let mut classifications = vec![lc(&[LineProperty::Statement, LineProperty::Comment])];

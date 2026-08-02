@@ -424,6 +424,12 @@ pub open spec fn scope_stream_balanced_spec(e: Seq<ScopeEvent>) -> bool {
 //# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
 //# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
 //# end of file.
+//= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+//= type=test
+//# The implementation MUST prove that the balance detector returns balanced if and
+//# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+//# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+//# end of file.
 pub fn scope_imbalance_site(events: &[ScopeEvent]) -> (result: Option<u64>)
     ensures
         (result is None) <==> scope_stream_balanced_spec(events@),
