@@ -120,20 +120,20 @@ aggregate suite report (A2 violation).
 Measured 2026-08-02 (post gate1 closure and the meta-obligation
 flips, fresh SST logs, unsliced `duvet query -c coverage`):
 **0 failed correlations, 0 tests with no implementation,
-32 successful correlations, 83 unwitnessed.**
+32 successful correlations, 80 unwitnessed.**
 
-Of the 83 unwitnessed test annotations, 75 resolve to a runtime
+Of the 80 unwitnessed test annotations, 75 resolve to a runtime
 `#[test]`/`#[tokio::test]` construct (audited: no comment,
 attribute, or declaration targets remain). They are the
 LCOV-pending set — unwitnessed in a proof-only run by design
 (Decision 8) — and they are Gate 3's exit criterion: when the LCOV
 producer lands, the runtime rows of this table must go to zero.
 
-The remaining 8 live in `.github/workflows/ci.yml`: test sides of
-the repo/CI meta-obligations ("MUST be proven with Verus" ×3,
-"proof files MUST carry annotations" ×2 — three of the quotes are
-tested by both the verify step and the snapshot step, hence 8
-annotations for 5 quote pairs). They are discharged by the CI run
+The remaining 5 live in `.github/workflows/ci.yml`: test sides of
+the repo/CI meta-obligations ("MUST be proven with Verus" ×3 on the
+verify step; "proof files MUST carry annotations" ×2 on the
+snapshot step — one test owner per quote, the duplicates check
+enforces it). They are discharged by the CI run
 itself, which duvet's coverage machinery cannot consume (no
 CI-status producer; upstream follow-up). They persist in this
 table past Gate 3 until duvet can witness CI-discharged tests.
@@ -153,8 +153,8 @@ table past Gate 3 until duvet can witness CI-discharged tests.
 | duvet/src/query/engine.rs | 1 |
 | duvet-coverage/src/target_resolution.rs (tests) | 1 |
 | **Total (runtime, LCOV-pending)** | **75** |
-| .github/workflows/ci.yml (CI-discharged, persists past Gate 3) | 8 |
-| **Total unwitnessed** | **83** |
+| .github/workflows/ci.yml (CI-discharged, persists past Gate 3) | 5 |
+| **Total unwitnessed** | **80** |
 
 ## What is still missing
 

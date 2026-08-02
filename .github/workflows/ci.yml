@@ -297,26 +297,13 @@ jobs:
         #% The Verus proof files MUST carry duvet annotations citing the
         #% anchors in this document.
         #
-        # Also the second half of the "MUST be proven with Verus" test
-        # conjunction: the verify job proves whatever is WRITTEN; this
-        # snapshot gate catches a specified property being DELETED (its
-        # proof-file citation vanishes with it, drifting the snapshot).
-        #= design/witness/spec.md#engine-properties
-        #= type=test
-        #% These properties MUST be proven with Verus,
-        #% as a new phase of the verified coverage model
-        #% (the quantifier layer over the existing per-annotation cells).
-        #= design/witness/producer-core-spec.md#producer-core-verified-model-properties
-        #= type=test
-        #% [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
-        #% define what the Verus producer must do; this document states the
-        #% properties that MUST be proven with Verus, as a new phase of the
-        #% verified coverage model, over a verified model of the parsed
-        #% obligation graph.
-        #= design/query/coverage-model-spec.md#degraded-properties
-        #= type=test
-        #% These properties MUST be proven with Verus for the degraded path,
-        #% alongside the Section 5 properties for the classified path.
+        # These MUST-carry tests are also the deletion-catching half of
+        # the "MUST be proven with Verus" conjunction: the verify job
+        # proves whatever is WRITTEN; deleting a specified property
+        # removes its proof-file citation, which drifts the snapshot and
+        # fails THIS step. (The MUST-prove quotes themselves are tested
+        # once, on the verify step — duvet's duplicates check enforces
+        # one test owner per quote.)
         run: ./target/debug/duvet report --ci
 
       - name: Download Verus SST logs
