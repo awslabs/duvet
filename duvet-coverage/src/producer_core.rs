@@ -777,10 +777,6 @@ proof fn lemma_push_contains<T>(s: Seq<T>, x: T)
 //# A constructed witness's `files` maps MUST equal the source spans
 //# of the downward reachable set of the prover's obligation graph,
 //# starting from the discharge unit.
-//= design/witness/spec.md#closure
-//= type=test
-//# Only reachable nodes contribute;
-//# nothing outside the reachable set may be included.
 //= design/witness/spec.md#obligation-closedness
 //= type=test
 //# Every delivered `files` map MUST be closed under the producer's

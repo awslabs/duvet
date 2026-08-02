@@ -696,6 +696,11 @@ pub fn report_discharged(
 /// exactness (`bound` is sound and complete for `binds(T, ·)`, by
 /// index) is a precondition the glue establishes from the verified
 /// cells' postconditions — never by engine-side recomputation.
+// The `ensures`/`requires` pair below is the machine-checked evidence
+// for G4's proviso: the verdict equals §1.6 discharge over the FULL
+// delivered set, given a sound-and-complete-by-index bound set (the
+// runtime half is `g4_given_bound_equals_report_discharged`).
+#[allow(clippy::too_many_arguments)]
 //= design/witness/spec.md#engine-glue
 //= type=implementation
 //# - **G4 (bound-set precomputation).** The glue MAY compute a test's
@@ -705,11 +710,6 @@ pub fn report_discharged(
 //# entry point's verdict equal to [§1.6](#discharge) discharge over
 //# the full delivered set whenever the supplied set is exactly
 //# `witnesses_for(T)`, sound and complete by index.
-//
-// The `ensures`/`requires` pair below is the machine-checked evidence
-// for G4's proviso: the verdict equals §1.6 discharge over the FULL
-// delivered set, given a sound-and-complete-by-index bound set (the
-// runtime half is `g4_given_bound_equals_report_discharged`).
 //= design/witness/spec.md#engine-glue
 //= type=test
 //# - **G4 (bound-set precomputation).** The glue MAY compute a test's
@@ -719,7 +719,6 @@ pub fn report_discharged(
 //# entry point's verdict equal to [§1.6](#discharge) discharge over
 //# the full delivered set whenever the supplied set is exactly
 //# `witnesses_for(T)`, sound and complete by index.
-#[allow(clippy::too_many_arguments)]
 pub fn report_discharged_given_bound(
     t_file_id: u64,
     t_annotation: &AnnotationSpan,

@@ -418,6 +418,18 @@ pub open spec fn scope_stream_balanced_spec(e: Seq<ScopeEvent>) -> bool {
 /// aid. The soundness-critical guarantee is the `is None <==> balanced`
 /// equivalence in the `ensures`; the witness line itself is not otherwise
 /// constrained by the proof.
+// The contract is the classifier's responsibility, detected downstream
+// (this detector) rather than proven about the classifier — the emitting
+// classifiers live in `duvet/src/query/classify/` (unscannable fixture
+// carriers, see `.duvet/config.toml`), so the contract's citation lives
+// on its enforcement point:
+//= design/query/coverage-model-spec.md#scopes
+//= type=implementation
+//# **Scope Balance Contract:** {#scope-balance-contract}
+//# A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
+//# matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
+//# no `ScopeClose` occurs with no open to match,
+//# and no `ScopeOpen` is left unmatched at end of file.
 //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
 //= type=implementation
 //# The implementation MUST prove that the balance detector returns balanced if and
@@ -704,6 +716,13 @@ mod tests {
         assert_eq!(scope_imbalance_site(&[]), None);
     }
 
+    //= design/query/coverage-model-spec.md#scopes
+    //= type=test
+    //# **Scope Balance Contract:** {#scope-balance-contract}
+    //# A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
+    //# matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
+    //# no `ScopeClose` occurs with no open to match,
+    //# and no `ScopeOpen` is left unmatched at end of file.
     #[test]
     fn stray_close_is_flagged_and_tree_collapses() {
         // A `}` with nothing open: stray close (depth underflow at the event).
