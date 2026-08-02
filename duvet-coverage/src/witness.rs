@@ -46,14 +46,6 @@
 //# These properties MUST be proven with Verus,
 //# as a new phase of the verified coverage model
 //# (the quantifier layer over the existing per-annotation cells).
-//
-// Document-level reading convention, not code — definitional prose
-// with no implementation or test anywhere ("fundamentally true or
-// not testable"), hence implication:
-//= design/witness/spec.md#duvet-witness-formal-specification
-//= type=implication
-//# The requirement keywords MUST, MUST NOT, SHOULD, and MAY are to be
-//# interpreted as described in RFC 2119.
 
 use crate::{
     annotation_execution::is_annotation_executed, degraded::degraded_execution_status,

@@ -13,8 +13,8 @@ runtime coverage reports and prover elaboration records —
 under one correlation rule.
 
 Design rationale lives in [decisions.md](decisions.md).
-The requirement keywords MUST, MUST NOT, SHOULD, and MAY are to be
-interpreted as described in RFC 2119.
+This document uses the normative keyword conventions of
+[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
 
 The existing coverage model (Phases 1–3: target resolution,
 execution propagation, annotation execution) is unchanged by this

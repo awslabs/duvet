@@ -194,10 +194,6 @@ SPECIFICATION: [Producer core: verified-model properties](design/witness/produce
     TEXT[!MUST,implementation,test]: model's construction, and only the span projection is restricted.
 
 SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
-  SECTION: [Duvet Witness: Formal Specification](#duvet-witness-formal-specification)
-    TEXT[!MUST,implication]: The requirement keywords MUST, MUST NOT, SHOULD, and MAY are to be
-    TEXT[!MUST,implication]: interpreted as described in RFC 2119.
-
   SECTION: [1.1 Test and implementation annotations](#annotations)
     TEXT[!MUST,implementation,test]: Placement note (degraded files): in a file with no language
     TEXT[!MUST,implementation,test]: classifier, resolution cannot recognize comment lines as skippable —
