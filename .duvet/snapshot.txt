@@ -112,8 +112,8 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[implementation,test]: legitimate.
 
   SECTION: [7.4 Properties](#degraded-properties)
-    TEXT[!MUST,implication]: These properties MUST be proven with Verus for the degraded path,
-    TEXT[!MUST,implication]: alongside the Section 5 properties for the classified path.
+    TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus for the degraded path,
+    TEXT[!MUST,implementation,test]: alongside the Section 5 properties for the classified path.
 
   SECTION: [Property D1: Direct Observation](#property-d1-direct-observation)
     TEXT[!MUST,implication]: The implementation MUST prove that the degraded status is a direct observation
@@ -146,13 +146,13 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
 
 SPECIFICATION: [Producer core: verified-model properties](design/witness/producer-core-spec.md)
   SECTION: [Producer core: verified-model properties](#producer-core-verified-model-properties)
-    TEXT[!MUST,implication]: [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
-    TEXT[!MUST,implication]: define what the Verus producer must do; this document states the
-    TEXT[!MUST,implication]: properties that MUST be proven with Verus, as a new phase of the
-    TEXT[!MUST,implication]: verified coverage model, over a verified model of the parsed
-    TEXT[!MUST,implication]: obligation graph.
-    TEXT[!MUST,implication]: The Verus proof files MUST carry duvet annotations citing the
-    TEXT[!MUST,implication]: anchors in this document.
+    TEXT[!MUST,implementation,test]: [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
+    TEXT[!MUST,implementation,test]: define what the Verus producer must do; this document states the
+    TEXT[!MUST,implementation,test]: properties that MUST be proven with Verus, as a new phase of the
+    TEXT[!MUST,implementation,test]: verified coverage model, over a verified model of the parsed
+    TEXT[!MUST,implementation,test]: obligation graph.
+    TEXT[!MUST,implementation,test]: The Verus proof files MUST carry duvet annotations citing the
+    TEXT[!MUST,implementation,test]: anchors in this document.
 
   SECTION: [1. Model](#model)
     TEXT[!MUST,implementation,test]: - **Edges** are the symbolic references that resolve to a block in
@@ -320,11 +320,11 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: universe.
 
   SECTION: [2. Engine properties](#engine-properties)
-    TEXT[!MUST,implication]: These properties MUST be proven with Verus,
-    TEXT[!MUST,implication]: as a new phase of the verified coverage model
-    TEXT[!MUST,implication]: (the quantifier layer over the existing per-annotation cells).
-    TEXT[!MUST,implication]: The Verus proof files MUST carry duvet annotations citing the
-    TEXT[!MUST,implication]: anchors in this section.
+    TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus,
+    TEXT[!MUST,implementation,test]: as a new phase of the verified coverage model
+    TEXT[!MUST,implementation,test]: (the quantifier layer over the existing per-annotation cells).
+    TEXT[!MUST,implementation,test]: The Verus proof files MUST carry duvet annotations citing the
+    TEXT[!MUST,implementation,test]: anchors in this section.
 
   SECTION: [Property W1: Universal Same-Witness Discharge](#property-w1-same-witness-discharge)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that it reports a pair (T, I)

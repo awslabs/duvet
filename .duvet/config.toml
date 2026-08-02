@@ -13,6 +13,18 @@
 # add it here. See https://github.com/awslabs/duvet/issues/226 for the
 # parser fix that would make `duvet/**` scannable.
 
+# These [[source]] entries are the mechanism that subjects the proof
+# files to the requirement: they put the proof-file citations into the
+# scan, and `report --ci` (the dogfood job) pins their existence in the
+# snapshot — removing the citations from the proof files drifts the
+# snapshot and fails CI. The paired type=test lives on that CI step in
+# .github/workflows/ci.yml.
+#= design/witness/spec.md#engine-properties
+#% The Verus proof files MUST carry duvet annotations citing the
+#% anchors in this section.
+#= design/witness/producer-core-spec.md#producer-core-verified-model-properties
+#% The Verus proof files MUST carry duvet annotations citing the
+#% anchors in this document.
 [[source]]
 pattern = "duvet-coverage/**/*.rs"
 
@@ -45,6 +57,19 @@ pattern = "duvet/src/query/parsers/verus_sst/tests.rs"
 
 [[source]]
 pattern = "duvet/src/query/parsers/verus_sst/witness.rs"
+
+# CI workflow and this config file: scanned so that repo/CI obligations
+# (enforced by the verify job and the snapshot gate) can carry
+# annotations instead of self-discharging implications. YAML and TOML
+# share the `#` comment leader; `#%` is chosen over `##` for content so
+# ordinary comments can never be ingested as quote lines.
+[[source]]
+pattern = ".github/workflows/ci.yml"
+comment-style = { meta = "#=", content = "#%" }
+
+[[source]]
+pattern = ".duvet/config.toml"
+comment-style = { meta = "#=", content = "#%" }
 
 [[specification]]
 source = "design/query/coverage-model-spec.md"

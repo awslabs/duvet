@@ -25,21 +25,19 @@
 //! trust boundary, exactly as the engine adapter establishes the
 //! witness layer's `requires` before calling it.
 
-// Meta-requirements about this proof file itself: discharged by this
-// file existing (it IS the verified-model phase and it DOES carry the
-// citing annotations — CI's verify job enforces the proofs), not
-// testable by duvet's runtime machinery, hence implications:
+// Meta-requirements about this proof file itself. "MUST be proven
+// with Verus" is implemented HERE (this module IS the verified-model
+// phase) and tested by CI's verify job, which fails unless the
+// properties prove (the type=test annotation lives on that step in
+// .github/workflows/ci.yml). "MUST carry duvet annotations" is owned
+// by the .duvet/config.toml [[source]] entry that subjects this file
+// to the scan, tested by the report --ci snapshot gate.
 //= design/witness/producer-core-spec.md#producer-core-verified-model-properties
-//= type=implication
 //# [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
 //# define what the Verus producer must do; this document states the
 //# properties that MUST be proven with Verus, as a new phase of the
 //# verified coverage model, over a verified model of the parsed
 //# obligation graph.
-//= design/witness/producer-core-spec.md#producer-core-verified-model-properties
-//= type=implication
-//# The Verus proof files MUST carry duvet annotations citing the
-//# anchors in this document.
 
 use verus_builtin_macros::verus;
 // vstd is ghost-only here (see lib.rs): gated so it stays out of the

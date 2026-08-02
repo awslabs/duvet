@@ -35,22 +35,21 @@
 // is owned by the verified constructor: the annotation lives inside
 // `producer_core::assemble_witness_lines`, whose `ensures` proves it.
 //
-// Meta-requirements about this proof file itself: discharged by this
-// file existing (the properties below ARE the Verus phase, and this
-// file DOES carry the citing annotations — CI's verify job enforces
-// the proofs), not testable by duvet's runtime machinery, hence
-// implications ("fundamentally true or not testable"):
+// Meta-requirements about this proof file itself. "MUST be proven
+// with Verus" is implemented HERE (the properties below ARE the Verus
+// phase) and tested by CI's verify job, which fails unless they prove
+// (the type=test annotation lives on that step in
+// .github/workflows/ci.yml). "MUST carry duvet annotations" is owned
+// by the .duvet/config.toml [[source]] entry that subjects this file
+// to the scan, tested by the report --ci snapshot gate.
 //= design/witness/spec.md#engine-properties
-//= type=implication
 //# These properties MUST be proven with Verus,
 //# as a new phase of the verified coverage model
 //# (the quantifier layer over the existing per-annotation cells).
-//= design/witness/spec.md#engine-properties
-//= type=implication
-//# The Verus proof files MUST carry duvet annotations citing the
-//# anchors in this section.
 //
-// Document-level reading convention, not code:
+// Document-level reading convention, not code — definitional prose
+// with no implementation or test anywhere ("fundamentally true or
+// not testable"), hence implication:
 //= design/witness/spec.md#duvet-witness-formal-specification
 //= type=implication
 //# The requirement keywords MUST, MUST NOT, SHOULD, and MAY are to be

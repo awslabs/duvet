@@ -35,11 +35,12 @@
 //! not propagate, so its blindness to `NonLinearControl` cannot cause an unsound
 //! inference. It reports only what coverage directly says about the target line.
 
-// Meta-requirement about this proof file itself: discharged by the
-// D-properties below being Verus proofs (CI's verify job enforces
-// them), not testable by duvet's runtime machinery, hence implication:
+// Meta-requirement about this proof file itself: "MUST be proven with
+// Verus" is implemented HERE (the D-properties below are the Verus
+// proofs) and tested by CI's verify job, which fails unless they prove
+// (the type=test annotation lives on that step in
+// .github/workflows/ci.yml).
 //= design/query/coverage-model-spec.md#degraded-properties
-//= type=implication
 //# These properties MUST be proven with Verus for the degraded path,
 //# alongside the Section 5 properties for the classified path.
 

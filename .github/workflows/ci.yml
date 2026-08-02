@@ -191,6 +191,30 @@ jobs:
         # `--log vir-sst` makes the verification run leave its SST record
         # behind; the dogfood job's witness query consumes it. Same proof
         # run, no second verification.
+        #
+        # This step is the test side of the "MUST be proven with Verus"
+        # obligations: it fails unless every property in the verified crate
+        # proves. The implementation side lives in the proof files
+        # (duvet-coverage/src/{witness,producer_core,degraded}.rs). These
+        # test annotations are discharged by this CI run itself, which
+        # duvet's coverage machinery cannot consume — they stay unwitnessed
+        # in the proof-only coverage table by design.
+        #= design/witness/spec.md#engine-properties
+        #= type=test
+        #% These properties MUST be proven with Verus,
+        #% as a new phase of the verified coverage model
+        #% (the quantifier layer over the existing per-annotation cells).
+        #= design/witness/producer-core-spec.md#producer-core-verified-model-properties
+        #= type=test
+        #% [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
+        #% define what the Verus producer must do; this document states the
+        #% properties that MUST be proven with Verus, as a new phase of the
+        #% verified coverage model, over a verified model of the parsed
+        #% obligation graph.
+        #= design/query/coverage-model-spec.md#degraded-properties
+        #= type=test
+        #% These properties MUST be proven with Verus for the degraded path,
+        #% alongside the Section 5 properties for the classified path.
         run: cargo verus build -p duvet-coverage --features verify -- --log vir-sst --log-dir verus-sst-logs
 
       - name: Compress SST logs
@@ -257,6 +281,42 @@ jobs:
           cargo xtask build
 
       - name: Run duvet on its own annotations
+        # Test side of "proof files MUST carry duvet annotations": the
+        # snapshot pins every proof-file citation's coverage state, so
+        # removing citations from the proof files drifts the snapshot and
+        # fails this step. The implementation side is the [[source]]
+        # entries in .duvet/config.toml that put the proof files in the
+        # scan. Discharged by this CI run itself — stays unwitnessed in
+        # the coverage table by design.
+        #= design/witness/spec.md#engine-properties
+        #= type=test
+        #% The Verus proof files MUST carry duvet annotations citing the
+        #% anchors in this section.
+        #= design/witness/producer-core-spec.md#producer-core-verified-model-properties
+        #= type=test
+        #% The Verus proof files MUST carry duvet annotations citing the
+        #% anchors in this document.
+        #
+        # Also the second half of the "MUST be proven with Verus" test
+        # conjunction: the verify job proves whatever is WRITTEN; this
+        # snapshot gate catches a specified property being DELETED (its
+        # proof-file citation vanishes with it, drifting the snapshot).
+        #= design/witness/spec.md#engine-properties
+        #= type=test
+        #% These properties MUST be proven with Verus,
+        #% as a new phase of the verified coverage model
+        #% (the quantifier layer over the existing per-annotation cells).
+        #= design/witness/producer-core-spec.md#producer-core-verified-model-properties
+        #= type=test
+        #% [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
+        #% define what the Verus producer must do; this document states the
+        #% properties that MUST be proven with Verus, as a new phase of the
+        #% verified coverage model, over a verified model of the parsed
+        #% obligation graph.
+        #= design/query/coverage-model-spec.md#degraded-properties
+        #= type=test
+        #% These properties MUST be proven with Verus for the degraded path,
+        #% alongside the Section 5 properties for the classified path.
         run: ./target/debug/duvet report --ci
 
       - name: Download Verus SST logs
