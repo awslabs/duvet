@@ -1,25 +1,25 @@
 SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverage-model-spec.md)
   SECTION: [1.3 Classification Function and Unknown Lines](#classification-function)
-    TEXT[!MUST]: A line classified as `{Annotation}` MUST NOT also have
-    TEXT[!MUST]: `Statement` or `Declaration` in its property set.
-    TEXT[!MUST]: Classifiers MUST apply a post-processing pass
-    TEXT[!MUST]: after AST classification:
-    TEXT[!MUST]: for any line that has `Annotation`, `Comment`, or `Whitespace`,
-    TEXT[!MUST]: remove `Statement` and `Declaration` from its property set.
+    TEXT[!MUST,implementation,test]: A line classified as `{Annotation}` MUST NOT also have
+    TEXT[!MUST,implementation,test]: `Statement` or `Declaration` in its property set.
+    TEXT[!MUST,implementation,test]: Classifiers MUST apply a post-processing pass
+    TEXT[!MUST,implementation,test]: after AST classification:
+    TEXT[!MUST,implementation,test]: for any line that has `Annotation`, `Comment`, or `Whitespace`,
+    TEXT[!MUST,implementation,test]: remove `Statement` and `Declaration` from its property set.
 
   SECTION: [1.5 Scopes](#scopes)
     TEXT[implementation,test]: A scope is a contiguous range of lines
     TEXT[implementation,test]: delimited by `ScopeOpen` and `ScopeClose` properties.
     TEXT[implementation,test]: Scopes nest.
-    TEXT[!MUST]: **Scope Balance Contract:** {#scope-balance-contract}
-    TEXT[!MUST]: A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
-    TEXT[!MUST]: matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
-    TEXT[!MUST]: no `ScopeClose` occurs with no open to match,
-    TEXT[!MUST]: and no `ScopeOpen` is left unmatched at end of file.
-    TEXT[!MUST,implementation]: When the stream is unbalanced,
-    TEXT[!MUST,implementation]: the coverage model MUST NOT score annotations against the collapsed scope tree;
-    TEXT[!MUST,implementation]: it MUST surface the file as a defeated classification and escalate
-    TEXT[!MUST]: (see [Classifier Selection and Dispatch](#dispatch)).
+    TEXT[!MUST,implementation,test]: **Scope Balance Contract:** {#scope-balance-contract}
+    TEXT[!MUST,implementation,test]: A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
+    TEXT[!MUST,implementation,test]: matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
+    TEXT[!MUST,implementation,test]: no `ScopeClose` occurs with no open to match,
+    TEXT[!MUST,implementation,test]: and no `ScopeOpen` is left unmatched at end of file.
+    TEXT[!MUST,implementation,test]: When the stream is unbalanced,
+    TEXT[!MUST,implementation,test]: the coverage model MUST NOT score annotations against the collapsed scope tree;
+    TEXT[!MUST,implementation,test]: it MUST surface the file as a defeated classification and escalate
+    TEXT[!MUST,implementation,test]: (see [Classifier Selection and Dispatch](#dispatch)).
 
   SECTION: [5. Correctness Properties](#correctness-properties)
     TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus.
@@ -104,16 +104,16 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[implication]: then `target.line_number > annotation.end_line`.
 
   SECTION: [Property 11: Scope-Stream Balance Detection](#property-11-scope-stream-balance-detection)
-    TEXT[!MUST,implementation]: The implementation MUST prove that the balance detector returns balanced if and
-    TEXT[!MUST,implementation]: only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
-    TEXT[!MUST,implementation]: no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
-    TEXT[!MUST,implementation]: end of file.
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that the balance detector returns balanced if and
+    TEXT[!MUST,implementation,test]: only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+    TEXT[!MUST,implementation,test]: no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+    TEXT[!MUST,implementation,test]: end of file.
     TEXT[implementation,test]: A stream with no scope delimiters is balanced, and its whole-file scope is
     TEXT[implementation,test]: legitimate.
 
   SECTION: [7.4 Properties](#degraded-properties)
-    TEXT[!MUST]: These properties MUST be proven with Verus for the degraded path,
-    TEXT[!MUST]: alongside the Section 5 properties for the classified path.
+    TEXT[!MUST,implication]: These properties MUST be proven with Verus for the degraded path,
+    TEXT[!MUST,implication]: alongside the Section 5 properties for the classified path.
 
   SECTION: [Property D1: Direct Observation](#property-d1-direct-observation)
     TEXT[!MUST,implication]: The implementation MUST prove that the degraded status is a direct observation
@@ -137,49 +137,48 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MUST,implication]: `is_annotation_executed` returns, namely `Executed`.
 
   SECTION: [8.2 Trust Taxonomy and Response](#trust-taxonomy)
-    TEXT[!MUST]: duvet MUST NOT silently substitute the coarse model or score against
-    TEXT[!MUST]:   the collapsed scope tree; it MUST escalate, reporting each located issue.
+    TEXT[!MUST,implementation,test]: duvet MUST NOT silently substitute the coarse model or score against
+    TEXT[!MUST,implementation,test]:   the collapsed scope tree; it MUST escalate, reporting each located issue.
 
   SECTION: [8.3 Escalation](#escalation)
-    TEXT[!MUST]: When `report` consumes coverage, a defeated commitment MUST be a hard
-    TEXT[!MUST]: error there, because `report` is the authoritative artifact.
+    TEXT[!MUST,exception]: When `report` consumes coverage, a defeated commitment MUST be a hard
+    TEXT[!MUST,exception]: error there, because `report` is the authoritative artifact.
 
 SPECIFICATION: [Producer core: verified-model properties](design/witness/producer-core-spec.md)
   SECTION: [Producer core: verified-model properties](#producer-core-verified-model-properties)
-    TEXT[!MUST]: [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
-    TEXT[!MUST]: define what the Verus producer must do; this document states the
-    TEXT[!MUST]: properties that MUST be proven with Verus, as a new phase of the
-    TEXT[!MUST]: verified coverage model, over a verified model of the parsed
-    TEXT[!MUST]: obligation graph.
-    TEXT[!MUST]: The Verus proof files MUST carry duvet annotations citing the
-    TEXT[!MUST]: anchors in this document.
+    TEXT[!MUST,implication]: [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
+    TEXT[!MUST,implication]: define what the Verus producer must do; this document states the
+    TEXT[!MUST,implication]: properties that MUST be proven with Verus, as a new phase of the
+    TEXT[!MUST,implication]: verified coverage model, over a verified model of the parsed
+    TEXT[!MUST,implication]: obligation graph.
+    TEXT[!MUST,implication]: The Verus proof files MUST carry duvet annotations citing the
+    TEXT[!MUST,implication]: anchors in this document.
 
   SECTION: [1. Model](#model)
-    TEXT[!MUST]: -
-    TEXT[!MUST,implementation]: **Edges** are the symbolic references that resolve to a block in
-    TEXT[!MUST,implementation]:   the artifact; references to names with no block are not part of
-    TEXT[!MUST,implementation]:   the obligation graph ([spec §5.4](spec.md#closure)) and MUST NOT
-    TEXT[!MUST,implementation]:   appear as model edges.
+    TEXT[!MUST,implementation,test]: - **Edges** are the symbolic references that resolve to a block in
+    TEXT[!MUST,implementation,test]:   the artifact; references to names with no block are not part of
+    TEXT[!MUST,implementation,test]:   the obligation graph ([spec §5.4](spec.md#closure)) and MUST NOT
+    TEXT[!MUST,implementation,test]:   appear as model edges.
 
   SECTION: [Property P1: Closure Fixpoint](#property-p1-closure-fixpoint)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that the computed closure of a
     TEXT[!MUST,implementation,test]: discharge unit's root is exactly the downward-reachable set of the
     TEXT[!MUST,implementation,test]: obligation graph — the least fixpoint of the edge relation
     TEXT[!MUST,implementation,test]: containing the root:
-    TEXT[implementation]: where `reachable` is the reflexive-transitive reach along reference
-    TEXT[implementation]: edges.
+    TEXT[implementation,test]: where `reachable` is the reflexive-transitive reach along reference
+    TEXT[implementation,test]: edges.
 
   SECTION: [Property P2: Most-Specific-Wins Rooting](#property-p2-most-specific-wins)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that the units selected for a
     TEXT[!MUST,implementation,test]: position are exactly the minimal-extent containing units at the
     TEXT[!MUST,implementation,test]: finest populated specificity level
-    TEXT[!MUST]: ([spec §5.3](spec.md#discharge-unit),
-    TEXT[!MUST]: decisions.md [Decision 19](decisions.md#decision-19)):
-    TEXT[!MUST,implementation]: Consequences the proof MUST deliver: every selected unit contains
-    TEXT[!MUST,implementation]: the position; no containing unit at a strictly finer specificity
-    TEXT[!MUST,implementation]: level exists when an extent-level unit is selected; and ties at the
-    TEXT[!MUST,implementation]: winning level and minimal extent are all selected — never chosen
-    TEXT[!MUST,implementation]: among (decisions.md, [Decision 12](decisions.md#decision-12)).
+    TEXT[!MUST,implementation,test]: ([spec §5.3](spec.md#discharge-unit),
+    TEXT[!MUST,implementation,test]: decisions.md [Decision 19](decisions.md#decision-19)):
+    TEXT[!MUST,implementation,test]: Consequences the proof MUST deliver: every selected unit contains
+    TEXT[!MUST,implementation,test]: the position; no containing unit at a strictly finer specificity
+    TEXT[!MUST,implementation,test]: level exists when an extent-level unit is selected; and ties at the
+    TEXT[!MUST,implementation,test]: winning level and minimal extent are all selected — never chosen
+    TEXT[!MUST,implementation,test]: among (decisions.md, [Decision 12](decisions.md#decision-12)).
 
   SECTION: [Property P3: Witness Assembly](#property-p3-witness-assembly)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that a witness's line set equals the
@@ -190,21 +189,25 @@ SPECIFICATION: [Producer core: verified-model properties](design/witness/produce
     TEXT[!MUST,implementation,test]: not a truncation (decisions.md,
     TEXT[!MUST,implementation,test]: [Decision 7](decisions.md#decision-7)'s consulted semantics;
     TEXT[!MUST,implementation,test]: [spec §5.4](spec.md#closure)'s unfiltered traversal):
-    TEXT[!MUST,implementation]: Edge traversal MUST NOT be filtered — `closure_reached` takes no
-    TEXT[!MUST,implementation]: project view, so the reached set is project-independent by the
-    TEXT[!MUST,implementation]: model's construction, and only the span projection is restricted.
+    TEXT[!MUST,implementation,test]: Edge traversal MUST NOT be filtered — `closure_reached` takes no
+    TEXT[!MUST,implementation,test]: project view, so the reached set is project-independent by the
+    TEXT[!MUST,implementation,test]: model's construction, and only the span projection is restricted.
 
 SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
   SECTION: [Duvet Witness: Formal Specification](#duvet-witness-formal-specification)
-    TEXT[!MUST]: The requirement keywords MUST, MUST NOT, SHOULD, and MAY are to be
-    TEXT[!MUST]: interpreted as described in RFC 2119.
+    TEXT[!MUST,implication]: The requirement keywords MUST, MUST NOT, SHOULD, and MAY are to be
+    TEXT[!MUST,implication]: interpreted as described in RFC 2119.
 
   SECTION: [1.1 Test and implementation annotations](#annotations)
-    TEXT[!MUST]: Placement note (degraded files): in a file with no language
-    TEXT[!MUST]: classifier, resolution cannot recognize comment lines as skippable —
-    TEXT[!MUST]: only blank lines and annotation lines are skipped — so an annotation
-    TEXT[!MUST]: (stacked or not) MUST be the last comment block above the code it
-    TEXT[!MUST]: targets; an intervening ordinary comment (e.g.
+    TEXT[!MUST,implementation,test]: Placement note (degraded files): in a file with no language
+    TEXT[!MUST,implementation,test]: classifier, resolution cannot recognize comment lines as skippable —
+    TEXT[!MUST,implementation,test]: only blank lines and annotation lines are skipped — so an annotation
+    TEXT[!MUST,implementation,test]: (stacked or not) MUST be the last comment block above the code it
+    TEXT[!MUST,implementation,test]: targets; an intervening ordinary comment (e.g.
+    TEXT[implementation,test]:  a doc comment between
+    TEXT[implementation,test]: the annotation and a proof fn header) becomes the resolved target
+    TEXT[implementation,test]: itself, which a prover producer sees as an unelaborated position
+    TEXT[implementation,test]: ([Property W6](#property-w6-unwitnessed-test-annotations)).
 
   SECTION: [1.2 Witness](#witness)
     TEXT[implementation,test]: A witness is the record of **one act of checking**:
@@ -213,11 +216,11 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[implementation,test]:     files:      Map<FilePath, CoverageReport>,
     TEXT[implementation,test]:                                    -- per file: line → CoverageStatus,
     TEXT[implementation,test]:                                    -- the existing verified type
-    TEXT[!MUST]: A witness's `files` maps MUST be **closed**:
-    TEXT[!MUST]: they contain every line the act touched,
-    TEXT[!MUST]: under the producer's reachability relation
-    TEXT[!MUST]: (execution for runtime producers,
-    TEXT[!MUST]: obligation-graph closure for prover producers).
+    TEXT[!MUST,implementation,test]: A witness's `files` maps MUST be **closed**:
+    TEXT[!MUST,implementation,test]: they contain every line the act touched,
+    TEXT[!MUST,implementation,test]: under the producer's reachability relation
+    TEXT[!MUST,implementation,test]: (execution for runtime producers,
+    TEXT[!MUST,implementation,test]: obligation-graph closure for prover producers).
 
   SECTION: [1.3 Provenance](#provenance)
     TEXT[implementation,test]:     discharge_unit: Option<String>,
@@ -226,11 +229,11 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[implementation,test]: `strength` records what kind of claim the witness supports:
     TEXT[implementation,test]: `Executed` (a runtime act ran these lines) or
     TEXT[implementation,test]: `Consulted` (a prover's elaboration reached these lines).
-    TEXT[!MUST]: Verdict output MUST report every bound witness's label and
-    TEXT[!MUST]: strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
-    TEXT[!MUST]: each claim
-    TEXT[!MUST]: (decisions.md, [Decision 7](decisions.md#decision-7) and
-    TEXT[!MUST]: [Decision 14](decisions.md#decision-14)).
+    TEXT[!MUST,implementation,test]: Verdict output MUST report every bound witness's label and
+    TEXT[!MUST,implementation,test]: strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
+    TEXT[!MUST,implementation,test]: each claim
+    TEXT[!MUST,implementation,test]: (decisions.md, [Decision 7](decisions.md#decision-7) and
+    TEXT[!MUST,implementation,test]: [Decision 14](decisions.md#decision-14)).
 
   SECTION: [1.4 Executed](#executed)
     TEXT[implementation,test]: For an annotation X and witness w:
@@ -317,28 +320,28 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: universe.
 
   SECTION: [2. Engine properties](#engine-properties)
-    TEXT[!MUST]: These properties MUST be proven with Verus,
-    TEXT[!MUST]: as a new phase of the verified coverage model
-    TEXT[!MUST]: (the quantifier layer over the existing per-annotation cells).
-    TEXT[!MUST]: The Verus proof files MUST carry duvet annotations citing the
-    TEXT[!MUST]: anchors in this section.
+    TEXT[!MUST,implication]: These properties MUST be proven with Verus,
+    TEXT[!MUST,implication]: as a new phase of the verified coverage model
+    TEXT[!MUST,implication]: (the quantifier layer over the existing per-annotation cells).
+    TEXT[!MUST,implication]: The Verus proof files MUST carry duvet annotations citing the
+    TEXT[!MUST,implication]: anchors in this section.
 
   SECTION: [Property W1: Universal Same-Witness Discharge](#property-w1-same-witness-discharge)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that it reports a pair (T, I)
     TEXT[!MUST,implementation,test]: discharged if and only if at least one delivered witness binds T
     TEXT[!MUST,implementation,test]: and every delivered witness that binds T executed I:
-    TEXT[!MUST]: Evidence assembled from two different witnesses
-    TEXT[!MUST]: (T bound by one, I executed by another) MUST NOT discharge;
-    TEXT[!MUST]: a bound witness that did not execute I MUST fail the pair
-    TEXT[!MUST]: (decisions.md, [Decision 14](decisions.md#decision-14)).
+    TEXT[!MUST,implementation,test]: Evidence assembled from two different witnesses
+    TEXT[!MUST,implementation,test]: (T bound by one, I executed by another) MUST NOT discharge;
+    TEXT[!MUST,implementation,test]: a bound witness that did not execute I MUST fail the pair
+    TEXT[!MUST,implementation,test]: (decisions.md, [Decision 14](decisions.md#decision-14)).
 
   SECTION: [Property W2: Test Execution](#property-w2-test-execution)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that a test annotation is reported
     TEXT[!MUST,implementation,test]: executed if and only if some delivered witness binds it:
-    TEXT[test]: ```
+    TEXT[implementation,test]: ```
     TEXT[implementation,test]: report_test_executed(T, witnesses) = true
     TEXT[implementation,test]:     ⟺  ∃ w ∈ witnesses : binds(T, w)
-    TEXT[test]: ```
+    TEXT[implementation,test]: ```
 
   SECTION: [Property W3: Global Execution](#property-w3-global-execution)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that an implementation annotation is
@@ -348,10 +351,10 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[test]: report_ever_executed(I, witnesses) = true
     TEXT[test]:     ⟺  ∃ w ∈ witnesses : executed(I, w)
     TEXT[test]: ```
-    TEXT[!MUST,test]: This is a global property requiring no correlation;
-    TEXT[!MUST,test]: it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
-    TEXT[!MUST,test]: and MUST NOT be used to
-    TEXT[!MUST,test]: discharge pairs.
+    TEXT[!MUST,implementation,test]: This is a global property requiring no correlation;
+    TEXT[!MUST,implementation,test]: it is deliberately weaker than [W1](#property-w1-same-witness-discharge)
+    TEXT[!MUST,implementation,test]: and MUST NOT be used to
+    TEXT[!MUST,implementation,test]: discharge pairs.
 
   SECTION: [Property W4: Failure Monotonicity](#property-w4-monotonicity)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that adding a witness never flips a
@@ -362,10 +365,10 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[test]:         ⟹ report_discharged(T, I, witnesses)
     TEXT[test]:            ∨ ¬∃ w ∈ witnesses : binds(T, w))
     TEXT[test]: ```
-    TEXT[!MAY,test]: Adding a witness MAY newly fail a previously-discharged pair —
-    TEXT[!MAY,test]: that is deliberate: the added witness is a claim T now makes, and
-    TEXT[!MAY,test]: if it does not reach I it is the vacuity being caught
-    TEXT[!MAY,test]: (decisions.md, [Decision 14](decisions.md#decision-14)).
+    TEXT[!MAY,implementation,test]: Adding a witness MAY newly fail a previously-discharged pair —
+    TEXT[!MAY,implementation,test]: that is deliberate: the added witness is a claim T now makes, and
+    TEXT[!MAY,implementation,test]: if it does not reach I it is the vacuity being caught
+    TEXT[!MAY,implementation,test]: (decisions.md, [Decision 14](decisions.md#decision-14)).
     TEXT[test]: The only way adding witnesses turns a non-discharged pair into a
     TEXT[test]: discharged one is by witnessing a previously *unwitnessed* test
     TEXT[test]: (the `witnesses_for(T) = ∅` case), never by outvoting a bound
@@ -380,13 +383,13 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: delivered witness binds it —
     TEXT[!MUST,implementation,test]: across ALL configured producers —
     TEXT[!MUST,implementation,test]: as a failure, never silently:
-    TEXT[test]: ```
+    TEXT[implementation,test]: ```
     TEXT[implementation,test]: ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
-    TEXT[test]: ```
-    TEXT[!MAY]: Consequence (intended): running a subset of producers MAY fail a
-    TEXT[!MAY]: test annotation that the full set passes;
-    TEXT[!MAY]: that behavior is correct
-    TEXT[!MAY]: (decisions.md, [Decision 8](decisions.md#decision-8)).
+    TEXT[implementation,test]: ```
+    TEXT[!MAY,implementation,test]: Consequence (intended): running a subset of producers MAY fail a
+    TEXT[!MAY,implementation,test]: test annotation that the full set passes;
+    TEXT[!MAY,implementation,test]: that behavior is correct
+    TEXT[!MAY,implementation,test]: (decisions.md, [Decision 8](decisions.md#decision-8)).
 
   SECTION: [Property W7: Positional Binding is Map-Independent](#property-w7-positional-binding-map-independence)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that binding under `ByRootSpan` does
@@ -450,19 +453,19 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[implementation,test]:   so duvet does not attempt detection
 
   SECTION: [4.3 Producer testing](#obligation-testing)
-    TEXT[!MUST]: Each producer MUST be unit-tested against golden artifacts
-    TEXT[!MUST]: (a real report file; a real prover log),
-    TEXT[!MUST]: since producers are unverified glue at the trust boundary.
+    TEXT[!MUST,implementation,test]: Each producer MUST be unit-tested against golden artifacts
+    TEXT[!MUST,implementation,test]: (a real report file; a real prover log),
+    TEXT[!MUST,implementation,test]: since producers are unverified glue at the trust boundary.
 
   SECTION: [4.4 Engine glue](#engine-glue)
     TEXT[implementation,test]: The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
     TEXT[implementation,test]: unverified engine glue. Each glue component is named, bounded,
     TEXT[implementation,test]: and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
-    TEXT[!MUST]: - **G1 (file identity).** The engine adapter MUST map file paths
-    TEXT[!MUST]:   to the model's file identities injectively and consistently
-    TEXT[!MUST]:   across all annotations and witnesses in one run, and MUST
-    TEXT[!MUST]:   deliver each witness's per-file maps free of duplicate
-    TEXT[!MUST]:   identities.
+    TEXT[!MUST,implementation,test]: - **G1 (file identity).** The engine adapter MUST map file paths
+    TEXT[!MUST,implementation,test]:   to the model's file identities injectively and consistently
+    TEXT[!MUST,implementation,test]:   across all annotations and witnesses in one run, and MUST
+    TEXT[!MUST,implementation,test]:   deliver each witness's per-file maps free of duplicate
+    TEXT[!MUST,implementation,test]:   identities.
     TEXT[!MUST,implementation,test]: - **G2 (call obligation).** The engine MUST compute every pair,
     TEXT[!MUST,implementation,test]:   test, and global verdict (Properties
     TEXT[!MUST,implementation,test]:   [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
@@ -470,11 +473,11 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]:   verified layer's functions, and MUST derive per-witness
     TEXT[!MUST,implementation,test]:   failure diagnostics ([§3](#verdict-output)) from the same verified cells;
     TEXT[!MUST,implementation,test]:   no parallel engine-side verdict computation may exist.
-    TEXT[!MUST]: - **G3 (mode routing).** The adapter MUST assign each
-    TEXT[!MUST]:   annotation's file the scoring mode its classification actually
-    TEXT[!MUST]:   selected — classified, degraded, or the trust-boundary refusal
-    TEXT[!MUST]:   that binds nothing and executes nothing
-    TEXT[!MUST]:   ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
+    TEXT[!MUST,implementation,test]: - **G3 (mode routing).** The adapter MUST assign each
+    TEXT[!MUST,implementation,test]:   annotation's file the scoring mode its classification actually
+    TEXT[!MUST,implementation,test]:   selected — classified, degraded, or the trust-boundary refusal
+    TEXT[!MUST,implementation,test]:   that binds nothing and executes nothing
+    TEXT[!MUST,implementation,test]:   ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
     TEXT[!MUST,implementation,test]: The adapter MUST establish
     TEXT[!MUST,implementation,test]:   the verified functions' preconditions at the boundary —
     TEXT[!MUST,implementation,test]:   filter or degrade before calling, never assume.
@@ -491,19 +494,19 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]:   engine-side.
 
   SECTION: [5. Prover producers](#prover-producers)
-    TEXT[!MUST]: Every prover producer owes its artifact an investigation before
-    TEXT[!MUST]: it ships: the discharge-unit and closure granularity the artifact
-    TEXT[!MUST]: demonstrably records — demonstrated by inspection of real
-    TEXT[!MUST]: artifacts, not assumed — MUST be established and consumed as that
-    TEXT[!MUST]: producer's shipped floor
-    TEXT[!MUST]: (decisions.md, [Decision 17](decisions.md#decision-17)).
+    TEXT[!MUST,implementation,test]: Every prover producer owes its artifact an investigation before
+    TEXT[!MUST,implementation,test]: it ships: the discharge-unit and closure granularity the artifact
+    TEXT[!MUST,implementation,test]: demonstrably records — demonstrated by inspection of real
+    TEXT[!MUST,implementation,test]: artifacts, not assumed — MUST be established and consumed as that
+    TEXT[!MUST,implementation,test]: producer's shipped floor
+    TEXT[!MUST,implementation,test]: (decisions.md, [Decision 17](decisions.md#decision-17)).
 
   SECTION: [5.1 Witnessable annotations](#witnessable-annotations)
-    TEXT[!MUST]: Prover producers MUST construct witnesses for `type=test`
-    TEXT[!MUST]: annotations only
-    TEXT[!MUST]: (decisions.md, [Decision 6](decisions.md#decision-6);
-    TEXT[!MUST]: self-discharging implication annotations are a deferred separate
-    TEXT[!MUST]: feature).
+    TEXT[!MUST,implementation,test]: Prover producers MUST construct witnesses for `type=test`
+    TEXT[!MUST,implementation,test]: annotations only
+    TEXT[!MUST,implementation,test]: (decisions.md, [Decision 6](decisions.md#decision-6);
+    TEXT[!MUST,implementation,test]: self-discharging implication annotations are a deferred separate
+    TEXT[!MUST,implementation,test]: feature).
 
   SECTION: [5.2 Construction from annotations](#two-pass-construction)
     TEXT[implementation,test]: Prover witnesses are constructed, not found:
@@ -567,8 +570,8 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: depends on this).
     TEXT[!MUST,implementation,test]: Producers MUST carry a unit test asserting reflexivity for every
     TEXT[!MUST,implementation,test]: constructed witness.
-    TEXT[test]: Only reachable nodes contribute;
-    TEXT[test]: nothing outside the reachable set may be included.
+    TEXT[implementation,test]: Only reachable nodes contribute;
+    TEXT[implementation,test]: nothing outside the reachable set may be included.
     TEXT[!MUST,implementation,test]: The closure MUST be computed at the finest granularity the
     TEXT[!MUST,implementation,test]: artifact demonstrably supports
     TEXT[!MUST,implementation,test]: (decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the

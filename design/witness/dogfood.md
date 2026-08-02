@@ -31,20 +31,37 @@ cargo run -p duvet -- query -c coverage --coverage-source verus-sst=/tmp/sst \
 
 Expected shape of the results:
 
-- The **same-crate** witness-property pairs (proof fn ↔
-  `duvet-coverage` implementation) DISCHARGE: their bound
-  witnesses carry coverage for the in-crate implementation
-  annotations, and the verified `is_executed_by` cell confirms it.
-- The **cross-crate** implementation annotations (in
-  `duvet/src/query/{engine,result,witness}.rs`) covering the same
-  spec text FAIL to discharge: proof witnesses from
-  `duvet-coverage`'s SST logs structurally cannot reach
-  `duvet`-crate code. Per [Decision 8](decisions.md#decision-8)
-  (subset of producers), ALL covering implementations must be
-  witnessed — so the pairs fail, and that is **correct behavior**.
-- The runtime `type=test` annotations (on `#[test]` fns) become
-  UNWITNESSED in a proof-only run — also Decision 8, on purpose.
-  Only the sliced run is gated today.
+- Every **proof-side** witness-property pair (proof fn ↔ verified-crate
+  implementation) DISCHARGES: the bound witnesses carry coverage for
+  the in-crate implementation annotations, and the verified
+  `is_executed_by` cell confirms it. Spec text quoted by a witnessed
+  proof test is covered ONLY by implementation annotations inside the
+  witness's line set — engine-side copies of that text were removed
+  (they return with the LCOV producer) or narrowed to the clauses the
+  engine genuinely owns.
+- The runtime `type=test` annotations (on `#[test]` fns) are
+  UNWITNESSED in a proof-only run — Decision 8, on purpose. This is
+  the ENTIRE residual failure set of the unsliced run (see the
+  staging section below); zero failed correlations and zero
+  missing-implementation findings remain.
+
+## Placement rules the closure work established {#placement-rules}
+
+Hard-won by root-causing the 2026-08-02 failed-correlation set:
+
+- **No interleaved prose inside annotation stacks.** These files have
+  no language classifier, so degraded resolution skips only blank and
+  annotation lines; an ordinary `//` comment between stacked
+  annotation blocks becomes the upper blocks' resolved target —
+  unwitnessable. Prose goes ABOVE the stack (spec §1.1's placement
+  note, itself now cited from `target_resolution.rs`).
+- **Attributes go above the stack too.** A `#[allow(...)]` between the
+  stack and the fn header displaces the target the same way.
+- **Rule definitions live on consulted lines.** Enum-variant
+  declarations are not in any witness's line set; the ClaimRule rule
+  quotes moved to the `binds` spec fn's match arms.
+- **One implementation owner per proof-tested spec text**, at the site
+  whose `ensures` proves it; engine adapters keep a pointer comment.
 
 ## Cross-crate pairs: implementation-true, witness-pending {#cross-crate-posture}
 
@@ -60,30 +77,15 @@ that is false for this code. Reclassifying an obligation because
 its pair can't discharge yet would be deciding a property is true
 instead of proving it.
 
-### Why W2/W3/W6 fail and W1 passes
+All seven engine-side W2/W3/W6 annotations are now removed (the
+first five in the correlation-floor commit; the last two — W2 on
+`bound_witnesses`, W6 on the engine's unwitnessed branch — in the
+2026-08-02 closure, when fresh SST logs showed them failing the
+sliced gate). The verified crate's implementation annotations own
+the property text, formulas included. The LCOV producer re-adds
+the engine annotations and expands the floor.
 
-The correlation engine checks ALL covering implementations for a
-test annotation's quoted spec text. When any covering implementation
-is not executed by the bound witnesses, the correlation fails.
-
-- **W2, W3, W6** each have covering implementation annotations in
-  `duvet/src/query/engine.rs`, `duvet/src/query/result.rs`, and/or
-  `duvet/src/query/witness.rs`. Proof witnesses have no coverage
-  data for those `duvet`-crate files, so those impls evaluate
-  `executed=false` — failing the correlation despite the same-crate
-  impl succeeding.
-- **W1** (`property-w1-same-witness-discharge`) has no engine-side
-  annotation quoting its text — its only covering implementation
-  is entirely within `duvet-coverage/src/witness.rs`. No
-  cross-crate impl enters the covering set, so discharge succeeds.
-
-The same-crate discharge mechanism works correctly: the proof
-witness carries coverage for the in-crate implementation target
-lines (confirmed via oracle: `witness[10] executed=true
-has_file_id=true`). The failure is entirely due to cross-crate
-implementations present in the correlation's covering set.
-
-## CI wiring: expected-failure contract {#ci-wiring}
+## CI wiring: correlation floor {#ci-wiring}
 
 The sliced witness-query gate runs in CI (`.github/workflows/ci.yml`):
 
@@ -92,39 +94,46 @@ The sliced witness-query gate runs in CI (`.github/workflows/ci.yml`):
   `verus-sst-logs` artifact.
 - The `dogfood` job (`needs: verify`) downloads the artifact and,
   after `duvet report --ci`, runs the **Witness query dogfood**
-  step with the expected-failure contract:
-
-### The contract
-
-The step asserts:
-
-1. **Same-crate pairs discharge:** `Successful correlations ≥ 8`
-   (the proof-fn ↔ in-crate-impl pairs all pass).
-2. **Failed set matches expected-failures exactly:** the count of
-   `Failed correlations` equals the number of LCOV-pending
-   *sections*, and every location listed in
-   [`dogfood-expected-failures.txt`](dogfood-expected-failures.txt)
-   appears in the output as "Not executed implementation".
-3. A **new failure** (unknown to the expected-failures file) fails
-   CI.
-4. An **unexpected pass** (a listed pair no longer appearing as
-   failed) also fails CI — the file cannot rot silently.
-
-The mechanism is intentionally simple: count-and-grep over the
-query output. First wiring: wire it, watch it, then tighten.
+  step: the full W1–W7 / P1–P4 slice must discharge with plain
+  exit 0 — no thresholds, no expected-failure list. Sections in
+  the slice can never backslide.
 
 ### Exit criterion
 
 From [decisions.md Follow-ups](decisions.md#follow-ups): the LCOV
 mixed-coverage producer supplies runtime witnesses that execute the
-engine code. When all cross-crate pairs discharge:
+engine code. When the runtime annotations are witnessed, the
+full-run (unsliced) gate is enabled — the mixed run MUST NOT use an
+aggregate suite report (A2 violation).
 
-1. `dogfood-expected-failures.txt` is deleted (empty list = fully
-   green).
-2. The CI step simplifies back to exit-code gating (exit 0 = all
-   pairs discharged).
-3. The full-run (unsliced) gate is enabled — the mixed run MUST
-   NOT use an aggregate suite report (A2 violation).
+## Staging: the unsliced proof-only residual {#staging}
+
+Measured 2026-08-02 (post gate1 closure, fresh SST logs, unsliced
+`duvet query -c coverage`): **0 failed correlations, 0 tests with
+no implementation, 32 successful correlations, 75 unwitnessed.**
+
+Every one of the 75 unwitnessed test annotations resolves to a
+runtime `#[test]`/`#[tokio::test]` construct (audited: no comment,
+attribute, or declaration targets remain). They are the
+LCOV-pending set — unwitnessed in a proof-only run by design
+(Decision 8) — and they are Gate 3's exit criterion: when the LCOV
+producer lands, this table must go to zero.
+
+| File | Unwitnessed (runtime, LCOV-pending) |
+|---|---|
+| duvet/src/query/parsers/verus_sst/tests.rs | 21 |
+| duvet/src/query/witness.rs | 15 |
+| duvet/src/query/producers.rs | 10 |
+| duvet/src/query/result.rs | 6 |
+| duvet-coverage/src/witness.rs (tests mod) | 6 |
+| duvet-coverage/src/proofs.rs (tests) | 6 |
+| duvet-coverage/src/scopes.rs (tests) | 3 |
+| duvet/src/query/parsers/verus_sst/closure.rs | 2 |
+| duvet-coverage/src/execution_propagation.rs (tests) | 2 |
+| duvet-coverage/src/classify_postpass.rs (tests) | 2 |
+| duvet/src/query/engine.rs | 1 |
+| duvet-coverage/src/target_resolution.rs (tests) | 1 |
+| **Total** | **75** |
 
 ## What is still missing
 
