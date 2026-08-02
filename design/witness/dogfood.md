@@ -40,10 +40,11 @@ Expected shape of the results:
   (they return with the LCOV producer) or narrowed to the clauses the
   engine genuinely owns.
 - The runtime `type=test` annotations (on `#[test]` fns) are
-  UNWITNESSED in a proof-only run — Decision 8, on purpose. This is
-  the ENTIRE residual failure set of the unsliced run (see the
-  staging section below); zero failed correlations and zero
-  missing-implementation findings remain.
+  UNWITNESSED in a proof-only run — Decision 8, on purpose. Together
+  with the CI-discharged meta-obligation tests in ci.yml (staging
+  section), this is the ENTIRE residual set of the unsliced run;
+  zero failed correlations and zero missing-implementation findings
+  remain.
 
 ## Placement rules the closure work established {#placement-rules}
 
@@ -77,6 +78,14 @@ that is false for this code. Reclassifying an obligation because
 its pair can't discharge yet would be deciding a property is true
 instead of proving it.
 
+The converse also holds: the meta-obligation implications ("MUST
+be proven with Verus", "proof files MUST carry annotations") were
+reclassified as implementation+test once their enforcing sites —
+the proof files, the `[[source]]` scan config, and the CI verify
+and snapshot steps — became scannable (per-source
+`comment-style`). `type=implication` is reserved for text with no
+enforcing site at all.
+
 All seven engine-side W2/W3/W6 annotations are now removed (the
 first five in the correlation-floor commit; the last two — W2 on
 `bound_witnesses`, W6 on the engine's unwitnessed branch — in the
@@ -108,16 +117,26 @@ aggregate suite report (A2 violation).
 
 ## Staging: the unsliced proof-only residual {#staging}
 
-Measured 2026-08-02 (post gate1 closure, fresh SST logs, unsliced
-`duvet query -c coverage`): **0 failed correlations, 0 tests with
-no implementation, 32 successful correlations, 75 unwitnessed.**
+Measured 2026-08-02 (post gate1 closure and the meta-obligation
+flips, fresh SST logs, unsliced `duvet query -c coverage`):
+**0 failed correlations, 0 tests with no implementation,
+32 successful correlations, 83 unwitnessed.**
 
-Every one of the 75 unwitnessed test annotations resolves to a
-runtime `#[test]`/`#[tokio::test]` construct (audited: no comment,
+Of the 83 unwitnessed test annotations, 75 resolve to a runtime
+`#[test]`/`#[tokio::test]` construct (audited: no comment,
 attribute, or declaration targets remain). They are the
 LCOV-pending set — unwitnessed in a proof-only run by design
 (Decision 8) — and they are Gate 3's exit criterion: when the LCOV
-producer lands, this table must go to zero.
+producer lands, the runtime rows of this table must go to zero.
+
+The remaining 8 live in `.github/workflows/ci.yml`: test sides of
+the repo/CI meta-obligations ("MUST be proven with Verus" ×3,
+"proof files MUST carry annotations" ×2 — three of the quotes are
+tested by both the verify step and the snapshot step, hence 8
+annotations for 5 quote pairs). They are discharged by the CI run
+itself, which duvet's coverage machinery cannot consume (no
+CI-status producer; upstream follow-up). They persist in this
+table past Gate 3 until duvet can witness CI-discharged tests.
 
 | File | Unwitnessed (runtime, LCOV-pending) |
 |---|---|
@@ -133,7 +152,9 @@ producer lands, this table must go to zero.
 | duvet-coverage/src/classify_postpass.rs (tests) | 2 |
 | duvet/src/query/engine.rs | 1 |
 | duvet-coverage/src/target_resolution.rs (tests) | 1 |
-| **Total** | **75** |
+| **Total (runtime, LCOV-pending)** | **75** |
+| .github/workflows/ci.yml (CI-discharged, persists past Gate 3) | 8 |
+| **Total unwitnessed** | **83** |
 
 ## What is still missing
 
