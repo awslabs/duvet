@@ -12,6 +12,14 @@ on:
 
 name: ci
 
+# Least-privilege GITHUB_TOKEN for every job: nothing in this workflow
+# writes to the repository. `actions: read` is required by
+# actions/download-artifact to fetch the verus-sst-logs artifact
+# through the API in the dogfood job.
+permissions:
+  actions: read
+  contents: read
+
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
