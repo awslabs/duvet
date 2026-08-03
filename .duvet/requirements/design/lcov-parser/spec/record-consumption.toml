@@ -1,0 +1,40 @@
+target = "design/lcov-parser/spec.md#record-consumption"
+
+# 2. Record Consumption
+#
+# The parser MUST consume `DA` records.
+# 
+# The parser MUST ignore records of the following types:
+# `TN`, `FN`, `FNDA`, `FNF`, `FNH`, `BRDA`, `BRF`, `BRH`, `LF`, `LH`.
+# 
+# The parser MUST ignore records of types it does not recognize.
+# 
+# Rationale: `DA` is the only record type that carries per-line execution
+# counts, which is the only granularity the coverage model consumes. Function
+# (`FN*`) and branch (`BRDA`, `BR*`) records carry granularities the model does
+# not use; summary records (`LF`, `LH`) are derivable and untrusted. Unknown
+# record types are ignored rather than rejected because the LCOV ecosystem
+# grows record types over time (e.g. `VER`, `FNL`/`FNA` in recent geninfo) and
+# a strict parser would break against exactly the producer variance this parser
+# exists to absorb (see
+# [decisions.md, Decision 4](decisions.md#decision-4)).
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST consume `DA` records.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST ignore records of the following types:
+`TN`, `FN`, `FNDA`, `FNF`, `FNH`, `BRDA`, `BRF`, `BRH`, `LF`, `LH`.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST ignore records of types it does not recognize.
+'''
+

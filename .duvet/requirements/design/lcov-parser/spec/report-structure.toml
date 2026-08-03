@@ -1,0 +1,62 @@
+target = "design/lcov-parser/spec.md#report-structure"
+
+# 4. Report Structure
+#
+# An `SF:` record opens a source-file block; `end_of_record` closes it.
+# 
+# The parser MUST reject an `SF:` record that appears while
+# a source-file block is already open.
+# 
+# The parser MUST reject a `DA` record that appears outside
+# a source-file block.
+# 
+# The parser MUST reject an `end_of_record` record that
+# appears outside a source-file block.
+# 
+# The parser MUST accept end-of-input while a source-file
+# block is open, treating it as an implicit `end_of_record`.
+# 
+# The parser MUST ignore blank lines.
+# 
+# The parser MUST accept both LF and CRLF line endings.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject an `SF:` record that appears while
+a source-file block is already open.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject a `DA` record that appears outside
+a source-file block.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject an `end_of_record` record that
+appears outside a source-file block.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST accept end-of-input while a source-file
+block is open, treating it as an implicit `end_of_record`.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST ignore blank lines.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST accept both LF and CRLF line endings.
+'''
+

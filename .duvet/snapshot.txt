@@ -1,3 +1,73 @@
+SPECIFICATION: [Duvet LCOV Coverage Parser: Specification](design/lcov-parser/spec.md)
+  SECTION: [2. Record Consumption](#record-consumption)
+    TEXT[!MUST,implementation]: The parser MUST consume `DA` records.
+    TEXT[!MUST,implementation,test]: The parser MUST ignore records of the following types:
+    TEXT[!MUST,implementation,test]: `TN`, `FN`, `FNDA`, `FNF`, `FNH`, `BRDA`, `BRF`, `BRH`, `LF`, `LH`.
+    TEXT[!MUST,implementation,test]: The parser MUST ignore records of types it does not recognize.
+
+  SECTION: [3. DA Record Syntax](#da-record-syntax)
+    TEXT[!MUST,implementation,test]: The parser MUST parse `<line>` as a decimal integer
+    TEXT[!MUST,implementation,test]: greater than or equal to 1
+    TEXT[!MUST,implementation,test]: and less than 2^32.
+    TEXT[!MUST,implementation,test]: The parser MUST parse `<count>` as a decimal integer
+    TEXT[!MUST,implementation,test]: representable in an unsigned 64-bit integer.
+    TEXT[!MUST,implementation,test]: The parser MUST accept and ignore the optional third
+    TEXT[!MUST,implementation,test]: checksum field.
+    TEXT[!MUST,implementation,test]: The parser MUST reject a `DA` record whose payload does
+    TEXT[!MUST,implementation,test]: not conform to this syntax.
+
+  SECTION: [4. Report Structure](#report-structure)
+    TEXT[!MUST,implementation,test]: The parser MUST reject an `SF:` record that appears while
+    TEXT[!MUST,implementation,test]: a source-file block is already open.
+    TEXT[!MUST,implementation,test]: The parser MUST reject a `DA` record that appears outside
+    TEXT[!MUST,implementation,test]: a source-file block.
+    TEXT[!MUST,implementation,test]: The parser MUST reject an `end_of_record` record that
+    TEXT[!MUST,implementation,test]: appears outside a source-file block.
+    TEXT[!MUST,implementation,test]: The parser MUST accept end-of-input while a source-file
+    TEXT[!MUST,implementation,test]: block is open, treating it as an implicit `end_of_record`.
+    TEXT[!MUST,implementation,test]: The parser MUST ignore blank lines.
+    TEXT[!MUST,implementation,test]: The parser MUST accept both LF and CRLF line endings.
+
+  SECTION: [5. Path Handling](#path-handling)
+    TEXT[!MUST,implementation,test]: The parser MUST use the `SF:` payload verbatim as the
+    TEXT[!MUST,implementation,test]: file key, except that a leading `./` MUST be stripped.
+    TEXT[!MUST,implementation,test]: The parser MUST reject an `SF:` record whose payload is
+    TEXT[!MUST,implementation,test]: empty after stripping.
+
+  SECTION: [6. Aggregation](#aggregation)
+    TEXT[!MUST,implementation,test]: The count recorded for a line MUST be the sum of the
+    TEXT[!MUST,implementation,test]: counts of every `DA` record for that line in every
+    TEXT[!MUST,implementation,test]: source-file block naming that file.
+    TEXT[!MUST,implementation,test]: The sum MUST saturate at the maximum unsigned 64-bit
+    TEXT[!MUST,implementation,test]: value instead of overflowing.
+    TEXT[!MUST,implementation,test]: A line with no `DA` record MUST be absent from the parsed
+    TEXT[!MUST,implementation,test]: coverage for its file.
+    TEXT[!MUST,implementation,test]: The parsed coverage MUST contain no branch data.
+
+  SECTION: [Property 1: Domain Exactness](#property-1-domain-exactness)
+    TEXT[implication]: A line number appears in the aggregated output
+    TEXT[implication]: if and only if
+    TEXT[implication]: at least one `DA` record for that line
+    TEXT[implication]: appears in the input record sequence.
+
+  SECTION: [Property 2: Count Correctness](#property-2-count-correctness)
+    TEXT[implication]: The count aggregated for a line
+    TEXT[implication]: equals the sum of the counts of every input record
+    TEXT[implication]: for that line,
+    TEXT[implication]: saturated at the maximum unsigned 64-bit value.
+
+  SECTION: [Property 3: Ordered Uniqueness](#property-3-ordered-uniqueness)
+    TEXT[implication]: The aggregated output is strictly sorted by line number,
+    TEXT[implication]: so each line appears exactly once.
+
+  SECTION: [Property 4: Block-Structure Invariance](#property-4-block-structure-invariance)
+    TEXT[implication]: Splitting a record sequence into consecutive blocks
+    TEXT[implication]: and summing per block
+    TEXT[implication]: yields the same per-line totals as
+    TEXT[implication]: summing the whole sequence:
+    TEXT[implication]: for all record sequences `a` and `b` and every line `L`,
+    TEXT[implication]: `sum(a ++ b, L) = sum(a, L) + sum(b, L)`.
+
 SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverage-model-spec.md)
   SECTION: [1.3 Classification Function and Unknown Lines](#classification-function)
     TEXT[!MUST,implementation,test]: A line classified as `{Annotation}` MUST NOT also have

@@ -46,7 +46,9 @@ $ duvet query -c coverage \
     --coverage-format jacoco-xml
 ```
 
-Both flags are required for coverage checks. `--coverage-report` (short: `-r`) accepts a glob and may be repeated. `--coverage-format` (short: `-f`) currently supports `jacoco-xml`.
+Both flags are required for coverage checks. `--coverage-report` (short: `-r`) accepts a glob and may be repeated. `--coverage-format` (short: `-f`) supports `jacoco-xml` and `lcov`.
+
+The `lcov` format reads LCOV tracefiles (`.info`), as produced by `llvm-cov export --format=lcov` (and its wrappers `cargo-llvm-cov` and `grcov`) for Rust/C/C++, `coverage.py` + `lcov` toolchains for Python, and `geninfo` generally. Only `DA` (per-line execution count) records are consumed; function and branch records are ignored, and a line absent from the tracefile is treated as "no opinion" rather than a miss. The full behavior is specified in [`design/lcov-parser/spec.md`](https://github.com/awslabs/duvet/blob/main/design/lcov-parser/spec.md), and the aggregation semantics are machine-checked with Verus.
 
 For each test annotation in scope, duvet determines which lines were executed during the run, finds the implementation annotations that cover those lines, and reports whether the test's claimed implementations were actually exercised.
 

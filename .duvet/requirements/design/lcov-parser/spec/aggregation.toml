@@ -1,0 +1,52 @@
+target = "design/lcov-parser/spec.md#aggregation"
+
+# 6. Aggregation
+#
+# The parsed coverage for a file is a map from line number to execution count.
+# 
+# The count recorded for a line MUST be the sum of the
+# counts of every `DA` record for that line in every
+# source-file block naming that file.
+# 
+# The sum MUST saturate at the maximum unsigned 64-bit
+# value instead of overflowing.
+# 
+# A line with no `DA` record MUST be absent from the parsed
+# coverage for its file.
+# 
+# The parsed coverage MUST contain no branch data.
+# 
+# The absent-line requirement is load-bearing: downstream, an absent line is
+# "coverage has no opinion" (`Unknown`), while a present line with count 0 is a
+# definite `Miss`. Recording absent lines as misses would manufacture false
+# "not executed" verdicts; dropping recorded lines would hide real ones. See
+# [coverage-model-spec.md §1.4](../query/coverage-model-spec.md#coverage-data).
+
+[[spec]]
+level = "MUST"
+quote = '''
+The count recorded for a line MUST be the sum of the
+counts of every `DA` record for that line in every
+source-file block naming that file.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The sum MUST saturate at the maximum unsigned 64-bit
+value instead of overflowing.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A line with no `DA` record MUST be absent from the parsed
+coverage for its file.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parsed coverage MUST contain no branch data.
+'''
+

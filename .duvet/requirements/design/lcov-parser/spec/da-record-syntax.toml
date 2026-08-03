@@ -1,0 +1,57 @@
+target = "design/lcov-parser/spec.md#da-record-syntax"
+
+# 3. DA Record Syntax
+#
+# A `DA` record has the form:
+# 
+# ```
+# DA:<line>,<count>[,<checksum>]
+# ```
+# 
+# The parser MUST parse `<line>` as a decimal integer
+# greater than or equal to 1
+# and less than 2^32.
+# 
+# The parser MUST parse `<count>` as a decimal integer
+# representable in an unsigned 64-bit integer.
+# 
+# The parser MUST accept and ignore the optional third
+# checksum field.
+# 
+# The parser MUST reject a `DA` record whose payload does
+# not conform to this syntax.
+# 
+# Rationale for the `<line>` bounds: LCOV line numbers are 1-based, so `0` is
+# producer error, and duvet's coverage tables key lines as `u32`, so a line
+# number at or above 2^32 cannot be represented and silently truncating it
+# would misattribute coverage.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST parse `<line>` as a decimal integer
+greater than or equal to 1
+and less than 2^32.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST parse `<count>` as a decimal integer
+representable in an unsigned 64-bit integer.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST accept and ignore the optional third
+checksum field.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject a `DA` record whose payload does
+not conform to this syntax.
+'''
+

@@ -9,7 +9,7 @@ use crate::{
             DefaultClassifier, LineClassifier,
         },
         coverage::{CoverageData, CoverageParser, FileCoverage},
-        parsers::JacocoParser,
+        parsers::{JacocoParser, LcovParser},
     },
     source::SourceFile,
     Result,
@@ -33,7 +33,8 @@ use std::{
 #[derive(Clone, Debug, clap::ValueEnum)]
 pub enum CoverageFormat {
     JacocoXml,
-    // Future: Lcov, Clover
+    Lcov,
+    // Future: Clover
 }
 
 /// Coverage model data for a file with a tree-sitter classifier.
@@ -431,6 +432,10 @@ pub async fn parse_coverage_data(
     match format {
         CoverageFormat::JacocoXml => {
             let parser = JacocoParser;
+            parser.parse(Path::new(coverage_path)).await
+        }
+        CoverageFormat::Lcov => {
+            let parser = LcovParser;
             parser.parse(Path::new(coverage_path)).await
         }
     }
