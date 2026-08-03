@@ -75,6 +75,10 @@ pub struct CoverageResult {
     /// "test ran, implementation did not".
     pub missing_implementation: Vec<MissingImplementationTest>,
     pub unwitnessed: Vec<UnwitnessedTestAnnotation>,
+    /// Annotations whose resolved target line can never carry coverage
+    /// evidence in any run — a static property of the source text,
+    /// split out of the run-dependent unwitnessed report (spec §3).
+    pub unwitnessable: Vec<UnwitnessableAnnotation>,
     pub verbose: bool,
 }
 
@@ -203,6 +207,46 @@ pub struct MissingImplementationTest {
     /// No delivered witness binds this test either (property W6):
     /// carried as a fact on this report, not a separate category.
     pub unwitnessed: bool,
+}
+
+/// Why a resolved target line is statically unwitnessable (spec §3):
+/// the placement violated §1.1's placement MUST, so resolution landed
+/// on a line that is not code.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnwitnessableKind {
+    /// The target line is blank.
+    Blank,
+    /// The target line is an ordinary comment under the source's
+    /// configured comment style.
+    Comment,
+    /// The target line matches the source's non-target pattern
+    /// (config `non-target-pattern`; Rust default `^\s*#\[`).
+    NonTargetPattern,
+}
+
+/// An annotation whose resolved target line can never be the subject
+/// of an act of checking — a static property of the source text,
+/// reported distinctly from the run-dependent unwitnessed report
+/// (spec §3; the not-proof-testable distinct-report posture, §5.2).
+/// The enforcing site of the placement MUST is the classifier that
+/// builds these entries (`classify_unwitnessable` in `engine.rs`).
+#[derive(Debug)]
+//= design/witness/spec.md#verdict-output
+//= type=implementation
+//# For every test annotation that would be reported unwitnessed (W6)
+//# and whose resolved target line is unwitnessable, the output MUST
+//# identify the annotation as *unwitnessable* instead
+pub struct UnwitnessableAnnotation {
+    pub annotation: Arc<Annotation>,
+    /// 1-based resolved target line in the annotation's source file.
+    pub target_line: u64,
+    /// The offending target line's text, quoted so the fix is evident.
+    //= design/witness/spec.md#verdict-output
+    //= type=implementation
+    //# and MUST
+    //# quote the offending target line, so the placement fix is evident.
+    pub target_text: String,
+    pub kind: UnwitnessableKind,
 }
 
 impl fmt::Display for QueryResult {
@@ -449,6 +493,7 @@ impl fmt::Display for CoverageResult {
         let failed = self.failed.len();
         let missing_implementation = self.missing_implementation.len();
         let unwitnessed = self.unwitnessed.len();
+        let unwitnessable = self.unwitnessable.len();
 
         writeln!(f, "  Coverage reports checked: {reports_count}")?;
         writeln!(f, "  Executed tests: {executed_tests}")?;
@@ -460,7 +505,49 @@ impl fmt::Display for CoverageResult {
             "  Tests with no implementation: {missing_implementation}"
         )?;
         writeln!(f, "  Unwitnessed tests: {unwitnessed}")?;
+        writeln!(f, "  Unwitnessable targets: {unwitnessable}")?;
         writeln!(f)?;
+
+        // Annotations whose resolved target line is statically
+        // unwitnessable (spec §3): a placement defect, reported before
+        // and distinctly from the run-dependent unwitnessed report —
+        // the fix is moving the annotation, not configuring a producer.
+        if unwitnessable > 0 {
+            for entry in &self.unwitnessable {
+                let what = match entry.kind {
+                    UnwitnessableKind::Blank => "a blank line",
+                    UnwitnessableKind::Comment => {
+                        "a comment line under the source's configured comment style"
+                    }
+                    UnwitnessableKind::NonTargetPattern => {
+                        "a line matching the source's non-target pattern"
+                    }
+                };
+                let headline = match entry.annotation.anno {
+                    AnnotationType::Test => "Unwitnessable test annotation target",
+                    _ => "Unwitnessable implementation annotation target",
+                };
+                let mut error = error!("{headline}").with_source_slice(
+                    entry.annotation.original_text.clone(),
+                    "Annotation whose resolved target is not code",
+                );
+                if let Some(line_slice) = get_line_slice(&entry.annotation, entry.target_line) {
+                    error = error
+                        .with_related_source_slice(line_slice, "Resolved target line (not code)");
+                }
+                error = error.with_help(format!(
+                    "This annotation's resolved target (line {}) is {what}:\n    {}\n\
+                     No act of checking can ever be about that line, in any run — \
+                     the annotation MUST be the last comment block above the code \
+                     it targets (design/witness/spec.md §1.1). Move the annotation \
+                     directly above its code (below any attribute or interleaved \
+                     comment), so resolution lands on the code itself.",
+                    entry.target_line, entry.target_text,
+                ));
+                writeln!(f, "{error:?}")?;
+            }
+            writeln!(f)?;
+        }
 
         // Test annotations no configured coverage source yielded a witness
         // for (spec W6): reported distinctly from bound-but-not-discharged,
@@ -907,6 +994,7 @@ mod tests {
             failed: vec![],
             missing_implementation: vec![],
             unwitnessed: vec![],
+            unwitnessable: vec![],
             verbose: false,
         }
     }
@@ -1115,6 +1203,109 @@ mod tests {
                 .matches("No configured coverage source yielded a witness")
                 .count(),
             1,
+            "{rendered}"
+        );
+    }
+
+    /// The unwitnessable report is DISTINCT from the unwitnessed report
+    /// (spec §3's static split, the not-proof-testable posture): its own
+    /// headline, its own summary count, and the quoted target line so
+    /// the placement fix is evident — none of it folded into W6 rows.
+    #[test]
+    //= design/witness/spec.md#verdict-output
+    //= type=test
+    //# For every test annotation that would be reported unwitnessed (W6)
+    //# and whose resolved target line is unwitnessable, the output MUST
+    //# identify the annotation as *unwitnessable* instead
+    //= design/witness/spec.md#verdict-output
+    //= type=test
+    //# and MUST
+    //# quote the offending target line, so the placement fix is evident.
+    fn unwitnessable_report_is_distinct_from_w6_and_quotes_target_line() {
+        let mut result = coverage_result();
+        result.status = QueryStatus::Fail;
+        result.unwitnessable = vec![UnwitnessableAnnotation {
+            annotation: annotation_t("displaced.rs"),
+            target_line: 2,
+            target_text: "    #[test]".to_string(),
+            kind: UnwitnessableKind::NonTargetPattern,
+        }];
+        result.unwitnessed = vec![UnwitnessedTestAnnotation {
+            test: annotation_t("w6.rs"),
+            diagnostic_status: ExecutionStatus::NotExecuted,
+            not_proof_testable: false,
+        }];
+        let rendered = format!("{result}");
+        let normalized = squash(&rendered);
+
+        // Both summary counts, separately:
+        assert!(normalized.contains("Unwitnessed tests: 1"), "{rendered}");
+        assert!(
+            normalized.contains("Unwitnessable targets: 1"),
+            "{rendered}"
+        );
+        // Distinct headline, never the W6 one, for the unwitnessable row:
+        assert!(
+            rendered.contains("Unwitnessable test annotation target"),
+            "{rendered}"
+        );
+        // The offending target line is quoted verbatim:
+        assert!(normalized.contains("#[test]"), "{rendered}");
+        // The help names the static reason and the placement rule:
+        assert!(
+            normalized.contains("a line matching the source's non-target pattern"),
+            "{rendered}"
+        );
+        assert!(
+            normalized.contains("MUST be the last comment block above the code it targets"),
+            "{rendered}"
+        );
+        // The W6 row keeps its own wording, exactly once each:
+        assert_eq!(
+            normalized
+                .matches("No configured coverage source yielded a witness")
+                .count(),
+            1,
+            "{rendered}"
+        );
+        assert_eq!(
+            normalized
+                .matches("× Unwitnessable test annotation target")
+                .count(),
+            1,
+            "{rendered}"
+        );
+    }
+
+    /// Implementation annotations get the same static finding with an
+    /// implementation-flavored headline (spec §3's implementation
+    /// clause) — the prose-displaced kind names the comment style.
+    #[test]
+    //= design/witness/spec.md#verdict-output
+    //= type=test
+    //# For every implementation annotation whose resolved target line is
+    //# unwitnessable, the output MUST report the same finding:
+    fn unwitnessable_report_covers_implementation_annotations() {
+        let mut result = coverage_result();
+        result.status = QueryStatus::Fail;
+        result.unwitnessable = vec![UnwitnessableAnnotation {
+            annotation: annotation("displaced.rs", AnnotationType::Citation),
+            target_line: 2,
+            target_text: "// an interleaved prose comment".to_string(),
+            kind: UnwitnessableKind::Comment,
+        }];
+        let rendered = format!("{result}");
+        let normalized = squash(&rendered);
+        assert!(
+            rendered.contains("Unwitnessable implementation annotation target"),
+            "{rendered}"
+        );
+        assert!(
+            normalized.contains("a comment line under the source's configured comment style"),
+            "{rendered}"
+        );
+        assert!(
+            normalized.contains("// an interleaved prose comment"),
             "{rendered}"
         );
     }

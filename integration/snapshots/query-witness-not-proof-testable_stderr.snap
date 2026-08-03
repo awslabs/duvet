@@ -26,6 +26,36 @@ Coverage: ✗ FAIL
   Failed correlations: 1
   Tests with no implementation: 0
   Unwitnessed tests: 1
+  Unwitnessable targets: 1
+
+  × Unwitnessable implementation annotation target
+    ╭─[vacuity.rs:29:5]
+ 28 │     
+ 29 │ ╭─▶ //= spec.md#body
+ 30 │ ├─▶ //# The body MUST assign
+    · ╰──── Annotation whose resolved target is not code
+ 31 │     //
+    ╰────
+  help: This annotation's resolved target (line 31) is a comment line under
+        the source's configured comment style:
+            //
+        No act of checking can ever be about that line, in any run — the
+        annotation MUST be the last comment block above the code it targets
+        (design/witness/spec.md §1.1). Move the annotation directly above its
+        code (below any attribute or interleaved comment), so resolution lands
+        on the code itself.
+
+Advice: 
+  ☞ Related context for:
+  │  Unwitnessable implementation annotation target
+    ╭─[vacuity.rs:31:1]
+ 30 │ //# The body MUST assign
+ 31 │ //
+    · ─┬
+    ·  ╰── Resolved target line (not code)
+ 32 │ pub proof fn vacuous_proof(x: int)
+    ╰────
+
 
   × Unwitnessed test annotation
     ╭─[vacuity.rs:55:5]

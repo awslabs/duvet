@@ -47,6 +47,10 @@ pub struct Source {
     pub comment_style: crate::comment::Pattern,
     pub default_type: crate::annotation::AnnotationType,
     pub blob_link: Option<Arc<str>>,
+    /// Regex for statically unwitnessable target lines (config
+    /// `non-target-pattern`); `None` defers to the per-language default
+    /// (`^\s*#\[` for `.rs`).
+    pub non_target_pattern: Option<Arc<str>>,
 }
 
 #[derive(Clone, Debug)]

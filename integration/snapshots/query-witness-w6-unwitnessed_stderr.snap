@@ -26,6 +26,7 @@ Coverage: ✗ FAIL
   Failed correlations: 0
   Tests with no implementation: 0
   Unwitnessed tests: 1
+  Unwitnessable targets: 0
 
   × Unwitnessed test annotation
     ╭─[runtime.xyzzy:8:9]

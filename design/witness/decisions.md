@@ -1217,6 +1217,67 @@ the definition checks itself.
 
 ---
 
+## Decision 22: The unwitnessed report splits on a static placement test — unwitnessable is its own verdict {#decision-22}
+
+**Context:** A principal review of the dogfood corpus found that
+annotation blocks followed by an attribute line (`#[test]`,
+`#[derive]`) or by interleaved doc-prose resolve — under degraded
+target resolution, which skips only blank and annotation lines —
+onto a line that is not code. Such an annotation's verdict can
+never change: no runtime report records coverage for an attribute
+or comment line, and no obligation is rooted there. These
+placement defects were hiding inside the W6 unwitnessed bucket,
+indistinguishable from the legitimate LCOV-pending rows
+([Decision 8](#decision-8)) — the very rows Gate 3's exit
+criterion counts, so the staging table's "audited: no comment,
+attribute, or declaration targets remain" claim was unverifiable
+by tooling and, per the review, wrong.
+
+### Decision: split, statically, engine-side
+
+The unwitnessed report is split by a static test on the source
+text (spec [§3](spec.md#verdict-output)): a resolved target line
+that is blank, an ordinary comment under the source's configured
+comment style (the comment leader is the meta pattern minus its
+trailing `=`), or a match of the source's `non-target-pattern`
+(per-source config, same posture as comment styles; Rust default
+`^\s*#\[`) is **unwitnessable**, reported with its own pinned
+wording and the offending line quoted — never folded into W6's
+run-dependent report. This follows the not-proof-testable
+distinct-report precedent (spec [§5.2](spec.md#two-pass-construction)),
+with one deliberate difference: not-proof-testable is a
+producer-delivered fact about the artifact; unwitnessable is
+computed engine/scan-side from source text alone, because it is a
+property of placement, not of any producer's record —
+producers-deliver-facts is untouched.
+
+Implementation (citation) annotations get the same static finding:
+they are never reported unwitnessed, so a displaced implementation
+target was previously *silent* — latent until some future
+witnessed run failed the pair. Implication and exception
+annotations are excluded: they carry no evidence obligation, so
+their targets carry no placement obligation. Test annotations
+reaching the missing-implementation report keep that report (the
+failure is already decided); the split applies where the defect
+was hiding, the unwitnessed branch.
+
+The classifier is the enforcing site of spec §1.1's placement MUST
+("an annotation … MUST be the last comment block above the code it
+targets"), which until now had only its resolution-behavior
+citation in `target_resolution.rs`, not an enforcement one.
+
+**Rejected: consulting witnesses.** A consulted-span fill (a
+prover extent covers every line of its function, comments
+included) can mark a comment line Hit, so an evidence-based test
+would misclassify interior-comment targets as witnessable — an
+accident of span granularity, not evidence about the line. The
+static verdict never consults a witness.
+
+**Rejected: a new subcommand.** The defect population lives in the
+coverage check's output; the split refines that report in place.
+
+---
+
 ## Open question: the executed-coverage diagnostic fold vs G2 {#open-g2-diagnostic-fold}
 
 **Context:** [Spec §4.4 G2](spec.md#engine-glue) requires every

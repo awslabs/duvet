@@ -147,6 +147,17 @@ Two placement rules for proof annotations:
   as line coverage — not a claim that the proof would fail if the
   implementation changed.
 
+One placement rule for every annotation: the annotation block must
+be the *last* comment block above the code it targets. An attribute
+line (`#[test]`, `#[derive(...)]`) or an ordinary comment between
+the block and the code becomes the resolved target itself, and no
+act of checking can ever be about such a line — the coverage check
+reports the annotation as **unwitnessable** (quoting the offending
+line), distinct from *unwitnessed*, which is run-dependent. Lines
+that can never be targets are configured per source with
+`non-target-pattern` (a regex; Rust sources default to attribute
+lines, `^\s*#\[`), alongside the source's `comment-style`.
+
 The semantics are specified in
 [`design/witness/spec.md`](https://github.com/awslabs/duvet/blob/main/design/witness/spec.md),
 with design rationale in

@@ -72,6 +72,7 @@ impl Project {
                         default_type: source.default_type,
                         path: entry.into_diagnostic()?.into(),
                         blob_link: source.blob_link.clone(),
+                        non_target_pattern: source.non_target_pattern.clone(),
                     });
                 }
             }
@@ -107,6 +108,7 @@ impl Project {
                 default_type: Default::default(),
                 path: entry.into_diagnostic()?.into(),
                 blob_link: None,
+                non_target_pattern: None,
             });
         }
 

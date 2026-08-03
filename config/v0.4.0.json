@@ -185,6 +185,14 @@
         "comment-style": {
           "$ref": "#/$defs/CommentStyle"
         },
+        "non-target-pattern": {
+          "description": "Regex for lines that can never carry coverage evidence in any run\n(e.g. attribute lines). An annotation whose resolved target matches\nis reported *unwitnessable* by the coverage query. When absent,\nRust sources (`.rs`) default to `^\\s*#\\[`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
         "pattern": {
           "type": "string"
         },

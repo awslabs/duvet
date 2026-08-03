@@ -16,7 +16,8 @@ use super::{
     result::{
         AnnotationCoverage, CheckResult, CoverageResult, CoveredTestAnnotation, Duplicates,
         DuplicatesResult, ImplementationResult, MissingImplementationTest, NotExecutedAnnotation,
-        QueryResult, QueryStatus, TestResult, UnwitnessedTestAnnotation,
+        QueryResult, QueryStatus, TestResult, UnwitnessableAnnotation, UnwitnessableKind,
+        UnwitnessedTestAnnotation,
     },
     witness::{VerifiedVerdicts, Witness},
     CheckType,
@@ -494,6 +495,171 @@ fn fold_statuses(statuses: impl IntoIterator<Item = ExecutionStatus>) -> Executi
     folded
 }
 
+/// The default non-target pattern for Rust sources: attribute lines.
+/// Config posture matches per-source comment styles — a `[[source]]`
+/// entry's `non-target-pattern` overrides it.
+const RUST_NON_TARGET_PATTERN: &str = r"^\s*#\[";
+
+/// Per-source static-placement configuration for the unwitnessable
+/// classifier: the ordinary-comment leader derived from the source's
+/// configured comment style (the meta pattern minus its trailing `=`:
+/// `//=` → `//`, `#=` → `#`, `*=` → `*`), the style's own meta/content
+/// prefixes (annotation markup is NOT ordinary prose — a target on an
+/// unstamped annotation line is a parse artifact, not a placement
+/// verdict), and the non-target pattern (configured, or the
+/// per-language default).
+struct SourcePlacement {
+    comment_leader: Arc<str>,
+    style: crate::comment::Pattern,
+    non_target: Option<regex::Regex>,
+}
+
+/// Build the per-file placement configuration from the project's
+/// `[[source]]` entries. Deterministic under multiple matches: entries
+/// are visited in sorted order and the first wins.
+fn source_placements(
+    project_sources: &HashSet<SourceFile>,
+) -> Result<HashMap<PathBuf, SourcePlacement>> {
+    let mut compiled: HashMap<Arc<str>, regex::Regex> = HashMap::new();
+    let mut compile = |pattern: &Arc<str>| -> Result<regex::Regex> {
+        if let Some(re) = compiled.get(pattern) {
+            return Ok(re.clone());
+        }
+        let re = regex::Regex::new(pattern)
+            .map_err(|err| duvet_core::error!("invalid non-target-pattern {pattern:?}: {err}"))?;
+        compiled.insert(pattern.clone(), re.clone());
+        Ok(re)
+    };
+
+    let mut sorted: Vec<&SourceFile> = project_sources.iter().collect();
+    sorted.sort();
+    let mut placements = HashMap::new();
+    for source in sorted {
+        let SourceFile::Text {
+            pattern,
+            path,
+            non_target_pattern,
+            ..
+        } = source
+        else {
+            continue;
+        };
+        if placements.contains_key(&path.to_path_buf()) {
+            continue;
+        }
+        let leader: Arc<str> = pattern
+            .meta
+            .strip_suffix('=')
+            .unwrap_or(&pattern.meta)
+            .into();
+        let non_target = match non_target_pattern {
+            Some(pattern) => Some(compile(pattern)?),
+            None => default_non_target(path.as_ref())
+                .map(|p| compile(&Arc::from(p)))
+                .transpose()?,
+        };
+        placements.insert(
+            path.to_path_buf(),
+            SourcePlacement {
+                comment_leader: leader,
+                style: pattern.clone(),
+                non_target,
+            },
+        );
+    }
+    Ok(placements)
+}
+
+/// The per-language default non-target pattern for files whose
+/// `[[source]]` entry configures none.
+fn default_non_target(path: &std::path::Path) -> Option<&'static str> {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some("rs") => Some(RUST_NON_TARGET_PATTERN),
+        _ => None,
+    }
+}
+
+/// The static unwitnessable test (spec §3): does this annotation's
+/// resolved target line fail to be code? Placement enforcement for the
+/// witness spec's §1.1 placement rule — this classifier is that MUST's
+/// enforcing site: a displaced annotation resolves onto the intervening
+/// non-code line, and the verdict below names it instead of letting it
+/// hide in the run-dependent unwitnessed report.
+//= design/witness/spec.md#annotations
+//= type=implementation
+//# so an annotation
+//# (stacked or not) MUST be the last comment block above the code it
+//# targets
+//= design/witness/spec.md#verdict-output
+//= type=implementation
+//# Unwitnessable is a placement verdict, not an evidence verdict: it
+//# is computed from the source text alone and never consults any
+//# witness.
+fn classify_unwitnessable(
+    annotation: &Arc<Annotation>,
+    classification: Option<&FileClassification>,
+    placement: Option<&SourcePlacement>,
+) -> Option<UnwitnessableAnnotation> {
+    let target_line = resolve_target_line(annotation, classification?)?;
+    let idx = usize::try_from(target_line).ok()?.checked_sub(1)?;
+    let text = annotation
+        .original_text
+        .file()
+        .lines_slices()
+        .nth(idx)?
+        .to_string();
+
+    // Fallback for sources outside any `[[source]]` entry (deprecated
+    // CLI patterns): the default comment style's leader plus the
+    // per-language default pattern.
+    let default_placement;
+    let placement = match placement {
+        Some(p) => p,
+        None => {
+            default_placement = SourcePlacement {
+                comment_leader: "//".into(),
+                style: crate::comment::Pattern::default(),
+                non_target: default_non_target(annotation.source.as_ref()).map(|p| {
+                    regex::Regex::new(p).expect("default non-target pattern must compile")
+                }),
+            };
+            &default_placement
+        }
+    };
+
+    let trimmed = text.trim_start();
+    // Annotation markup on the target line is a parse artifact (e.g. a
+    // quote-less annotation whose marker lines were not all stamped),
+    // not displaced prose: leave the verdict to the run-dependent
+    // reports rather than misclassify markup as an ordinary comment.
+    if trimmed.starts_with(&*placement.style.meta) || trimmed.starts_with(&*placement.style.content)
+    {
+        return None;
+    }
+    let kind = if text.trim().is_empty() {
+        UnwitnessableKind::Blank
+    } else if !placement.comment_leader.is_empty()
+        && trimmed.starts_with(&*placement.comment_leader)
+    {
+        UnwitnessableKind::Comment
+    } else if placement
+        .non_target
+        .as_ref()
+        .is_some_and(|re| re.is_match(&text))
+    {
+        UnwitnessableKind::NonTargetPattern
+    } else {
+        return None;
+    };
+
+    Some(UnwitnessableAnnotation {
+        annotation: annotation.clone(),
+        target_line,
+        target_text: text,
+        kind,
+    })
+}
+
 async fn execute_coverage_check(
     project_data: &ProjectData,
     mode: &RequirementMode,
@@ -682,6 +848,30 @@ async fn execute_coverage_check(
     let mut successful: Vec<CoveredTestAnnotation> = Vec::new();
     let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
     let mut unwitnessed: Vec<UnwitnessedTestAnnotation> = Vec::new();
+    let mut unwitnessable: Vec<UnwitnessableAnnotation> = Vec::new();
+
+    // Static-placement inputs for the unwitnessable classifier (spec §3):
+    // the per-source comment leader and non-target pattern, plus
+    // classifications for annotation-bearing files no witness touched
+    // (the witness-matched cache above only covers files a producer
+    // delivered maps for). This supplement feeds ONLY the unwitnessable
+    // classifier — scoring, binding, and every witness verdict read the
+    // original map, unchanged.
+    let placements = source_placements(&project_data.project_sources)?;
+    let placement_supplement: ClassificationMap = {
+        let annotation_paths: HashSet<PathBuf> = test_annotations
+            .iter()
+            .chain(&implementation_annotations)
+            .map(|a| a.source.to_path_buf())
+            .filter(|p| !classification.contains_key(p))
+            .collect();
+        classify_files(&project_data.annotations, annotation_paths).await?
+    };
+    let placement_classification = |path: &PathBuf| -> Option<&FileClassification> {
+        classification
+            .get(path)
+            .or_else(|| placement_supplement.get(path))
+    };
 
     // Tests whose covered spec text has no correlated implementation
     // annotation anywhere (design §2.4). In executed-coverage mode a
@@ -775,6 +965,22 @@ async fn execute_coverage_check(
             // structurally cannot be witnessed by a proof-only run; they
             // return with the LCOV mixed-coverage producer).
             //
+            // The static split (spec §3): a test whose resolved target line
+            // is not code is reported unwitnessable, never unwitnessed —
+            // the defect is placement (spec §1.1's placement MUST), not a
+            // missing producer, and no run can change it. Checked before
+            // the executed-tests-only skip: like Unknown targets, placement
+            // errors must surface regardless of which test you're running.
+            let path = test.target.source.to_path_buf();
+            if let Some(entry) = classify_unwitnessable(
+                &test.target,
+                placement_classification(&path),
+                placements.get(&path),
+            ) {
+                unwitnessable.push(entry);
+                continue;
+            }
+
             // Diagnostic detail: fold the test's own execution status
             // across ALL witnesses (preference order: `fold_statuses`).
             let diagnostic_status =
@@ -812,6 +1018,32 @@ async fn execute_coverage_check(
         }
     }
 
+    // Citation-typed coverers only: implication and exception annotations
+    // carry no evidence obligation, so their targets carry no placement
+    // obligation either.
+    //= design/witness/spec.md#verdict-output
+    //= type=implementation
+    //# For every implementation annotation whose resolved target line is
+    //# unwitnessable, the output MUST report the same finding:
+    for annotation in &implementation_annotations {
+        if !matches!(annotation.anno, AnnotationType::Citation) {
+            continue;
+        }
+        let path = annotation.source.to_path_buf();
+        if let Some(entry) = classify_unwitnessable(
+            annotation,
+            placement_classification(&path),
+            placements.get(&path),
+        ) {
+            unwitnessable.push(entry);
+        }
+    }
+    // Deterministic report order: by file, then annotation position.
+    unwitnessable.sort_by(|a, b| {
+        (a.annotation.source.as_ref(), a.annotation.anno_line)
+            .cmp(&(b.annotation.source.as_ref(), b.annotation.anno_line))
+    });
+
     let executed_tests: AnnotationSet = successful
         .iter()
         .chain(&failed)
@@ -837,7 +1069,10 @@ async fn execute_coverage_check(
         .collect::<BTreeSet<_>>()
         .into();
 
-    let status = if failed.is_empty() && missing_implementation.is_empty() && unwitnessed.is_empty()
+    let status = if failed.is_empty()
+        && missing_implementation.is_empty()
+        && unwitnessed.is_empty()
+        && unwitnessable.is_empty()
     {
         QueryStatus::Pass
     } else {
@@ -853,6 +1088,7 @@ async fn execute_coverage_check(
         failed,
         missing_implementation,
         unwitnessed,
+        unwitnessable,
         verbose,
     }))
 }
@@ -1022,5 +1258,193 @@ mod tests {
         assert!(!witnessable(AnnotationType::Todo));
         // Deferred separate feature — deliberately NOT witnessable today:
         assert!(!witnessable(AnnotationType::Implication));
+    }
+
+    mod unwitnessable {
+        use super::super::*;
+        use crate::{annotation::AnnotationLevel, query::result::UnwitnessableKind};
+        use duvet_core::file::SourceFile as CoreSourceFile;
+        use duvet_coverage::types::{line_class, LineProperty};
+
+        /// Build an annotation over `contents`, spanning 1-based lines
+        /// `start_line..=end_line`, plus the file's degraded
+        /// classification exactly as `classify_file` produces it for a
+        /// no-classifier file: blank lines `Whitespace`, annotation
+        /// lines stamped `Annotation`, everything else unclassified.
+        fn fixture(
+            path: &str,
+            contents: &str,
+            start_line: usize,
+            end_line: usize,
+            anno: AnnotationType,
+        ) -> (Arc<Annotation>, FileClassification) {
+            let source = CoreSourceFile::new(path, contents).unwrap();
+            let line_starts: Vec<usize> = std::iter::once(0)
+                .chain(contents.match_indices('\n').map(|(i, _)| i + 1))
+                .collect();
+            let start = line_starts[start_line - 1];
+            let end = line_starts.get(end_line).copied().unwrap_or(contents.len());
+            let text = source.substr_range(start..end).unwrap();
+            let target = source.substr_range(start..start).unwrap();
+            let annotation = Arc::new(Annotation {
+                source: source.path().clone(),
+                anno_line: start_line,
+                original_target: target.clone(),
+                original_text: text,
+                original_quote: target,
+                anno,
+                target: "spec.md#s".to_string(),
+                quote: String::new(),
+                comment: String::new(),
+                manifest_dir: source.path().clone(),
+                level: AnnotationLevel::Auto,
+                format: crate::specification::Format::Auto,
+                tracking_issue: String::new(),
+                feature: String::new(),
+                tags: Default::default(),
+                blob_link: None,
+            });
+            let classifications = contents
+                .lines()
+                .enumerate()
+                .map(|(i, line)| {
+                    if (start_line..=end_line).contains(&(i + 1)) {
+                        Some(line_class(&[LineProperty::Annotation]))
+                    } else if line.trim().is_empty() {
+                        Some(line_class(&[LineProperty::Whitespace]))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            let file_length = contents.lines().count() as u64;
+            (
+                annotation,
+                FileClassification::Degraded {
+                    classifications,
+                    file_length,
+                },
+            )
+        }
+
+        fn rust_placement() -> SourcePlacement {
+            SourcePlacement {
+                comment_leader: "//".into(),
+                style: crate::comment::Pattern::default(),
+                non_target: Some(regex::Regex::new(RUST_NON_TARGET_PATTERN).unwrap()),
+            }
+        }
+
+        /// The classifier is static: no witness, no coverage map, no
+        /// producer appears in its inputs — source text and per-source
+        /// configuration only.
+        #[test]
+        //= design/witness/spec.md#verdict-output
+        //= type=test
+        //# Unwitnessable is a placement verdict, not an evidence verdict: it
+        //# is computed from the source text alone and never consults any
+        //# witness.
+        fn attribute_displaced_target_is_unwitnessable() {
+            let contents = "//= spec.md#s\n//= type=test\n//# quoted text\n#[test]\nfn t() {}\n";
+            let (annotation, classification) =
+                fixture("displaced.rs", contents, 1, 3, AnnotationType::Test);
+            let entry =
+                classify_unwitnessable(&annotation, Some(&classification), Some(&rust_placement()))
+                    .expect("attribute target must classify as unwitnessable");
+            assert_eq!(entry.kind, UnwitnessableKind::NonTargetPattern);
+            assert_eq!(entry.target_line, 4);
+            assert_eq!(entry.target_text, "#[test]");
+        }
+
+        #[test]
+        fn prose_displaced_target_is_unwitnessable() {
+            let contents =
+                "//= spec.md#s\n//# quoted text\n/// interleaved doc prose\nfn imp() {}\n";
+            let (annotation, classification) =
+                fixture("displaced.rs", contents, 1, 2, AnnotationType::Citation);
+            let entry =
+                classify_unwitnessable(&annotation, Some(&classification), Some(&rust_placement()))
+                    .expect("comment target must classify as unwitnessable");
+            assert_eq!(entry.kind, UnwitnessableKind::Comment);
+            assert_eq!(entry.target_line, 3);
+            assert_eq!(entry.target_text, "/// interleaved doc prose");
+        }
+
+        /// Defensive arm: real degraded classification skips blank lines
+        /// (they can never be resolved targets), but an unclassified
+        /// blank-looking line still classifies statically.
+        #[test]
+        fn blank_unclassified_target_is_unwitnessable() {
+            let contents = "//= spec.md#s\n//# quoted text\n   \nfn code() {}\n";
+            let (annotation, mut classification) =
+                fixture("displaced.rs", contents, 1, 2, AnnotationType::Test);
+            // Force the blank line unclassified so it becomes the target.
+            if let FileClassification::Degraded {
+                classifications, ..
+            } = &mut classification
+            {
+                classifications[2] = None;
+            }
+            let entry =
+                classify_unwitnessable(&annotation, Some(&classification), Some(&rust_placement()))
+                    .expect("blank target must classify as unwitnessable");
+            assert_eq!(entry.kind, UnwitnessableKind::Blank);
+        }
+
+        #[test]
+        fn code_target_is_not_unwitnessable() {
+            let contents = "//= spec.md#s\n//= type=test\n//# quoted text\nfn t() {}\n";
+            let (annotation, classification) =
+                fixture("well_placed.rs", contents, 1, 3, AnnotationType::Test);
+            assert!(classify_unwitnessable(
+                &annotation,
+                Some(&classification),
+                Some(&rust_placement()),
+            )
+            .is_none());
+        }
+
+        /// Annotation MARKUP on the target line is excluded: a
+        /// quote-less annotation's unstamped `//=`/`//#` lines are a
+        /// parse artifact, not displaced prose — the verdict stays with
+        /// the run-dependent reports (e.g. §5.2 not-proof-testable),
+        /// which pin their own wording.
+        #[test]
+        fn unstamped_annotation_markup_target_is_not_unwitnessable() {
+            let contents = "//= spec.md#s\n//= type=test\n//= spec.md#other\nfn t() {}\n";
+            // Only lines 1-2 stamped: line 3 is unstamped markup and
+            // becomes the resolved target.
+            let (annotation, classification) =
+                fixture("markup.rs", contents, 1, 2, AnnotationType::Test);
+            assert!(classify_unwitnessable(
+                &annotation,
+                Some(&classification),
+                Some(&rust_placement()),
+            )
+            .is_none());
+        }
+
+        /// The non-target pattern is per-source configuration, exactly
+        /// like comment styles: a configured pattern replaces the
+        /// per-language default.
+        #[test]
+        fn configured_non_target_pattern_overrides_default() {
+            let contents = "#= spec.md#s\n#% quoted text\n@decorator\ndef f(): pass\n";
+            let (annotation, classification) =
+                fixture("displaced.xyzzy", contents, 1, 2, AnnotationType::Test);
+            let placement = SourcePlacement {
+                comment_leader: "#".into(),
+                style: crate::comment::Pattern {
+                    meta: "#=".into(),
+                    content: "#%".into(),
+                },
+                non_target: Some(regex::Regex::new(r"^\s*@").unwrap()),
+            };
+            let entry =
+                classify_unwitnessable(&annotation, Some(&classification), Some(&placement))
+                    .expect("configured pattern must match the decorator target");
+            assert_eq!(entry.kind, UnwitnessableKind::NonTargetPattern);
+            assert_eq!(entry.target_text, "@decorator");
+        }
     }
 }

@@ -1,0 +1,89 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c coverage --coverage-source verus-sst=../../../duvet/src/query/parsers/verus_sst/testdata/vacuity
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 2 sources 
+     Parsing annotations
+      Parsed 3 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 3 references 
+  
+Coverage: ✗ FAIL
+
+  Coverage reports checked: 0
+  Executed tests: 0
+  Executed implementations: 0
+  Successful correlations: 0
+  Failed correlations: 0
+  Tests with no implementation: 0
+  Unwitnessed tests: 0
+  Unwitnessable targets: 2
+
+  × Unwitnessable implementation annotation target
+   ╭─[runtime.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ ├─▶ //# This MUST do the thing
+   · ╰──── Annotation whose resolved target is not code
+ 3 │     // helper shared by both paths
+   ╰────
+  help: This annotation's resolved target (line 3) is a comment line under the
+        source's configured comment style:
+            // helper shared by both paths
+        No act of checking can ever be about that line, in any run — the
+        annotation MUST be the last comment block above the code it targets
+        (design/witness/spec.md §1.1). Move the annotation directly above its
+        code (below any attribute or interleaved comment), so resolution lands
+        on the code itself.
+
+Advice: 
+  ☞ Related context for:
+  │  Unwitnessable implementation annotation target
+   ╭─[runtime.rs:3:1]
+ 2 │ //# This MUST do the thing
+ 3 │ // helper shared by both paths
+   · ───────────────┬──────────────
+   ·                ╰── Resolved target line (not code)
+ 4 │ fn do_thing() {
+   ╰────
+
+  × Unwitnessable test annotation target
+    ╭─[runtime.rs:8:5]
+  7 │     
+  8 │ ╭─▶ //= spec.md#section-1
+  9 │ │   //= type=test
+ 10 │ ├─▶ //# This MUST do the thing
+    · ╰──── Annotation whose resolved target is not code
+ 11 │     /// Exercises do_thing end to end.
+    ╰────
+  help: This annotation's resolved target (line 11) is a comment line under
+        the source's configured comment style:
+            /// Exercises do_thing end to end.
+        No act of checking can ever be about that line, in any run — the
+        annotation MUST be the last comment block above the code it targets
+        (design/witness/spec.md §1.1). Move the annotation directly above its
+        code (below any attribute or interleaved comment), so resolution lands
+        on the code itself.
+
+Advice: 
+  ☞ Related context for:
+  │  Unwitnessable test annotation target
+    ╭─[runtime.rs:11:1]
+ 10 │ //# This MUST do the thing
+ 11 │ /// Exercises do_thing end to end.
+    · ─────────────────┬────────────────
+    ·                  ╰── Resolved target line (not code)
+ 12 │ fn test_do_thing() {
+    ╰────
+
+
+
+Overall: ✗ FAIL
