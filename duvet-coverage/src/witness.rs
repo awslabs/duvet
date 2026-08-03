@@ -1321,9 +1321,6 @@ mod tests {
     // The w_i_only cases are the own-witness requirement's test evidence:
     // a delivered witness that executed something ELSE does not count for
     // T — T is unwitnessed until a witness binds T itself.
-    //= design/witness/spec.md#claim-rules
-    //= type=test
-    //# A test annotation must find *its own* witness.
     #[test]
     fn w2_w6_test_execution_and_unwitnessed() {
         let t = t_annotation();
@@ -1337,6 +1334,9 @@ mod tests {
             3,
             &[w_t_only()]
         ));
+        //= design/witness/spec.md#claim-rules
+        //= type=test
+        //# A test annotation must find *its own* witness.
         assert!(!report_test_executed(
             T_FILE,
             &t,
@@ -1451,10 +1451,12 @@ mod tests {
     // That head-to-head contrast — one map, the two grammar alternatives,
     // opposite binding verdicts — is the test evidence for the ClaimRule
     // grammar itself: the two rules exist and are semantically distinct.
+    #[test]
+    // The whole test is the contrast that verifies the grammar — no single
+    // assertion discharges it — so the quote sits on the fn.
     //= design/witness/spec.md#claim-rules
     //= type=test
     //# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
-    #[test]
     fn fat_witness_map_containing_t_does_not_capture_t_by_root_span() {
         let t = t_annotation();
         let c = t_classifications();
@@ -1514,11 +1516,6 @@ mod tests {
     /// Spec §1.5 no-vacuous-binding: an annotation with no resolved target
     /// (pure scope-close follows it) binds NO ByRootSpan witness, even one
     /// whose range would contain the annotation's own lines.
-    //= design/witness/spec.md#claim-rules
-    //= type=test
-    //# An annotation with no resolved target (e.g. a Structural
-    //# annotation) binds no ByRootSpan witness —
-    //# empty-target containment MUST NOT bind vacuously.
     #[test]
     fn by_root_span_never_binds_empty_target() {
         // 1: Annotation, 2: pure ScopeClose -> no resolved target.
@@ -1538,6 +1535,11 @@ mod tests {
             },
             files: vec![],
         };
+        //= design/witness/spec.md#claim-rules
+        //= type=test
+        //# An annotation with no resolved target (e.g. a Structural
+        //# annotation) binds no ByRootSpan witness —
+        //# empty-target containment MUST NOT bind vacuously.
         assert!(!report_test_executed(
             T_FILE,
             &t,
@@ -1579,11 +1581,6 @@ mod tests {
     /// obligations at one position are two witnesses, and each must
     /// individually reach I. If acts were merged into one record, this
     /// scenario would be inexpressible and the assertion would flip.
-    //= design/witness/spec.md#witness
-    //= type=test
-    //# A witness is the record of **one act of checking**:
-    //# one test's execution, or one prover obligation's successful
-    //# verification.
     #[test]
     fn decision_14_all_bound_root_span_witnesses_must_execute() {
         let root_with_i = Witness {
@@ -1605,6 +1602,11 @@ mod tests {
         // One bound obligation-witness reaching I: discharged.
         assert!(discharged_verdict(std::slice::from_ref(&root_with_i)));
         // Two obligations own the position; only one reaches I: FAILS.
+        //= design/witness/spec.md#witness
+        //= type=test
+        //# A witness is the record of **one act of checking**:
+        //# one test's execution, or one prover obligation's successful
+        //# verification.
         assert!(!discharged_verdict(&[root_with_i, root_without_i]));
     }
 
@@ -1638,11 +1640,6 @@ mod tests {
     /// under Degraded when the coverage hits the forward-nearest lines,
     /// and the split-evidence case still fails (the quantifier layer is
     /// mode-uniform).
-    //= design/witness/spec.md#executed
-    //= type=test
-    //# The verified Phase 4 layer implements the "or" per file: a
-    //# `ScoringMode` routes each file to the classified or the degraded
-    //# scorer, and
     #[test]
     fn degraded_mode_scores_via_the_degraded_path() {
         // Degraded classification: annotation lines known, code lines None.
@@ -1669,6 +1666,11 @@ mod tests {
                 witnesses,
             )
         };
+        //= design/witness/spec.md#executed
+        //= type=test
+        //# The verified Phase 4 layer implements the "or" per file: a
+        //# `ScoringMode` routes each file to the classified or the degraded
+        //# scorer, and
         assert!(verdict(&[w_both()]));
         assert!(!verdict(&[w_t_only(), w_i_only()]));
         assert!(!verdict(&[w_both(), w_t_only()]));
@@ -1697,10 +1699,6 @@ mod tests {
     /// for the file or a root span that would otherwise contain the
     /// target. The verdict contribution is uniformly false; the pair is
     /// unwitnessed, never discharged.
-    //= design/witness/spec.md#executed
-    //= type=test
-    //# and engine trust-boundary refusals are encoded as
-    //# `Unscorable` — binds nothing, executes nothing
     #[test]
     fn unscorable_binds_nothing_and_executes_nothing() {
         let root = Witness {
@@ -1711,6 +1709,10 @@ mod tests {
             },
             files: vec![(I_FILE, cov_hit(&[2]))],
         };
+        //= design/witness/spec.md#executed
+        //= type=test
+        //# and engine trust-boundary refusals are encoded as
+        //# `Unscorable` — binds nothing, executes nothing
         assert!(is_unwitnessed(
             T_FILE,
             &t_annotation(),

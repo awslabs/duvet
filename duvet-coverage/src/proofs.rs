@@ -729,15 +729,12 @@ mod tests {
         lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
     }
 
+    #[test]
+    // The whole runtime twin suite backs this umbrella sentence; the
+    // proving itself is discharged by the CI verify job (see report note).
     //= design/query/coverage-model-spec.md#correctness-properties
     //= type=test
     //# These properties MUST be proven with Verus.
-    //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-    //= type=test
-    //# The implementation MUST prove that for any two lines A and B where A is in
-    //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-    //# S2 is not a parent of S1:
-    #[test]
     fn test_property_2_sibling_scopes() {
         let c = vec![
             s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),
@@ -768,6 +765,11 @@ mod tests {
             ],
             &cov_hit(&[2]),
         );
+        //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
+        //= type=test
+        //# The implementation MUST prove that for any two lines A and B where A is in
+        //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
+        //# S2 is not a parent of S1:
         assert!(!exec_set.contains(&5));
         assert!(!exec_set.contains(&6));
     }
@@ -817,10 +819,6 @@ mod tests {
         let exec_set = execution_set(&c, scopes, &cov);
         assert!(exec_set.contains(&3));
     }
-    //= design/query/coverage-model-spec.md#property-3-conservative-fallback
-    //= type=test
-    //# The implementation MUST prove that no backward propagation occurs WITHIN a
-    //# scope that contains a `NonLinearControl` line.
     #[test]
     fn test_property_3_goto_scope() {
         let c = vec![
@@ -844,6 +842,10 @@ mod tests {
         );
         assert!(r.contains(&3));
         assert!(r.contains(&4));
+        //= design/query/coverage-model-spec.md#property-3-conservative-fallback
+        //= type=test
+        //# The implementation MUST prove that no backward propagation occurs WITHIN a
+        //# scope that contains a `NonLinearControl` line.
         assert!(!r.contains(&1));
         assert!(!r.contains(&2));
     }
@@ -907,10 +909,6 @@ mod tests {
         let exec_set = execution_set(&c, scopes, &cov);
         assert!(exec_set.contains(&5));
     }
-    //= design/query/coverage-model-spec.md#property-4-monotonicity
-    //= type=test
-    //# The implementation MUST prove that given two coverage reports E1 and E2 where
-    //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
     #[test]
     fn test_property_4_monotonicity() {
         let c = vec![
@@ -930,6 +928,10 @@ mod tests {
         // This test verifies runtime behavior: E1 ⊆ E2 implies exec_set(E1) ⊆ exec_set(E2).
         let e1 = execution_set(&c, sc, &cov_hit(&[3]));
         let e2 = execution_set(&c, sc, &cov_hit(&[3, 4]));
+        //= design/query/coverage-model-spec.md#property-4-monotonicity
+        //= type=test
+        //# The implementation MUST prove that given two coverage reports E1 and E2 where
+        //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
         for line in e1.iter() {
             assert!(e2.contains(line));
         }
@@ -973,13 +975,6 @@ mod tests {
         assert_eq!(status_e1, ExecutionStatus::Executed);
         assert_eq!(status_e2, ExecutionStatus::Executed);
     }
-    //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
-    //= type=test
-    //# The implementation MUST prove that if annotation A (lines a1..a2) is
-    //# immediately above annotation B (lines b1..b2) with only whitespace,
-    //# comments, or other annotations between
-    //# them, and `is_annotation_executed(B, ...) = Executed`, then
-    //# `is_annotation_executed(A, ...) = Executed`.
     #[test]
     fn test_property_5_stacking() {
         use crate::annotation_execution::is_annotation_executed;
@@ -1022,13 +1017,16 @@ mod tests {
             &cov,
             7,
         );
+        //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
+        //= type=test
+        //# The implementation MUST prove that if annotation A (lines a1..a2) is
+        //# immediately above annotation B (lines b1..b2) with only whitespace,
+        //# comments, or other annotations between
+        //# them, and `is_annotation_executed(B, ...) = Executed`, then
+        //# `is_annotation_executed(A, ...) = Executed`.
         assert_eq!(status_a, ExecutionStatus::Executed);
         assert_eq!(status_b, ExecutionStatus::Executed);
     }
-    //= design/query/coverage-model-spec.md#property-6-unknown-safety
-    //= type=test
-    //# The implementation MUST prove that unknown lines cannot produce false
-    //# positives.
     #[test]
     fn test_property_6_unknown_safety() {
         use crate::{
@@ -1060,6 +1058,10 @@ mod tests {
             &cov,
             4,
         );
+        //= design/query/coverage-model-spec.md#property-6-unknown-safety
+        //= type=test
+        //# The implementation MUST prove that unknown lines cannot produce false
+        //# positives.
         assert_eq!(status, ExecutionStatus::Executed);
         let target = annotation_target(
             &AnnotationSpan {

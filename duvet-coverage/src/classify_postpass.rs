@@ -174,10 +174,6 @@ mod tests {
     }
 
     /// ScopeOpen on an annotation line must also survive.
-    //= design/query/coverage-model-spec.md#classification-function
-    //= type=test
-    //# A line classified as `{Annotation}` MUST NOT also have
-    //# `Statement` or `Declaration` in its property set.
     #[test]
     fn scope_open_preserved_on_annotation_line() {
         let mut classifications = vec![lc(&[
@@ -195,6 +191,10 @@ mod tests {
             "ScopeOpen must survive cleaning, got: {props:?}"
         );
         // Declaration should be stripped (annotation line)
+        //= design/query/coverage-model-spec.md#classification-function
+        //= type=test
+        //# A line classified as `{Annotation}` MUST NOT also have
+        //# `Statement` or `Declaration` in its property set.
         assert!(
             !props.contains(&LineProperty::Declaration),
             "Declaration should be stripped from annotation line, got: {props:?}"
@@ -202,12 +202,6 @@ mod tests {
     }
 
     /// Statement IS stripped from a non-code-start comment line.
-    //= design/query/coverage-model-spec.md#classification-function
-    //= type=test
-    //# Classifiers MUST apply a post-processing pass
-    //# after AST classification:
-    //# for any line that has `Annotation`, `Comment`, or `Whitespace`,
-    //# remove `Statement` and `Declaration` from its property set.
     #[test]
     fn statement_stripped_from_comment_only_line() {
         let mut classifications = vec![lc(&[LineProperty::Statement, LineProperty::Comment])];
@@ -216,6 +210,12 @@ mod tests {
         clean_classifications(&mut classifications, &code_start);
 
         let props = classifications[0].as_ref().unwrap();
+        //= design/query/coverage-model-spec.md#classification-function
+        //= type=test
+        //# Classifiers MUST apply a post-processing pass
+        //# after AST classification:
+        //# for any line that has `Annotation`, `Comment`, or `Whitespace`,
+        //# remove `Statement` and `Declaration` from its property set.
         assert!(!props.contains(&LineProperty::Statement));
         assert!(props.contains(&LineProperty::Comment));
     }

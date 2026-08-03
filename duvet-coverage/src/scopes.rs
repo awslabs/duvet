@@ -498,15 +498,15 @@ mod tests {
         ScopeEvent { line, opens }
     }
 
-    //= design/query/coverage-model-spec.md#scopes
-    //= type=test
-    //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
-    //# `ScopeClose` properties. Scopes nest.
     #[test]
     fn simple_method_in_class() {
         // class `{` L1, method `{` L2, `}` L4, `}` L5.
         let e = vec![ev(1, true), ev(2, true), ev(4, false), ev(5, false)];
         let sc = build_scope_tree(&e, 5);
+        //= design/query/coverage-model-spec.md#scopes
+        //= type=test
+        //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
+        //# `ScopeClose` properties. Scopes nest.
         assert_eq!(sc.len(), 2);
         let outer = sc.iter().find(|s| s.open_line == 1).unwrap();
         let inner = sc.iter().find(|s| s.open_line == 2).unwrap();
@@ -716,17 +716,17 @@ mod tests {
         assert_eq!(scope_imbalance_site(&[]), None);
     }
 
-    //= design/query/coverage-model-spec.md#scopes
-    //= type=test
-    //# **Scope Balance Contract:** {#scope-balance-contract}
-    //# A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
-    //# matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
-    //# no `ScopeClose` occurs with no open to match,
-    //# and no `ScopeOpen` is left unmatched at end of file.
     #[test]
     fn stray_close_is_flagged_and_tree_collapses() {
         // A `}` with nothing open: stray close (depth underflow at the event).
         let e = vec![ev(1, false)];
+        //= design/query/coverage-model-spec.md#scopes
+        //= type=test
+        //# **Scope Balance Contract:** {#scope-balance-contract}
+        //# A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
+        //# matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
+        //# no `ScopeClose` occurs with no open to match,
+        //# and no `ScopeOpen` is left unmatched at end of file.
         assert_eq!(scope_imbalance_site(&e), Some(1));
         // Tie: build_scope_tree ignores the stray close, so no pairs → whole-file.
         let sc = build_scope_tree(&e, 2);

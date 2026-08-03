@@ -703,10 +703,6 @@ mod tests {
         assert!(r.contains(&3));
         assert!(!r.contains(&1));
     }
-    //= design/query/coverage-model-spec.md#property-3-conservative-fallback
-    //= type=test
-    //# If an ancestor scope S contains `NonLinearControl` but a child
-    //# scope S' does not, propagation MAY occur through S'.
     #[test]
     fn try_block_propagation_into_parent_scope() {
         use crate::{scopes::build_scope_tree, types::ScopeEvent};
@@ -753,6 +749,10 @@ mod tests {
             },
         ];
         let r = execution_set(&c, &build_scope_tree(&e, 8), &cov_hit(&[4]));
+        //= design/query/coverage-model-spec.md#property-3-conservative-fallback
+        //= type=test
+        //# If an ancestor scope S contains `NonLinearControl` but a child
+        //# scope S' does not, propagation MAY occur through S'.
         assert!(r.contains(&4));
         assert!(r.contains(&3));
     }
@@ -780,9 +780,6 @@ mod tests {
     // forward direction. Its `type=implementation` citation sits on `execution_set`
     // above; this pairs it with a test citation. (The backward direction also
     // guards the no-false-positive seed of Property 1.)
-    //= design/query/coverage-model-spec.md#property-9-execution-set-containment
-    //= type=test
-    //# The execution set always contains all directly-hit lines.
     #[test]
     fn collect_hit_lines_matches_hit_oracle() {
         use std::collections::{BTreeMap, BTreeSet};
@@ -813,6 +810,9 @@ mod tests {
                 let got = collect_hit_lines(&coverage);
 
                 // Forward `ensures`: coverage[line] == Hit  ==>  line in result.
+                //= design/query/coverage-model-spec.md#property-9-execution-set-containment
+                //= type=test
+                //# The execution set always contains all directly-hit lines.
                 for (&line, &status) in coverage.iter() {
                     if status == CoverageStatus::Hit {
                         assert!(

@@ -1013,19 +1013,6 @@ mod tests {
     /// witness that executed the implementation AND the ✗ witness that
     /// did not — so the failing claim is identifiable, and the
     /// disagreement between them is printed, never silent.
-    //= design/witness/spec.md#verdict-output
-    //= type=test
-    //# For every pair that fails because a bound witness did not execute
-    //# the implementation (W1's universal clause), the output MUST list
-    //# **every** bound witness with its per-witness result
-    //# (executed I / did not execute I) and strength,
-    //# so the failing claim is identifiable —
-    //= design/witness/spec.md#verdict-output
-    //= type=test
-    //# and the disagreement MUST never be silent
-    //# (decisions.md, [Decision 14](decisions.md#decision-14);
-    //# legibility improvements are tracked in
-    //# [Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
     #[test]
     fn failing_pair_output_lists_every_bound_witness() {
         let mut result = coverage_result();
@@ -1057,6 +1044,13 @@ mod tests {
         }];
         let out = squash(&format!("{result}"));
         // Every bound witness, its per-witness result, and its strength:
+        //= design/witness/spec.md#verdict-output
+        //= type=test
+        //# For every pair that fails because a bound witness did not execute
+        //# the implementation (W1's universal clause), the output MUST list
+        //# **every** bound witness with its per-witness result
+        //# (executed I / did not execute I) and strength,
+        //# so the failing claim is identifiable —
         assert!(
             out.contains("✓ a.xml (executed): executed the implementation"),
             "missing the executing witness's result: {out}"
@@ -1066,6 +1060,12 @@ mod tests {
             "missing the failing witness's result: {out}"
         );
         // The disagreement is printed with the universal-discharge rule:
+        //= design/witness/spec.md#verdict-output
+        //= type=test
+        //# and the disagreement MUST never be silent
+        //# (decisions.md, [Decision 14](decisions.md#decision-14);
+        //# legibility improvements are tracked in
+        //# [Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
         assert!(
             out.contains("ALL bound witnesses executed the implementation"),
             "missing the discharge rule statement: {out}"
@@ -1074,10 +1074,6 @@ mod tests {
 
     /// Spec §3, success clause: verbose output names every bound witness
     /// (label) and its strength for a discharged pair.
-    //= design/witness/spec.md#verdict-output
-    //= type=test
-    //# For every discharged pair, the output MUST name, in verbose
-    //# output, every bound witness (its label) and its strength ([§1.3](#provenance)).
     #[test]
     fn verbose_output_names_every_bound_witness_for_discharged_pairs() {
         let mut result = coverage_result();
@@ -1093,6 +1089,10 @@ mod tests {
             not_executed_implementations: vec![],
         }];
         let out = squash(&format!("{result}"));
+        //= design/witness/spec.md#verdict-output
+        //= type=test
+        //# For every discharged pair, the output MUST name, in verbose
+        //# output, every bound witness (its label) and its strength ([§1.3](#provenance)).
         assert!(
             out.contains("discharged by a.xml (executed)"),
             "missing the runtime witness's name and strength: {out}"
@@ -1113,11 +1113,6 @@ mod tests {
     /// Spec §3, W6 clause: the unwitnessed report identifies the
     /// annotation (its source slice is rendered) and states that no
     /// configured producer yielded a witness for it.
-    //= design/witness/spec.md#verdict-output
-    //= type=test
-    //# For every unwitnessed test annotation (W6), the output MUST
-    //# identify the annotation and state that no configured producer
-    //# yielded a witness for it.
     #[test]
     fn unwitnessed_output_identifies_annotation_and_producer_absence() {
         let mut result = coverage_result();
@@ -1128,6 +1123,11 @@ mod tests {
             not_proof_testable: false,
         }];
         let out = squash(&format!("{result}"));
+        //= design/witness/spec.md#verdict-output
+        //= type=test
+        //# For every unwitnessed test annotation (W6), the output MUST
+        //# identify the annotation and state that no configured producer
+        //# yielded a witness for it.
         assert!(
             out.contains("Unwitnessed test annotation"),
             "missing the report category: {out}"
@@ -1149,13 +1149,6 @@ mod tests {
     /// entry carries the producer's verbatim reason sentence, the plain
     /// W6 entry carries the no-configured-producer help — and neither
     /// text appears on the other entry.
-    //= design/witness/spec.md#two-pass-construction
-    //= type=test
-    //# and the report MUST identify the annotation as
-    //# *not proof-testable* ("this position carries no dischargeable
-    //# obligation; it can only be witnessed by an execution-style
-    //# producer") — a report distinct from Property W6's
-    //# "no witness from any configured producer."
     #[test]
     fn unwitnessed_report_distinguishes_not_proof_testable_from_w6() {
         let mut result = coverage_result();
@@ -1181,6 +1174,13 @@ mod tests {
         assert!(rendered.contains("w6.rs"), "{rendered}");
 
         // The NPT entry carries the producer's verbatim sentence …
+        //= design/witness/spec.md#two-pass-construction
+        //= type=test
+        //# and the report MUST identify the annotation as
+        //# *not proof-testable* ("this position carries no dischargeable
+        //# obligation; it can only be witnessed by an execution-style
+        //# producer") — a report distinct from Property W6's
+        //# "no witness from any configured producer."
         assert!(
             normalized.contains(NOT_PROOF_TESTABLE),
             "not-proof-testable report must quote the normative sentence:\n{rendered}"
@@ -1324,10 +1324,6 @@ mod tests {
     /// strength qualifier next to the label — a clause-level unit label
     /// like `c::f ensures[0]` is always presented as `(consulted)`
     /// evidence, never bare.
-    //= design/witness/spec.md#closure
-    //= type=test
-    //# Reports and documentation MUST NOT present clause-level units as
-    //# implying clause-level evidence.
     #[test]
     fn witness_references_always_carry_their_strength_qualifier() {
         let clause_label = "c::f ensures[0]";
@@ -1347,6 +1343,10 @@ mod tests {
             not_executed_implementations: vec![],
         }];
         let rendered = format!("{result}");
+        //= design/witness/spec.md#closure
+        //= type=test
+        //# Reports and documentation MUST NOT present clause-level units as
+        //# implying clause-level evidence.
         assert!(
             rendered.contains("discharged by c::f ensures[0] (consulted)"),
             "clause-unit label must carry its strength qualifier:\n{rendered}"

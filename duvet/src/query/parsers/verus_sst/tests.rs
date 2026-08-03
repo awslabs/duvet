@@ -156,23 +156,15 @@ fn file_line_counts(c: &Closure) -> Vec<(&str, usize)> {
 // Real corpus: parser round-trip sanity
 // ---------------------------------------------------------------
 
-//= design/witness/spec.md#verus-producer
-//= type=test
-//# A flat span inventory of one block covers essentially
-//# only its own extent, so the Verus producer MUST parse its
-//# artifact once into a structure of obligation nodes and
-//# reference edges and derive everything else from that
-//# structure — parse-into-structure is a MUST, not an
-//# optimization.
-//= design/witness/spec.md#obligation-testing
-//= type=test
-//# Each producer MUST be unit-tested against golden artifacts
-//# (a real report file; a real prover log),
-//# since producers are unverified glue at the trust boundary.
 #[test]
 fn corpus_node_counts() {
     // Raw per-module block count, before deduplication: imported
     // declarations are re-logged per module, so blocks > unique.
+    //= design/witness/spec.md#obligation-testing
+    //= type=test
+    //# Each producer MUST be unit-tested against golden artifacts
+    //# (a real report file; a real prover log),
+    //# since producers are unverified glue at the trust boundary.
     let mut raw_blocks = 0usize;
     for entry in std::fs::read_dir(corpus_dir()).unwrap() {
         let path = entry.unwrap().path();
@@ -185,6 +177,14 @@ fn corpus_node_counts() {
     }
     assert_eq!(raw_blocks, 1065, "top-level FunctionSst blocks, 10 files");
 
+    //= design/witness/spec.md#verus-producer
+    //= type=test
+    //# A flat span inventory of one block covers essentially
+    //# only its own extent, so the Verus producer MUST parse its
+    //# artifact once into a structure of obligation nodes and
+    //# reference edges and derive everything else from that
+    //# structure — parse-into-structure is a MUST, not an
+    //# optimization.
     let graph = corpus();
     assert_eq!(graph.nodes.len(), 330, "unique fully-qualified names");
     assert_eq!(
@@ -201,12 +201,6 @@ fn corpus_node_counts() {
 // The verifier-record axiom, made checkable (spec §4.1(a)): the
 // parsed record is reconciled against an independent investigation
 // of the same artifact, so a record-faithfulness drift fails here.
-//= design/witness/spec.md#obligation-closedness
-//= type=test
-//# - Prover producers: closedness splits into
-//# (a) the verifier's record faithfully reflects what elaboration
-//# consulted — **axiom**, same category as trusting the verifier
-//# itself — and
 #[test]
 fn corpus_reconciliation_with_findings_md() {
     // Lineage back to the SST POC: FINDINGS.md counted "189
@@ -216,6 +210,12 @@ fn corpus_reconciliation_with_findings_md() {
         name.chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':')
     };
+    //= design/witness/spec.md#obligation-closedness
+    //= type=test
+    //# - Prover producers: closedness splits into
+    //# (a) the verifier's record faithfully reflects what elaboration
+    //# consulted — **axiom**, same category as trusting the verifier
+    //# itself — and
     assert_eq!(
         corpus().nodes.keys().filter(|n| simple(n)).count(),
         189,
@@ -296,13 +296,6 @@ fn discrimination_executed_variant_reaches_the_algorithm() {
 // Delivered witnesses carry per-unit closures, each STRICTLY
 // smaller than the aggregate on this corpus — a delivered
 // aggregate-as-witness would fail the strict-dominance assertion.
-//= design/witness/spec.md#verus-producer
-//= type=test
-//# - The aggregate executability map MUST NOT be delivered as a
-//# witness: it is many obligations wearing one map, and delivering
-//# it would violate [§4.2](#obligation-individuation) by
-//# construction; it exists only as pass-1 scaffolding inside the
-//# producer.
 #[test]
 fn aggregate_map_dominates_every_closure_strictly() {
     let graph = corpus();
@@ -322,6 +315,13 @@ fn aggregate_map_dominates_every_closure_strictly() {
                 "closure of {root} escapes the aggregate map"
             );
         }
+        //= design/witness/spec.md#verus-producer
+        //= type=test
+        //# - The aggregate executability map MUST NOT be delivered as a
+        //# witness: it is many obligations wearing one map, and delivering
+        //# it would violate [§4.2](#obligation-individuation) by
+        //# construction; it exists only as pass-1 scaffolding inside the
+        //# producer.
         assert!(
             total_lines(&agg.0) > total_lines(&c.files),
             "aggregate must be strictly larger than the closure of {root}"
@@ -387,18 +387,6 @@ fn no_discharge_unit_no_witness() {
     );
 }
 
-//= design/witness/spec.md#discharge-unit
-//= type=test
-//# Attribution MAY be ambiguous *within one specificity level*:
-//# provers stamp generated obligations with the source range of the
-//# declaration they were generated from,
-//# so one proof-testable position can root several obligations at
-//# the same level.
-//= design/witness/spec.md#discharge-unit
-//= type=test
-//# When N obligations root a position at the chosen level, the
-//# producer MUST deliver one witness per rooting obligation and
-//# MUST NOT select among them (decisions.md, Decision 12).
 #[test]
 fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
     // The generated arrow-accessor pair on `types::ExecutionStatus`
@@ -415,6 +403,21 @@ fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
     let file = "duvet-coverage/src/types.rs";
     let ws = construct_witnesses(graph, file, 160, "sst-poc", is_project);
     let labels: Vec<&str> = ws.iter().map(|w| w.label.as_str()).collect();
+    // Two quotes, one assertion: the two labels are both the ambiguity
+    // (one position roots several obligations) and the delivery
+    // (one witness per rooting obligation, none selected among).
+    //= design/witness/spec.md#discharge-unit
+    //= type=test
+    //# Attribution MAY be ambiguous *within one specificity level*:
+    //# provers stamp generated obligations with the source range of the
+    //# declaration they were generated from,
+    //# so one proof-testable position can root several obligations at
+    //# the same level.
+    //= design/witness/spec.md#discharge-unit
+    //= type=test
+    //# When N obligations root a position at the chosen level, the
+    //# producer MUST deliver one witness per rooting obligation and
+    //# MUST NOT select among them (decisions.md, Decision 12).
     assert_eq!(
         labels,
         [
@@ -442,15 +445,6 @@ fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
     assert!(construct_witnesses(graph, file, 167, "sst-poc", is_project).is_empty());
 }
 
-//= design/witness/spec.md#discharge-unit
-//= type=test
-//# Executable body lines MUST NOT be in the domain:
-//# no obligation is rooted at a body line —
-//# body lines are material a proof consults,
-//# not claims a prover discharges —
-//# so a test annotation there is category-mismatched,
-//# and is reported *not proof-testable* rather than unwitnessed
-//# (decisions.md, [Decision 13](decisions.md#decision-13)).
 #[test]
 fn body_line_is_not_proof_testable() {
     // Decision 13 golden (the redirect's named case): a test
@@ -469,6 +463,15 @@ fn body_line_is_not_proof_testable() {
             if units.iter().map(|u| u.node.name.as_str()).collect::<Vec<_>>()
                 == ["duvet_coverage::execution_propagation::execution_set"]
     ));
+    //= design/witness/spec.md#discharge-unit
+    //= type=test
+    //# Executable body lines MUST NOT be in the domain:
+    //# no obligation is rooted at a body line —
+    //# body lines are material a proof consults,
+    //# not claims a prover discharges —
+    //# so a test annotation there is category-mismatched,
+    //# and is reported *not proof-testable* rather than unwitnessed
+    //# (decisions.md, [Decision 13](decisions.md#decision-13)).
     assert_eq!(
         classify_position(graph, file, 90),
         PositionKind::NotProofTestable
@@ -492,29 +495,6 @@ fn body_line_is_not_proof_testable() {
     );
 }
 
-//= design/witness/spec.md#discharge-unit
-//= type=test
-//# Its domain (`dom(du)`) MUST contain only positions where an
-//# obligation is *rooted* — proof-element positions,
-//# at every granularity the artifact demonstrably records
-//# (decisions.md, Decisions 13, 17, 18):
-//# fn/lemma headers (obligation extents), ensures clauses,
-//# loop invariants, and proof asserts.
-//= design/witness/spec.md#verus-producer
-//= type=test
-//# - The Verus producer MUST treat `FunctionSst` blocks as closure
-//# nodes and `Fun :path` references as edges, and MUST support
-//# discharge units of all four kinds: obligation extents,
-//# `:enss` clause spans, `LoopInv` spans, and proof-assert spans
-//# (decisions.md, Decision 18).
-//= design/witness/spec.md#prover-producers
-//= type=test
-//# Every prover producer owes its artifact an investigation before
-//# it ships: the discharge-unit and closure granularity the artifact
-//# demonstrably records — demonstrated by inspection of real
-//# artifacts, not assumed — MUST be established and consumed as that
-//# producer's shipped floor
-//# (decisions.md, [Decision 17](decisions.md#decision-17)).
 #[test]
 fn du_map_domain_split_over_the_aggregate() {
     // Decisions 13, 18, 19 partition the 1990 elaborated project
@@ -551,7 +531,33 @@ fn du_map_domain_split_over_the_aggregate() {
             }
         }
     }
+    //= design/witness/spec.md#discharge-unit
+    //= type=test
+    //# Its domain (`dom(du)`) MUST contain only positions where an
+    //# obligation is *rooted* — proof-element positions,
+    //# at every granularity the artifact demonstrably records
+    //# (decisions.md, Decisions 13, 17, 18):
+    //# fn/lemma headers (obligation extents), ensures clauses,
+    //# loop invariants, and proof asserts.
     assert_eq!((rooted, npt), (752, 1238));
+    // Two quotes, one assertion: the per-kind breakdown is both the
+    // four-unit-kind support and the demonstrated (investigated,
+    // cross-checked) granularity floor the producer ships.
+    //= design/witness/spec.md#verus-producer
+    //= type=test
+    //# - The Verus producer MUST treat `FunctionSst` blocks as closure
+    //# nodes and `Fun :path` references as edges, and MUST support
+    //# discharge units of all four kinds: obligation extents,
+    //# `:enss` clause spans, `LoopInv` spans, and proof-assert spans
+    //# (decisions.md, Decision 18).
+    //= design/witness/spec.md#prover-producers
+    //= type=test
+    //# Every prover producer owes its artifact an investigation before
+    //# it ships: the discharge-unit and closure granularity the artifact
+    //# demonstrably records — demonstrated by inspection of real
+    //# artifacts, not assumed — MUST be established and consumed as that
+    //# producer's shipped floor
+    //# (decisions.md, [Decision 17](decisions.md#decision-17)).
     assert_eq!(
         by_kind.into_iter().collect::<Vec<_>>(),
         [
@@ -572,12 +578,6 @@ fn du_map_domain_split_over_the_aggregate() {
 // (spec §1.7)
 // ---------------------------------------------------------------
 
-//= design/witness/spec.md#producer
-//= type=test
-//# Normatively: every delivered witness MUST be a function of
-//# (artifact, obligation) only — identical regardless of which
-//# annotation caused its materialization, carrying no annotation
-//# identity
 #[test]
 fn annotation_independence_same_obligation_identical_witness() {
     // Two different annotation positions resolving to the same
@@ -606,31 +606,18 @@ fn annotation_independence_same_obligation_identical_witness() {
         is_project,
     );
     assert_eq!(a.len(), 1);
+    //= design/witness/spec.md#producer
+    //= type=test
+    //# Normatively: every delivered witness MUST be a function of
+    //# (artifact, obligation) only — identical regardless of which
+    //# annotation caused its materialization, carrying no annotation
+    //# identity
     assert_eq!(a, b, "same obligation → byte-identical witnesses");
     assert_eq!(a[0].label, LEMMA);
 }
 
 // One witness per discharge unit, each the record of that unit's
 // single checking act (labels unique over the 775-unit universe):
-//= design/witness/spec.md#producer
-//= type=test
-//# The `annotations` argument is a **semantically inert
-//# optimization**, never a semantic input.
-//# The witness universe is defined by the artifact alone —
-//# conceptually one potential witness per obligation —
-//# and the argument only selects which members are materialized,
-//# so that producers need not close every obligation to serve a few
-//# annotations.
-//= design/witness/spec.md#producer
-//= type=test
-//# — and the filtering MUST be sound:
-//# for every requested annotation, binding and discharge verdicts
-//# over the materialized set MUST equal the verdicts over the full
-//# universe.
-//= design/witness/spec.md#obligation-individuation
-//= type=test
-//# Every delivered witness MUST be the record of exactly one act of
-//# checking.
 #[test]
 fn filter_soundness_annotations_only_select_from_the_universe() {
     // Spec §1.7: the witness universe is defined by the artifact
@@ -658,6 +645,10 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
     let graph = corpus();
     let universe = materialize_all(graph, "sst-poc", is_project);
     let units = all_units(graph);
+    //= design/witness/spec.md#obligation-individuation
+    //= type=test
+    //# Every delivered witness MUST be the record of exactly one act of
+    //# checking.
     assert_eq!(universe.len(), units.len(), "one witness per unit");
     assert_eq!(universe.len(), 775, "330 extents + 445 clause units");
     let by_label: std::collections::BTreeMap<&str, &Witness> =
@@ -681,6 +672,15 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
         for &line in lines {
             let materialized = construct_witnesses(graph, file, line, "sst-poc", is_project);
             for w in &materialized {
+                //= design/witness/spec.md#producer
+                //= type=test
+                //# The `annotations` argument is a **semantically inert
+                //# optimization**, never a semantic input.
+                //# The witness universe is defined by the artifact alone —
+                //# conceptually one potential witness per obligation —
+                //# and the argument only selects which members are materialized,
+                //# so that producers need not close every obligation to serve a few
+                //# annotations.
                 assert_eq!(
                     Some(w),
                     by_label.get(w.label.as_str()).copied(),
@@ -707,6 +707,12 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
                 materialized.iter().map(|w| w.label.as_str()).collect();
             expected.sort_unstable();
             materialized_labels.sort_unstable();
+            //= design/witness/spec.md#producer
+            //= type=test
+            //# — and the filtering MUST be sound:
+            //# for every requested annotation, binding and discharge verdicts
+            //# over the materialized set MUST equal the verdicts over the full
+            //# universe.
             assert_eq!(
                 materialized_labels, expected,
                 "{file}:{line}: materialized set diverges from the most-specific \
@@ -773,10 +779,6 @@ fn scenario_1_vacuous_proof_closure_is_itself_only() {
     assert!(!lines(&c).contains(&57));
 }
 
-//= design/witness/spec.md#closure
-//= type=test
-//# and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
-//# not load-bearing dependency.
 #[test]
 fn scenario_2_mention_without_need_is_credited() {
     // `requires x != x` but the ensures textually mentions
@@ -787,6 +789,10 @@ fn scenario_2_mention_without_need_is_credited() {
     // is the flagship case for needed-semantics strengthening, and
     // if that ever lands, this test is the one to flip.
     let c = closure(vacuity(), "vacuity::vacuous_proof_mentioning", vacuity_file).unwrap();
+    //= design/witness/spec.md#closure
+    //= type=test
+    //# and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
+    //# not load-bearing dependency.
     assert!(
         c.reached.contains("vacuity::spec_add_one"),
         "the mention is followed"
@@ -870,15 +876,6 @@ fn honest_proof_reaches_the_implementation_spec() {
 // Decision 20)
 // ---------------------------------------------------------------
 
-//= design/witness/spec.md#verus-producer
-//= type=test
-//# Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
-//# when the artifact records it, otherwise span identity
-//# (function path + unit kind + clause index).
-//= design/witness/spec.md#verus-producer
-//= type=test
-//# Until the upstream `proof_note`-on-ensures defect is fixed,
-//# ensures-clause labels MUST come from span identity.
 #[test]
 fn labels_proof_note_when_recorded_span_identity_otherwise() {
     // `noted_loop` carries a proof_note'd invariant ("i stays
@@ -895,6 +892,11 @@ fn labels_proof_note_when_recorded_span_identity_otherwise() {
             .map(|w| w.label)
             .collect()
     };
+    //= design/witness/spec.md#verus-producer
+    //= type=test
+    //# Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
+    //# when the artifact records it, otherwise span identity
+    //# (function path + unit kind + clause index).
     assert_eq!(label_at(73), ["i stays bounded"]);
     assert_eq!(label_at(74), ["vacuity::noted_loop loop_invariant[1]"]);
     assert_eq!(label_at(81), ["loop exit bound"]);
@@ -904,6 +906,10 @@ fn labels_proof_note_when_recorded_span_identity_otherwise() {
     // upstream proof_note-on-ensures defect makes note consumption
     // for ensures a build breaker, so the producer never reads it
     // (Decision 20 hazard rule).
+    //= design/witness/spec.md#verus-producer
+    //= type=test
+    //# Until the upstream `proof_note`-on-ensures defect is fixed,
+    //# ensures-clause labels MUST come from span identity.
     assert_eq!(label_at(67), ["vacuity::noted_loop ensures[0]"]);
     // The loop header line (70): excluded from dom(du) — the
     // invariant clauses are units; the `while` line is not.
@@ -1184,23 +1190,6 @@ fn integration_tomls_embed_line_true_copies_of_the_fixture() {
 // Every unit's witness equals a fresh closure of its FUNCTION root:
 // units inside one function share the identical function-level
 // consulted closure — the artifact's demonstrated ceiling.
-//= design/witness/spec.md#closure
-//= type=test
-//# **The closure ceiling MUST be stated per producer, because it
-//# bounds what unit granularity buys.** Where a prover checks a
-//# function's obligations in one solver query and assumes callee
-//# contracts whole (Verus does both, §5.5), every discharge unit
-//# inside a function carries the identical function-level consulted
-//# closure: finer units buy precise identity and legible failures,
-//# not smaller witnesses, and discharge verdicts within one function
-//# do not differ across its units at Consulted strength.
-//= design/witness/spec.md#closure
-//= type=test
-//# The closure MUST be computed at the finest granularity the
-//# artifact demonstrably supports
-//# (decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the
-//# artifact's ceiling or across a named architectural boundary);
-//# what is normative now:
 #[test]
 fn memoized_universe_matches_fresh_per_unit_closures() {
     // Equivalence anchor for the closure memoization: every witness
@@ -1212,10 +1201,27 @@ fn memoized_universe_matches_fresh_per_unit_closures() {
     let graph = corpus();
     let universe = materialize_all(graph, "eq", is_project);
     let units = all_units(graph);
+    //= design/witness/spec.md#closure
+    //= type=test
+    //# The closure MUST be computed at the finest granularity the
+    //# artifact demonstrably supports
+    //# (decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the
+    //# artifact's ceiling or across a named architectural boundary);
+    //# what is normative now:
     assert_eq!(universe.len(), units.len(), "one witness per unit");
     for (w, u) in universe.iter().zip(units.iter()) {
         assert_eq!(w.label, u.label, "universe order is unit order");
         let fresh = closure(graph, &u.node.name, is_project).expect("root must exist");
+        //= design/witness/spec.md#closure
+        //= type=test
+        //# **The closure ceiling MUST be stated per producer, because it
+        //# bounds what unit granularity buys.** Where a prover checks a
+        //# function's obligations in one solver query and assumes callee
+        //# contracts whole (Verus does both, §5.5), every discharge unit
+        //# inside a function carries the identical function-level consulted
+        //# closure: finer units buy precise identity and legible failures,
+        //# not smaller witnesses, and discharge verdicts within one function
+        //# do not differ across its units at Consulted strength.
         assert_eq!(
             w.files,
             hit_files(&fresh.files),

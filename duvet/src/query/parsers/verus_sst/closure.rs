@@ -235,12 +235,6 @@ mod tests {
         ObligationGraph::merge([parse_module(DIAMOND).unwrap()]).unwrap()
     }
 
-    //= design/witness/producer-core-spec.md#model
-    //= type=test
-    //# - **Edges** are the symbolic references that resolve to a block in
-    //# the artifact; references to names with no block are not part of
-    //# the obligation graph ([spec §5.4](spec.md#closure)) and MUST NOT
-    //# appear as model edges.
     #[test]
     fn unresolved_references_are_not_model_edges() {
         // c::top references c::phantom, which has no FunctionSst block in
@@ -256,6 +250,12 @@ mod tests {
 "#;
         let g = ObligationGraph::merge([parse_module(GHOST_REF).unwrap()]).unwrap();
         let c = closure(&g, "c::top", |f| f.starts_with("src/")).unwrap();
+        //= design/witness/producer-core-spec.md#model
+        //= type=test
+        //# - **Edges** are the symbolic references that resolve to a block in
+        //# the artifact; references to names with no block are not part of
+        //# the obligation graph ([spec §5.4](spec.md#closure)) and MUST NOT
+        //# appear as model edges.
         assert_eq!(c.reached.len(), 2);
         assert!(!c.reached.contains("c::phantom"));
         assert_eq!(

@@ -420,23 +420,6 @@ mod tests {
         }
     }
 
-    //= design/witness/spec.md#producer
-    //= type=test
-    //# A producer maps declared artifacts to witnesses:
-    //#
-    //# ```
-    //# produce : (artifacts, annotations) → Vec<Witness>
-    //# ```
-    //= design/witness/spec.md#producer
-    //= type=test
-    //# Runtime producers MAY ignore the `annotations` argument
-    //# (their witnesses pre-exist in the artifact).
-    //= design/witness/spec.md#obligation-individuation
-    //= type=test
-    //# Runtime producers: individuation is the operator's
-    //# responsibility — one instrumented run per test.
-    //# The artifact does not record how it was produced,
-    //# so duvet does not attempt detection
     #[tokio::test]
     async fn jacoco_report_becomes_one_by_execution_witness() {
         use std::io::Write;
@@ -467,10 +450,30 @@ mod tests {
             .unwrap();
 
         let artifact = path.to_string_lossy().to_string();
+        // Two quotes, one call: producing from the artifact alone is both
+        // the produce-signature shape and the runtime producer ignoring
+        // the `annotations` argument (the call takes none).
+        //= design/witness/spec.md#producer
+        //= type=test
+        //# A producer maps declared artifacts to witnesses:
+        //#
+        //# ```
+        //# produce : (artifacts, annotations) → Vec<Witness>
+        //# ```
+        //= design/witness/spec.md#producer
+        //= type=test
+        //# Runtime producers MAY ignore the `annotations` argument
+        //# (their witnesses pre-exist in the artifact).
         let w = jacoco_witness(&artifact).await.unwrap();
         let _ = std::fs::remove_file(&path);
 
         assert_eq!(w.label, artifact);
+        //= design/witness/spec.md#obligation-individuation
+        //= type=test
+        //# Runtime producers: individuation is the operator's
+        //# responsibility — one instrumented run per test.
+        //# The artifact does not record how it was produced,
+        //# so duvet does not attempt detection
         assert_eq!(w.claim, ClaimRule::ByExecution);
         assert_eq!(w.provenance.producer, "jacoco");
         assert_eq!(w.provenance.strength, Strength::Executed);
@@ -483,19 +486,18 @@ mod tests {
     // The producer's output is consumed here purely in the engine's
     // vocabulary (`Witness`, `ClaimRule`, `CoverageStatus`) — no
     // obligation-graph or s-expression type crosses the boundary.
-    //= design/witness/spec.md#producer
-    //= type=test
-    //# Prover producers use it to construct witnesses
-    //= design/witness/spec.md#two-pass-construction
-    //= type=test
-    //# Prover witnesses are constructed, not found:
-    //= design/witness/spec.md#producer
-    //= type=test
-    //# The producer-internal artifact format MUST NOT escape the
-    //# producer; the engine consumes only `Vec<Witness>`.
     #[test]
     fn verus_positions_become_root_span_witnesses_with_hit_maps() {
         let g = graph();
+        // Two quotes, one call: this construction from the parsed graph is
+        // both "prover producers use it to construct witnesses" and
+        // "constructed, not found".
+        //= design/witness/spec.md#producer
+        //= type=test
+        //# Prover producers use it to construct witnesses
+        //= design/witness/spec.md#two-pass-construction
+        //= type=test
+        //# Prover witnesses are constructed, not found:
         let ws = verus_witnesses_from_graph(
             &g,
             "logs/",
@@ -508,6 +510,10 @@ mod tests {
         let [w] = ws.as_slice() else {
             panic!("expected one witness, got {}", ws.len())
         };
+        //= design/witness/spec.md#producer
+        //= type=test
+        //# The producer-internal artifact format MUST NOT escape the
+        //# producer; the engine consumes only `Vec<Witness>`.
         assert_eq!(w.label, "c::caller");
         assert_eq!(
             w.claim,
@@ -570,16 +576,6 @@ mod tests {
         );
     }
 
-    //= design/witness/spec.md#two-pass-construction
-    //= type=test
-    //# If a live annotation's resolved target is not proof-testable,
-    //# the producer MUST deliver no witness for it,
-    //= design/witness/spec.md#producer-obligations
-    //= type=test
-    //# **producers deliver facts and never render verdicts.**
-    //# Delivering zero witnesses for an annotation is a fact
-    //# (possibly with a reason attached, [§5.2](#two-pass-construction)'s not-proof-testable),
-    //# not a failure
     #[test]
     fn elaborated_unrooted_position_is_reported_not_proof_testable() {
         // Line 25 is elaborated (a `@@` sub-span of c::caller's body)
@@ -604,6 +600,12 @@ mod tests {
             |f| f.starts_with("src/"),
         )
         .unwrap();
+        //= design/witness/spec.md#producer-obligations
+        //= type=test
+        //# **producers deliver facts and never render verdicts.**
+        //# Delivering zero witnesses for an annotation is a fact
+        //# (possibly with a reason attached, [§5.2](#two-pass-construction)'s not-proof-testable),
+        //# not a failure
         assert_eq!(
             produced.not_proof_testable,
             [position("/proj/src/a.rs", 25)],
@@ -611,6 +613,10 @@ mod tests {
         );
         // The rooted position still gets its witness; NPT never leaks
         // into the witness set.
+        //= design/witness/spec.md#two-pass-construction
+        //= type=test
+        //# If a live annotation's resolved target is not proof-testable,
+        //# the producer MUST deliver no witness for it,
         assert_eq!(
             produced
                 .witnesses
@@ -621,12 +627,6 @@ mod tests {
         );
     }
 
-    //= design/witness/spec.md#two-pass-construction
-    //= type=test
-    //# the source path matches
-    //# several artifact paths), it MUST abort the run with the ambiguity
-    //# rather than skip the position: silently dropping a position would
-    //# convert a configuration defect into a missing-witness verdict.
     #[test]
     fn ambiguous_artifact_path_translation_is_refused() {
         // The artifact mentions two path strings that both suffix-match
@@ -638,6 +638,12 @@ mod tests {
  (FunctionSst :name (Fun :path c::g) ()))
 "#;
         let g = ObligationGraph::merge([parse_module(AMBIG).unwrap()]).unwrap();
+        //= design/witness/spec.md#two-pass-construction
+        //= type=test
+        //# the source path matches
+        //# several artifact paths), it MUST abort the run with the ambiguity
+        //# rather than skip the position: silently dropping a position would
+        //# convert a configuration defect into a missing-witness verdict.
         let err = verus_witnesses_from_graph(
             &g,
             "logs/",
@@ -654,11 +660,13 @@ mod tests {
     /// obligation this module and `verus_sst` rely on must be recorded
     /// as a named axiom at its site. Deleting a recording fails here —
     /// the exact violation the requirement forbids.
+    #[test]
+    // The whole test is the verification (each assert pins one recorded
+    // axiom), so the quote sits on the fn.
     //= design/witness/spec.md#producer-obligations
     //= type=test
     //# Where an obligation cannot be proven, it is a **named axiom** of
     //# the trusted base and MUST be recorded as such.
-    #[test]
     fn unprovable_producer_obligations_are_recorded_as_named_axioms() {
         // Runtime individuation (§4.2): recorded at the delivery site.
         let this = include_str!("producers.rs");

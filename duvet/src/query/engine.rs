@@ -1243,15 +1243,15 @@ mod tests {
     /// Executes the actual engine filter (`witnessable`) — the single
     /// predicate deciding which annotations get positions requested from
     /// prover producers — over every annotation type.
-    //= design/witness/spec.md#witnessable-annotations
-    //= type=test
-    //# Prover producers MUST construct witnesses for `type=test`
-    //# annotations only
-    //# (decisions.md, [Decision 6](decisions.md#decision-6);
-    //# self-discharging implication annotations are a deferred separate
-    //# feature).
     #[test]
     fn only_test_annotations_are_witnessable() {
+        //= design/witness/spec.md#witnessable-annotations
+        //= type=test
+        //# Prover producers MUST construct witnesses for `type=test`
+        //# annotations only
+        //# (decisions.md, [Decision 6](decisions.md#decision-6);
+        //# self-discharging implication annotations are a deferred separate
+        //# feature).
         assert!(witnessable(AnnotationType::Test));
         assert!(!witnessable(AnnotationType::Citation));
         assert!(!witnessable(AnnotationType::Spec));

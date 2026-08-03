@@ -612,14 +612,6 @@ mod tests {
     /// Spec §1.5: the engine MUST refuse the bind and report the
     /// ambiguity rather than select. The adapter refuses at translation
     /// time — before any bind — naming the coordinate and both matches.
-    //= design/witness/spec.md#claim-rules
-    //= type=test
-    //# If the engine's path-matching relation associates an annotation's
-    //# file with more than one witness file (or one witness file with
-    //# more than one source file), the engine MUST refuse the bind and
-    //# report the ambiguity rather than select — the same posture the
-    //# producer takes when translating positions into artifact
-    //# coordinates.
     #[test]
     fn ambiguous_root_span_suffix_is_refused_not_selected() {
         let idx = index(&[
@@ -630,6 +622,14 @@ mod tests {
         let witnesses = [root_witness("c::obligation", "src/x.rs", 1, 10)];
         let matched = vec![FxHashMap::default()];
 
+        //= design/witness/spec.md#claim-rules
+        //= type=test
+        //# If the engine's path-matching relation associates an annotation's
+        //# file with more than one witness file (or one witness file with
+        //# more than one source file), the engine MUST refuse the bind and
+        //# report the ambiguity rather than select — the same posture the
+        //# producer takes when translating positions into artifact
+        //# coordinates.
         let err = VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx)
             .err()
             .expect("ambiguous root span must refuse, never select");
@@ -680,11 +680,6 @@ mod tests {
     /// verdict false). A DEGRADED file's map is kept: direct observation
     /// has no bounds requirement, and dropping it would flip real
     /// degraded verdicts.
-    //= design/witness/spec.md#engine-glue
-    //= type=test
-    //# The adapter MUST establish
-    //# the verified functions' preconditions at the boundary —
-    //# filter or degrade before calling, never assume.
     #[test]
     fn out_of_bounds_coverage_dropped_only_for_classified_files() {
         let idx = index(&[("c.java", "/proj/c.java"), ("d.rs", "/proj/d.rs")]);
@@ -731,6 +726,11 @@ mod tests {
             .iter()
             .map(|(id, _)| *id)
             .collect();
+        //= design/witness/spec.md#engine-glue
+        //= type=test
+        //# The adapter MUST establish
+        //# the verified functions' preconditions at the boundary —
+        //# filter or degrade before calling, never assume.
         assert_eq!(
             ids,
             vec![1],
@@ -839,10 +839,6 @@ mod tests {
     /// executed test annotation; the not-proof-testable fact is
     /// consulted only when refining the report of an UNWITNESSED
     /// annotation (engine.rs).
-    //= design/witness/spec.md#two-pass-construction
-    //= type=test
-    //# In a mixed run such an annotation binds runtime witnesses
-    //# normally.
     #[test]
     fn by_execution_witness_binds_a_position_a_prover_calls_not_proof_testable() {
         use crate::annotation::{Annotation, AnnotationLevel, AnnotationType};
@@ -908,6 +904,10 @@ mod tests {
             blob_link: None,
         });
 
+        //= design/witness/spec.md#two-pass-construction
+        //= type=test
+        //# In a mixed run such an annotation binds runtime witnesses
+        //# normally.
         assert!(
             !adapter.is_unwitnessed(&test_annotation),
             "a runtime witness binds a body-line test annotation normally — \
@@ -920,13 +920,6 @@ mod tests {
     /// — same-suffix file `b` never silently borrows it. (The ambiguous
     /// coordinate case is refused at build; this pins the unambiguous
     /// positive and negative binds through the id translation.)
-    //= design/witness/spec.md#engine-glue
-    //= type=test
-    //# - **G1 (file identity).** The engine adapter MUST map file paths
-    //# to the model's file identities injectively and consistently
-    //# across all annotations and witnesses in one run, and MUST
-    //# deliver each witness's per-file maps free of duplicate
-    //# identities.
     #[test]
     fn root_span_binds_only_the_named_file_through_translation() {
         use crate::annotation::{Annotation, AnnotationLevel, AnnotationType};
@@ -987,6 +980,13 @@ mod tests {
             })
         };
 
+        //= design/witness/spec.md#engine-glue
+        //= type=test
+        //# - **G1 (file identity).** The engine adapter MUST map file paths
+        //# to the model's file identities injectively and consistently
+        //# across all annotations and witnesses in one run, and MUST
+        //# deliver each witness's per-file maps free of duplicate
+        //# identities.
         assert!(
             !adapter.is_unwitnessed(&annotation("a/src/x.rs")),
             "annotation in the named file binds the witness"
@@ -1003,23 +1003,6 @@ mod tests {
     /// defeated classification carrying that located issue, and the
     /// adapter assigns the trust-boundary refusal — never the degraded
     /// (coarse) model, never the classified model over a collapsed tree.
-    //= design/witness/spec.md#engine-glue
-    //= type=test
-    //# - **G3 (mode routing).** The adapter MUST assign each
-    //# annotation's file the scoring mode its classification actually
-    //# selected — classified, degraded, or the trust-boundary refusal
-    //# that binds nothing and executes nothing
-    //# ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
-    //= design/query/coverage-model-spec.md#scopes
-    //= type=test
-    //# When the stream is unbalanced,
-    //# the coverage model MUST NOT score annotations against the collapsed scope tree;
-    //# it MUST surface the file as a defeated classification and escalate
-    //# (see [Classifier Selection and Dispatch](#dispatch)).
-    //= design/query/coverage-model-spec.md#trust-taxonomy
-    //= type=test
-    //# duvet MUST NOT silently substitute the coarse model or score against
-    //# the collapsed scope tree; it MUST escalate, reporting each located issue.
     #[test]
     fn adapter_assigns_the_selected_mode_and_defeat_is_never_scored() {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
@@ -1079,12 +1062,32 @@ mod tests {
                 .view
                 .mode
         };
+        //= design/witness/spec.md#engine-glue
+        //= type=test
+        //# - **G3 (mode routing).** The adapter MUST assign each
+        //# annotation's file the scoring mode its classification actually
+        //# selected — classified, degraded, or the trust-boundary refusal
+        //# that binds nothing and executes nothing
+        //# ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
         assert!(matches!(mode_of("a/ok.rs"), ScoringMode::Classified));
         assert!(matches!(mode_of("a/nolang.rs"), ScoringMode::Degraded));
         // The defeated file: the trust-boundary refusal — NOT the degraded
         // (coarse) model — so no annotation in it is ever scored against
         // the collapsed scope tree (Unscorable binds nothing and executes
         // nothing, per the verified layer).
+        // Two quotes, one assertion: Unscorable on the defeated file is both
+        // the never-score-the-collapsed-tree escalation and the refusal to
+        // silently substitute the coarse model.
+        //= design/query/coverage-model-spec.md#scopes
+        //= type=test
+        //# When the stream is unbalanced,
+        //# the coverage model MUST NOT score annotations against the collapsed scope tree;
+        //# it MUST surface the file as a defeated classification and escalate
+        //# (see [Classifier Selection and Dispatch](#dispatch)).
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=test
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
         assert!(matches!(mode_of("a/broken.rs"), ScoringMode::Unscorable));
     }
 
@@ -1141,30 +1144,14 @@ mod tests {
     /// path: a witness carrying both files discharges the pair; split
     /// evidence binds the test but fails the pair (and W3 still reports
     /// the implementation ever-executed, deliberately weaker).
+    #[test]
+    // This test is itself the named-bounded-unit-tested evidence for the
+    // adapter glue component, so the orientation quote sits on the fn.
     //= design/witness/spec.md#engine-glue
     //= type=test
     //# The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
     //# unverified engine glue. Each glue component is named, bounded,
     //# and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
-    //= design/witness/spec.md#engine-glue
-    //= type=test
-    //# - **G2 (call obligation).** The engine MUST compute every pair,
-    //# test, and global verdict (Properties
-    //# [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
-    //# [W6](#property-w6-unwitnessed-test-annotations)) by calling the
-    //# verified layer's functions, and MUST derive per-witness
-    //# failure diagnostics ([§3](#verdict-output)) from the same verified cells;
-    //# no parallel engine-side verdict computation may exist.
-    //= design/witness/spec.md#engine-glue
-    //= type=test
-    //# The exactness precondition MUST be established the G3 way:
-    //# the set is assembled from the verified binding cells' results
-    //# for the same test context and witness list, never recomputed
-    //# engine-side.
-    //= design/witness/spec.md#verdict-output
-    //= type=test
-    //# the engine computes all of these to evaluate the verdict,
-    #[test]
     fn g2_verdicts_flow_through_the_verified_layer() {
         use crate::annotation::AnnotationType;
 
@@ -1204,13 +1191,31 @@ mod tests {
             VerifiedVerdicts::build(&witnesses, &matched, &classification, &idx).expect("builds");
         assert!(!adapter.is_unwitnessed(&t));
         let bound = adapter.bound_witnesses(&t);
+        //= design/witness/spec.md#engine-glue
+        //= type=test
+        //# The exactness precondition MUST be established the G3 way:
+        //# the set is assembled from the verified binding cells' results
+        //# for the same test context and witness list, never recomputed
+        //# engine-side.
         assert_eq!(
             bound,
             vec![0],
             "bound set assembled from the verified cells"
         );
+        //= design/witness/spec.md#engine-glue
+        //= type=test
+        //# - **G2 (call obligation).** The engine MUST compute every pair,
+        //# test, and global verdict (Properties
+        //# [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
+        //# [W6](#property-w6-unwitnessed-test-annotations)) by calling the
+        //# verified layer's functions, and MUST derive per-witness
+        //# failure diagnostics ([§3](#verdict-output)) from the same verified cells;
+        //# no parallel engine-side verdict computation may exist.
         let verdict = adapter.discharge_verdict(&t, &i, &bound, |_| ExecutionStatus::Executed);
         assert!(verdict.discharged);
+        //= design/witness/spec.md#verdict-output
+        //= type=test
+        //# the engine computes all of these to evaluate the verdict,
         assert_eq!(verdict.per_witness.len(), 1);
         assert!(verdict.per_witness[0].executed);
         assert_eq!(verdict.per_witness[0].witness.label, "run-both");
@@ -1244,28 +1249,21 @@ mod tests {
     /// proof witness was constructed from (and is absent for runtime
     /// witnesses). Both propagate into the report vocabulary
     /// (`WitnessRef`) unchanged, and the two strengths render distinctly.
-    //= design/witness/spec.md#provenance
-    //= type=test
-    //# `strength` records what kind of claim the witness supports:
-    //# `Executed` (a runtime act ran these lines) or
-    //# `Consulted` (a prover's elaboration reached these lines).
-    //= design/witness/spec.md#provenance
-    //= type=test
-    //#     discharge_unit: Option<String>,
-    //#                               -- prover producers only: the obligation
-    //#                               -- the witness was constructed from
-    //= design/witness/spec.md#provenance
-    //= type=test
-    //# Verdict output MUST report every bound witness's label and
-    //# strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
-    //# each claim
-    //# (decisions.md, [Decision 7](decisions.md#decision-7) and
-    //# [Decision 14](decisions.md#decision-14)).
     #[test]
     fn provenance_strength_and_discharge_unit_record_the_claim_kind() {
         let runtime = exec_witness("report.xml", Strength::Executed);
+        //= design/witness/spec.md#provenance
+        //= type=test
+        //#     discharge_unit: Option<String>,
+        //#                               -- prover producers only: the obligation
+        //#                               -- the witness was constructed from
         assert_eq!(runtime.provenance.discharge_unit, None);
         let prover = root_witness("c::obligation", "src/x.rs", 1, 10);
+        //= design/witness/spec.md#provenance
+        //= type=test
+        //# `strength` records what kind of claim the witness supports:
+        //# `Executed` (a runtime act ran these lines) or
+        //# `Consulted` (a prover's elaboration reached these lines).
         assert_eq!(prover.provenance.strength, Strength::Consulted);
         assert_eq!(
             prover.provenance.discharge_unit.as_deref(),
@@ -1274,6 +1272,13 @@ mod tests {
         );
 
         // Strength propagates into the report vocabulary unchanged...
+        //= design/witness/spec.md#provenance
+        //= type=test
+        //# Verdict output MUST report every bound witness's label and
+        //# strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
+        //# each claim
+        //# (decisions.md, [Decision 7](decisions.md#decision-7) and
+        //# [Decision 14](decisions.md#decision-14)).
         assert_eq!(WitnessRef::from(&runtime).strength, Strength::Executed);
         assert_eq!(WitnessRef::from(&prover).strength, Strength::Consulted);
         // ...and the two claim kinds render distinctly.
@@ -1285,11 +1290,6 @@ mod tests {
     /// coverage type — the same value (one `Arc`, no translation) is an
     /// engine map and a verified-model map, and the verified layer scores
     /// it directly.
-    //= design/witness/spec.md#witness
-    //= type=test
-    //#     files:      Map<FilePath, CoverageReport>,
-    //#                                    -- per file: line → CoverageStatus,
-    //#                                    -- the existing verified type
     #[test]
     fn witness_files_carry_the_verified_coverage_type() {
         use duvet_coverage::types::{AnnotationSpan, LineProperty};
@@ -1311,6 +1311,11 @@ mod tests {
             ])),
             None,
         ];
+        //= design/witness/spec.md#witness
+        //= type=test
+        //#     files:      Map<FilePath, CoverageReport>,
+        //#                                    -- per file: line → CoverageStatus,
+        //#                                    -- the existing verified type
         assert!(verified::is_executed_by(
             0,
             &AnnotationSpan {
