@@ -45,13 +45,13 @@ pub fn total_lines(files: &FileLines) -> usize {
 /// witnesses for); keeping it a distinct type means it cannot be
 /// passed where witness file maps go without an explicit, visible
 /// unwrap.
+#[derive(Clone, Debug, PartialEq, Eq)]
 //= design/witness/spec.md#verus-producer
 //# - The aggregate executability map MUST NOT be delivered as a
 //# witness: it is many obligations wearing one map, and delivering
 //# it would violate [§4.2](#obligation-individuation) by
 //# construction; it exists only as pass-1 scaffolding inside the
 //# producer.
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AggregateExecutabilityMap(pub FileLines);
 
 /// Project every node's spans to one aggregate map (spec §5.2 pass 1).
@@ -96,20 +96,10 @@ pub struct Closure {
 /// `duvet_coverage::producer_core::assemble_witness_lines`, whose
 /// iff-`ensures` proves it. This function is the adapter around it.
 ///
-//= design/witness/spec.md#closure
-//= type=implementation
-//# The closure MUST be **reflexive**: it includes the discharge
-//# unit's own root span (`root ∈ closure(root)`), so that a witness
-//# always scores its own annotation as executed and `ByRootSpan`
-//# binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
-//# instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
-//# depends on this).
-///
-/// Every symbolic reference is followed, whether or not the solver
-/// needed it (Decision 7):
-//= design/witness/spec.md#closure
-//# and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
-//# not load-bearing dependency.
+/// The reflexivity claim ("root ∈ closure(root)") is likewise owned by
+/// the verified core: its annotation lives in
+/// `duvet_coverage::producer_core::closure_reached`, whose
+/// reachable-iff `ensures` (reflexive-transitive reach) proves it.
 ///
 /// References to names with no `FunctionSst` block in the artifact
 /// (externals with no logged body) are not part of the obligation
@@ -132,6 +122,12 @@ pub struct Closure {
 /// `project_obligations` count is report metadata computed in the
 /// adapter, not part of the verified witness surface. The adapter's
 /// faithfulness is what the golden corpus checks.
+///
+/// Every symbolic reference is followed, whether or not the solver
+/// needed it (Decision 7):
+//= design/witness/spec.md#closure
+//# and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
+//# not load-bearing dependency.
 pub fn closure(
     graph: &ObligationGraph,
     root: &str,

@@ -239,6 +239,10 @@ impl From<SexprError> for StructureError {
 /// use [`ObligationGraph::merge`] to combine modules. (Keeping the
 /// per-module list observable is what lets tests pin the raw block
 /// count of the corpus independently of deduplication.)
+//= design/witness/spec.md#verus-producer
+//= type=implementation
+//# - The Verus producer MUST treat `FunctionSst` blocks as closure
+//# nodes and `Fun :path` references as edges,
 pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError> {
     let top_level = parse_all(source)?;
     let mut nodes = Vec::new();
@@ -332,14 +336,6 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 /// skipping the unit would silently re-root its annotations at the
 /// enclosing extent, the hoisting spec §5.3 forbids.
 ///
-//= design/witness/spec.md#verus-producer
-//= type=implementation
-//# - The Verus producer MUST treat `FunctionSst` blocks as closure
-//# nodes and `Fun :path` references as edges, and MUST support
-//# discharge units of all four kinds: obligation extents,
-//# `:enss` clause spans, `LoopInv` spans, and proof-assert spans
-//# (decisions.md, Decision 18).
-///
 /// Artifact shapes (empirical, Verus 0.2026.05.24.ecee80a,
 /// 2026-07-29):
 ///
@@ -367,7 +363,12 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 /// (spec §5.5, Decision 20 — the annotation lives there); this
 /// extractor only carries the `ProofNoteLabel` text through, and
 /// never for ensures clauses:
-///
+//= design/witness/spec.md#verus-producer
+//= type=implementation
+//# and MUST support
+//# discharge units of all four kinds: obligation extents,
+//# `:enss` clause spans, `LoopInv` spans, and proof-assert spans
+//# (decisions.md, Decision 18).
 //= design/witness/spec.md#verus-producer
 //= type=implementation
 //# Until the upstream `proof_note`-on-ensures defect is fixed,

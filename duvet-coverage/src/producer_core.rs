@@ -282,6 +282,14 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
     //# (b) the closure computation over that record is correct —
     //# our code, which SHOULD be verified in `duvet-coverage`
     //# (it is a pure graph fixpoint).
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# The closure MUST be **reflexive**: it includes the discharge
+    //# unit's own root span (`root ∈ closure(root)`), so that a witness
+    //# always scores its own annotation as executed and `ByRootSpan`
+    //# binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
+    //# instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
+    //# depends on this).
     let n = g.len();
     let mut reached: Vec<bool> = Vec::new();
     let mut i: usize = 0;

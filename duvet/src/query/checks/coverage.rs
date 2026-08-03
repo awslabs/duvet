@@ -468,17 +468,18 @@ impl SourceIndex {
 /// `executed(X, w)` cell of spec §1.4. Routing follows the annotation's
 /// [`FileClassification`] arm, with the classification supplied from the
 /// per-file cache and the coverage from the witness.
-//= design/witness/spec.md#executed
-//# This is exactly the existing verified Phases 1–3
-//# (`is_annotation_executed`, or the degraded path),
-//# applied to one witness's coverage maps.
+// Spec §1.4 (design/witness/spec.md#executed): "exactly the existing
+// verified Phases 1–3 (`is_annotation_executed`, or the degraded path),
+// applied to one witness's coverage maps." This file is excluded from
+// duvet's scan, so no annotation lives here — the implementation
+// citation is on the verified `executed_by` in
+// duvet-coverage/src/witness.rs, the definitional site.
 //
 // `coverage` is `None` when the witness does not touch the annotation's
 // file — diagnostic status `NotExecuted`, exactly as a report that does
-// not name the file:
-//= design/witness/spec.md#executed
-//# If w's `files` contains no map for X's file at all,
-//# `executed(X, w)` is false.
+// not name the file ("If w's `files` contains no map for X's file at
+// all, `executed(X, w)` is false" — cited on `executed_by`'s
+// `None => false` arm in duvet-coverage/src/witness.rs).
 pub fn executed_status(
     annotation: &Arc<Annotation>,
     classification: Option<&FileClassification>,
@@ -532,11 +533,12 @@ pub fn executed_status(
 /// Resolve an annotation's target line via the verified target resolution.
 /// This is resolution only — no scoring — and is what the `ByRootSpan`
 /// claim rule consumes.
-//= design/witness/spec.md#annotations
-//# each resolved to the source lines it governs by the coverage
-//# model's target resolution
-//# ([coverage-model-spec §2](../query/coverage-model-spec.md#annotation-target-resolution),
-//# including the degraded path).
+// Spec (design/witness/spec.md#annotations): "each resolved to the
+// source lines it governs by the coverage model's target resolution
+// (coverage-model-spec §2, including the degraded path)." This file is
+// excluded from duvet's scan, so no annotation lives here; the verified
+// target resolution (duvet-coverage/src/target_resolution.rs) owns the
+// citation.
 //
 // This resolution feeds the ByRootSpan claim arm (spec §1.5, quoted at
 // the verified `binds`: the target must EXIST and fall within the root

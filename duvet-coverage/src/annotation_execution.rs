@@ -62,6 +62,9 @@ pub open spec fn execution_status_of(
     }
 }
 
+//= design/query/coverage-model-spec.md#property-6-unknown-safety
+//# The implementation MUST prove that unknown lines cannot produce false
+//# positives.
 pub fn is_annotation_executed(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],

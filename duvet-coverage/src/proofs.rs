@@ -4,15 +4,14 @@
 //! Correctness properties for the coverage model (spec Section 5).
 
 //= design/query/coverage-model-spec.md#correctness-properties
-//# These properties MUST be proven with Verus.
-
-//= design/query/coverage-model-spec.md#correctness-properties
 //= type=implication
 //# The Verus proof files MUST carry
 //# duvet annotations linking each `proof fn` back to the corresponding property
 //# section in this document.
 
 #[cfg(verus_keep_ghost)]
+//= design/query/coverage-model-spec.md#correctness-properties
+//# These properties MUST be proven with Verus.
 use crate::predicates::{
     all_lines_skippable, line_is_skippable, scope_contains, scopes_match_classifications,
     scopes_well_formed,
@@ -38,10 +37,6 @@ use vstd::prelude::*;
 
 verus! {
 
-//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-//# The implementation MUST prove that for any two lines A and B where A is in
-//# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-//# S2 is not a parent of S1:
 /// Property 2: No Cross-Scope Leakage.
 ///
 /// Lemma: if scopes are well-formed and line B is in the execution set but not
@@ -54,6 +49,10 @@ verus! {
 /// By scopes_well_formed, if the hit is in scope S1 and line B is in scope S2,
 /// and S1 and S2 are unrelated (neither contains the other), then they don't
 /// overlap — so no single scope_idx can contain both. Contradiction.
+//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
+//# The implementation MUST prove that for any two lines A and B where A is in
+//# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
+//# S2 is not a parent of S1:
 proof fn lemma_no_cross_scope_leakage(
     exec_set: Set<u64>,
     classifications: &[Option<LineClass>],
@@ -254,9 +253,6 @@ fn executed_annotation_has_no_cross_scope_leakage(
     status
 }
 
-//= design/query/coverage-model-spec.md#property-3-conservative-fallback
-//# The implementation MUST prove that no backward propagation occurs WITHIN a
-//# scope that contains a `NonLinearControl` line.
 /// Property 3: Conservative Fallback.
 ///
 /// Lemma: if a line is in the execution set via propagation (not directly hit),
@@ -267,6 +263,9 @@ fn executed_annotation_has_no_cross_scope_leakage(
 /// child scope and get propagated via the child. This is sound because a goto
 /// in the parent cannot redirect control flow within the child without first
 /// exiting the child (crossing a ScopeClose).
+//= design/query/coverage-model-spec.md#property-3-conservative-fallback
+//# The implementation MUST prove that no backward propagation occurs WITHIN a
+//# scope that contains a `NonLinearControl` line.
 proof fn lemma_conservative_fallback(
     exec_set: Set<u64>,
     classifications: &[Option<LineClass>],
@@ -373,9 +372,6 @@ fn executed_annotation_conservative_fallback(
     status
 }
 
-//= design/query/coverage-model-spec.md#property-4-monotonicity
-//# The implementation MUST prove that given two coverage reports E1 and E2 where
-//# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 /// Property 4: Monotonicity.
 ///
 /// Lemma: if E1 ⊆ E2 (every hit in E1 is also a hit in E2), then
@@ -386,6 +382,9 @@ fn executed_annotation_conservative_fallback(
 /// execution_set(E2) by Property 9. If it has a valid_path under E1, the same
 /// path is valid under E2 (the hit_line is still hit, classifications and scopes
 /// are unchanged), so it's in execution_set(E2) by the ensures clause.
+//= design/query/coverage-model-spec.md#property-4-monotonicity
+//# The implementation MUST prove that given two coverage reports E1 and E2 where
+//# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 proof fn lemma_monotonicity(
     exec_set_1: Set<u64>,
     exec_set_2: Set<u64>,
@@ -547,15 +546,15 @@ fn executed_annotation_monotonic(
     (status_1, status_2)
 }
 
+/// Helper: skipping a prefix of skippable lines does not change the walk's
+/// target. If every line in `[c, d]` is skippable, the forward walk from `c`
+/// lands on the same target as the walk from `d + 1`.
 //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
 //# The implementation MUST prove that if annotation A (lines a1..a2) is
 //# immediately above annotation B (lines b1..b2) with only whitespace,
 //# comments, or other annotations between
 //# them, and `is_annotation_executed(B, ...) = Executed`, then
 //# `is_annotation_executed(A, ...) = Executed`.
-/// Helper: skipping a prefix of skippable lines does not change the walk's
-/// target. If every line in `[c, d]` is skippable, the forward walk from `c`
-/// lands on the same target as the walk from `d + 1`.
 proof fn lemma_skippable_prefix_same_walk(
     classifications: &[Option<LineClass>],
     c: u64,
@@ -680,15 +679,12 @@ fn stacked_annotations_share_executed(
     (status_a, status_b)
 }
 
-//= design/query/coverage-model-spec.md#property-6-unknown-safety
-//# The implementation MUST prove that unknown lines cannot produce false
-//# positives.
 // Property 6 (Unknown Safety) is proven inline as two postconditions of
-// `is_annotation_executed`, matching the spec's two bullets: (a) Executed ==>
-// the resolved target line exists and is classified, and (b) Executed ==> the
-// target is validly in the execution set, which forbids `None` on the
-// propagation path between the hit line and the target. No separate lemma is
-// needed.
+// `is_annotation_executed` (annotation_execution.rs), matching the spec's two
+// bullets: (a) Executed ==> the resolved target line exists and is classified,
+// and (b) Executed ==> the target is validly in the execution set, which
+// forbids `None` on the propagation path between the hit line and the target.
+// No separate lemma is needed; the implementation annotation lives on that fn.
 
 //= design/query/coverage-model-spec.md#property-7-target-determinism
 //= type=implication

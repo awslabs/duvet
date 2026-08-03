@@ -74,12 +74,7 @@ pub open spec fn annotation_target_spec(
 //= type=implementation
 //# Placement note (degraded files): in a file with no language
 //# classifier, resolution cannot recognize comment lines as skippable —
-//# only blank lines and annotation lines are skipped — so an annotation
-//# (stacked or not) MUST be the last comment block above the code it
-//# targets; an intervening ordinary comment (e.g. a doc comment between
-//# the annotation and a proof fn header) becomes the resolved target
-//# itself, which a prover producer sees as an unelaborated position
-//# ([Property W6](#property-w6-unwitnessed-test-annotations)).
+//# only blank lines and annotation lines are skipped —
 pub fn annotation_target(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],

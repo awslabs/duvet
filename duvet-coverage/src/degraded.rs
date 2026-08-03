@@ -40,11 +40,10 @@
 // proofs) and tested by CI's verify job, which fails unless they prove
 // (the type=test annotation lives on that step in
 // .github/workflows/ci.yml).
+#[cfg(verus_keep_ghost)]
 //= design/query/coverage-model-spec.md#degraded-properties
 //# These properties MUST be proven with Verus for the degraded path,
 //# alongside the Section 5 properties for the classified path.
-
-#[cfg(verus_keep_ghost)]
 use crate::{
     annotation_execution::execution_status_of, predicates::validly_in_exec_set,
     target_resolution::annotation_target_spec,

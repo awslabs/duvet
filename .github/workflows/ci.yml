@@ -288,14 +288,6 @@ jobs:
         # entries in .duvet/config.toml that put the proof files in the
         # scan. Discharged by this CI run itself — stays unwitnessed in
         # the coverage table by design.
-        #= design/witness/spec.md#engine-properties
-        #= type=test
-        #% The Verus proof files MUST carry duvet annotations citing the
-        #% anchors in this section.
-        #= design/witness/producer-core-spec.md#producer-core-verified-model-properties
-        #= type=test
-        #% The Verus proof files MUST carry duvet annotations citing the
-        #% anchors in this document.
         #
         # These MUST-carry tests are also the deletion-catching half of
         # the "MUST be proven with Verus" conjunction: the verify job
@@ -304,6 +296,14 @@ jobs:
         # fails THIS step. (The MUST-prove quotes themselves are tested
         # once, on the verify step — duvet's duplicates check enforces
         # one test owner per quote.)
+        #= design/witness/spec.md#engine-properties
+        #= type=test
+        #% The Verus proof files MUST carry duvet annotations citing the
+        #% anchors in this section.
+        #= design/witness/producer-core-spec.md#producer-core-verified-model-properties
+        #= type=test
+        #% The Verus proof files MUST carry duvet annotations citing the
+        #% anchors in this document.
         run: ./target/debug/duvet report --ci
 
       - name: Download Verus SST logs

@@ -21,15 +21,12 @@
 // What this layer is (spec §1.4): exactly the existing verified
 // Phases 1–3 applied to one witness's coverage maps — the citation
 // lives on `executed_by`, the definitional site. What it rests on
-// (spec §4):
-//= design/witness/spec.md#engine-glue
-//# The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
-//# unverified engine glue. Each glue component is named, bounded,
-//# and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
-//= design/witness/spec.md#engine-glue
-//# The adapter MUST establish
-//# the verified functions' preconditions at the boundary —
-//# filter or degrade before calling, never assume.
+// (spec §4): the verified layer's guarantees (§2) reach the user only
+// through unverified engine glue, each component named, bounded, and
+// unit-tested. The "adapter MUST establish the verified functions'
+// preconditions" citation lives on the engine adapter itself
+// (`duvet/src/query/witness.rs`, `VerifiedVerdicts::ctx_of`), the code
+// that filters or degrades before calling.
 //
 // Closedness (spec §4.1, "Every delivered `files` map MUST be closed…")
 // is owned by the verified constructor: the annotation lives inside
@@ -79,12 +76,12 @@ verus! {
 ///   classification, `end_line == u64::MAX`, unclassified file (its
 ///   `Unknown` diagnostic is engine reporting; the verdict
 ///   contribution is uniformly `false`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 //= design/witness/spec.md#executed
 //# The verified Phase 4 layer implements the "or" per file: a
 //# `ScoringMode` routes each file to the classified or the degraded
 //# scorer, and engine trust-boundary refusals are encoded as
 //# `Unscorable` — binds nothing, executes nothing
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoringMode {
     Classified,
     Degraded,
@@ -92,9 +89,9 @@ pub enum ScoringMode {
 }
 
 /// How a test annotation claims a witness (spec §1.5).
+#[derive(Debug, Clone, PartialEq, Eq)]
 //= design/witness/spec.md#claim-rules
 //# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ClaimRule {
     // The rule definitions (`ByExecution` is the runtime rule / `ByRootSpan`
     // is the prover rule) are quoted at their definitional site — the match
@@ -119,11 +116,11 @@ pub enum ClaimRule {
 /// resident coverage data. Semantically inert: in spec land an `Arc<T>`
 /// is its value (the lookup specs deref it), and `==`/`PartialEq` remain
 /// value equality — W4's transport-by-equality argument is unchanged.
+#[derive(Debug, Clone, PartialEq, Eq)]
 //= design/witness/spec.md#witness
 //# A witness is the record of **one act of checking**:
 //# one test's execution, or one prover obligation's successful
 //# verification.
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Witness {
     pub claim: ClaimRule,
     pub files: Vec<(u64, std::sync::Arc<CoverageReport>)>,
@@ -183,9 +180,6 @@ pub open spec fn witness_file_lookup(
 //# (`is_annotation_executed`, or the degraded path),
 //# applied to one witness's coverage maps.
 //# This specification adds no new per-annotation scoring semantics.
-//= design/witness/spec.md#executed
-//# If w's `files` contains no map for X's file at all,
-//# `executed(X, w)` is false.
 pub open spec fn executed_by(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -196,6 +190,9 @@ pub open spec fn executed_by(
     w: Witness,
 ) -> bool {
     match witness_file_lookup(w.files@, file_id) {
+        //= design/witness/spec.md#executed
+        //# If w's `files` contains no map for X's file at all,
+        //# `executed(X, w)` is false.
         None => false,
         Some(cov) => match mode {
             ScoringMode::Classified => execution_status_of(
@@ -228,14 +225,6 @@ pub open spec fn executed_by(
 //#     ByExecution        → executed(T, w)
 //#     ByRootSpan(f, r)   → T's resolved target EXISTS and falls
 //#                           within r in file f
-//= design/witness/spec.md#property-w5-claim-refinement
-//= type=implementation
-//# The implementation MUST prove that binding under `ByExecution`
-//# implies execution of the test in the same witness:
-//= design/witness/spec.md#property-w7-positional-binding-map-independence
-//= type=implementation
-//# The implementation MUST prove that binding under `ByRootSpan` does
-//# not depend on the witness's coverage maps:
 pub open spec fn binds(
     file_id: u64,
     annotation: &AnnotationSpan,
@@ -252,6 +241,10 @@ pub open spec fn binds(
         //# so the test claims the witness by evidence —
         //# its own lines are executed in it.
         //# This rule is sound only under witness individuation ([§4.2](#obligation-individuation)).
+        //= design/witness/spec.md#property-w5-claim-refinement
+        //= type=implementation
+        //# The implementation MUST prove that binding under `ByExecution`
+        //# implies execution of the test in the same witness:
         ClaimRule::ByExecution => executed_by(
             file_id, annotation, mode, classifications, scopes, file_length, w,
         ),
@@ -260,6 +253,10 @@ pub open spec fn binds(
         //# the witness was constructed from the annotation's own position
         //# ([§5](#prover-producers)), so ownership is positional and holds by
         //# construction
+        //= design/witness/spec.md#property-w7-positional-binding-map-independence
+        //= type=implementation
+        //# The implementation MUST prove that binding under `ByRootSpan` does
+        //# not depend on the witness's coverage maps:
         ClaimRule::ByRootSpan { file_id: span_file, start_line, end_line } => {
             let target = annotation_target_spec(annotation, classifications, file_length);
             &&& !(mode is Unscorable)

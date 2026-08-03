@@ -119,7 +119,6 @@ impl<'g> DischargeUnit<'g> {
 ///
 /// The domain check is exact — it is the soundness boundary: a
 /// position is in `dom(du)` iff a discharge unit is *rooted* there.
-///
 //= design/witness/spec.md#discharge-unit
 //= type=implementation
 //# Its domain (`dom(du)`) MUST contain only positions where an
@@ -128,7 +127,6 @@ impl<'g> DischargeUnit<'g> {
 //# (decisions.md, Decisions 13, 17, 18):
 //# fn/lemma headers (obligation extents), ensures clauses,
 //# loop invariants, and proof asserts.
-///
 //= design/witness/spec.md#discharge-unit
 //= type=implementation
 //# Executable body lines MUST NOT be in the domain:
@@ -183,14 +181,13 @@ pub fn classify_position<'g>(
 /// filtering them establishes the verified layer's `units_wf`
 /// precondition without changing the selection.
 ///
+/// Order is deterministic: ascending by obligation name, then unit
+/// kind, then clause index (via label).
 //= design/witness/spec.md#discharge-unit
 //= type=implementation
 //# When N obligations root a position at the chosen level, the
 //# producer MUST deliver one witness per rooting obligation and
 //# MUST NOT select among them (decisions.md, Decision 12).
-///
-/// Order is deterministic: ascending by obligation name, then unit
-/// kind, then clause index (via label).
 pub fn find_discharge_units<'g>(
     graph: &'g ObligationGraph,
     file: &str,
@@ -313,12 +310,10 @@ impl Default for ClosureMemo {
 /// glue's per-position path, and [`materialize_all`] so
 /// annotation-driven and full-universe production cannot diverge by
 /// construction.
-///
 //= design/witness/spec.md#obligation-individuation
 //= type=implementation
 //# Every delivered witness MUST be the record of exactly one act of
 //# checking.
-///
 //= design/witness/spec.md#closure
 //= type=implementation
 //# **The closure ceiling MUST be stated per producer, because it

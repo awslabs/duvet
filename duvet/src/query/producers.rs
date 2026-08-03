@@ -79,6 +79,7 @@ impl CoverageProducer {
     }
 }
 
+#[derive(Clone, Debug)]
 //= design/witness/spec.md#producer
 //= type=implementation
 //# A producer maps declared artifacts to witnesses:
@@ -86,7 +87,6 @@ impl CoverageProducer {
 //# ```
 //# produce : (artifacts, annotations) → Vec<Witness>
 //# ```
-#[derive(Clone, Debug)]
 pub struct CoverageSource {
     pub producer: CoverageProducer,
     /// Artifact paths or globs (report files for runtime producers;
@@ -99,12 +99,12 @@ pub struct CoverageSource {
 /// target resolution produced (spec §1.1). This is also the shape a
 /// prover producer is asked to witness — positions, not annotations,
 /// cross that boundary:
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 //= design/witness/spec.md#producer
 //# Normatively: every delivered witness MUST be a function of
 //# (artifact, obligation) only — identical regardless of which
 //# annotation caused its materialization, carrying no annotation
 //# identity
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RequestedPosition {
     pub absolute_file: String,
     pub line: u64,
@@ -112,27 +112,27 @@ pub struct RequestedPosition {
 
 /// What one declared source produced: its witnesses, plus the
 /// pass-1 facts that are not witnesses.
+#[derive(Debug, Default)]
 //= design/witness/spec.md#producer-obligations
 //# **producers deliver facts and never render verdicts.**
 //# Delivering zero witnesses for an annotation is a fact
 //# (possibly with a reason attached, [§5.2](#two-pass-construction)'s not-proof-testable),
 //# not a failure
-#[derive(Debug, Default)]
 pub struct Produced {
     //= design/witness/spec.md#producer
     //= type=implementation
     //# The producer-internal artifact format MUST NOT escape the
     //# producer; the engine consumes only `Vec<Witness>`.
     pub witnesses: Vec<Witness>,
-    //= design/witness/spec.md#two-pass-construction
-    //= type=implementation
-    //# If a live annotation's resolved target is not proof-testable,
-    //# the producer MUST deliver no witness for it,
     /// Requested positions a prover artifact elaborated but which
     /// root no obligation (Decision 13): proof ingredients, not
     /// claims. No witness exists for them by definition; the report
     /// identifies them distinctly from Property W6's "no witness
     /// from any configured producer."
+    //= design/witness/spec.md#two-pass-construction
+    //= type=implementation
+    //# If a live annotation's resolved target is not proof-testable,
+    //# the producer MUST deliver no witness for it,
     pub not_proof_testable: Vec<RequestedPosition>,
 }
 
@@ -184,6 +184,10 @@ pub async fn produce(
         ));
     }
     match source.producer {
+        //= design/witness/spec.md#producer
+        //# Runtime producers MAY ignore the `annotations` argument
+        //# (their witnesses pre-exist in the artifact).
+        //# Prover producers use it to construct witnesses
         CoverageProducer::JacocoXml => {
             let mut produced = Produced::default();
             for artifact in &artifacts {
@@ -262,6 +266,8 @@ async fn jacoco_witness(artifact: &str) -> Result<Witness> {
 /// [`RequestedPosition`]). Output order is ascending by label within
 /// one artifact — deterministic regardless of position order.
 ///
+//= design/witness/spec.md#two-pass-construction
+//# Prover witnesses are constructed, not found:
 //= design/witness/spec.md#producer
 //= type=implementation
 //# — and the filtering MUST be sound:

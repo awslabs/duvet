@@ -397,16 +397,13 @@ fn witnessable(anno: AnnotationType) -> bool {
 /// Produce every declared source's witnesses, in declaration order (which
 /// makes the "first discharging witness" named in verdicts deterministic).
 //
-// So when a prover producer is declared, test files are classified first
+// When a prover producer is declared, test files are classified first
 // and targets resolved via the verified target resolution — positions,
 // not annotations, cross the boundary (§1.7's inertness requirement,
-// cited on `RequestedPosition`).
-//= design/witness/spec.md#producer
-//# Runtime producers MAY ignore the `annotations` argument
-//# (their witnesses pre-exist in the artifact).
-//# Prover producers use it to construct witnesses
-//= design/witness/spec.md#two-pass-construction
-//# Prover witnesses are constructed, not found:
+// cited on `RequestedPosition`). The producer-contract citations
+// ("Runtime producers MAY ignore the `annotations` argument", "Prover
+// witnesses are constructed, not found") live on the producer arms in
+// `producers.rs` (`produce`'s JaCoCo arm, `verus_witnesses_from_graph`).
 async fn load_witnesses(
     sources: &[CoverageSource],
     project_data: &ProjectData,
@@ -589,7 +586,10 @@ fn default_non_target(path: &std::path::Path) -> Option<&'static str> {
 //= type=implementation
 //# so an annotation
 //# (stacked or not) MUST be the last comment block above the code it
-//# targets
+//# targets; an intervening ordinary comment (e.g. a doc comment between
+//# the annotation and a proof fn header) becomes the resolved target
+//# itself, which a prover producer sees as an unelaborated position
+//# ([Property W6](#property-w6-unwitnessed-test-annotations)).
 //= design/witness/spec.md#verdict-output
 //= type=implementation
 //# Unwitnessable is a placement verdict, not an evidence verdict: it
@@ -999,18 +999,15 @@ async fn execute_coverage_check(
             unwitnessed.push(UnwitnessedTestAnnotation {
                 test: test.target.clone(),
                 diagnostic_status,
-                //= design/witness/spec.md#two-pass-construction
-                //= type=implementation
-                //# In a mixed run such an annotation binds runtime witnesses
-                //# normally.
-                //
                 // Reporting refinement only: the annotation is unwitnessed
                 // either way (the verdict above is unchanged), and the
                 // producer's fact is consulted ONLY in this unwitnessed
                 // branch — a not-proof-testable position that bound a
                 // runtime witness never reaches it, so binding stays
                 // normal in mixed runs by construction. This names the
-                // producer-delivered reason when there is one.
+                // producer-delivered reason when there is one. (The
+                // "binds runtime witnesses normally" citation lives on
+                // the binding path, `witness.rs::bound_witnesses`.)
                 not_proof_testable: resolved_target
                     .as_ref()
                     .is_some_and(|target| not_proof_testable.contains(target)),
@@ -1024,7 +1021,11 @@ async fn execute_coverage_check(
     //= design/witness/spec.md#verdict-output
     //= type=implementation
     //# For every implementation annotation whose resolved target line is
-    //# unwitnessable, the output MUST report the same finding:
+    //# unwitnessable, the output MUST report the same finding: any pair
+    //# verdict such an annotation participates in scores a line that is
+    //# not code, so a discharge is accidental (a consulted-span fill) and
+    //# a failure would misattribute a placement defect to producer
+    //# configuration.
     for annotation in &implementation_annotations {
         if !matches!(annotation.anno, AnnotationType::Citation) {
             continue;

@@ -100,12 +100,12 @@ pub enum ClaimRule {
     },
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 //= design/witness/spec.md#provenance
 //= type=implementation
 //# `strength` records what kind of claim the witness supports:
 //# `Executed` (a runtime act ran these lines) or
 //# `Consulted` (a prover's elaboration reached these lines).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Strength {
     Executed,
     Consulted,
@@ -135,10 +135,10 @@ pub struct Provenance {
 
 /// The (label, strength) pair of one bound witness in verdict output
 /// (decisions.md, Decision 7).
+#[derive(Clone, Debug, PartialEq, Eq)]
 //= design/witness/spec.md#verdict-output
 //# For every discharged pair, the output MUST name, in verbose
 //# output, every bound witness (its label) and its strength ([§1.3](#provenance)).
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WitnessRef {
     pub label: String,
     pub strength: Strength,
@@ -170,9 +170,9 @@ pub struct PairWitnessResult {
 }
 
 /// The verdict for one (T, I) pair over the bound-witness set.
+#[derive(Clone, Debug, PartialEq, Eq)]
 //= design/witness/spec.md#verdict-output
 //# the engine computes all of these to evaluate the verdict,
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DischargeVerdict {
     /// Property W1's verdict, computed by the verified
     /// `report_discharged`.
@@ -190,6 +190,11 @@ pub struct DischargeVerdict {
 /// is stated in the module docs; the quantifier semantics downstream of
 /// it are proven in duvet-coverage against the spec's engine properties
 /// (design/witness/spec.md#engine-properties).
+//= design/witness/spec.md#engine-glue
+//= type=implementation
+//# The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
+//# unverified engine glue. Each glue component is named, bounded,
+//# and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
 pub struct VerifiedVerdicts<'a> {
     /// Verified-model witnesses, index-aligned with the engine's witness
     /// vector.
@@ -226,6 +231,11 @@ impl<'a> VerifiedVerdicts<'a> {
     /// `SourceIndex::match_witness_files` (which already refused both
     /// ambiguity directions for coverage-map paths).
     ///
+    /// A `ByRootSpan` producer-path coordinate that suffix-matches more
+    /// than one project source is refused here — at translation, before
+    /// any bind — with an error naming the coordinate and every match.
+    /// One that matches no project source gets a fresh id no annotation
+    /// carries: it binds nothing, by construction rather than by scan.
     //= design/witness/spec.md#claim-rules
     //= type=implementation
     //# If the engine's path-matching relation associates an annotation's
@@ -234,18 +244,14 @@ impl<'a> VerifiedVerdicts<'a> {
     //# report the ambiguity rather than select — the same posture the
     //# producer takes when translating positions into artifact
     //# coordinates.
-    ///
-    /// A `ByRootSpan` producer-path coordinate that suffix-matches more
-    /// than one project source is refused here — at translation, before
-    /// any bind — with an error naming the coordinate and every match.
-    /// One that matches no project source gets a fresh id no annotation
-    /// carries: it binds nothing, by construction rather than by scan.
     pub fn build(
         engine: &'a [Witness],
         matched: &[FxHashMap<PathBuf, Arc<CoverageReportMap>>],
         classification: &'a ClassificationMap,
         index: &'a SourceIndex,
     ) -> Result<Self> {
+        // Ids for every project source up front: enumeration order of the
+        // index, injective because absolute paths are distinct keys.
         //= design/witness/spec.md#engine-glue
         //= type=implementation
         //# - **G1 (file identity).** The engine adapter MUST map file paths
@@ -253,9 +259,6 @@ impl<'a> VerifiedVerdicts<'a> {
         //# across all annotations and witnesses in one run, and MUST
         //# deliver each witness's per-file maps free of duplicate
         //# identities.
-        //
-        // Ids for every project source up front: enumeration order of the
-        // index, injective because absolute paths are distinct keys.
         let mut ids: FxHashMap<String, u64> = FxHashMap::default();
         for (_, absolute) in index.entries() {
             let next = ids.len() as u64;
@@ -360,6 +363,11 @@ impl<'a> VerifiedVerdicts<'a> {
     //# selected — classified, degraded, or the trust-boundary refusal
     //# that binds nothing and executes nothing
     //# ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
+    //= design/witness/spec.md#engine-glue
+    //= type=implementation
+    //# The adapter MUST establish
+    //# the verified functions' preconditions at the boundary —
+    //# filter or degrade before calling, never assume.
     fn ctx_of(&self, annotation: &Arc<Annotation>) -> AnnCtx<'_> {
         let (start_line, end_line) = annotation.line_range();
         let span = AnnotationSpan {
@@ -426,6 +434,14 @@ impl<'a> VerifiedVerdicts<'a> {
         let ctx = self.ctx_of(t);
         (0..self.verified.len())
             .filter(|&wi| {
+                // No not-proof-testable guard here: that producer fact is
+                // reporting refinement only, consulted solely on the
+                // unwitnessed branch in engine.rs — its absence on this
+                // path is what keeps binding normal in mixed runs.
+                //= design/witness/spec.md#two-pass-construction
+                //= type=implementation
+                //# In a mixed run such an annotation binds runtime witnesses
+                //# normally.
                 verified::is_bound_by(
                     ctx.file_id,
                     &ctx.span,
@@ -445,13 +461,6 @@ impl<'a> VerifiedVerdicts<'a> {
     /// §1.6 citation lives on the verified `discharged` spec fn in
     /// `duvet-coverage/src/witness.rs`, the definitional site.)
     ///
-    //= design/witness/spec.md#engine-glue
-    //= type=implementation
-    //# The exactness precondition MUST be established the G3 way:
-    //# the set is assembled from the verified binding cells' results
-    //# for the same test context and witness list, never recomputed
-    //# engine-side.
-    ///
     /// `bound` is the list from [`Self::bound_witnesses`], which collects
     /// exactly the indices where the verified `is_bound_by` cell (ensures:
     /// result ⟺ `binds`) returned true, over this same `self.verified`
@@ -465,6 +474,12 @@ impl<'a> VerifiedVerdicts<'a> {
     /// order) use the verified `is_executed_by` cell for the executed
     /// flag and the caller's diagnostic status (the engine's
     /// `Unknown`-carrying cell) for reporting detail.
+    //= design/witness/spec.md#engine-glue
+    //= type=implementation
+    //# The exactness precondition MUST be established the G3 way:
+    //# the set is assembled from the verified binding cells' results
+    //# for the same test context and witness list, never recomputed
+    //# engine-side.
     pub fn discharge_verdict(
         &self,
         t: &Arc<Annotation>,

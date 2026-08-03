@@ -158,6 +158,7 @@ pub struct CoveredTestAnnotation {
     pub not_executed_implementations: Vec<NotExecutedAnnotation>,
 }
 
+#[derive(Debug)]
 //= design/witness/spec.md#verdict-output
 //= type=implementation
 //# For every pair that fails because a bound witness did not execute
@@ -165,7 +166,6 @@ pub struct CoveredTestAnnotation {
 //# **every** bound witness with its per-witness result
 //# (executed I / did not execute I) and strength,
 //# so the failing claim is identifiable —
-#[derive(Debug)]
 pub struct NotExecutedAnnotation {
     pub annotation: Arc<Annotation>,
     pub status: ExecutionStatus,
@@ -177,12 +177,12 @@ pub struct NotExecutedAnnotation {
     pub per_witness: Vec<PairWitnessResult>,
 }
 
+#[derive(Debug)]
 //= design/witness/spec.md#verdict-output
 //= type=implementation
 //# For every unwitnessed test annotation (W6), the output MUST
 //# identify the annotation and state that no configured producer
 //# yielded a witness for it.
-#[derive(Debug)]
 pub struct UnwitnessedTestAnnotation {
     pub test: Arc<Annotation>,
     /// The test's own execution status folded across all delivered
@@ -235,7 +235,10 @@ pub enum UnwitnessableKind {
 //= type=implementation
 //# For every test annotation that would be reported unwitnessed (W6)
 //# and whose resolved target line is unwitnessable, the output MUST
-//# identify the annotation as *unwitnessable* instead
+//# identify the annotation as *unwitnessable* instead — a report
+//# distinct from Property W6's "no witness from any configured
+//# producer," the same distinct-report posture as
+//# [§5.2](#two-pass-construction)'s not-proof-testable —
 pub struct UnwitnessableAnnotation {
     pub annotation: Arc<Annotation>,
     /// 1-based resolved target line in the annotation's source file.
@@ -671,13 +674,13 @@ impl fmt::Display for CoverageResult {
                     },
                 );
 
+                // ✓/✗ per witness, in bound order, per failing
+                // implementation.
                 //= design/witness/spec.md#verdict-output
                 //# and the disagreement MUST never be silent
                 //# (decisions.md, [Decision 14](decisions.md#decision-14);
                 //# legibility improvements are tracked in
                 //# [Follow-ups](decisions.md#follow-ups) and never weaken the verdict).
-                // ✓/✗ per witness, in bound order, per failing
-                // implementation.
                 let mut help_lines: Vec<String> = Vec::new();
                 for not_executed in &correlation.not_executed_implementations {
                     for result in &not_executed.per_witness {
@@ -1216,7 +1219,10 @@ mod tests {
     //= type=test
     //# For every test annotation that would be reported unwitnessed (W6)
     //# and whose resolved target line is unwitnessable, the output MUST
-    //# identify the annotation as *unwitnessable* instead
+    //# identify the annotation as *unwitnessable* instead — a report
+    //# distinct from Property W6's "no witness from any configured
+    //# producer," the same distinct-report posture as
+    //# [§5.2](#two-pass-construction)'s not-proof-testable —
     //= design/witness/spec.md#verdict-output
     //= type=test
     //# and MUST
@@ -1284,7 +1290,11 @@ mod tests {
     //= design/witness/spec.md#verdict-output
     //= type=test
     //# For every implementation annotation whose resolved target line is
-    //# unwitnessable, the output MUST report the same finding:
+    //# unwitnessable, the output MUST report the same finding: any pair
+    //# verdict such an annotation participates in scores a line that is
+    //# not code, so a discharge is accidental (a consulted-span fill) and
+    //# a failure would misattribute a placement defect to producer
+    //# configuration.
     fn unwitnessable_report_covers_implementation_annotations() {
         let mut result = coverage_result();
         result.status = QueryStatus::Fail;
