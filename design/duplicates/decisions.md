@@ -408,6 +408,66 @@ W6. Healthy spray only survives where testing is coarse.
 
 ---
 
+## Considered: target congestion — named, not yet decided {#considered-congestion}
+
+**Observation:** Many annotations with *different* quotes all
+resolving to one target — four, five, twelve citations stacked on
+a single function. Seen frequently in real usage. It completes the
+matrix this document's decisions live on:
+
+| | same target | different targets |
+|---|---|---|
+| same quote | dead — [Decision 2](#decision-2) | duplicate set — cap + W8 |
+| different quotes | **congestion (this section)** | normal |
+
+**This is not a duplicate.** A duplicate is the same claim
+repeated (redundancy); congestion is many different claims
+concentrated on one artifact (fan-in). The evidence layer does not
+collapse: stacked test annotations share witness sets, but each
+claim's discharge runs through a *different* covering
+implementation, so every claim is individually billed. The
+governing principle therefore does not force a failure — these
+claims are disambiguated, by quote and by pair verdict.
+
+**Why it still smells:** the position is doing no work. The
+annotation's position *is* the claim, and twelve claims on one
+target mean position discriminates nothing. Costs: lazy placement
+(citing at the function head instead of the enforcing lines,
+losing per-claim scoring precision — and on the prover side, the
+difference between binding the function extent and binding the
+specific clause unit); rot amplification (a refactor re-homes
+twelve claims as a careless block); and annotation dumping —
+spray rotated ninety degrees, one claim on many places becoming
+many claims on one place.
+
+**An asymmetry worth pulling on later:** test-side congestion
+resolves cleanly (one integration test citing many requirements is
+billed per-pair and either executes each requirement's
+implementation or fails). Implementation-side congestion is the
+commonly observed shape, and dumping there has a stranger
+property: a citation dumped onto an unrelated function forces
+every test citing that requirement to execute that function
+(per-test ∀-aggregation), so **the dumped citation surfaces as
+failures on innocent test annotations, far from the cause**. The
+evidence layer pushes back on impl dumping, but with poor
+diagnostic locality — arguably worse than silence for
+debuggability.
+
+**Current lean, no decision:** report, don't gate. Group by
+resolved target in the duplicates report ("N annotations resolve
+to this target"), optionally a threshold knob, default unlimited —
+unlike the duplicate cap, the legitimate population (parsers,
+validators genuinely implementing many MUSTs) is large, and a
+biting default would fail real projects on code the evidence
+supports. Remediation message: move each annotation to the
+specific line it governs. Since stacking is common and the
+grouping is a trivial second pass over targets the check already
+resolves, this may be a cheap early win; it may also need more
+thought once the impl-dumping diagnostics question is understood.
+Revisit deliberately.
+
+---
+
 ## Properties {#properties}
 
 Pinned by fixture unless noted; W8's predicate and exactness proof
