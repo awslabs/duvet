@@ -1,6 +1,6 @@
 SPECIFICATION: [Duvet LCOV Coverage Parser: Specification](design/lcov-parser/spec.md)
   SECTION: [2. Record Consumption](#record-consumption)
-    TEXT[!MUST,implementation]: The parser MUST consume `DA` records.
+    TEXT[!MUST,implementation,test]: The parser MUST consume `DA` records.
     TEXT[!MUST,implementation,test]: The parser MUST ignore records of the following types:
     TEXT[!MUST,implementation,test]: `TN`, `FN`, `FNDA`, `FNF`, `FNH`, `BRDA`, `BRF`, `BRH`, `LF`, `LH`.
     TEXT[!MUST,implementation,test]: The parser MUST ignore records of types it does not recognize.
@@ -11,6 +11,8 @@ SPECIFICATION: [Duvet LCOV Coverage Parser: Specification](design/lcov-parser/sp
     TEXT[!MUST,implementation,test]: and representable in an unsigned 64-bit integer.
     TEXT[!MUST,implementation,test]: The parser MUST parse `<count>` as a decimal integer
     TEXT[!MUST,implementation,test]: representable in an unsigned 64-bit integer.
+    TEXT[!MUST,implementation,test]: The `<line>` and `<count>` fields MUST consist solely of
+    TEXT[!MUST,implementation,test]: ASCII digits `0`-`9`.
     TEXT[!MUST,implementation,test]: The parser MUST accept and ignore the optional third
     TEXT[!MUST,implementation,test]: checksum field.
     TEXT[!MUST,implementation,test]: The parser MUST reject a `DA` record whose payload does

@@ -110,6 +110,9 @@ equals `min(true sum, u64::MAX)`.
 - Pro: Forward-compatible; matches the behavior of the ecosystem's own
   consumers.
 - Con: A corrupted `DA` keyword (e.g. `DX:12,1`) is silently skipped.
+- Con: Same class, different variant — a whitespace-indented record
+  (`  DA:1,2`) does not match any known keyword and is silently dropped
+  too. No producer indents records; a hand-edited tracefile could.
 
 **Chosen: Option B.** The structural records the parser depends on
 (`SF`, `DA`, `end_of_record`) are still strictly validated — malformed
@@ -214,3 +217,34 @@ toolchains) plus hand-written edge cases
 **Chosen: Option B.** Corpora live in `duvet/tests/lcov-corpora/` with
 their generation recipes; `SF:` values are opaque map keys to the parser,
 so the `/tmp` paths in pinned files are harmless.
+
+---
+
+## Decision 8: Line keys are u64 end-to-end {#decision-8}
+
+**Context:** The original coverage tables (`FileCoverage`, introduced with
+the JaCoCo parser) keyed lines as `u32` — an unrecorded artifact of the
+JaCoCo source (Java class files store line numbers as u16, so u32 was
+"obviously enough" and nobody wrote it down). The verified coverage core
+(`CoverageReport`, scopes, annotation execution) keys lines as `u64`. The
+LCOV parser initially inherited the `u32`, which forced a
+`u32 → u64 → u32 → u64` round-trip across the pipeline with a panicking
+`try_from` in the glue, justified by a two-hop argument.
+
+### Option A: Keep `u32` tables; narrow at the glue
+
+- Pro: Smaller keys; no change to the pre-existing shared type.
+- Con: A runtime `expect` in the trusted glue whose safety argument spans
+  two modules; every future parser must re-derive it.
+
+### Option B: Key lines as `u64` everywhere
+
+- Pro: Deletes the panic point and every narrowing conversion; the parser
+  output domain equals the verified core's domain, so conversions are
+  identity or `collect()`. One less trusted assertion.
+- Con: The JaCoCo `nr` parse now accepts values (≥ 2^32) that JaCoCo can
+  never emit — dead leniency, harmless because nothing downstream narrows.
+
+**Chosen: Option B.** Bugs migrate to the glue; the type change makes the
+glue smaller. Normative in [spec.md §3](spec.md#da-record-syntax) (`<line>`
+bounded by u64).

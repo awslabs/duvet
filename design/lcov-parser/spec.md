@@ -61,6 +61,9 @@ and representable in an unsigned 64-bit integer.
 The parser MUST parse `<count>` as a decimal integer
 representable in an unsigned 64-bit integer.
 
+The `<line>` and `<count>` fields MUST consist solely of
+ASCII digits `0`-`9`.
+
 The parser MUST accept and ignore the optional third
 checksum field.
 
@@ -72,6 +75,13 @@ producer error, and duvet keys lines as `u64` throughout the coverage
 pipeline, so every parseable value is representable end-to-end with no
 narrowing conversion; a value above 2^64 - 1 cannot be represented and is
 rejected rather than silently truncated.
+
+Rationale for the digit grammar: general-purpose integer parsers accept
+more than producers emit (Rust's `str::parse` accepts a leading `+`).
+No LCOV producer emits signed fields, so accepting them would be untested
+surface with no consumer; the grammar pins exactly what is accepted.
+Leading zeros consist of digits, so they conform and carry their numeric
+value.
 
 ## 4. Report Structure {#report-structure}
 

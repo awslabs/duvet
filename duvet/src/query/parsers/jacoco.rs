@@ -6,14 +6,11 @@ use quick_xml::{
     Reader, XmlVersion,
 };
 use rustc_hash::FxHashMap;
-use std::{
-    collections::BTreeMap,
-    io::{BufRead, Cursor},
-    path::Path,
-};
+use std::{collections::BTreeMap, io::BufRead, path::Path};
 
 use super::super::coverage::{
-    CoverageData, CoverageError, CoverageParser, FileCoverage, GenericCoverageData,
+    parse_report_blocking, CoverageData, CoverageError, CoverageParser, FileCoverage,
+    GenericCoverageData,
 };
 use crate::Result;
 
@@ -22,19 +19,7 @@ pub struct JacocoParser;
 
 impl CoverageParser for JacocoParser {
     async fn parse(&self, file_path: &Path) -> Result<CoverageData> {
-        // Use duvet's VFS system for consistent async file reading
-        let source_file = duvet_core::vfs::read_string(file_path).await?;
-        let file_contents = source_file.to_string();
-
-        // Run CPU-intensive XML parsing in a thread pool to avoid blocking the async runtime
-        let coverage_data = tokio::task::spawn_blocking(move || {
-            let cursor = Cursor::new(file_contents);
-            parse_jacoco_xml_report(cursor)
-        })
-        .await
-        .map_err(|e| duvet_core::error!("Task join error: {}", e))??;
-
-        Ok(CoverageData::Generic(coverage_data))
+        parse_report_blocking(file_path, parse_jacoco_xml_report).await
     }
 }
 

@@ -27,14 +27,11 @@
 //! machine-checked aggregation properties (spec §7).
 
 use rustc_hash::FxHashMap;
-use std::{
-    collections::BTreeMap,
-    io::{BufRead, Cursor},
-    path::Path,
-};
+use std::{collections::BTreeMap, io::BufRead, path::Path};
 
 use super::super::coverage::{
-    CoverageData, CoverageError, CoverageParser, FileCoverage, GenericCoverageData,
+    parse_report_blocking, CoverageData, CoverageError, CoverageParser, FileCoverage,
+    GenericCoverageData,
 };
 use crate::Result;
 use duvet_coverage::lcov::{aggregate_da_records, DaRecord};
@@ -44,20 +41,7 @@ pub struct LcovParser;
 
 impl CoverageParser for LcovParser {
     async fn parse(&self, file_path: &Path) -> Result<CoverageData> {
-        // Use duvet's VFS system for consistent async file reading
-        let source_file = duvet_core::vfs::read_string(file_path).await?;
-        let file_contents = source_file.to_string();
-
-        // Parsing is CPU-bound; run it in a thread pool to avoid blocking the
-        // async runtime (same shape as the JaCoCo parser).
-        let coverage_data = tokio::task::spawn_blocking(move || {
-            let cursor = Cursor::new(file_contents);
-            parse_lcov_report(cursor)
-        })
-        .await
-        .map_err(|e| duvet_core::error!("Task join error: {}", e))??;
-
-        Ok(CoverageData::Generic(coverage_data))
+        parse_report_blocking(file_path, parse_lcov_report).await
     }
 }
 
@@ -67,7 +51,10 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
     // across SF blocks; the verified core then sums per line, so block
     // structure provably cannot affect the result (spec §7, Property 4).
     let mut records_by_file: FxHashMap<String, Vec<DaRecord>> = FxHashMap::default();
-    let mut current_file: Option<String> = None;
+    // The open source-file block: its file key and the records lexed so far,
+    // buffered locally and flushed into `records_by_file` when the block
+    // closes (explicitly or at end-of-input).
+    let mut open_block: Option<(String, Vec<DaRecord>)> = None;
 
     //= design/lcov-parser/spec.md#report-structure
     //= type=implementation
@@ -90,7 +77,7 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
             //= type=implementation
             //# The parser MUST reject an `SF:` record that appears while
             //# a source-file block is already open.
-            if current_file.is_some() {
+            if open_block.is_some() {
                 return Err(CoverageError::InvalidData(format!(
                     "line {line_no}: SF record inside an open source-file block \
                      (missing end_of_record?)"
@@ -116,13 +103,16 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
             // Register the file even if the block carries no DA records: the
             // report names it, so it exists (with no per-line opinions).
             records_by_file.entry(path.to_string()).or_default();
-            current_file = Some(path.to_string());
+            open_block = Some((path.to_string(), Vec::new()));
         } else if let Some(payload) = line.strip_prefix("DA:") {
+            //= design/lcov-parser/spec.md#record-consumption
+            //= type=implementation
+            //# The parser MUST consume `DA` records.
             //= design/lcov-parser/spec.md#report-structure
             //= type=implementation
             //# The parser MUST reject a `DA` record that appears outside
             //# a source-file block.
-            let Some(file) = &current_file else {
+            let Some((_, records)) = &mut open_block else {
                 return Err(CoverageError::InvalidData(format!(
                     "line {line_no}: DA record outside a source-file block"
                 )));
@@ -134,21 +124,20 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
                 ))
             })?;
 
-            records_by_file
-                .get_mut(file)
-                .expect("SF handling inserts the entry before current_file is set")
-                .push(record);
+            records.push(record);
         } else if line == "end_of_record" {
             //= design/lcov-parser/spec.md#report-structure
             //= type=implementation
             //# The parser MUST reject an `end_of_record` record that
             //# appears outside a source-file block.
-            if current_file.is_none() {
+            let Some((file, records)) = open_block.take() else {
                 return Err(CoverageError::InvalidData(format!(
                     "line {line_no}: end_of_record outside a source-file block"
                 )));
-            }
-            current_file = None;
+            };
+            // Flush the block: the entry exists since SF handling registered
+            // it, but `entry().or_default()` keeps this structurally total.
+            records_by_file.entry(file).or_default().extend(records);
         } else {
             //= design/lcov-parser/spec.md#record-consumption
             //= type=implementation
@@ -161,12 +150,14 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
         }
     }
 
-    // Reaching EOF with `current_file` still set is the implicit close: the
-    // records lexed so far stand, and aggregation proceeds normally.
     //= design/lcov-parser/spec.md#report-structure
     //= type=implementation
     //# The parser MUST accept end-of-input while a source-file
     //# block is open, treating it as an implicit `end_of_record`.
+    if let Some((file, records)) = open_block.take() {
+        records_by_file.entry(file).or_default().extend(records);
+    }
+
     let mut coverage_data = GenericCoverageData::new();
     for (file, records) in records_by_file {
         // The verified core sums per line with saturation and returns
@@ -196,9 +187,6 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
     Ok(coverage_data)
 }
 
-//= design/lcov-parser/spec.md#record-consumption
-//= type=implementation
-//# The parser MUST consume `DA` records.
 /// Parse the payload of a `DA` record: `<line>,<count>[,<checksum>]`.
 ///
 /// Returns the reason string on malformed input; the caller attaches file
@@ -221,6 +209,19 @@ fn parse_da_payload(payload: &str) -> std::result::Result<DaRecord, String> {
     let _checksum = fields.next();
     if fields.next().is_some() {
         return Err("too many fields".to_string());
+    }
+
+    //= design/lcov-parser/spec.md#da-record-syntax
+    //= type=implementation
+    //# The `<line>` and `<count>` fields MUST consist solely of
+    //# ASCII digits `0`-`9`.
+    // Stricter than the `str::parse` calls below, which would also accept a
+    // leading `+`. Emptiness is caught here too (`all` is true for "").
+    if line_field.is_empty() || !line_field.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(format!("invalid line number '{line_field}'"));
+    }
+    if count_field.is_empty() || !count_field.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(format!("invalid count '{count_field}'"));
     }
 
     //= design/lcov-parser/spec.md#da-record-syntax
@@ -263,6 +264,9 @@ mod tests {
     }
 
     #[test]
+    //= design/lcov-parser/spec.md#record-consumption
+    //= type=test
+    //# The parser MUST consume `DA` records.
     //= design/lcov-parser/spec.md#aggregation
     //= type=test
     //# A line with no `DA` record MUST be absent from the parsed
@@ -494,6 +498,21 @@ mod tests {
         assert_eq!(data.files.get("a.rs").unwrap().lines.get(&4294967296), Some(&1));
         // Counts must fit in u64.
         assert!(parse_err("SF:a.rs\nDA:1,18446744073709551616\n").contains("invalid count"));
+    }
+
+    /// The field grammar is digits-only: a leading `+` (which `str::parse`
+    /// would accept) does not conform; leading zeros do.
+    #[test]
+    //= design/lcov-parser/spec.md#da-record-syntax
+    //= type=test
+    //# The `<line>` and `<count>` fields MUST consist solely of
+    //# ASCII digits `0`-`9`.
+    fn da_fields_are_digits_only() {
+        assert!(parse_err("SF:a.rs\nDA:+1,1\n").contains("invalid line number"));
+        assert!(parse_err("SF:a.rs\nDA:1,+1\n").contains("invalid count"));
+        // Leading zeros are digits: they conform and carry their value.
+        let data = parse("SF:a.rs\nDA:007,1\nend_of_record\n");
+        assert_eq!(data.files.get("a.rs").unwrap().lines.get(&7), Some(&1));
     }
 
     /// Empty input parses to an empty report.
