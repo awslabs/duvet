@@ -35,15 +35,7 @@
 //! not propagate, so its blindness to `NonLinearControl` cannot cause an unsound
 //! inference. It reports only what coverage directly says about the target line.
 
-// Meta-requirement about this proof file itself: "MUST be proven with
-// Verus" is implemented HERE (the D-properties below are the Verus
-// proofs, checked by CI's verify job) and demonstrated by the runtime
-// tests in this file's tests mod — the same pattern `proofs.rs` uses
-// for the Section 5 twin of this quote.
 #[cfg(verus_keep_ghost)]
-//= design/query/coverage-model-spec.md#degraded-properties
-//# These properties MUST be proven with Verus for the degraded path,
-//# alongside the Section 5 properties for the classified path.
 use crate::{
     annotation_execution::execution_status_of, predicates::validly_in_exec_set,
     target_resolution::annotation_target_spec,
@@ -122,6 +114,14 @@ fn coverage_status_at(coverage: &CoverageReport, line: u64) -> (result: Option<C
 ///   Missing coverage never yields a verdict (it yields `Unknown`).
 /// - **P3 (target below annotation):** any decided target lies strictly below
 ///   `annotation.end_line`.
+// Meta-requirement about this file's proofs: "MUST be proven with Verus" is
+// implemented by the D-property proofs, anchored here at the first proof site
+// (this fn's `ensures` carry D1/D2; D3/D4 are the lemmas below), checked by
+// CI's verify job.
+//= design/query/coverage-model-spec.md#degraded-properties
+//= type=implementation
+//# These properties MUST be proven with Verus for the degraded path,
+//# alongside the Section 5 properties for the classified path.
 //= design/query/coverage-model-spec.md#property-d1-direct-observation
 //= type=implication
 //# The implementation MUST prove that the degraded status is a direct

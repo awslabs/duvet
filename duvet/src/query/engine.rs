@@ -385,6 +385,7 @@ async fn execute_coverage_check(
     // to `report` once it consumes coverage. We report *that* and *where*, never
     // a *cause* (mislabeled vs. classifier gap is undecidable here).
     //= design/query/coverage-model-spec.md#scopes
+    //= type=implementation
     //# When the stream is unbalanced,
     //# the coverage model MUST NOT score annotations against the collapsed scope tree;
     //# it MUST surface the file as a defeated classification and escalate
@@ -395,20 +396,7 @@ async fn execute_coverage_check(
     //# the collapsed scope tree; it MUST escalate, reporting each located issue.
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
-        let mut defeated: std::collections::BTreeMap<
-            &std::path::Path,
-            Vec<crate::query::classify::ClassifierIssue>,
-        > = std::collections::BTreeMap::new();
-        for map in &execution_data_maps {
-            for (path, data) in map {
-                if let crate::query::checks::coverage::FileExecutionData::DefeatedClassification {
-                    issues,
-                } = data
-                {
-                    defeated.entry(path.as_path()).or_default().extend(issues);
-                }
-            }
-        }
+        let defeated = collect_defeated_issues(&execution_data_maps);
         for (path, issues) in &defeated {
             let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
                 .iter()
@@ -809,6 +797,31 @@ fn fold_execution_status<'a>(
     folded
 }
 
+/// Aggregate every located issue from files whose classification was defeated,
+/// across all reports — the escalation's input. Extracted so a unit test can
+/// pin that each located issue reaches the escalation surface (none dropped,
+/// none merged away); the loud per-file report in `execute_coverage_check`
+/// iterates exactly this.
+fn collect_defeated_issues(
+    execution_data_maps: &[ExecutionDataMap],
+) -> std::collections::BTreeMap<std::path::PathBuf, Vec<crate::query::classify::ClassifierIssue>> {
+    let mut defeated: std::collections::BTreeMap<
+        std::path::PathBuf,
+        Vec<crate::query::classify::ClassifierIssue>,
+    > = std::collections::BTreeMap::new();
+    for map in execution_data_maps {
+        for (path, data) in map {
+            if let crate::query::checks::coverage::FileExecutionData::DefeatedClassification {
+                issues,
+            } = data
+            {
+                defeated.entry(path.clone()).or_default().extend(issues);
+            }
+        }
+    }
+    defeated
+}
+
 fn deduplicate_annotation_coverage(
     coverage_list: Vec<AnnotationCoverage>,
 ) -> Vec<AnnotationCoverage> {
@@ -920,10 +933,60 @@ mod tests {
         //= design/query/coverage-model-spec.md#trust-taxonomy
         //= type=test
         //# duvet MUST NOT silently substitute the coarse model or score against
-        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
+        //# the collapsed scope tree;
         assert!(matches!(
             executed_status_for(&ann, &map),
             ExecutionStatus::Unknown { line_number: 7 }
         ));
+    }
+
+    /// Escalation carries every located issue: the aggregation feeding the
+    /// loud per-file report (the escalation surface) preserves each located
+    /// issue from every defeated file across all reports — none dropped,
+    /// none merged away. The printing itself is presentation glue; what is
+    /// pinned here is that each located issue reaches it.
+    #[test]
+    fn escalation_reports_each_located_issue() {
+        let unbalanced = |line| ClassifierIssue {
+            reason: ClassifierFailure::UnbalancedScopes,
+            line,
+        };
+        let parse = |line| ClassifierIssue {
+            reason: ClassifierFailure::ParseError,
+            line,
+        };
+        let mut map_a = ExecutionDataMap::default();
+        map_a.insert(
+            std::path::PathBuf::from("a/broken.rs"),
+            FileExecutionData::DefeatedClassification {
+                issues: vec![unbalanced(7), parse(2)],
+            },
+        );
+        let mut map_b = ExecutionDataMap::default();
+        map_b.insert(
+            std::path::PathBuf::from("b/also_broken.rs"),
+            FileExecutionData::DefeatedClassification {
+                issues: vec![unbalanced(11)],
+            },
+        );
+        let defeated = collect_defeated_issues(&[map_a, map_b]);
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=test
+        //# it MUST escalate, reporting each located issue.
+        assert_eq!(defeated.len(), 2);
+        assert_eq!(
+            defeated[std::path::Path::new("a/broken.rs")]
+                .iter()
+                .map(|i| i.line)
+                .collect::<Vec<_>>(),
+            [7, 2]
+        );
+        assert_eq!(
+            defeated[std::path::Path::new("b/also_broken.rs")]
+                .iter()
+                .map(|i| i.line)
+                .collect::<Vec<_>>(),
+            [11]
+        );
     }
 }
