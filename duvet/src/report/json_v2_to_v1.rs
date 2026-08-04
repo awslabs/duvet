@@ -4,7 +4,7 @@
 //! Conversion from the merge-friendly v2 report to the legacy v1 wire shape.
 
 use super::{
-    canonical::{canonicalize_spans, SegmentSpan},
+    canonical::canonicalize_boundaries,
     json_v1::{
         AnnotationV1, LineV1, RefStatusV1, ReportV1, RequirementStatusV1, SectionV1,
         SpecificationV1,
@@ -1437,7 +1437,7 @@ fn render_canonical_line(
     let boundaries: Vec<_> = boundaries.into_iter().collect();
     let mut annotation_labels = BTreeMap::new();
     let mut annotations_by_label = Vec::new();
-    let mut spans = Vec::new();
+    let mut labels = Vec::new();
     for window in boundaries.windows(2) {
         let start = window[0];
         let end = window[1];
@@ -1456,9 +1456,11 @@ fn render_canonical_line(
             annotations_by_label.push(annotations);
             label
         };
-        spans.push(SegmentSpan { start, end, label });
+        labels.push(label);
     }
-    let spans = canonicalize_spans(&spans);
+    let spans = canonicalize_boundaries(&boundaries, &labels).ok_or_else(|| {
+        duvet_core::error!("invalid canonical line boundaries or annotation label count")
+    })?;
     Ok(Value::Array(
         spans
             .into_iter()
@@ -1559,6 +1561,93 @@ mod tests {
             (Vec::new(), 0, "llo world".to_string()),
         ]));
         assert!(validate_semantics(&direct, &changed_coverage, true).is_err());
+    }
+
+    #[test]
+    fn canonical_line_is_invariant_under_segmentation_refinement() {
+        bolero::check!()
+            .with_type::<([u8; 24], [u8; 24], [u8; 24])>()
+            .for_each(|(text_seed, coverage_seed, split_seed)| {
+                let len = usize::from(text_seed[0] % 24) + 1;
+                let text: String = text_seed[..len]
+                    .iter()
+                    .map(|byte| char::from(b'a' + byte % 26))
+                    .collect();
+                let coverage: Vec<_> = coverage_seed[..len]
+                    .iter()
+                    .map(|byte| byte & 0b111)
+                    .collect();
+
+                let annotations = |mask: u8| {
+                    ["spec", "test", "todo"]
+                        .into_iter()
+                        .enumerate()
+                        .filter(|(bit, _)| mask & (1 << bit) != 0)
+                        .map(|(_, name)| name.to_string())
+                        .collect::<Vec<_>>()
+                };
+                let mut maximal = Vec::new();
+                let mut refined = Vec::new();
+                let mut start = 0;
+                while start < len {
+                    let mut end = start + 1;
+                    while end < len && coverage[end] == coverage[start] {
+                        end += 1;
+                    }
+                    maximal.push((start, end, annotations(coverage[start])));
+                    let mut split = start;
+                    while split < end {
+                        let mut next = split + 1;
+                        while next < end && split_seed[next] % 2 == 0 {
+                            next += 1;
+                        }
+                        refined.push((split, next, annotations(coverage[start])));
+                        split = next;
+                    }
+                    start = end;
+                }
+
+                let metadata = BTreeMap::from([
+                    (
+                        "spec".to_string(),
+                        CanonicalAnnotationMeta {
+                            anno_type: "SPEC".to_string(),
+                            level: "MUST".to_string(),
+                        },
+                    ),
+                    (
+                        "test".to_string(),
+                        CanonicalAnnotationMeta {
+                            anno_type: "TEST".to_string(),
+                            level: "SHOULD".to_string(),
+                        },
+                    ),
+                    (
+                        "todo".to_string(),
+                        CanonicalAnnotationMeta {
+                            anno_type: "TODO".to_string(),
+                            level: "MAY".to_string(),
+                        },
+                    ),
+                ]);
+                let maximal = render_canonical_line(
+                    CanonicalLine {
+                        text: text.clone(),
+                        overlays: maximal,
+                    },
+                    &metadata,
+                )
+                .unwrap();
+                let refined = render_canonical_line(
+                    CanonicalLine {
+                        text,
+                        overlays: refined,
+                    },
+                    &metadata,
+                )
+                .unwrap();
+                assert_eq!(maximal, refined);
+            });
     }
 
     #[test]

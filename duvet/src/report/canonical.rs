@@ -23,13 +23,24 @@ pub struct SegmentSpan {
     pub label: usize,
 }
 
-/// The spans are non-empty, contiguous, and begin at byte zero.
-pub open spec fn spans_well_formed(spans: Seq<SegmentSpan>) -> bool {
+/// The spans are non-empty, contiguous, and begin at `offset`.
+pub open spec fn spans_well_formed_at(spans: Seq<SegmentSpan>, offset: usize) -> bool {
     &&& forall|i: int| 0 <= i < spans.len() ==>
         (#[trigger] spans[i]).start < spans[i].end
-    &&& (spans.len() > 0 ==> spans[0].start == 0)
+    &&& (spans.len() > 0 ==> spans[0].start == offset)
     &&& forall|i: int| 0 < i < spans.len() ==>
         (#[trigger] spans[i - 1]).end == (#[trigger] spans[i]).start
+}
+
+/// The public byte-zero invariant used by line canonicalization.
+pub open spec fn spans_well_formed(spans: Seq<SegmentSpan>) -> bool {
+    spans_well_formed_at(spans, 0)
+}
+
+/// A canonical sequence has no boundary between equal labels.
+pub open spec fn coalesced(spans: Seq<SegmentSpan>) -> bool {
+    forall|i: int| 0 < i < spans.len() ==>
+        (#[trigger] spans[i - 1]).label != (#[trigger] spans[i]).label
 }
 
 pub open spec fn repeated_label(label: usize, len: nat) -> Seq<usize> {
@@ -51,6 +62,206 @@ pub open spec fn denote(spans: Seq<SegmentSpan>) -> Seq<usize>
             span.label,
             (span.end as int - span.start as int) as nat,
         )
+    }
+}
+
+/// Equivalent front-recursive denotation, useful when proving uniqueness of
+/// maximal runs.
+pub open spec fn denote_forward(spans: Seq<SegmentSpan>) -> Seq<usize>
+    decreases spans.len(),
+{
+    if spans.len() == 0 {
+        Seq::empty()
+    } else {
+        let span = spans.first();
+        repeated_label(
+            span.label,
+            (span.end as int - span.start as int) as nat,
+        ) + denote_forward(spans.drop_first())
+    }
+}
+
+proof fn lemma_denote_forward_push(spans: Seq<SegmentSpan>, span: SegmentSpan)
+    ensures
+        denote_forward(spans.push(span)) == denote_forward(spans)
+            + repeated_label(span.label, (span.end as int - span.start as int) as nat),
+    decreases spans.len(),
+{
+    if spans.len() == 0 {
+        reveal_with_fuel(denote_forward, 2);
+        assert(spans.push(span).first() == span);
+        assert(spans.push(span).drop_first() =~= Seq::<SegmentSpan>::empty());
+        assert(denote_forward(spans) =~= Seq::<usize>::empty());
+        assert(denote_forward(spans.push(span))
+            =~= repeated_label(span.label, (span.end as int - span.start as int) as nat));
+    } else {
+        lemma_denote_forward_push(spans.drop_first(), span);
+        reveal_with_fuel(denote_forward, 2);
+        assert((spans.push(span)).first() == spans.first());
+        assert((spans.push(span)).drop_first() =~= spans.drop_first().push(span));
+        vstd::seq_lib::lemma_concat_associative(
+            repeated_label(
+                spans.first().label,
+                (spans.first().end as int - spans.first().start as int) as nat,
+            ),
+            denote_forward(spans.drop_first()),
+            repeated_label(span.label, (span.end as int - span.start as int) as nat),
+        );
+        assert(denote_forward(spans.push(span))
+            == repeated_label(
+                    spans.first().label,
+                    (spans.first().end as int - spans.first().start as int) as nat,
+                )
+                + (denote_forward(spans.drop_first())
+                    + repeated_label(
+                        span.label,
+                        (span.end as int - span.start as int) as nat,
+                    )));
+    }
+}
+
+proof fn lemma_denote_forward(spans: Seq<SegmentSpan>)
+    ensures
+        denote_forward(spans) == denote(spans),
+    decreases spans.len(),
+{
+    reveal(spans_well_formed_at);
+    reveal(Seq::drop_first);
+    if spans.len() == 0 {
+        reveal(denote_forward);
+        reveal(denote);
+    } else {
+        let prefix = spans.drop_last();
+        let span = spans.last();
+        lemma_denote_forward(prefix);
+        lemma_denote_forward_push(prefix, span);
+        reveal_with_fuel(denote, 2);
+        assert(spans =~= prefix.push(span));
+    }
+}
+
+proof fn lemma_well_formed_drop_first(spans: Seq<SegmentSpan>, offset: usize)
+    requires
+        spans_well_formed_at(spans, offset),
+        spans.len() > 0,
+    ensures
+        spans_well_formed_at(spans.drop_first(), spans.first().end),
+{
+    assert forall|i: int| 0 <= i < spans.drop_first().len() implies
+        (#[trigger] spans.drop_first()[i]).start < spans.drop_first()[i].end by {
+        assert(spans.drop_first()[i] == spans[i + 1]);
+    }
+    if spans.drop_first().len() > 0 {
+        assert(spans[1 - 1].end == spans[1].start);
+        assert(spans.drop_first()[0] == spans[1]);
+        assert(spans.drop_first()[0].start == spans.first().end);
+    }
+    assert forall|i: int| 0 < i < spans.drop_first().len() implies
+        (#[trigger] spans.drop_first()[i - 1]).end
+            == (#[trigger] spans.drop_first()[i]).start by {
+        assert(spans[(i + 1) - 1].end == spans[i + 1].start);
+        assert(spans.drop_first()[i - 1] == spans[i]);
+        assert(spans.drop_first()[i] == spans[i + 1]);
+    }
+}
+
+proof fn lemma_coalesced_drop_first(spans: Seq<SegmentSpan>)
+    requires
+        coalesced(spans),
+        spans.len() > 0,
+    ensures
+        coalesced(spans.drop_first()),
+{
+    reveal(coalesced);
+    reveal(Seq::drop_first);
+    assert forall|i: int| 0 < i < spans.drop_first().len() implies
+        (#[trigger] spans.drop_first()[i - 1]).label
+            != (#[trigger] spans.drop_first()[i]).label by {
+        assert(spans[(i + 1) - 1].label != spans[i + 1].label);
+        assert(spans.drop_first()[i - 1] == spans[i]);
+        assert(spans.drop_first()[i] == spans[i + 1]);
+    }
+}
+
+/// A well-formed maximal-run representation is uniquely determined by its
+/// per-byte labels.
+pub proof fn lemma_coalesced_denotation_unique_at(
+    left: Seq<SegmentSpan>,
+    right: Seq<SegmentSpan>,
+    offset: usize,
+)
+    requires
+        spans_well_formed_at(left, offset),
+        spans_well_formed_at(right, offset),
+        coalesced(left),
+        coalesced(right),
+        denote(left) == denote(right),
+    ensures
+        left == right,
+    decreases left.len() + right.len(),
+{
+    reveal(coalesced);
+    lemma_denote_forward(left);
+    lemma_denote_forward(right);
+    if left.len() == 0 || right.len() == 0 {
+        reveal(denote_forward);
+        if left.len() > 0 {
+            assert(denote_forward(left).len() > 0);
+        }
+        if right.len() > 0 {
+            assert(denote_forward(right).len() > 0);
+        }
+    } else {
+        let left_span = left.first();
+        let right_span = right.first();
+        let left_len = (left_span.end as int - left_span.start as int) as nat;
+        let right_len = (right_span.end as int - right_span.start as int) as nat;
+        reveal_with_fuel(denote_forward, 2);
+        assert(denote_forward(left)[0] == left_span.label);
+        assert(denote_forward(right)[0] == right_span.label);
+        assert(left_span.label == right_span.label);
+
+        if left_len < right_len {
+            assert(left.drop_first().len() > 0);
+            assert(left.len() > 1);
+            assert(denote_forward(left)[left_len as int]
+                == left.drop_first().first().label);
+            assert(denote_forward(right)[left_len as int] == right_span.label);
+            assert(left[1 - 1].label != left[1].label);
+            assert(left.drop_first().first() == left[1]);
+            assert(left.drop_first().first().label != left_span.label);
+            assert(false);
+        }
+        if right_len < left_len {
+            assert(right.drop_first().len() > 0);
+            assert(right.len() > 1);
+            assert(denote_forward(right)[right_len as int]
+                == right.drop_first().first().label);
+            assert(denote_forward(left)[right_len as int] == left_span.label);
+            assert(right[1 - 1].label != right[1].label);
+            assert(right.drop_first().first() == right[1]);
+            assert(right.drop_first().first().label != right_span.label);
+            assert(false);
+        }
+        assert(left_len == right_len);
+        assert(left_span == right_span);
+        let left_tail = left.drop_first();
+        let right_tail = right.drop_first();
+        assert_seqs_equal!(denote_forward(left_tail), denote_forward(right_tail), i => {
+            assert(denote_forward(left)[left_len as int + i]
+                == denote_forward(left_tail)[i]);
+            assert(denote_forward(right)[right_len as int + i]
+                == denote_forward(right_tail)[i]);
+        });
+        lemma_well_formed_drop_first(left, offset);
+        lemma_well_formed_drop_first(right, offset);
+        lemma_coalesced_drop_first(left);
+        lemma_coalesced_drop_first(right);
+        lemma_denote_forward(left_tail);
+        lemma_denote_forward(right_tail);
+        lemma_coalesced_denotation_unique_at(left_tail, right_tail, left_span.end);
+        assert(left =~= left_tail.insert(0, left_span));
+        assert(right =~= right_tail.insert(0, right_span));
     }
 }
 
@@ -231,6 +442,22 @@ proof fn lemma_push_preserves_well_formed(
     }
 }
 
+proof fn lemma_push_preserves_coalesced(
+    output: Seq<SegmentSpan>,
+    span: SegmentSpan,
+)
+    requires
+        coalesced(output),
+    ensures
+        coalesced(push_span(output, span)),
+{
+    reveal(push_span);
+    assert forall|i: int| 0 < i < push_span(output, span).len() implies
+        (#[trigger] push_span(output, span)[i - 1]).label
+            != (#[trigger] push_span(output, span)[i]).label by {
+    }
+}
+
 // Canonicalizing the first `count` spans denotes the same per-byte label
 // sequence as taking the first `count` spans raw (and stays well-formed).
 //
@@ -247,6 +474,7 @@ proof fn lemma_canonicalize_prefix_preserves_denotation(
         0 <= count <= input.len(),
     ensures
         spans_well_formed(canonicalize_prefix(input, count)),
+        coalesced(canonicalize_prefix(input, count)),
         denote(canonicalize_prefix(input, count)) == denote(input.take(count)),
     decreases count,
 {
@@ -288,6 +516,7 @@ proof fn lemma_canonicalize_prefix_preserves_denotation(
         // coalescing-append (push_span) and plain append denote the same thing,
         // which is where "merging equal labels is invisible" gets used.
         lemma_push_preserves_well_formed(prior, span);
+        lemma_push_preserves_coalesced(prior, span);
         lemma_push_preserves_denotation(prior, span);
         // Move 5: unfold `denote` one notch on each side (its body is hidden by
         // default to avoid trigger loops; fuel 2 peels the last span off once).
@@ -320,6 +549,7 @@ pub proof fn lemma_canonicalize_preserves_denotation(input: Seq<SegmentSpan>)
         spans_well_formed(input),
     ensures
         spans_well_formed(canonicalize_spec(input)),
+        coalesced(canonicalize_spec(input)),
         denote(canonicalize_spec(input)) == denote(input),
 {
     lemma_canonicalize_prefix_preserves_denotation(input, input.len() as int);
@@ -344,45 +574,25 @@ pub proof fn lemma_canonical_equality_implies_denotation(
     lemma_canonicalize_preserves_denotation(right);
 }
 
-/// Continue canonicalization from an arbitrary already-processed prefix.
-pub open spec fn finish_spans(
-    output: Seq<SegmentSpan>,
-    suffix: Seq<SegmentSpan>,
-) -> Seq<SegmentSpan>
-    decreases suffix.len(),
-{
-    if suffix.len() == 0 {
-        output
-    } else {
-        finish_spans(
-            push_span(output, suffix.first()),
-            suffix.drop_first(),
-        )
-    }
-}
-
-/// Splitting one span at any interior byte does not change canonicalization.
-pub proof fn lemma_split_invariance(
-    output: Seq<SegmentSpan>,
-    suffix: Seq<SegmentSpan>,
-    whole: SegmentSpan,
-    left: SegmentSpan,
-    right: SegmentSpan,
+/// Equal per-byte coverage has one canonical maximal-run representation.
+pub proof fn lemma_canonicalize_complete(
+    left: Seq<SegmentSpan>,
+    right: Seq<SegmentSpan>,
 )
     requires
-        whole.start == left.start,
-        left.start < left.end,
-        left.end == right.start,
-        right.start < right.end,
-        right.end == whole.end,
-        left.label == whole.label,
-        right.label == whole.label,
+        spans_well_formed(left),
+        spans_well_formed(right),
+        denote(left) == denote(right),
     ensures
-        finish_spans(push_span(output, whole), suffix)
-            == finish_spans(push_span(push_span(output, left), right), suffix),
+        canonicalize_spec(left) == canonicalize_spec(right),
 {
-    reveal(push_span);
-    assert(push_span(output, whole) == push_span(push_span(output, left), right));
+    lemma_canonicalize_preserves_denotation(left);
+    lemma_canonicalize_preserves_denotation(right);
+    lemma_coalesced_denotation_unique_at(
+        canonicalize_spec(left),
+        canonicalize_spec(right),
+        0,
+    );
 }
 
 /// Canonicalize contiguous spans by removing boundaries that do not change
@@ -393,6 +603,7 @@ pub fn canonicalize_spans(input: &[SegmentSpan]) -> (output: Vec<SegmentSpan>)
     ensures
         output@ == canonicalize_spec(input@),
         spans_well_formed(output@),
+        coalesced(output@),
         denote(output@) == denote(input@),
 {
     proof {
@@ -422,6 +633,47 @@ pub fn canonicalize_spans(input: &[SegmentSpan]) -> (output: Vec<SegmentSpan>)
         i = i + 1;
     }
     output
+}
+
+/// Validate boundary shape and construct canonical spans without exposing a
+/// proof precondition to ordinary Rust callers.
+pub fn canonicalize_boundaries(
+    boundaries: &[usize],
+    labels: &[usize],
+) -> (output: Option<Vec<SegmentSpan>>)
+{
+    if boundaries.len() < 2 || boundaries[0] != 0 {
+        return None;
+    }
+    if boundaries.len() - 1 != labels.len() {
+        return None;
+    }
+    let mut spans: Vec<SegmentSpan> = Vec::new();
+    let mut i: usize = 0;
+    while i < labels.len()
+        invariant
+            boundaries@.len() == labels@.len() + 1,
+            0 < boundaries@.len(),
+            boundaries@[0] == 0,
+            0 <= i <= labels@.len(),
+            spans@.len() == i,
+            forall|j: int| 0 <= j < i ==> spans@[j] == (SegmentSpan {
+                start: boundaries@[j],
+                end: boundaries@[j + 1],
+                label: labels@[j],
+            }),
+            spans_well_formed(spans@),
+        decreases labels.len() - i,
+    {
+        let start = boundaries[i];
+        let end = boundaries[i + 1];
+        if start >= end {
+            return None;
+        }
+        spans.push(SegmentSpan { start, end, label: labels[i] });
+        i = i + 1;
+    }
+    Some(canonicalize_spans(&spans))
 }
 
 } // verus!
