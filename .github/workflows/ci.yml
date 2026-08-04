@@ -12,6 +12,9 @@ on:
 
 name: ci
 
+permissions:
+  contents: read
+
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
