@@ -319,6 +319,15 @@ jobs:
         #% anchors in this document.
         run: ./target/debug/duvet report --ci
 
+      - name: Annotation checks
+        # Tree-wide invariant, plain customer invocation: every quote
+        # tiled by one implementation owner, every requirement's test
+        # evidence present, no duplicate (type, target, quote) owners.
+        # Incorporating these checks into `report` is a missing duvet
+        # feature (see decisions.md Follow-ups); until it lands they
+        # run here as their own step.
+        run: ./target/debug/duvet query -c implementation,test,duplicates
+
       - name: Download Verus SST logs
         uses: actions/download-artifact@v6
         with:
@@ -327,17 +336,17 @@ jobs:
 
       - name: Witness query dogfood
         # Correlation floor: every test/implementation pair in the
-        # witness-property slice must discharge against the proof
-        # witnesses — plain exit 0, no thresholds, no expected failures.
+        # sliced sections must discharge against the proof witnesses —
+        # plain exit 0, no thresholds, no expected failures.
         #
-        # The engine-side implementation annotations for W2/W3/W6 were
-        # removed (they structurally cannot be witnessed by a proof-only
-        # run; see the commit that deleted dogfood-expected-failures.txt).
-        # They return with the LCOV mixed-coverage producer, expanding
-        # this floor toward the full specification set.
+        # The slice is the set of sections that fully discharge from
+        # proof witnesses alone. Sections outside it carry runtime
+        # test annotations that stay unwitnessed until the LCOV
+        # producer lands; as sections become fully dischargeable they
+        # are added here and can never backslide.
         run: |
           set -euo pipefail
-          SECTIONS="design/witness/spec.md#property-w1-same-witness-discharge,design/witness/spec.md#property-w2-test-execution,design/witness/spec.md#property-w3-global-execution,design/witness/spec.md#property-w4-monotonicity,design/witness/spec.md#property-w5-claim-refinement,design/witness/spec.md#property-w6-unwitnessed-test-annotations,design/witness/spec.md#property-w7-positional-binding-map-independence,design/witness/producer-core-spec.md#property-p1-closure-fixpoint,design/witness/producer-core-spec.md#property-p2-most-specific-wins,design/witness/producer-core-spec.md#property-p3-witness-assembly,design/witness/producer-core-spec.md#property-p4-filter-soundness"
+          SECTIONS="design/witness/spec.md#property-w1-same-witness-discharge,design/witness/spec.md#property-w2-test-execution,design/witness/spec.md#property-w3-global-execution,design/witness/spec.md#property-w4-monotonicity,design/witness/spec.md#property-w5-claim-refinement,design/witness/spec.md#property-w6-unwitnessed-test-annotations,design/witness/spec.md#property-w7-positional-binding-map-independence,design/witness/producer-core-spec.md#property-p1-closure-fixpoint,design/witness/producer-core-spec.md#property-p2-most-specific-wins,design/witness/producer-core-spec.md#property-p3-witness-assembly,design/witness/producer-core-spec.md#property-p4-filter-soundness,design/query/coverage-model-spec.md#escalation,design/query/coverage-model-spec.md#property-1-no-false-positives,design/query/coverage-model-spec.md#property-d1-direct-observation,design/query/coverage-model-spec.md#property-d2-degraded-target-bounds,design/query/coverage-model-spec.md#property-d3-degraded-stacking,design/query/coverage-model-spec.md#property-d4-agreement-with-classified"
 
           ./target/debug/duvet query -c coverage \
             --coverage-source verus-sst=verus-sst-logs \
