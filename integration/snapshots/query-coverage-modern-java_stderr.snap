@@ -26,7 +26,6 @@ Coverage: ✗ FAIL
   Failed correlations: 1
   Tests with no implementation: 0
   Unwitnessed tests: 0
-  Unwitnessable targets: 0
 
   × Failed correlation
     ╭─[src/com/example/ShapesTest.java:17:13]

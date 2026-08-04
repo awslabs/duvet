@@ -1219,6 +1219,14 @@ the definition checks itself.
 
 ## Decision 22: The unwitnessed report splits on a static placement test — unwitnessable is its own verdict {#decision-22}
 
+**Outcome: reverted — the verdict was removed.** Classifying what
+is and is not code from lexical patterns is a language
+classifier's job, not the coverage engine's (the wrong
+abstraction; see the Rust language classifier entry in
+[Follow-ups](#follow-ups)) — executors and provers are the ground
+truth for what executes. The placement fixes the verdict drove
+stay.
+
 **Context:** A principal review of the dogfood corpus found that
 annotation blocks followed by an attribute line (`#[test]`,
 `#[derive]`) or by interleaved doc-prose resolve — under degraded
@@ -1351,34 +1359,14 @@ for it.
   set is complete — the coverage check is strict, so nothing
   short of complete witnesses turns that gate green.
 
-- **LCOV-classifier axiom tripwire.**
-  The unwitnessable verdict ([Decision 22](#decision-22)) rests on
-  a named, currently-untestable axiom: a line the static
-  classifier flags (blank, comment, attribute) never receives an
-  LCOV `DA` record. The LCOV follow-up PR MUST carry a test
-  asserting exactly that — no `DA` record on any line the
-  classifier calls unwitnessable — so producer/classifier
-  divergence fails loudly instead of silently contradicting the
-  placement verdict. This is not obviously true: on the prover
-  side, a consulted-span fill marks interior comment lines Hit, so
-  the classifier is deliberately stricter than prover evidence
-  ([Decision 22](#decision-22) records why the evidence-based
-  alternative was rejected); runtime line records could hide an
-  analogous granularity accident. The tripwire converts the axiom
-  into a checked property the moment a runtime producer exists.
-
 - **Rust language classifier.**
   The root cause of degraded resolution for `.rs` sources: with no
   language line classifier, target resolution skips only blank and
   annotation lines — which is exactly what makes attribute and
-  prose lines displaceable targets. The tension to preserve: a
-  resolution change that silently SKIPS attribute/comment lines
-  would dissolve unwitnessable findings rather than flag them, so
-  any Rust classifier (or resolution-semantics change) MUST
-  preserve the placement rule's enforceability —
-  [Decision 22](#decision-22) makes the unwitnessable classifier
-  spec §1.1's enforcing site, and that enforcement must survive
-  finer-grained resolution.
+  prose lines displaceable targets. A language classifier is the
+  correct abstraction for code/non-code classification
+  ([Decision 22](#decision-22)'s outcome: lexical guessing was
+  removed); placement enforcement becomes one of its jobs.
 
 - **Retrofit pass over the pre-existing annotations.**
   The old `type=implication` annotations on `duvet-coverage`'s

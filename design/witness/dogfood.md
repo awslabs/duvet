@@ -64,15 +64,6 @@ Hard-won by root-causing the 2026-08-02 failed-correlation set:
 - **One implementation owner per proof-tested spec text**, at the site
   whose `ensures` proves it; engine adapters keep a pointer comment.
 
-These rules are machine-enforced, not review discipline: the
-coverage query's **unwitnessable verdict**
-([Decision 22](decisions.md#decision-22),
-[spec §3](spec.md#verdict-output)) statically flags any annotation
-whose resolved target is a blank, comment, or attribute line —
-computed from source text alone, never from a witness — and CI
-gates the unsliced run on zero such findings
-([#ci-wiring](#ci-wiring)).
-
 ## Cross-crate pairs: implementation-true, witness-pending {#cross-crate-posture}
 
 The engine-side annotations quoting witness-property spec text are
@@ -142,17 +133,6 @@ the LCOV producer lands — the coverage check is strict, and a
 proof-only run leaves the runtime annotations unwitnessed.)
 
 What the run's findings mean, by category:
-
-**Unwitnessable placements — reported by the coverage check.** The
-static unwitnessable verdict
-([Decision 22](decisions.md#decision-22),
-[spec §3](spec.md#verdict-output)) flags any annotation whose
-resolved target is not code, and the coverage check reports and
-fails on the finding among the annotations its runs consider. A
-new entry in this category is a placement defect to fix, never a
-row to stage. Zero here also means every unwitnessed annotation
-resolves to an executable target — the precondition for a runtime
-witness ever covering it.
 
 **Unwitnessed runtime test annotations — the LCOV-pending set.**
 Test annotations on executable targets inside

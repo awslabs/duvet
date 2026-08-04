@@ -264,12 +264,6 @@ jobs:
     # feeds the SST logs the `verify` job left behind to
     # `duvet query -c coverage`, sliced to the witness properties
     # (W1–W7, P1–P4), and gates on every property pair discharging.
-    # The full (unsliced) proof-only run is gated only on its
-    # unwitnessable count (zero placement defects tree-wide); its
-    # discharge verdict is NOT gated: the runtime `type=test`
-    # annotations are unwitnessed in a proof-only run by design (the
-    # LCOV mixed-coverage producer is the follow-up that expands this
-    # floor).
     runs-on: ubuntu-latest
     needs: verify
     steps:

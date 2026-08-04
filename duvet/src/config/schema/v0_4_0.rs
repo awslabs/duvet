@@ -42,7 +42,6 @@ impl Schema {
                 default_type: source.default_type.into(),
                 root: root.clone(),
                 blob_link: source.blob_link.as_ref().map(From::from),
-                non_target_pattern: source.non_target_pattern.clone(),
             });
         }
 
@@ -120,12 +119,6 @@ pub struct Source {
     pub default_type: DefaultType,
     #[serde(default, rename = "blob-link")]
     pub blob_link: Option<TemplatedString>,
-    /// Regex for lines that can never carry coverage evidence in any run
-    /// (e.g. attribute lines). An annotation whose resolved target matches
-    /// is reported *unwitnessable* by the coverage query. When absent,
-    /// Rust sources (`.rs`) default to `^\s*#\[`.
-    #[serde(default, rename = "non-target-pattern")]
-    pub non_target_pattern: Option<Arc<str>>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize)]

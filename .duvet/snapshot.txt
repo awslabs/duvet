@@ -197,8 +197,7 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
   SECTION: [1.1 Test and implementation annotations](#annotations)
     TEXT[!MUST,implementation,test]: Placement note (degraded files): in a file with no language
     TEXT[!MUST,implementation,test]: classifier, resolution cannot recognize comment lines as skippable —
-    TEXT[!MUST,implementation,test]: only blank lines and annotation lines are skipped —
-    TEXT[!MUST,implementation,test]: so an annotation
+    TEXT[!MUST,implementation,test]: only blank lines and annotation lines are skipped — so an annotation
     TEXT[!MUST,implementation,test]: (stacked or not) MUST be the last comment block above the code it
     TEXT[!MUST,implementation,test]: targets; an intervening ordinary comment (e.g.
     TEXT[implementation,test]:  a doc comment between
@@ -421,23 +420,6 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: For every unwitnessed test annotation (W6), the output MUST
     TEXT[!MUST,implementation,test]: identify the annotation and state that no configured producer
     TEXT[!MUST,implementation,test]: yielded a witness for it.
-    TEXT[!MUST,implementation,test]: For every test annotation that would be reported unwitnessed (W6)
-    TEXT[!MUST,implementation,test]: and whose resolved target line is unwitnessable, the output MUST
-    TEXT[!MUST,implementation,test]: identify the annotation as *unwitnessable* instead — a report
-    TEXT[!MUST,implementation,test]: distinct from Property W6's "no witness from any configured
-    TEXT[!MUST,implementation,test]: producer," the same distinct-report posture as
-    TEXT[!MUST,implementation,test]: [§5.2](#two-pass-construction)'s not-proof-testable —
-    TEXT[!MUST,implementation,test]: and MUST
-    TEXT[!MUST,implementation,test]: quote the offending target line, so the placement fix is evident.
-    TEXT[!MUST,implementation,test]: For every implementation annotation whose resolved target line is
-    TEXT[!MUST,implementation,test]: unwitnessable, the output MUST report the same finding: any pair
-    TEXT[!MUST,implementation,test]: verdict such an annotation participates in scores a line that is
-    TEXT[!MUST,implementation,test]: not code, so a discharge is accidental (a consulted-span fill) and
-    TEXT[!MUST,implementation,test]: a failure would misattribute a placement defect to producer
-    TEXT[!MUST,implementation,test]: configuration.
-    TEXT[implementation,test]: Unwitnessable is a placement verdict, not an evidence verdict: it
-    TEXT[implementation,test]: is computed from the source text alone and never consults any
-    TEXT[implementation,test]: witness.
 
   SECTION: [4. Producer obligations and trusted base](#producer-obligations)
     TEXT[!MUST,implementation,test]: Where an obligation cannot be proven, it is a **named axiom** of

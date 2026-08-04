@@ -391,30 +391,6 @@ For every unwitnessed test annotation (W6), the output MUST
 identify the annotation and state that no configured producer
 yielded a witness for it.
 
-The unwitnessed report is split by a static test on the source
-text. A resolved target line is **unwitnessable** when it is not
-code — no act of checking can ever be *about* it, in any run: the
-line is blank, is a comment line under the source's configured
-comment style, or matches the source's configured non-target
-pattern (per-source configuration, like comment styles; for Rust
-sources the pattern defaults to attribute lines, `^\s*#\[`).
-For every test annotation that would be reported unwitnessed (W6)
-and whose resolved target line is unwitnessable, the output MUST
-identify the annotation as *unwitnessable* instead — a report
-distinct from Property W6's "no witness from any configured
-producer," the same distinct-report posture as
-[§5.2](#two-pass-construction)'s not-proof-testable — and MUST
-quote the offending target line, so the placement fix is evident.
-For every implementation annotation whose resolved target line is
-unwitnessable, the output MUST report the same finding: any pair
-verdict such an annotation participates in scores a line that is
-not code, so a discharge is accidental (a consulted-span fill) and
-a failure would misattribute a placement defect to producer
-configuration.
-Unwitnessable is a placement verdict, not an evidence verdict: it
-is computed from the source text alone and never consults any
-witness.
-
 ---
 
 ## 4. Producer obligations and trusted base {#producer-obligations}
