@@ -280,7 +280,7 @@ fn discrimination_executed_variant_reaches_the_algorithm() {
     // was truncated by the POC's charset — it could not follow
     // edges through `types::impl&%N::` obligations, whose closures
     // pull in execution_propagation.rs and types.rs). Line counts
-    // are span-start fill counts (spec §5.4, Decision 23),
+    // are span-start fill counts (spec §5.4),
     // cross-checked independently like the lemma's above.
     assert_eq!(c.project_obligations.len(), 25);
     assert_eq!(c.reached.len(), 70);
@@ -646,7 +646,7 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
     //      the position's ByRootSpan binding set over the whole
     //      universe: clause-kind binders of minimal span if any
     //      exist, else extent binders of minimal span (rooting is
-    //      most-specific-wins, spec §5.3, Decision 19 — a bound
+    //      most-specific-wins, spec §5.3 — a bound
     //      coarser witness is deliberately NOT materialized:
     //      hoisting to the enclosing function is refused, and ties
     //      at the chosen level all materialize, Decision 12).
@@ -845,8 +845,8 @@ fn scenario_3_self_inclusion_is_credited() {
     );
     // The ensures line roots the clause unit — and ONLY the clause
     // unit: hoisting to the enclosing function is refused
-    // (Decision 19), and the label is span identity, never
-    // proof_note (Decision 20's ensures hazard rule).
+    // (spec §5.3), and the label is span identity, never
+    // proof_note (spec §5.5's ensures hazard rule).
     let ws = construct_witnesses(g, "vacuity.rs", 55, "fixture", vacuity_file);
     let [w55] = ws.as_slice() else {
         panic!("expected exactly one witness, got {}", ws.len())
@@ -889,8 +889,7 @@ fn honest_proof_reaches_the_implementation_spec() {
 }
 
 // ---------------------------------------------------------------
-// Vacuity fixture: unit labels from the artifact (spec §5.5,
-// Decision 20)
+// Vacuity fixture: unit labels from the artifact (spec §5.5)
 // ---------------------------------------------------------------
 
 #[test]
@@ -911,7 +910,7 @@ fn labels_proof_note_when_recorded_span_identity_otherwise() {
     };
     //= design/witness/spec.md#verus-producer
     //= type=test
-    //# Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
+    //# Unit labels (decisions.md, Decision 21): `ProofNoteLabel` text
     //# when the artifact records it, otherwise span identity
     //# (function path + unit kind + clause index).
     assert_eq!(label_at(73), ["i stays bounded"]);
@@ -922,7 +921,7 @@ fn labels_proof_note_when_recorded_span_identity_otherwise() {
     // invariants and asserts in the same fn carry notes — the
     // upstream proof_note-on-ensures defect makes note consumption
     // for ensures a build breaker, so the producer never reads it
-    // (Decision 20 hazard rule).
+    // (spec §5.5 hazard rule).
     //= design/witness/spec.md#verus-producer
     //= type=test
     //# Until the upstream `proof_note`-on-ensures defect is fixed,
@@ -948,7 +947,7 @@ fn every_constructed_witness_contains_its_roots_span_start_lines() {
     // the root function begins on — the declaration line
     // included — is in the fill. The root's full span sweep is
     // deliberately NOT asserted: continuation, comment, and blank
-    // lines are out of the fill now (Decision 23), which is
+    // lines are out of the fill now (spec §5.4), which is
     // exactly the golden that flipped when span-start fills landed.
     //= design/witness/spec.md#closure
     //= type=test
@@ -993,7 +992,7 @@ fn every_constructed_witness_contains_its_roots_span_start_lines() {
 }
 
 // ---------------------------------------------------------------
-// Span-start fill acceptance (spec §5.4, Decision 23)
+// Span-start fill acceptance (spec §5.4)
 // ---------------------------------------------------------------
 
 #[test]

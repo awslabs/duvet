@@ -173,7 +173,7 @@ SPECIFICATION: [Producer core: verified-model properties](design/witness/produce
     TEXT[!MUST,implementation,test]: position are exactly the minimal-extent containing units at the
     TEXT[!MUST,implementation,test]: finest populated specificity level
     TEXT[!MUST,implementation,test]: ([spec §5.3](spec.md#discharge-unit),
-    TEXT[!MUST,implementation,test]: decisions.md [Decision 19](decisions.md#decision-19)):
+    TEXT[!MUST,implementation,test]: decisions.md [Decision 20](decisions.md#decision-20)):
     TEXT[!MUST,implementation,test]: Consequences the proof MUST deliver: every selected unit contains
     TEXT[!MUST,implementation,test]: the position; no containing unit at a strictly finer specificity
     TEXT[!MUST,implementation,test]: level exists when an extent-level unit is selected; and ties at the
@@ -534,7 +534,7 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: so a test annotation there is category-mismatched,
     TEXT[!MUST,implementation,test]: and is reported *not proof-testable* rather than unwitnessed
     TEXT[!MUST,implementation,test]: (decisions.md, [Decision 13](decisions.md#decision-13)).
-    TEXT[implementation,test]: **Rooting is most-specific-wins** (decisions.md, Decision 19):
+    TEXT[implementation,test]: **Rooting is most-specific-wins** (decisions.md, Decision 20):
     TEXT[implementation,test]: an annotation roots the finest unit whose span contains its
     TEXT[implementation,test]: resolved position; the enclosing extent is the fallback for
     TEXT[implementation,test]: positions inside no finer unit.
@@ -554,7 +554,7 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: A constructed witness's `files` maps MUST equal the set of
     TEXT[!MUST,implementation,test]: **span-start lines** over the downward reachable set of the
     TEXT[!MUST,implementation,test]: prover's obligation graph, starting from the discharge unit
-    TEXT[!MUST,implementation,test]: (decisions.md, [Decision 23](decisions.md#decision-23)):
+    TEXT[!MUST,implementation,test]: (decisions.md, [Decision 19](decisions.md#decision-19)):
     TEXT[!MUST,implementation,test]: a line enters a fill iff a span of a reached function begins on
     TEXT[!MUST,implementation,test]: that line — every span, at every nesting depth, declaration
     TEXT[!MUST,implementation,test]: spans included, so the header line of a wrapped signature is
@@ -633,7 +633,7 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]:   discharge units of all four kinds: obligation extents,
     TEXT[!MUST,implementation,test]:   `:enss` clause spans, `LoopInv` spans, and proof-assert spans
     TEXT[!MUST,implementation,test]:   (decisions.md, Decision 18).
-    TEXT[implementation,test]: Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
+    TEXT[implementation,test]: Unit labels (decisions.md, Decision 21): `ProofNoteLabel` text
     TEXT[implementation,test]:   when the artifact records it, otherwise span identity
     TEXT[implementation,test]:   (function path + unit kind + clause index).
     TEXT[!MUST,implementation,test]:   Until the upstream `proof_note`-on-ensures defect is fixed,

@@ -2,7 +2,7 @@
 
 This document is the normative companion to
 [spec.md §5](spec.md#prover-producers) for the *verified* producer
-core (decisions.md, [Follow-ups item 5](decisions.md#follow-ups)).
+core.
 [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
 define what the Verus producer must do; this document states the
 properties that MUST be proven with Verus, as a new phase of the
@@ -38,7 +38,7 @@ Glue assumptions, named per the
   assignment, exactly the resolving edges, and per-node span rows
   materialized under the fill rule of
   [spec §5.4](spec.md#closure) (span-start lines,
-  decisions.md Decision 23) — the model proves the union over the
+  decisions.md Decision 19) — the model proves the union over the
   reached set; which lines each node contributes is the adapter's
   glue.
   Checked by the golden corpus ([spec §4.3](spec.md#obligation-testing));
@@ -78,7 +78,7 @@ The implementation MUST prove that the units selected for a
 position are exactly the minimal-extent containing units at the
 finest populated specificity level
 ([spec §5.3](spec.md#discharge-unit),
-decisions.md [Decision 19](decisions.md#decision-19)):
+decisions.md [Decision 20](decisions.md#decision-20)):
 
 ```
 selected(u, pos)  ⟺  contains(u, pos)

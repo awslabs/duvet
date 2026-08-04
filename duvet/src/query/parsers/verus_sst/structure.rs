@@ -185,7 +185,7 @@ impl ObligationNode {
     }
 
     /// The node's witness-fill contribution: the start line of
-    /// every span, per file (spec §5.4, Decision 23 — the hoisted
+    /// every span, per file (spec §5.4 — the hoisted
     /// rule, strict variant).
     ///
     /// Precisely: the span set is the deduplicated inclusive line
@@ -446,7 +446,7 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 /// `dom(du)`.
 ///
 /// Unit labels are decided in `DischargeUnit::clause`
-/// (spec §5.5, Decision 20 — the annotation lives there); this
+/// (spec §5.5 — the annotation lives there); this
 /// extractor only carries the `ProofNoteLabel` text through, and
 /// never for ensures clauses:
 //= design/witness/spec.md#verus-producer
@@ -479,7 +479,7 @@ fn clause_units(items: &[Sexpr<'_>], name: &str) -> Result<Vec<ClauseUnit>, Stru
                     let Some((span_str, _)) = as_at_node(clause) else {
                         continue;
                     };
-                    // Note never consumed for ensures (Decision 20
+                    // Note never consumed for ensures (the spec §5.5
                     // hazard rule): span identity only.
                     push_unit(&mut units, name, UnitKind::Ensures, index, span_str, None)?;
                     index += 1;
@@ -979,7 +979,7 @@ mod tests {
             [
                 // Both `:enss` tuple slots contribute, indices over
                 // the concatenation; the smuggled ProofNoteLabel is
-                // NOT consumed for ensures (Decision 20 hazard
+                // NOT consumed for ensures (spec §5.5 hazard
                 // rule: span identity only).
                 (UnitKind::Ensures, 0, 20, None),
                 (UnitKind::Ensures, 1, 22, None),

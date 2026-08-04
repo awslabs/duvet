@@ -82,7 +82,7 @@ pub struct DischargeUnit<'g> {
     /// The unit's own span: the node extent for `Extent` units, the
     /// clause/invariant/assert span otherwise.
     pub span: Span,
-    /// Report label (spec §5.5, Decision 20).
+    /// Report label (spec §5.5).
     pub label: String,
 }
 
@@ -98,7 +98,7 @@ impl<'g> DischargeUnit<'g> {
 
     //= design/witness/spec.md#verus-producer
     //= type=implementation
-    //# Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
+    //# Unit labels (decisions.md, Decision 21): `ProofNoteLabel` text
     //# when the artifact records it, otherwise span identity
     //# (function path + unit kind + clause index).
     fn clause(node: &'g ObligationNode, unit: &ClauseUnit) -> Self {

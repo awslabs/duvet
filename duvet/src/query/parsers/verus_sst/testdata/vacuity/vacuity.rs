@@ -60,7 +60,7 @@ pub fn self_contained(x: u32) -> (r: u32)
 
 // ---- Scenario D: unit labels from the artifact ----------------------
 // A loop with a proof_note'd invariant and a proof_note'd assert,
-// plus unnoted siblings. Pins Decision 20 label extraction:
+// plus unnoted siblings. Pins proof_note label extraction (spec §5.5):
 // ProofNoteLabel text when recorded, span identity otherwise.
 pub fn noted_loop(n: u32) -> (r: u32)
     requires n <= 100,
@@ -84,7 +84,7 @@ pub fn noted_loop(n: u32) -> (r: u32)
     i
 }
 
-// ---- Scenario E: fills are span-start-line sets (Decision 23) -------
+// ---- Scenario E: fills are span-start-line sets (spec §5.4) -------
 // An interior comment line inside a VERIFIED fn is not an AST node,
 // so no span begins on it and it appears in no witness's fill — the
 // extent sweep marked it Hit. The unverified `main` below the verus!

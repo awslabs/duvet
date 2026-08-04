@@ -11,8 +11,8 @@ numbers in the corpus can only be checked against THESE copies.
 Sole consumer: the theorem tripwire test
 (`no_span_starts_on_a_comment_or_blank_line`, `tests.rs`), which
 lexes them to assert that no span in the corpus begins on an
-ordinary-comment or blank line (design/witness/spec.md §5.4,
-decisions.md Decision 23). Test-side lexing of sources we control;
+ordinary-comment or blank line (design/witness/spec.md §5.4).
+Test-side lexing of sources we control;
 the runtime never lexes.
 
 If the corpus is ever regenerated, regenerate this directory from

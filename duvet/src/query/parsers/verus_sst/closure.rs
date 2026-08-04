@@ -86,7 +86,7 @@ pub struct Closure {
     /// span — the "obligations" count in golden-test terms.
     pub project_obligations: BTreeSet<String>,
     /// Union of project-file **span-start lines** over `reached`
-    /// (spec §5.4, Decision 23): the witness's `files` content
+    /// (spec §5.4): the witness's `files` content
     /// (before conversion to coverage types). Comment and blank
     /// lines never enter — by theorem, not lexing: no span begins
     /// on one.
@@ -101,8 +101,8 @@ pub struct Closure {
 /// set…") splits: the union-over-reached half is owned by the verified
 /// core (`duvet_coverage::producer_core::assemble_witness_lines`,
 /// whose iff-`ensures` proves it); the span-start half is the adapter's
-/// (`ObligationNode::fill_lines` decides each node's rows — spec §5.4,
-/// Decision 23 — and the golden corpus checks it).
+/// (`ObligationNode::fill_lines` decides each node's rows —
+/// spec §5.4 — and the golden corpus checks it).
 ///
 /// The reflexivity claim ("root ∈ closure(root)") is likewise owned by
 /// the verified core: its annotation lives in
@@ -166,8 +166,8 @@ pub fn closure(
                 .filter_map(|e| index.get(e.as_str()).copied())
                 .collect(),
         );
-        // Each node's span rows are its span-START lines (spec §5.4,
-        // Decision 23): the same evaluation for the root and for
+        // Each node's span rows are its span-START lines (spec §5.4):
+        // the same evaluation for the root and for
         // every consulted callee — the verified union below never
         // learns which node was the root's own body.
         //= design/witness/spec.md#closure

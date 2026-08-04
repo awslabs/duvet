@@ -36,9 +36,9 @@ Expected shape of the results:
   the in-crate implementation annotations, and the verified
   `is_executed_by` cell confirms it. Spec text quoted by a witnessed
   proof test is covered ONLY by implementation annotations inside the
-  witness's line set — engine-side copies of that text were removed
-  (they return with the LCOV producer) or narrowed to the clauses the
-  engine genuinely owns.
+  witness's line set; the engine keeps no copies of that text beyond
+  the clauses it genuinely owns (engine-side copies return with the
+  LCOV producer).
 - The runtime `type=test` annotations (on `#[test]` fns) are
   UNWITNESSED in a proof-only run — Decision 8, on purpose. Together
   with the CI-discharged meta-obligation tests in ci.yml (staging
@@ -46,9 +46,7 @@ Expected shape of the results:
   zero failed correlations and zero missing-implementation findings
   remain.
 
-## Placement rules the closure work established {#placement-rules}
-
-Hard-won by root-causing the 2026-08-02 failed-correlation set:
+## Placement rules {#placement-rules}
 
 - **No interleaved prose inside annotation stacks.** These files have
   no language classifier, so degraded resolution skips only blank and
@@ -58,9 +56,13 @@ Hard-won by root-causing the 2026-08-02 failed-correlation set:
   note, itself now cited from `target_resolution.rs`).
 - **Attributes go above the stack too.** A `#[allow(...)]` between the
   stack and the fn header displaces the target the same way.
-- **Rule definitions live on consulted lines.** Enum-variant
-  declarations are not in any witness's line set; the ClaimRule rule
-  quotes moved to the `binds` spec fn's match arms.
+- **Rule definitions live where the rule is defined, not declared.**
+  The `ByExecution`/`ByRootSpan` rule quotes sit on the `binds`
+  spec fn's match arms — the definitional site, where the quoted
+  behavior is decided — not on the enum variants, which merely
+  declare the constructors. (An enum declaration's lines can appear
+  in fills via generated accessor obligations, so span presence is
+  not the test; the definitional site is.)
 - **One implementation owner per proof-tested spec text**, at the site
   whose `ensures` proves it; engine adapters keep a pointer comment.
 
@@ -86,13 +88,11 @@ and snapshot steps — became scannable (per-source
 `comment-style`). `type=implication` is reserved for text with no
 enforcing site at all.
 
-All seven engine-side W2/W3/W6 annotations are now removed (the
-first five in the correlation-floor commit; the last two — W2 on
-`bound_witnesses`, W6 on the engine's unwitnessed branch — in the
-2026-08-02 closure, when fresh SST logs showed them failing the
-sliced gate). The verified crate's implementation annotations own
-the property text, formulas included. The LCOV producer re-adds
-the engine annotations and expands the floor.
+The engine carries no annotation copies of the W2/W3/W6 property
+text: the verified crate's implementation annotations own the
+property text, formulas included. The LCOV producer re-adds
+engine-side annotations where the reporting requirements have
+runtime-witnessable owners, and expands the floor.
 
 ## CI wiring: correlation floor {#ci-wiring}
 

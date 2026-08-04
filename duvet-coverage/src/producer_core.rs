@@ -511,7 +511,7 @@ pub open spec fn selected(units: Seq<UnitSpan>, file_id: u64, line: u32, i: int)
 //# position are exactly the minimal-extent containing units at the
 //# finest populated specificity level
 //# ([spec §5.3](spec.md#discharge-unit),
-//# decisions.md [Decision 19](decisions.md#decision-19)):
+//# decisions.md [Decision 20](decisions.md#decision-20)):
 //= design/witness/producer-core-spec.md#property-p2-most-specific-wins
 //= type=test
 //# Consequences the proof MUST deliver: every selected unit contains
@@ -521,7 +521,7 @@ pub open spec fn selected(units: Seq<UnitSpan>, file_id: u64, line: u32, i: int)
 //# among (decisions.md, [Decision 12](decisions.md#decision-12)).
 //= design/witness/spec.md#discharge-unit
 //= type=test
-//# **Rooting is most-specific-wins** (decisions.md, Decision 19):
+//# **Rooting is most-specific-wins** (decisions.md, Decision 20):
 //# an annotation roots the finest unit whose span contains its
 //# resolved position; the enclosing extent is the fallback for
 //# positions inside no finer unit. A producer MUST NOT hoist an
@@ -541,10 +541,10 @@ pub fn select_units(units: &Vec<UnitSpan>, file_id: u64, line: u32) -> (sel: Vec
     //# position are exactly the minimal-extent containing units at the
     //# finest populated specificity level
     //# ([spec §5.3](spec.md#discharge-unit),
-    //# decisions.md [Decision 19](decisions.md#decision-19)):
+    //# decisions.md [Decision 20](decisions.md#decision-20)):
     //= design/witness/spec.md#discharge-unit
     //= type=implementation
-    //# **Rooting is most-specific-wins** (decisions.md, Decision 19):
+    //# **Rooting is most-specific-wins** (decisions.md, Decision 20):
     //# an annotation roots the finest unit whose span contains its
     //# resolved position; the enclosing extent is the fallback for
     //# positions inside no finer unit. A producer MUST NOT hoist an
@@ -712,7 +712,7 @@ pub open spec fn consulted_line(
 /// Spec: line `(f, l)` is in the assembled witness — consulted by
 /// the closure and in a project file. This is the definitional
 /// right-hand side of Property P3, and the subject P4's view/truncation
-/// claim quantifies over (Decision 21 placement: implementation on the
+/// claim quantifies over (placement: implementation on the
 /// definition, test on the proof lemma).
 //= design/witness/producer-core-spec.md#property-p3-witness-assembly
 //= type=implementation
@@ -781,7 +781,7 @@ proof fn lemma_push_contains<T>(s: Seq<T>, x: T)
 //# A constructed witness's `files` maps MUST equal the set of
 //# **span-start lines** over the downward reachable set of the
 //# prover's obligation graph, starting from the discharge unit
-//# (decisions.md, [Decision 23](decisions.md#decision-23)):
+//# (decisions.md, [Decision 19](decisions.md#decision-19)):
 //= design/witness/spec.md#obligation-closedness
 //= type=test
 //# Every delivered `files` map MUST be closed under the producer's
@@ -812,7 +812,7 @@ pub fn assemble_witness_lines(
     //# A constructed witness's `files` maps MUST equal the set of
     //# **span-start lines** over the downward reachable set of the
     //# prover's obligation graph, starting from the discharge unit
-    //# (decisions.md, [Decision 23](decisions.md#decision-23)):
+    //# (decisions.md, [Decision 19](decisions.md#decision-19)):
     //= design/witness/spec.md#closure
     //= type=implementation
     //# Only reachable nodes contribute;

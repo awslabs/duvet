@@ -29,13 +29,13 @@ Plus a label fixture:
 
 4. `noted_loop` (line 65) — a loop with a `proof_note`'d invariant
    and a `proof_note`'d assert alongside unnoted siblings, pinning
-   Decision 20 label extraction (`ProofNoteLabel` text when
+   proof_note label extraction (spec §5.5) (`ProofNoteLabel` text when
    recorded, span identity otherwise).
 
 Plus a fill fixture:
 
 5. `commented_body` (line 92) — a verified fn with an interior
-   comment line (96) in its body, pinning Decision 23's
+   comment line (96) in its body, pinning spec §5.4's
    span-start-line fills: no span begins on a comment line, so it
    appears in no witness's fill (the old extent sweep marked it
    Hit), while its code neighbors do. The unverified `fn main()`

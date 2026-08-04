@@ -5,7 +5,7 @@ target = "design/witness/spec.md#closure"
 # A constructed witness's `files` maps MUST equal the set of
 # **span-start lines** over the downward reachable set of the
 # prover's obligation graph, starting from the discharge unit
-# (decisions.md, [Decision 23](decisions.md#decision-23)):
+# (decisions.md, [Decision 19](decisions.md#decision-19)):
 # a line enters a fill iff a span of a reached function begins on
 # that line — every span, at every nesting depth, declaration
 # spans included, so the header line of a wrapped signature is
@@ -26,7 +26,7 @@ target = "design/witness/spec.md#closure"
 # strength-lattice work, and report phrasing about specific
 # consulted lines — take the retained spans, never a
 # reinterpretation of this map
-# (decisions.md, [Decision 23](decisions.md#decision-23)).
+# (decisions.md, [Decision 19](decisions.md#decision-19)).
 # Every function in the reachable set — exec, proof, and spec
 # alike — is **transparent** to this evaluation: the fill applies
 # the same span-start rule to the root's own body and, recursively,
@@ -85,7 +85,7 @@ quote = '''
 A constructed witness's `files` maps MUST equal the set of
 **span-start lines** over the downward reachable set of the
 prover's obligation graph, starting from the discharge unit
-(decisions.md, [Decision 23](decisions.md#decision-23)):
+(decisions.md, [Decision 19](decisions.md#decision-19)):
 a line enters a fill iff a span of a reached function begins on
 that line — every span, at every nesting depth, declaration
 spans included, so the header line of a wrapped signature is

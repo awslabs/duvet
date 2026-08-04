@@ -21,7 +21,7 @@ target = "design/witness/spec.md#discharge-unit"
 # and is reported *not proof-testable* rather than unwitnessed
 # (decisions.md, [Decision 13](decisions.md#decision-13)).
 # 
-# **Rooting is most-specific-wins** (decisions.md, Decision 19):
+# **Rooting is most-specific-wins** (decisions.md, Decision 20):
 # an annotation roots the finest unit whose span contains its
 # resolved position; the enclosing extent is the fallback for
 # positions inside no finer unit. A producer MUST NOT hoist an

@@ -561,7 +561,7 @@ so a test annotation there is category-mismatched,
 and is reported *not proof-testable* rather than unwitnessed
 (decisions.md, [Decision 13](decisions.md#decision-13)).
 
-**Rooting is most-specific-wins** (decisions.md, Decision 19):
+**Rooting is most-specific-wins** (decisions.md, Decision 20):
 an annotation roots the finest unit whose span contains its
 resolved position; the enclosing extent is the fallback for
 positions inside no finer unit. A producer MUST NOT hoist an
@@ -592,7 +592,7 @@ for a claim about one conjunct.
 A constructed witness's `files` maps MUST equal the set of
 **span-start lines** over the downward reachable set of the
 prover's obligation graph, starting from the discharge unit
-(decisions.md, [Decision 23](decisions.md#decision-23)):
+(decisions.md, [Decision 19](decisions.md#decision-19)):
 a line enters a fill iff a span of a reached function begins on
 that line — every span, at every nesting depth, declaration
 spans included, so the header line of a wrapped signature is
@@ -613,7 +613,7 @@ the three consumers named on record — LCOV-union comparison,
 strength-lattice work, and report phrasing about specific
 consulted lines — take the retained spans, never a
 reinterpretation of this map
-(decisions.md, [Decision 23](decisions.md#decision-23)).
+(decisions.md, [Decision 19](decisions.md#decision-19)).
 Every function in the reachable set — exec, proof, and spec
 alike — is **transparent** to this evaluation: the fill applies
 the same span-start rule to the root's own body and, recursively,
@@ -711,7 +711,7 @@ artifact granularity investigation and solver-replay spike,
   demonstrated, and deliberately not consumed; decisions.md,
   [Decision 7](decisions.md#decision-7)).
 - Fills are span-start-line sets ([§5.4](#closure), decisions.md,
-  [Decision 23](decisions.md#decision-23)): per reached
+  [Decision 19](decisions.md#decision-19)): per reached
   `FunctionSst`, the producer collects every span-shaped string
   in the block as an inclusive line range — the function's span
   set — and the node contributes exactly the start line of each
@@ -727,7 +727,7 @@ artifact granularity investigation and solver-replay spike,
   `:enss` clause spans, `LoopInv` spans, and proof-assert spans
   (decisions.md, Decision 18).
   Rooting is most-specific-wins ([§5.3](#discharge-unit),
-  [Decision 19](decisions.md#decision-19));
+  [Decision 20](decisions.md#decision-20));
   ties at one specificity level yield all owners
   ([Decision 12](decisions.md#decision-12) and
   [Decision 13](decisions.md#decision-13)).
@@ -736,7 +736,7 @@ artifact granularity investigation and solver-replay spike,
   Loop header lines are excluded from `dom(du)` initially
   (the artifact would support them via loop isolation;
   deliberately deferred).
-- Unit labels (decisions.md, Decision 20): `ProofNoteLabel` text
+- Unit labels (decisions.md, Decision 21): `ProofNoteLabel` text
   when the artifact records it, otherwise span identity
   (function path + unit kind + clause index).
   Until the upstream `proof_note`-on-ensures defect is fixed,

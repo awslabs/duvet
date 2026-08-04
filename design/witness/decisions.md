@@ -1,9 +1,5 @@
 # Duvet Witness: Design Decisions
 
-**Status:** Decisions 1–21 and 23 ratified and implemented, except
-[Decision 16](#decision-16), whose example project ships with the LCOV follow-up
-PR ([Follow-ups](#follow-ups)).
-
 ## Context
 
 Duvet already has a code coverage feature.
@@ -52,8 +48,7 @@ These terms are used throughout; the decisions are stated in them.
 - **Discharge** — the obligation a test annotation carries is
   *discharged* when the test binds at least one witness and
   **every** witness it binds executed the implementation
-  (each witness individually must see both sides;
-  quantifier set by [Decision 14](#decision-14)):
+  (each witness individually must see both sides):
 
   ```
   witnesses_for(T)  =  { w : binds(T, w) }
@@ -183,8 +178,8 @@ Executed in it.
 ### Option C: Each witness carries its claim rule as data
 
 - `ByExecution` (runtime): T claims w iff T's resolved lines are
-  Executed in w. Sound only under per-witness individuation
-  ([Axiom A2](#decision-4)).
+  Executed in w. Sound only when each witness records exactly
+  one act of checking — an assumption the trusted base must name.
 - `ByRootSpan` (proof): T claims w iff T's resolved lines fall
   inside w's root span (its discharge unit's extent).
   Individuation holds by construction.
@@ -225,27 +220,22 @@ must be stated as properties and verified.
 ### Decision: The property inventory is the verified boundary
 
 Stated over witnesses only — no formats in the vocabulary.
-The quantifier in P1 is universal over a test's bound witnesses
-(quantifier set by [Decision 14](#decision-14)).
+The quantifier in P1 — one common witness suffices, or every
+bound witness is held to the pair — is the question
+[Decision 1](#decision-1) left open; it stays open here,
+written Q. Whichever form is ratified is the form that gets
+proven.
 
 ```
 P1  discharged(T, I)  ⟺  witnesses_for(T) ≠ ∅
-                          ∧ ∀w ∈ witnesses_for(T) : executed(I, w)
+                          ∧ Q w ∈ witnesses_for(T) : executed(I, w)
     where witnesses_for(T) = { w : binds(T, w) }
+    and Q is the open quantifier (∃ or ∀)
 P2  test_executed(T)  ⟺  ∃w : binds(T, w)
 P3  ever_executed(I)  ⟺  ∃w : executed(I, w)      (global; no correlation)
-P4  Monotonicity, two separately-provable facts
-    (discharged is their conjunction and has no single direction):
-    P4a  Nonemptiness is monotone increasing: adding witnesses
-         never falsifies test_executed(T) — the fail→pass
-         transition at the empty boundary is "evidence was found"
-         and is the only fail→pass transition there is.
-    P4b  The universal clause is monotone decreasing: over an
-         already-nonempty witnesses_for(T), adding a witness never
-         flips a failing pair to passing; it may newly fail a
-         passing pair — that is the vacuity being caught.
-    The load-bearing safety statement is P4b. Spec W4 states the
-    conjunction in implication form and is proven in that form.
+P4  Monotonicity: what adding a witness can and cannot change in
+    each verdict must be stated and proven. Its precise direction
+    depends on the open quantifier Q and is stated with it.
 P5  binds(T, w) under ByExecution ⟹ executed(T, w)
     (for ByRootSpan the same implication holds by the reflexive
     closure requirement, Decision 3; spec §5.4)
@@ -281,7 +271,9 @@ A1  Closedness: every delivered coverage map is closed under the
       (Decision 3). Target: Verus proof in duvet-coverage
       (a pure graph fixpoint).
 A2  Individuation: each witness is the record of ONE act of
-    checking (one test run, one obligation discharge).
+    checking (one test run, one obligation discharge) — the
+    assumption [Decision 3](#decision-3)'s ByExecution rule
+    relies on.
     - runtime: the user's operational discipline; the artifact
       does not record how it was produced — IRREDUCIBLE.
       Transferred by worked example (per-test harness example
@@ -295,9 +287,6 @@ F1  Artifact-structure fidelity: the parse of the prover artifact
     genuine rooting obligations — DISCHARGEABLE.
     Mitigation: golden-corpus producer tests (spec §4.3).
     Target: verification candidate in duvet-coverage.
-    Failure direction under universal discharge:
-    a spurious bind that misses I manufactures a FALSE FAILURE,
-    never a false pass — the safe direction for this feature.
 ```
 
 These properties and this ledger live normatively in the
@@ -460,17 +449,11 @@ Use unsat cores to include only what the solver required.
 - Con: Cores are not guaranteed minimal (degradation direction:
   over-crediting, back toward Option A).
 - Con: No productionized runtime analog exists to pair with it.
-  The analog does exist in the research literature — *checked
-  coverage* (Schuler & Zeller, ICST 2011): the backward dynamic
-  slice from each test oracle, i.e. the lines whose values
-  actually flowed into an assertion, rather than the lines that
-  merely ran. That is the same start-from-the-check,
-  keep-what-mattered relation that unsat cores compute on the
-  proof side (Executed : Checked :: Consulted : Needed).
-  But the production coverage tools (JaCoCo, Cobertura, LCOV)
-  all emit executed-lines only, and the one published
-  implementation (JavaSlicer) is research-grade. So the honest
-  parity statement is: both worlds have a stronger rung in the
+  The literature has one — *checked coverage* (Schuler & Zeller,
+  ICST 2011), the same start-from-the-check, keep-what-mattered
+  relation computed as a backward dynamic slice from each test
+  oracle — but no production coverage tool ships it. The honest
+  parity statement: both worlds have a stronger rung in the
   literature, and neither rung has a production producer today.
 
 ### Decision: Option A, with Needed reachable but deliberately not consumed
@@ -682,11 +665,7 @@ witness each — and deliberately leaves the verdict over those N
 witnesses to the quantifier question, still open at this point.
 
 Producer attribution rule (Verus, generalizable):
-this rule governs **ties** — N distinct obligations rooted at
-the position at the same specificity level. When units of
-different fineness nest around a position, rooting first
-resolves to the finest containing unit; the tie rule then
-applies among the obligations rooted at that level:
+when N distinct obligations are rooted at the position,
 all of them are the discharge units, one witness each;
 producers MUST NOT select arbitrarily among owners.
 Zero rooted obligations means no proof witness.
@@ -748,11 +727,8 @@ A source position is **proof-testable** iff at least one
 obligation is *rooted* there — iff it is in `dom(du)`.
 
 ```
-dom(du) = proof-element positions only:
-          fn/lemma headers (obligation extents),
-          ensures clauses,
-          loop invariants,
-          proof asserts.
+dom(du) = obligation-rooted positions
+          (fn/lemma headers — the obligation extents).
 Executable body lines ∉ dom(du).
 ```
 
@@ -771,7 +747,7 @@ mixed run ([Decision 8](#decision-8)'s machinery, unchanged).
   Dead witnesses and phantom binds become unrepresentable rather
   than fixed.
 - Pro: `dom(du)` is read from the prover's artifact itself
-  (extents, `:enss` clause spans, `LoopInv` spans),
+  (the obligation extents the artifact records),
   not inferred by source-language cleverness;
   the classifier stays dumb — it resolves annotation → target and
   nothing more.
@@ -786,13 +762,6 @@ membership in a consulted closure and body lines are what closures
 contain. The asymmetry is test-side only,
 matching the semantics: tests are claims, implementations are
 material.
-
-Loop headers: deliberately **excluded** from `dom(du)` for now.
-The artifact would support inclusion
-(Verus isolates loops — `Loop :loop_isolation true`, own id —
-so "this loop's invariants are preserved" is a genuine obligation),
-but annotating the loop header rather than a specific invariant
-adds cleverness ahead of need. Revisitable with evidence.
 
 ---
 
@@ -888,12 +857,26 @@ blocking on closing it.
 
 Consequences:
 - [P1](#decision-4)/[W1](spec.md#property-w1-same-witness-discharge)
-  carry the universal quantifier;
-  [P4](#decision-4)/[W4](spec.md#property-w4-monotonicity)
-  (monotonicity) is stated as the two facts in [Decision 4](#decision-4)
-  (nonemptiness monotone increasing, universal clause monotone
-  decreasing); the Phase 4 proofs are done against those
-  statements.
+  carry the universal quantifier — this decision closes
+  [Decision 4](#decision-4)'s open Q as ∀.
+- [P4](#decision-4)/[W4](spec.md#property-w4-monotonicity)
+  (monotonicity) becomes two separately-provable facts
+  (discharged is their conjunction and has no single direction).
+  P4a — nonemptiness is monotone increasing: adding witnesses
+  never falsifies test_executed(T); the fail→pass transition at
+  the empty boundary is "evidence was found" and is the only
+  fail→pass transition there is.
+  P4b — the universal clause is monotone decreasing: over an
+  already-nonempty witnesses_for(T), adding a witness never flips
+  a failing pair to passing; it may newly fail a passing pair —
+  that is the vacuity being caught.
+  P4b is the load-bearing safety statement. Spec W4 states the
+  conjunction in implication form and is proven in that form;
+  the Phase 4 proofs are done against these statements.
+- The trusted-base failure direction of
+  [Decision 4](#decision-4)'s F1 is fixed by this quantifier:
+  a spurious bind that misses I manufactures a FALSE FAILURE,
+  never a false pass — the safe direction for this feature.
 - Per-witness ✓/✗ reporting is the **diagnosis attached to
   failures**:
   the report MUST list every bound witness with its per-witness
@@ -907,8 +890,10 @@ Consequences:
   only some reached I now fails: a per-run vacuity, reported as
   such.
 
-Settles: the quantifier left open in [Decision 1](#decision-1) (Option C) and
-the verdict over [Decision 12](#decision-12)'s N-witness positions.
+Settles: the quantifier left open in [Decision 1](#decision-1)
+(Option C) and carried open through [Decision 4](#decision-4)'s
+property inventory (Q := ∀), and the verdict over
+[Decision 12](#decision-12)'s N-witness positions.
 
 ---
 
@@ -1048,22 +1033,10 @@ satisfies this decision.
 Finer closure is a *strength* question, not a granularity
 question — it requires needed-set evidence, whose feasibility and
 declined consumption are recorded in [Decision 7](#decision-7).
-[Decision 23](#decision-23) extends this decision's rule from
-rooting to *fills*: the artifact demonstrably records
-per-expression spans, so witness fills consume span-start lines
-rather than extent ranges — the same demonstrated-maximum floor,
-applied to the third relation.
 
 ---
 
 ## Decision 18: Discharge units expand to clause granularity; every unit carries its function's closure {#decision-18}
-
-**Status: fill superseded by [Decision 23](#decision-23).** The
-extent-range fill this decision shipped (every reached function
-contributing its full span sweep) is replaced by span-start-line
-sets; the closure *graph* insight below — one solver query per
-function, every unit carrying its function-level consulted
-closure — survives unchanged, as does everything about `dom(du)`.
 
 **Context:** Empirical (SST artifact investigation, 2026-07-29):
 the artifact records a distinct source span for every ensures
@@ -1073,6 +1046,9 @@ extents. Under [Decision 17](#decision-17), consuming that structure is
 mandatory: the demonstrated maximum sets the shipped floor.
 
 ### Decision: `dom(du)` is the union of all four unit kinds
+
+This extends [Decision 13](#decision-13)'s extent-only domain;
+executable body lines remain outside it.
 
 ```
 dom(du) = obligation extents (fn/lemma headers)
@@ -1107,9 +1083,225 @@ The remediation for a claim about one conjunct is user-side
 clause splitting, consistent with [Decision 14](#decision-14)'s ambiguity
 posture. (Non-normative guidance, restated in the spec.)
 
+Loop headers: deliberately **excluded** from `dom(du)` for now.
+The artifact would support inclusion
+(Verus isolates loops — `Loop :loop_isolation true`, own id —
+so "this loop's invariants are preserved" is a genuine obligation),
+but annotating the loop header rather than a specific invariant
+adds cleverness ahead of need. Revisitable with evidence.
+
 ---
 
-## Decision 19: Rooting is most-specific-wins {#decision-19}
+## Decision 19: Witness fills are span-start-line sets — every function is transparent {#decision-19}
+
+**Context:** A witness delivers per-file line maps
+([Decision 2](#decision-2)), materialized from the consulted
+closure ([Decision 5](#decision-5), [Decision 7](#decision-7)).
+Something must decide which lines those maps claim — the
+**fill**. The question went unasked at first: the shipped fill
+was an extent-range sweep (every reached function contributing
+every line of every recorded span, expanded first line to last),
+an implementation default rather than a decision — and the
+dogfood surfaced its defect. A function's extent span swept its
+interior comment lines, annotation blocks, and blanks into the
+fill, and the witness marked them Hit: lines the verifier never
+looked at, claimed as consulted. Annotations whose targets had
+been displaced onto such lines looked witnessable when they were
+placement defects.
+
+Empirical (SST corpus investigation, 2026-08-04, pinned Verus):
+spans anchor AST nodes, and ordinary comments and blanks are not
+nodes — no span in the golden corpus or the dogfood run *begins*
+on a comment or blank line — so the artifact itself already
+separates code from non-code, with no lexical classification
+required.
+
+The fill is read as **transitive-checked**: a witness claims what
+was checked to establish everything its obligation rests on.
+Every function — exec, proof, spec — is **transparent** to this
+evaluation; transparency is a traceability property of what
+*duvet reads*, not a change to proof semantics (Verus keeps
+reasoning by contract; this decision is about what the fill
+claims was checked, not about what the solver saw).
+
+### Option A: Extent-range fills (the shipped default)
+
+- Pro: Trivially closed — the sweep over-approximates everything
+  the elaboration consulted.
+- Con: Over-approximates *past the artifact*: comment and blank
+  lines inside an extent carry no span, yet the fill claims them.
+  A witness marks lines Hit that no verifier consulted.
+- Con: Below the artifact's demonstrated granularity: the SST
+  records per-expression and per-statement spans, and
+  [Decision 17](#decision-17) makes consuming the demonstrated
+  maximum mandatory. Shipping extent sweeps is shipping below the
+  evidence in hand.
+
+### Option B: Keep the sweep; classify overclaimed lines lexically, engine-side
+
+Treat the overclaim as a placement problem: keep extent fills and
+split the unwitnessed report on a static engine-side test of the
+source text — a resolved target line that is blank, an ordinary
+comment under the source's configured comment style, or a match
+of a per-source non-target pattern (Rust: `^\s*#\[`) gets its own
+"unwitnessable" verdict instead of folding into the run-dependent
+unwitnessed bucket.
+
+- Pro: Catches real placement defects the sweep was hiding —
+  annotation blocks resolving onto attribute lines and
+  interleaved doc-prose. Driving the dogfood placement burndown
+  with exactly this test found them all; the placement fixes it
+  drove are kept.
+- Con: **Shipped, then reverted.** Classifying what is and is not
+  code from lexical patterns is a language classifier's job, not
+  the coverage engine's — executors and provers are the ground
+  truth for what executes. A per-language regex inside the engine
+  chases its tail across languages; the Rust language classifier
+  ([Follow-ups](#follow-ups)) is the correct home for placement
+  enforcement.
+- Con: Treats the symptom. The fill itself still claims lines the
+  verifier never consulted; routing around the overclaim at the
+  placement layer leaves every other consumer of the map lied to.
+
+### Option C: Contract-only fills
+
+The root function contributes its body's span lines; a consulted
+callee contributes only its *contract* — signature and ensures
+spans — mirroring how the solver reasons (a callee's ensures is
+assumed; its body is never re-checked).
+
+- Pro: Matches modular proof semantics exactly.
+- Con: Rejected because duvet's job is traceability, not modular
+  reasoning: a lemma at the boundary MUST be able to reach the
+  implementation lines deep inside the edifice that transitively
+  contribute to its assurance. Contract-only fills cut every
+  test/implementation pair whose implementation annotation sits
+  more than one call hop from the test — exactly the
+  cross-function reach the closure exists to deliver
+  ([Decision 3](#decision-3), spec [§5.4](spec.md#closure)).
+
+### Option D: Leaf-span unions (rejected intermediate)
+
+Fill = the full line ranges of **leaf** spans only (a leaf being
+a span containing no other span of the same function's span set);
+containers — body blocks, fn extents — contribute nothing.
+
+- Pro: Kills the comment sweep for every single-line leaf.
+- Con: Implemented and measured (2026-08-04): it made
+  wrapped-signature declaration lines — the most natural
+  annotation target in the system — unaddressable syntax residue.
+  A multi-line `fn` signature's only covering span is the
+  declaration span, which contains the parameter spans and is
+  therefore a container: the header line drops from every fill,
+  and 9 of the dogfood's 32 passing correlations flipped to
+  failed (4 inside the CI slice), every one an implementation
+  annotation on a wrapped `spec fn`/`fn` header.
+- Con: Needed three clauses (leaf definition, container
+  prohibition, no-lexical-classification consequence) plus an
+  interior-comment sweep exception, where the chosen rule needs
+  one clause and a theorem.
+
+### Option E: Span-start-line fills (the hoisted rule)
+
+A line enters a fill iff a span of a reached function **begins**
+on that line — every span, at every nesting depth, declaration
+spans included. Applied uniformly to the root's body and to every
+consulted callee's body; no special case at the function barrier,
+and no container/leaf distinction at all.
+
+- Pro: Declaration lines are addressable again: the wrapped
+  signature's span begins on its header line, so all 9 pairs
+  Option D broke discharge with no placement moves (verified,
+  2026-08-04).
+- Pro: The comment guarantee becomes a **theorem** rather than a
+  rule: spans anchor AST nodes; ordinary comments and blanks are
+  not nodes; therefore no span begins on one. Pinned by a
+  tripwire test that lexes the checked-in fixture sources against
+  the golden artifacts — test-side lexing of sources we control;
+  the runtime never lexes — guarding against macro-expansion span
+  placement drift forever.
+- Pro: One clause where Option D needed three plus an exception.
+- Con: Continuation lines of multi-line expressions are not
+  filled (only the start line is). Accepted — measured against
+  variant V2 below, no target in the dogfood or corpus sits on a
+  continuation line.
+
+### Decision: Option E, strict variant
+
+Two variants were measured on the full unsliced dogfood run and
+the golden corpus (2026-08-04): **V1 (strict)** — span start
+lines only — and **V2** — start lines plus the full ranges of
+leaf spans (continuation lines of multi-line leaves stay filled).
+Both restored the complete pre-change baseline: all 32
+correlations successful, 0 failed, and the 17-section CI slice
+green. The ratified tiebreaker is comment exposure, and V1 wins
+it: V2 admits ordinary comment lines in multi-line leaf
+interiors; V1 admits none. V1's only comment-shaped exposure is
+doc-comment lines — doc comments are attribute AST nodes, so a
+derive-stamped declaration span can begin on one — which the
+theorem deliberately scopes to *ordinary* comments and blanks.
+The strict variant ships; no interior-comment sweep exception
+exists.
+
+This extends [Decision 17](#decision-17)'s demonstrated-maximum
+rule from rooting to fills: the artifact demonstrably records
+per-expression spans, and the fill consumes their anchors.
+[Decision 18](#decision-18)'s closure fact is untouched — one
+solver query per function, so all units of one function share one
+(span-start-grained) fill. Rooting, `dom(du)`, and
+not-proof-testable classification
+([Decision 12](#decision-12), [Decision 13](#decision-13),
+[Decision 18](#decision-18)) are fill-independent: this is fill
+policy only.
+
+Honesty note, recorded: exec statements inside verified functions
+begin spans — the verifier traverses what it checks — and ARE
+claimed by fills that reach them. Finer *proven-about*
+attribution (unsat cores / `Needed` strength, driving the solver)
+is explicitly deferred — "deal with later" — the known refinement,
+constraints already recorded in [Decision 7](#decision-7) and the
+strength-rungs follow-up ([Follow-ups](#follow-ups)).
+
+Acceptance tests, pinned in the producer's suite:
+
+- A line in unverified code (outside `verus!{}`, or in an
+  unverified function) appears in no SST span set and MUST never
+  be witnessed by any fill.
+- An interior comment line inside a *verified* function MUST NOT
+  be in any witness's fill — the behavior change: the extent
+  sweep marked it Hit.
+- The theorem tripwire: over the entire golden corpus and the
+  vacuity fixture, no span's START line is an ordinary-comment or
+  blank line of the matching checked-in sources.
+
+### The map is a projection
+
+The fact a prover producer derives is the consulted **span
+set** — parsed and retained per function in the producer's
+structure. The per-file line map delivered to the engine is the
+**anchor projection** of that fact: span start lines, chosen
+because the map's sole consumer is annotation-target membership
+(`target ∈ fill`), for which the projection is lossless. The map
+is NOT a claim that only those lines were consulted — it anchors,
+it does not bound. Three named future consumers need the fact,
+not the projection, and each extends the producer to deliver the
+retained spans rather than reinterpreting the line map:
+
+1. **LCOV-union comparison** — runtime maps are per-line
+   execution facts; unioning them with anchor projections would
+   silently mix semantics.
+2. **Strength-lattice work** — comparing `Consulted` against
+   stronger rungs needs extents, not anchors.
+3. **Report phrasing about specific lines** — "did not consult
+   line N" for a non-anchor N would be false as stated; today's
+   output never says it (every executed-verb carries its
+   strength qualifier, and per-line markers point only at
+   annotation targets, which are anchors), and it stays that way
+   by taking extents when the phrasing is wanted.
+
+---
+
+## Decision 20: Rooting is most-specific-wins {#decision-20}
 
 **Context:** With clause-level units in `dom(du)` ([Decision 18](#decision-18)),
 an annotation on a clause line sits inside both the clause span
@@ -1166,7 +1358,7 @@ ties within the chosen level still yield all owners.
 
 ---
 
-## Decision 20: Discharge units are labeled from the artifact, `proof_note` when present {#decision-20}
+## Decision 21: Discharge units are labeled from the artifact, `proof_note` when present {#decision-21}
 
 **Context:** Failure legibility ([Follow-ups](#follow-ups)) needs units
 users can recognize. The artifact investigation found that
@@ -1194,7 +1386,7 @@ An upstream Verus report is tracked in [Follow-ups](#follow-ups).
 
 ---
 
-## Decision 21: Dogfood annotation placement — definitional properties split, executable properties pair on the checker {#decision-21}
+## Decision 22: Dogfood annotation placement — definitional properties split, executable properties pair on the checker {#decision-22}
 
 **Context:** The spec's property inventory
 ([Decision 4](#decision-4)) is dogfooded with duvet annotations
@@ -1229,258 +1421,6 @@ the definition checks itself.
 
 ---
 
-## Decision 22: The unwitnessed report splits on a static placement test — unwitnessable is its own verdict {#decision-22}
-
-**Outcome: reverted — the verdict was removed.** Classifying what
-is and is not code from lexical patterns is a language
-classifier's job, not the coverage engine's (the wrong
-abstraction; see the Rust language classifier entry in
-[Follow-ups](#follow-ups)) — executors and provers are the ground
-truth for what executes. The placement fixes the verdict drove
-stay.
-
-**Context:** A principal review of the dogfood corpus found that
-annotation blocks followed by an attribute line (`#[test]`,
-`#[derive]`) or by interleaved doc-prose resolve — under degraded
-target resolution, which skips only blank and annotation lines —
-onto a line that is not code. Such an annotation's verdict can
-never change: no runtime report records coverage for an attribute
-or comment line, and no obligation is rooted there. These
-placement defects were hiding inside the W6 unwitnessed bucket,
-indistinguishable from the legitimate LCOV-pending rows
-([Decision 8](#decision-8)) — the very rows Gate 3's exit
-criterion counts, so the staging table's "audited: no comment,
-attribute, or declaration targets remain" claim was unverifiable
-by tooling and, per the review, wrong.
-
-### Decision: split, statically, engine-side
-
-The unwitnessed report is split by a static test on the source
-text (spec [§3](spec.md#verdict-output)): a resolved target line
-that is blank, an ordinary comment under the source's configured
-comment style (the comment leader is the meta pattern minus its
-trailing `=`), or a match of the source's `non-target-pattern`
-(per-source config, same posture as comment styles; Rust default
-`^\s*#\[`) is **unwitnessable**, reported with its own pinned
-wording and the offending line quoted — never folded into W6's
-run-dependent report. This follows the not-proof-testable
-distinct-report precedent (spec [§5.2](spec.md#two-pass-construction)),
-with one deliberate difference: not-proof-testable is a
-producer-delivered fact about the artifact; unwitnessable is
-computed engine/scan-side from source text alone, because it is a
-property of placement, not of any producer's record —
-producers-deliver-facts is untouched.
-
-Implementation (citation) annotations get the same static finding:
-they are never reported unwitnessed, so a displaced implementation
-target was previously *silent* — latent until some future
-witnessed run failed the pair. Implication and exception
-annotations are excluded: they carry no evidence obligation, so
-their targets carry no placement obligation. Test annotations
-reaching the missing-implementation report keep that report (the
-failure is already decided); the split applies where the defect
-was hiding, the unwitnessed branch.
-
-The classifier is the enforcing site of spec §1.1's placement MUST
-("an annotation … MUST be the last comment block above the code it
-targets"), which until now had only its resolution-behavior
-citation in `target_resolution.rs`, not an enforcement one.
-
-**Rejected: consulting witnesses.** A consulted-span fill (a
-prover extent covers every line of its function, comments
-included) can mark a comment line Hit, so an evidence-based test
-would misclassify interior-comment targets as witnessable — an
-accident of span granularity, not evidence about the line. The
-static verdict never consults a witness.
-
-**Rejected: a new subcommand.** The defect population lives in the
-coverage check's output; the split refines that report in place.
-
----
-
-## Decision 23: Witness fills are span-start-line sets — every function is transparent {#decision-23}
-
-**Context:** A witness's per-file line fill was an *extent-range*
-sweep over its consulted closure: every reached function
-contributed every line of every recorded span, expanded first
-line to last — so a function's extent span swept its interior
-comment lines, annotation blocks, and blanks into the fill, and
-the witness marked them Hit
-([Decision 18](#decision-18)'s shipped fill shape). That sweep is
-the disease behind [Decision 22](#decision-22): the
-interior-comment misclassification its rejected evidence-based
-test would have made ("an accident of span granularity, not
-evidence about the line") is not an accident to route around at
-the placement layer — it is the fill itself claiming lines the
-verifier never looked at. Empirical (SST corpus investigation,
-2026-08-04, pinned Verus): spans anchor AST nodes, and ordinary
-comments and blanks are not nodes — no span in the golden corpus
-or the dogfood run *begins* on a comment or blank line — so the
-artifact itself already separates code from non-code, with no
-lexical classification required.
-
-The fill is read as **transitive-checked**: a witness claims what
-was checked to establish everything its obligation rests on.
-Every function — exec, proof, spec — is **transparent** to this
-evaluation; transparency is a traceability property of what
-*duvet reads*, not a change to proof semantics (Verus keeps
-reasoning by contract; this decision is about what the fill
-claims was checked, not about what the solver saw).
-
-### Option A: Extent-range fills (status quo)
-
-- Pro: Trivially closed — the sweep over-approximates everything
-  the elaboration consulted.
-- Con: Over-approximates *past the artifact*: comment and blank
-  lines inside an extent carry no span, yet the fill claims them.
-  A witness marks lines Hit that no verifier consulted — the
-  overclaim [Decision 22](#decision-22) tried (and failed, at the
-  wrong layer) to paper over.
-- Con: Below the artifact's demonstrated granularity: the SST
-  records per-expression and per-statement spans, and
-  [Decision 17](#decision-17) makes consuming the demonstrated
-  maximum mandatory. Shipping extent sweeps is shipping below the
-  evidence in hand.
-
-### Option B: Contract-only fills
-
-The root function contributes its body's span lines; a consulted
-callee contributes only its *contract* — signature and ensures
-spans — mirroring how the solver reasons (a callee's ensures is
-assumed; its body is never re-checked).
-
-- Pro: Matches modular proof semantics exactly.
-- Con: Rejected because duvet's job is traceability, not modular
-  reasoning: a lemma at the boundary MUST be able to reach the
-  implementation lines deep inside the edifice that transitively
-  contribute to its assurance. Contract-only fills cut every
-  test/implementation pair whose implementation annotation sits
-  more than one call hop from the test — exactly the
-  cross-function reach the closure exists to deliver
-  ([Decision 3](#decision-3), spec [§5.4](spec.md#closure)).
-
-### Option C: Leaf-span unions (rejected intermediate)
-
-Fill = the full line ranges of **leaf** spans only (a leaf being
-a span containing no other span of the same function's span set);
-containers — body blocks, fn extents — contribute nothing.
-
-- Pro: Kills the comment sweep for every single-line leaf.
-- Con: Implemented and measured (2026-08-04): it made
-  wrapped-signature declaration lines — the most natural
-  annotation target in the system — unaddressable syntax residue.
-  A multi-line `fn` signature's only covering span is the
-  declaration span, which contains the parameter spans and is
-  therefore a container: the header line drops from every fill,
-  and 9 of the dogfood's 32 passing correlations flipped to
-  failed (4 inside the CI slice), every one an implementation
-  annotation on a wrapped `spec fn`/`fn` header.
-- Con: Needed three clauses (leaf definition, container
-  prohibition, no-lexical-classification consequence) plus an
-  interior-comment sweep exception, where the chosen rule needs
-  one clause and a theorem.
-
-### Option D: Span-start-line fills (the hoisted rule)
-
-A line enters a fill iff a span of a reached function **begins**
-on that line — every span, at every nesting depth, declaration
-spans included. Applied uniformly to the root's body and to every
-consulted callee's body; no special case at the function barrier,
-and no container/leaf distinction at all.
-
-- Pro: Declaration lines are addressable again: the wrapped
-  signature's span begins on its header line, so all 9 pairs
-  Option C broke discharge with no placement moves (verified,
-  2026-08-04).
-- Pro: The comment guarantee becomes a **theorem** rather than a
-  rule: spans anchor AST nodes; ordinary comments and blanks are
-  not nodes; therefore no span begins on one. Pinned by a
-  tripwire test that lexes the checked-in fixture sources against
-  the golden artifacts — test-side lexing of sources we control;
-  the runtime never lexes — guarding against macro-expansion span
-  placement drift forever.
-- Pro: One clause where Option C needed three plus an exception.
-- Con: Continuation lines of multi-line expressions are not
-  filled (only the start line is). Accepted — measured against
-  variant V2 below, no target in the dogfood or corpus sits on a
-  continuation line.
-
-### Decision: Option D, strict variant
-
-Two variants were measured on the full unsliced dogfood run and
-the golden corpus (2026-08-04): **V1 (strict)** — span start
-lines only — and **V2** — start lines plus the full ranges of
-leaf spans (continuation lines of multi-line leaves stay filled).
-Both restored the complete pre-change baseline: all 32
-correlations successful, 0 failed, and the 17-section CI slice
-green. The ratified tiebreaker is comment exposure, and V1 wins
-it: V2 admits ordinary comment lines in multi-line leaf
-interiors; V1 admits none. V1's only comment-shaped exposure is
-doc-comment lines — doc comments are attribute AST nodes, so a
-derive-stamped declaration span can begin on one — which the
-theorem deliberately scopes to *ordinary* comments and blanks.
-The strict variant ships; no interior-comment sweep exception
-exists.
-
-Honesty note, recorded: exec statements inside verified functions
-begin spans — the verifier traverses what it checks — and ARE
-claimed by fills that reach them. Finer *proven-about*
-attribution (unsat cores / `Needed` strength, driving the solver)
-is explicitly deferred — "deal with later" — the known refinement,
-constraints already recorded in [Decision 7](#decision-7) and the
-strength-rungs follow-up ([Follow-ups](#follow-ups)).
-
-Acceptance tests, pinned in the producer's suite:
-
-- A line in unverified code (outside `verus!{}`, or in an
-  unverified function) appears in no SST span set and MUST never
-  be witnessed by any fill.
-- An interior comment line inside a *verified* function MUST NOT
-  be in any witness's fill — the behavior change: the extent
-  sweep marked it Hit.
-- The theorem tripwire: over the entire golden corpus and the
-  vacuity fixture, no span's START line is an ordinary-comment or
-  blank line of the matching checked-in sources.
-
-### The map is a projection
-
-The fact a prover producer derives is the consulted **span
-set** — parsed and retained per function in the producer's
-structure. The per-file line map delivered to the engine is the
-**anchor projection** of that fact: span start lines, chosen
-because the map's sole consumer is annotation-target membership
-(`target ∈ fill`), for which the projection is lossless. The map
-is NOT a claim that only those lines were consulted — it anchors,
-it does not bound. Three named future consumers need the fact,
-not the projection, and each extends the producer to deliver the
-retained spans rather than reinterpreting the line map:
-
-1. **LCOV-union comparison** — runtime maps are per-line
-   execution facts; unioning them with anchor projections would
-   silently mix semantics.
-2. **Strength-lattice work** — comparing `Consulted` against
-   stronger rungs needs extents, not anchors.
-3. **Report phrasing about specific lines** — "did not consult
-   line N" for a non-anchor N would be false as stated; today's
-   output never says it (every executed-verb carries its
-   strength qualifier, and per-line markers point only at
-   annotation targets, which are anchors), and it stays that way
-   by taking extents when the phrasing is wanted.
-
-Supersedes [Decision 18](#decision-18)'s extent-range fill. What
-survives of Decision 18: the closure *graph* insight — one solver
-query per function, so every discharge unit carries its
-function-level consulted closure — is untouched; all units of one
-function still share one (now span-start-grained) fill.
-[Decision 17](#decision-17)'s demonstrated-maximum rule now
-extends from rooting to fills. Rooting, `dom(du)`, and
-not-proof-testable classification
-([Decision 12](#decision-12), [Decision 13](#decision-13),
-[Decision 19](#decision-19)) are untouched: this is fill policy
-only.
-
----
-
 ## Open question: the executed-coverage diagnostic fold vs G2 {#open-g2-diagnostic-fold}
 
 **Context:** [Spec §4.4 G2](spec.md#engine-glue) requires every
@@ -1489,13 +1429,13 @@ with per-witness failure diagnostics derived from the same
 verified cells — "no parallel engine-side verdict computation may
 exist." In executed-coverage mode
 (`CheckType::ExecutedCoverage`), the engine folds *unverified*
-diagnostic cells (`engine.rs` — `cell` at 582, `fold_statuses` at
-453) to decide which failures reach the output: a
-missing-implementation test whose fold says `NotExecuted` is
-skipped (`engine.rs:668–674`), and an unwitnessed test likewise
-(`engine.rs:757–767`). Those skips feed `QueryStatus`
-(`engine.rs:823–828`): whether the run passes or fails can turn
-on a computation that never passes through the verified layer —
+diagnostic cells (`engine.rs` — the per-annotation `cell` and its
+`fold_statuses` OR-fold) to decide which failures reach the
+output: a missing-implementation test whose fold says
+`NotExecuted` is skipped, and an unwitnessed test likewise.
+Those skips feed `QueryStatus`: whether the run passes or fails
+can turn on a computation that never passes through the verified
+layer —
 a verdict-shaped question answered engine-side, which is arguably
 the parallel computation G2 forbids. The per-entry verdicts
 themselves are verified (the fold only *withholds*
@@ -1560,7 +1500,7 @@ for it.
   annotation lines — which is exactly what makes attribute and
   prose lines displaceable targets. A language classifier is the
   correct abstraction for code/non-code classification
-  ([Decision 22](#decision-22)'s outcome: lexical guessing was
+  ([Decision 19](#decision-19) Option B, shipped then reverted: lexical guessing was
   removed); placement enforcement becomes one of its jobs.
 
 - **Retrofit pass over the pre-existing annotations.**
@@ -1569,7 +1509,7 @@ for it.
   split into test/implementation pairs discharged by this
   feature's machinery, and W-property test annotations could move
   onto the specific clauses their properties name (exercising
-  [Decision 19](#decision-19)'s rule).
+  [Decision 20](#decision-20)'s rule).
   Deliberately a subsequent PR, and possibly not worth it: the
   feature's confidence comes from the golden corpus and the
   dogfooded witness spec; retrofitting adds confidence to the
@@ -1619,7 +1559,7 @@ for it.
     core-possible set, so its only verdict-determining failure is
     definite irrelevance — over-crediting, never a false failure.
 
-- **Failure-legibility polish beyond [Decision 20](#decision-20)'s
+- **Failure-legibility polish beyond [Decision 21](#decision-21)'s
   labels.** At ambiguous positions (generated obligations with
   byte-identical source ranges) the labels alone may not tell the
   user *which* claim at their position failed or how to move the
@@ -1629,5 +1569,5 @@ for it.
   ("split the conjuncts") on top of the mandatory per-witness
   result list (label, strength, per-witness ✓/✗), already
   normative. Includes the upstream Verus report for the
-  `proof_note`-on-ensures defect ([Decision 20](#decision-20)),
+  `proof_note`-on-ensures defect ([Decision 21](#decision-21)),
   which blocks `proof_note` labels on ensures clauses.

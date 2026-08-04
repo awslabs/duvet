@@ -6,7 +6,7 @@ target = "design/witness/producer-core-spec.md#property-p2-most-specific-wins"
 # position are exactly the minimal-extent containing units at the
 # finest populated specificity level
 # ([spec §5.3](spec.md#discharge-unit),
-# decisions.md [Decision 19](decisions.md#decision-19)):
+# decisions.md [Decision 20](decisions.md#decision-20)):
 # 
 # ```
 # selected(u, pos)  ⟺  contains(u, pos)
@@ -28,7 +28,7 @@ The implementation MUST prove that the units selected for a
 position are exactly the minimal-extent containing units at the
 finest populated specificity level
 ([spec §5.3](spec.md#discharge-unit),
-decisions.md [Decision 19](decisions.md#decision-19)):
+decisions.md [Decision 20](decisions.md#decision-20)):
 '''
 
 [[spec]]
