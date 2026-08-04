@@ -285,11 +285,9 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
     //= design/witness/spec.md#closure
     //= type=implementation
     //# The closure MUST be **reflexive**: it includes the discharge
-    //# unit's own root span (`root ∈ closure(root)`), so that a witness
-    //# always scores its own annotation as executed and `ByRootSpan`
-    //# binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
-    //# instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
-    //# depends on this).
+    //# unit's own root node (`root ∈ closure(root)`), so the root
+    //# function's own span-start lines — its declaration line
+    //# included — are in every one of its witnesses' fills.
     let n = g.len();
     let mut reached: Vec<bool> = Vec::new();
     let mut i: usize = 0;
@@ -780,9 +778,10 @@ proof fn lemma_push_contains<T>(s: Seq<T>, x: T)
 //# union of the closure's per-file spans restricted to project files:
 //= design/witness/spec.md#closure
 //= type=test
-//# A constructed witness's `files` maps MUST equal the source spans
-//# of the downward reachable set of the prover's obligation graph,
-//# starting from the discharge unit.
+//# A constructed witness's `files` maps MUST equal the set of
+//# **span-start lines** over the downward reachable set of the
+//# prover's obligation graph, starting from the discharge unit
+//# (decisions.md, [Decision 23](decisions.md#decision-23)):
 //= design/witness/spec.md#obligation-closedness
 //= type=test
 //# Every delivered `files` map MUST be closed under the producer's
@@ -810,9 +809,10 @@ pub fn assemble_witness_lines(
 {
     //= design/witness/spec.md#closure
     //= type=implementation
-    //# A constructed witness's `files` maps MUST equal the source spans
-    //# of the downward reachable set of the prover's obligation graph,
-    //# starting from the discharge unit.
+    //# A constructed witness's `files` maps MUST equal the set of
+    //# **span-start lines** over the downward reachable set of the
+    //# prover's obligation graph, starting from the discharge unit
+    //# (decisions.md, [Decision 23](decisions.md#decision-23)):
     //= design/witness/spec.md#closure
     //= type=implementation
     //# Only reachable nodes contribute;

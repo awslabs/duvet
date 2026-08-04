@@ -248,13 +248,19 @@ fn discrimination_lemma_closure_never_reaches_the_algorithm() {
 
     // The goldens (pinned, superseding FINDINGS.md's regex-grade
     // 10 obligations / same file set — project count agrees here).
+    // Line counts are SPAN-START fill counts (spec §5.4, Decision
+    // 23): a line is filled iff a span begins on it, so comment,
+    // blank, and continuation lines are gone. Cross-checked
+    // against an independent computation (python, own
+    // segmentation, own start-line rule, 2026-08-04); the two
+    // agree exactly on all counts.
     assert_eq!(c.project_obligations.len(), 10);
     assert_eq!(c.reached.len(), 22);
     assert_eq!(
         file_line_counts(&c),
         [
-            ("duvet-coverage/src/predicates.rs", 112),
-            ("duvet-coverage/src/proofs.rs", 105),
+            ("duvet-coverage/src/predicates.rs", 88),
+            ("duvet-coverage/src/proofs.rs", 60),
         ]
     );
 }
@@ -273,18 +279,20 @@ fn discrimination_executed_variant_reaches_the_algorithm() {
     // The goldens (pinned; FINDINGS.md's 18 obligations / 4 files
     // was truncated by the POC's charset — it could not follow
     // edges through `types::impl&%N::` obligations, whose closures
-    // pull in execution_propagation.rs and types.rs).
+    // pull in execution_propagation.rs and types.rs). Line counts
+    // are span-start fill counts (spec §5.4, Decision 23),
+    // cross-checked independently like the lemma's above.
     assert_eq!(c.project_obligations.len(), 25);
     assert_eq!(c.reached.len(), 70);
     assert_eq!(
         file_line_counts(&c),
         [
-            ("duvet-coverage/src/annotation_execution.rs", 200),
-            ("duvet-coverage/src/execution_propagation.rs", 471),
-            ("duvet-coverage/src/predicates.rs", 155),
-            ("duvet-coverage/src/proofs.rs", 162),
-            ("duvet-coverage/src/target_resolution.rs", 119),
-            ("duvet-coverage/src/types.rs", 16),
+            ("duvet-coverage/src/annotation_execution.rs", 164),
+            ("duvet-coverage/src/execution_propagation.rs", 297),
+            ("duvet-coverage/src/predicates.rs", 101),
+            ("duvet-coverage/src/proofs.rs", 107),
+            ("duvet-coverage/src/target_resolution.rs", 89),
+            ("duvet-coverage/src/types.rs", 13),
         ]
     );
 }
@@ -747,7 +755,11 @@ fn lines(c: &Closure) -> BTreeSet<u32> {
 #[test]
 fn vacuity_fixture_shape() {
     let g = vacuity();
-    assert_eq!(g.nodes.len(), 9, "6 vacuity fns + main + vstd nodes");
+    assert_eq!(
+        g.nodes.len(),
+        10,
+        "8 vacuity fns + vstd nodes; main is not logged"
+    );
     for name in [
         "vacuity::spec_add_one",
         "vacuity::add_one",
@@ -756,6 +768,7 @@ fn vacuity_fixture_shape() {
         "vacuity::vacuous_proof_mentioning",
         "vacuity::self_contained",
         "vacuity::noted_loop",
+        "vacuity::commented_body",
     ] {
         assert!(g.nodes.contains_key(name), "missing {name}");
     }
@@ -770,7 +783,11 @@ fn scenario_1_vacuous_proof_closure_is_itself_only() {
     // semantics really does provide (FINDINGS.md hypothesis,
     // confirmed).
     let c = closure(vacuity(), "vacuity::vacuous_proof", vacuity_file).unwrap();
-    assert_eq!(lines(&c), (32..=36).collect(), "own extent lines only");
+    assert_eq!(
+        lines(&c),
+        (32..=35).collect(),
+        "own span-start lines only (36 is the body span's continuation line)"
+    );
     // Explicitly: no spec_add_one (9..=10), no add_one body, no
     // self_contained body. Closure *size* is not the signal —
     // project-span content is.
@@ -797,7 +814,7 @@ fn scenario_2_mention_without_need_is_credited() {
         c.reached.contains("vacuity::spec_add_one"),
         "the mention is followed"
     );
-    assert_eq!(lines(&c), [9, 10, 43, 44, 45, 46, 47].into_iter().collect());
+    assert_eq!(lines(&c), [9, 10, 43, 44, 45, 46].into_iter().collect());
 }
 
 #[test]
@@ -868,7 +885,7 @@ fn scenario_3_self_inclusion_is_credited() {
 fn honest_proof_reaches_the_implementation_spec() {
     let c = closure(vacuity(), "vacuity::honest_proof", vacuity_file).unwrap();
     assert!(c.reached.contains("vacuity::spec_add_one"));
-    assert_eq!(lines(&c), [9, 10, 24, 25, 26, 27].into_iter().collect());
+    assert_eq!(lines(&c), [9, 10, 24, 25, 26].into_iter().collect());
 }
 
 // ---------------------------------------------------------------
@@ -924,17 +941,21 @@ fn labels_proof_note_when_recorded_span_identity_otherwise() {
 // ---------------------------------------------------------------
 
 #[test]
-fn every_constructed_witness_contains_its_own_root_span() {
+fn every_constructed_witness_contains_its_roots_span_start_lines() {
     // This is that test, over the full universe of both artifact
-    // sets, at clause grain (every unit kind, not just extents).
+    // sets, at clause grain (every unit kind, not just extents):
+    // the closure includes the root NODE, so every line a span of
+    // the root function begins on — the declaration line
+    // included — is in the fill. The root's full span sweep is
+    // deliberately NOT asserted: continuation, comment, and blank
+    // lines are out of the fill now (Decision 23), which is
+    // exactly the golden that flipped when span-start fills landed.
     //= design/witness/spec.md#closure
     //= type=test
     //# The closure MUST be **reflexive**: it includes the discharge
-    //# unit's own root span (`root ∈ closure(root)`), so that a witness
-    //# always scores its own annotation as executed and `ByRootSpan`
-    //# binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
-    //# instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
-    //# depends on this).
+    //# unit's own root node (`root ∈ closure(root)`), so the root
+    //# function's own span-start lines — its declaration line
+    //# included — are in every one of its witnesses' fills.
 
     //= design/witness/spec.md#closure
     //# Producers MUST carry a unit test asserting reflexivity for every
@@ -947,28 +968,174 @@ fn every_constructed_witness_contains_its_own_root_span() {
         (corpus(), is_project as fn(&str) -> bool),
         (vacuity(), vacuity_file as fn(&str) -> bool),
     ] {
-        for w in materialize_all(graph, "x", project) {
-            let ClaimRule::ByRootSpan {
-                file,
-                start_line,
-                end_line,
-            } = &w.claim
-            else {
-                panic!("prover witnesses claim by root span")
-            };
-            if !project(file) {
-                continue; // vstd-rooted units: projected out
+        let universe = materialize_all(graph, "x", project);
+        let units = all_units(graph);
+        assert_eq!(universe.len(), units.len());
+        for (w, u) in universe.iter().zip(units.iter()) {
+            assert_eq!(w.label, u.label, "universe order is unit order");
+            for (file, lines) in u.node.fill_lines() {
+                if !project(file) {
+                    continue; // vstd spans: projected out
+                }
+                let witnessed = w.files.get(file).unwrap_or_else(|| {
+                    panic!("{}: root file {file} missing from witness map", w.label)
+                });
+                for line in lines {
+                    assert!(
+                        witnessed.contains_key(&u64::from(line)),
+                        "{}: own leaf-span line {file}:{line} not in own closure",
+                        w.label,
+                    );
+                }
             }
-            let lines = w.files.get(file).unwrap_or_else(|| {
-                panic!("{}: root file {file} missing from witness map", w.label)
-            });
-            for line in *start_line..=*end_line {
-                assert!(
-                    lines.contains_key(&line),
-                    "{}: root line {file}:{line} not in own closure",
-                    w.label,
-                );
+        }
+    }
+}
+
+// ---------------------------------------------------------------
+// Span-start fill acceptance (spec §5.4, Decision 23)
+// ---------------------------------------------------------------
+
+#[test]
+fn interior_comment_line_is_in_no_fill() {
+    // The behavior change, pinned: vacuity.rs:96 is a comment line
+    // INSIDE the verified `commented_body` (its body span 94..=99
+    // covers it, so the old extent sweep marked it Hit). No span
+    // begins on it — comments are not AST nodes — so no witness's
+    // fill may contain it, while its code neighbors 95 and 97 are
+    // in the function's own fill.
+    //= design/witness/spec.md#closure
+    //= type=test
+    //# Comment and blank lines are excluded by **theorem**, not by
+    //# rule: spans anchor AST nodes, and ordinary comments and blanks
+    //# are not nodes, so no span begins on one.
+    let g = vacuity();
+    for w in materialize_all(g, "x", vacuity_file) {
+        if let Some(lines) = w.files.get("vacuity.rs") {
+            assert!(
+                !lines.contains_key(&96),
+                "{}: fill contains the interior comment line 96",
+                w.label
+            );
+        }
+    }
+    let c = closure(g, "vacuity::commented_body", vacuity_file).unwrap();
+    assert!(lines(&c).contains(&95), "code line before the comment");
+    assert!(lines(&c).contains(&97), "code line after the comment");
+    assert!(!lines(&c).contains(&96), "the comment line itself");
+    // The elaboration (liveness) view still covers the line — it is
+    // inside the body span's range — so classification is
+    // unchanged: not-proof-testable, not unelaborated. Fill policy
+    // only.
+    assert_eq!(
+        classify_position(g, "vacuity.rs", 96),
+        PositionKind::NotProofTestable
+    );
+}
+
+/// The §5.4 theorem, pinned as a tripwire over both golden artifact
+/// sets: no span STARTS on an ordinary-comment or blank line. Spans
+/// anchor AST nodes; ordinary comments and blanks are not nodes. Doc
+/// comments (`///`, `//!`) ARE attribute nodes and may legitimately
+/// begin a derive-stamped declaration span, so they are exempt.
+///
+/// The lexing happens HERE, test-side, over checked-in sources that
+/// match the artifacts (`testdata/corpus/sources/` is the corpus
+/// vintage — see its README; the vacuity fixture's source lives next
+/// to its log). The runtime never lexes (spec §5.4). This guards the
+/// theorem against macro-expansion span placement (`(#n)` contexts)
+/// drifting onto non-code lines in some future Verus.
+#[test]
+fn no_span_starts_on_a_comment_or_blank_line() {
+    //= design/witness/spec.md#closure
+    //= type=test
+    //# Producers MUST NOT
+    //# lexically classify lines at runtime, and MUST pin the theorem
+    //# with a test that lexes checked-in fixture sources against the
+    //# golden artifacts (guarding against macro-expansion span
+    //# placement).
+    //= design/witness/spec.md#closure
+    //= type=test
+    //# A doc-comment line MAY begin a span — doc comments
+    //# are attribute nodes — and the fill records it honestly.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/query/parsers/verus_sst/testdata");
+    let source_for = |graph_file: &str| -> Option<PathBuf> {
+        if graph_file == "vacuity.rs" {
+            return Some(root.join("vacuity/vacuity.rs"));
+        }
+        // Corpus spans name `duvet-coverage/src/<module>.rs`; the
+        // matching vintage sources are checked in flat.
+        let name = graph_file.strip_prefix("duvet-coverage/src/")?;
+        Some(root.join("corpus/sources").join(name))
+    };
+    let is_violation = |line_text: &str| -> bool {
+        let t = line_text.trim_start();
+        t.is_empty() || (t.starts_with("//") && !t.starts_with("///") && !t.starts_with("//!"))
+    };
+    let mut checked_spans = 0usize;
+    for graph in [corpus(), vacuity()] {
+        for node in graph.nodes.values() {
+            for (file, ranges) in &node.span_ranges {
+                let Some(path) = source_for(file) else {
+                    continue; // vstd/registry spans: not our sources
+                };
+                let text = std::fs::read_to_string(&path)
+                    .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+                let lines: Vec<&str> = text.lines().collect();
+                for &(start, end) in ranges {
+                    if start > end {
+                        continue;
+                    }
+                    let idx = (start - 1) as usize;
+                    assert!(
+                        idx < lines.len(),
+                        "{}: span start {file}:{start} beyond source end — \
+                         sources no longer match the artifact vintage",
+                        node.name
+                    );
+                    assert!(
+                        !is_violation(lines[idx]),
+                        "{}: span {file}:{start}..={end} begins on a \
+                         comment/blank line: {:?}",
+                        node.name,
+                        lines[idx]
+                    );
+                    checked_spans += 1;
+                }
             }
+        }
+    }
+    // Guard the guard: an empty sweep proves nothing. The two
+    // artifact sets carry ~1.8k distinct project-file span ranges
+    // (cross-checked independently, 2026-08-04).
+    assert!(
+        checked_spans > 1_500,
+        "tripwire checked only {checked_spans} spans — source mapping broke"
+    );
+}
+
+#[test]
+fn unverified_code_is_never_witnessed() {
+    // vacuity.rs:103 is `fn main() {}` — outside `verus!{}`,
+    // unverified: no `FunctionSst` records it, no span set contains
+    // it, and no fill may ever claim it.
+    //= design/witness/spec.md#closure
+    //= type=test
+    //# A line
+    //# the verifier never elaborated — unverified code — appears in no
+    //# span set and MUST NOT appear in any fill.
+    let g = vacuity();
+    assert_eq!(
+        classify_position(g, "vacuity.rs", 103),
+        PositionKind::Unelaborated
+    );
+    for w in materialize_all(g, "x", vacuity_file) {
+        if let Some(lines) = w.files.get("vacuity.rs") {
+            assert!(
+                !lines.contains_key(&103),
+                "{}: fill claims the unverified main",
+                w.label
+            );
         }
     }
 }
@@ -1264,7 +1431,7 @@ fn bench_merge_unit_heavy_relogged_nodes() {
                 end_line: 1000,
             },
             units,
-            spans: BTreeMap::new(),
+            span_ranges: BTreeMap::new(),
             edges: std::collections::BTreeSet::new(),
         }
     };

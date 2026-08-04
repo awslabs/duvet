@@ -1,6 +1,6 @@
 # Duvet Witness: Design Decisions
 
-**Status:** Decisions 1–21 ratified and implemented, except
+**Status:** Decisions 1–21 and 23 ratified and implemented, except
 [Decision 16](#decision-16), whose example project ships with the LCOV follow-up
 PR ([Follow-ups](#follow-ups)).
 
@@ -1048,10 +1048,22 @@ satisfies this decision.
 Finer closure is a *strength* question, not a granularity
 question — it requires needed-set evidence, whose feasibility and
 declined consumption are recorded in [Decision 7](#decision-7).
+[Decision 23](#decision-23) extends this decision's rule from
+rooting to *fills*: the artifact demonstrably records
+per-expression spans, so witness fills consume span-start lines
+rather than extent ranges — the same demonstrated-maximum floor,
+applied to the third relation.
 
 ---
 
 ## Decision 18: Discharge units expand to clause granularity; every unit carries its function's closure {#decision-18}
+
+**Status: fill superseded by [Decision 23](#decision-23).** The
+extent-range fill this decision shipped (every reached function
+contributing its full span sweep) is replaced by span-start-line
+sets; the closure *graph* insight below — one solver query per
+function, every unit carrying its function-level consulted
+closure — survives unchanged, as does everything about `dom(du)`.
 
 **Context:** Empirical (SST artifact investigation, 2026-07-29):
 the artifact records a distinct source span for every ensures
@@ -1283,6 +1295,178 @@ static verdict never consults a witness.
 
 **Rejected: a new subcommand.** The defect population lives in the
 coverage check's output; the split refines that report in place.
+
+---
+
+## Decision 23: Witness fills are span-start-line sets — every function is transparent {#decision-23}
+
+**Context:** A witness's per-file line fill was an *extent-range*
+sweep over its consulted closure: every reached function
+contributed every line of every recorded span, expanded first
+line to last — so a function's extent span swept its interior
+comment lines, annotation blocks, and blanks into the fill, and
+the witness marked them Hit
+([Decision 18](#decision-18)'s shipped fill shape). That sweep is
+the disease behind [Decision 22](#decision-22): the
+interior-comment misclassification its rejected evidence-based
+test would have made ("an accident of span granularity, not
+evidence about the line") is not an accident to route around at
+the placement layer — it is the fill itself claiming lines the
+verifier never looked at. Empirical (SST corpus investigation,
+2026-08-04, pinned Verus): spans anchor AST nodes, and ordinary
+comments and blanks are not nodes — no span in the golden corpus
+or the dogfood run *begins* on a comment or blank line — so the
+artifact itself already separates code from non-code, with no
+lexical classification required.
+
+The fill is read as **transitive-checked**: a witness claims what
+was checked to establish everything its obligation rests on.
+Every function — exec, proof, spec — is **transparent** to this
+evaluation; transparency is a traceability property of what
+*duvet reads*, not a change to proof semantics (Verus keeps
+reasoning by contract; this decision is about what the fill
+claims was checked, not about what the solver saw).
+
+### Option A: Extent-range fills (status quo)
+
+- Pro: Trivially closed — the sweep over-approximates everything
+  the elaboration consulted.
+- Con: Over-approximates *past the artifact*: comment and blank
+  lines inside an extent carry no span, yet the fill claims them.
+  A witness marks lines Hit that no verifier consulted — the
+  overclaim [Decision 22](#decision-22) tried (and failed, at the
+  wrong layer) to paper over.
+- Con: Below the artifact's demonstrated granularity: the SST
+  records per-expression and per-statement spans, and
+  [Decision 17](#decision-17) makes consuming the demonstrated
+  maximum mandatory. Shipping extent sweeps is shipping below the
+  evidence in hand.
+
+### Option B: Contract-only fills
+
+The root function contributes its body's span lines; a consulted
+callee contributes only its *contract* — signature and ensures
+spans — mirroring how the solver reasons (a callee's ensures is
+assumed; its body is never re-checked).
+
+- Pro: Matches modular proof semantics exactly.
+- Con: Rejected because duvet's job is traceability, not modular
+  reasoning: a lemma at the boundary MUST be able to reach the
+  implementation lines deep inside the edifice that transitively
+  contribute to its assurance. Contract-only fills cut every
+  test/implementation pair whose implementation annotation sits
+  more than one call hop from the test — exactly the
+  cross-function reach the closure exists to deliver
+  ([Decision 3](#decision-3), spec [§5.4](spec.md#closure)).
+
+### Option C: Leaf-span unions (rejected intermediate)
+
+Fill = the full line ranges of **leaf** spans only (a leaf being
+a span containing no other span of the same function's span set);
+containers — body blocks, fn extents — contribute nothing.
+
+- Pro: Kills the comment sweep for every single-line leaf.
+- Con: Implemented and measured (2026-08-04): it made
+  wrapped-signature declaration lines — the most natural
+  annotation target in the system — unaddressable syntax residue.
+  A multi-line `fn` signature's only covering span is the
+  declaration span, which contains the parameter spans and is
+  therefore a container: the header line drops from every fill,
+  and 9 of the dogfood's 32 passing correlations flipped to
+  failed (4 inside the CI slice), every one an implementation
+  annotation on a wrapped `spec fn`/`fn` header.
+- Con: Needed three clauses (leaf definition, container
+  prohibition, no-lexical-classification consequence) plus an
+  interior-comment sweep exception, where the chosen rule needs
+  one clause and a theorem.
+
+### Option D: Span-start-line fills (the hoisted rule)
+
+A line enters a fill iff a span of a reached function **begins**
+on that line — every span, at every nesting depth, declaration
+spans included. Applied uniformly to the root's body and to every
+consulted callee's body; no special case at the function barrier,
+and no container/leaf distinction at all.
+
+- Pro: Declaration lines are addressable again: the wrapped
+  signature's span begins on its header line, so all 9 pairs
+  Option C broke discharge with no placement moves (verified,
+  2026-08-04).
+- Pro: The comment guarantee becomes a **theorem** rather than a
+  rule: spans anchor AST nodes; ordinary comments and blanks are
+  not nodes; therefore no span begins on one. Pinned by a
+  tripwire test that lexes the checked-in fixture sources against
+  the golden artifacts — test-side lexing of sources we control;
+  the runtime never lexes — guarding against macro-expansion span
+  placement drift forever.
+- Pro: One clause where Option C needed three plus an exception.
+- Con: Continuation lines of multi-line expressions are not
+  filled (only the start line is). Accepted — measured against
+  variant V2 below, no target in the dogfood or corpus sits on a
+  continuation line.
+
+### Decision: Option D, strict variant
+
+The rule is recorded as what it is: a **projection**, not the
+fact. The fact is the consulted span set — parsed and retained
+per function in the producer's structure; the fill projects it to
+anchor lines for the one consumer that exists, positional
+annotation evaluation (`target ∈ fill`), where it is lossless.
+The projection wears the pipeline's "executed lines" shape
+without being an execution extent: report phrasing already
+qualifies every executed-verb with the witness's strength
+("(consulted)"), and a future consumer that needs real extents —
+LCOV union, legible per-line failure text, strength-lattice
+comparison — extends the producer to deliver the retained spans
+instead of reinterpreting the fill
+(producers-deliver-facts, spec [§4](spec.md#producer-obligations)).
+
+Two variants were measured on the full unsliced dogfood run and
+the golden corpus (2026-08-04): **V1 (strict)** — span start
+lines only — and **V2** — start lines plus the full ranges of
+leaf spans (continuation lines of multi-line leaves stay filled).
+Both restored the complete pre-change baseline: all 32
+correlations successful, 0 failed, and the 17-section CI slice
+green. The ratified tiebreaker is comment exposure, and V1 wins
+it: V2 admits ordinary comment lines in multi-line leaf
+interiors; V1 admits none. V1's only comment-shaped exposure is
+doc-comment lines — doc comments are attribute AST nodes, so a
+derive-stamped declaration span can begin on one — which the
+theorem deliberately scopes to *ordinary* comments and blanks.
+The strict variant ships; no interior-comment sweep exception
+exists.
+
+Honesty note, recorded: exec statements inside verified functions
+begin spans — the verifier traverses what it checks — and ARE
+claimed by fills that reach them. Finer *proven-about*
+attribution (unsat cores / `Needed` strength, driving the solver)
+is explicitly deferred — "deal with later" — the known refinement,
+constraints already recorded in [Decision 7](#decision-7) and the
+strength-rungs follow-up ([Follow-ups](#follow-ups)).
+
+Acceptance tests, pinned in the producer's suite:
+
+- A line in unverified code (outside `verus!{}`, or in an
+  unverified function) appears in no SST span set and MUST never
+  be witnessed by any fill.
+- An interior comment line inside a *verified* function MUST NOT
+  be in any witness's fill — the behavior change: the extent
+  sweep marked it Hit.
+- The theorem tripwire: over the entire golden corpus and the
+  vacuity fixture, no span's START line is an ordinary-comment or
+  blank line of the matching checked-in sources.
+
+Supersedes [Decision 18](#decision-18)'s extent-range fill. What
+survives of Decision 18: the closure *graph* insight — one solver
+query per function, so every discharge unit carries its
+function-level consulted closure — is untouched; all units of one
+function still share one (now span-start-grained) fill.
+[Decision 17](#decision-17)'s demonstrated-maximum rule now
+extends from rooting to fills. Rooting, `dom(du)`, and
+not-proof-testable classification
+([Decision 12](#decision-12), [Decision 13](#decision-13),
+[Decision 19](#decision-19)) are untouched: this is fill policy
+only.
 
 ---
 

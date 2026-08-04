@@ -295,7 +295,7 @@ fn verus_witnesses_from_graph(
     let mut graph_files: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
     for node in graph.nodes.values() {
         graph_files.insert(node.extent.file.as_str());
-        for file in node.spans.keys() {
+        for file in node.span_ranges.keys() {
             graph_files.insert(file.as_str());
         }
     }

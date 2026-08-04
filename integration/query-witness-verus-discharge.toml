@@ -134,6 +134,20 @@ pub fn noted_loop(n: u32) -> (r: u32)
     i
 }
 
+// ---- Scenario E: fills are span-start-line sets (Decision 23) -------
+// An interior comment line inside a VERIFIED fn is not an AST node,
+// so no span begins on it and it appears in no witness's fill — the
+// extent sweep marked it Hit. The unverified `main` below the verus!
+// block is the same fact at file grain: no SST record, no fill, ever.
+pub fn commented_body(x: u32) -> (r: u32)
+    ensures r >= x,
+{
+    let a = x;
+    // interior comment: this line must appear in no witness's fill
+    let b = a;
+    b
+}
+
 } // verus!
 
 fn main() {}

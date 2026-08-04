@@ -1034,6 +1034,82 @@
    ) :local_decls_decreases_init () :statics ()
   ) :safe_api_check None :async_ret None))
 
+(@ "vacuity.rs:92:1: 92:41 (#0)" (FunctionSst :name (Fun :path vacuity::commented_body) :kind (FunctionKind Static) :body_visibility
+  (BodyVisibility Visibility (Visibility :restricted_to vacuity::)) :owning_module vacuity:: :mode Exec :opaqueness (Opaqueness
+   Opaque
+  ) :typ_params () :typ_bounds () :pars ((@ "vacuity.rs:92:23: 92:29 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+     :typ (Typ Int (IntRange U 32)) :mode Exec :purpose (ParPurpose Regular)))
+  ) :ret (@ "vacuity.rs:92:38: 92:41 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U
+      32)
+    ) :mode Exec :purpose (ParPurpose Regular))
+  ) :ens_has_return true :item_kind (ItemKind Function) :attrs (FunctionAttrs :uses_ghost_blocks true :inline false :hidden
+   () :broadcast_forall false :broadcast_forall_only false :no_auto_trigger false :auto_ext_equal (AutoExtEqual :assert true
+    :assert_by true :ensures true :invariant true
+   ) :autospec None :bit_vector false :atomic false :integer_ring false :is_decrease_by false :check_recommends false :nonlinear
+   false :spinoff_prover false :memoize false :rlimit None :print_zero_args false :print_as_method false :prophecy_dependent
+   false :size_of_broadcast_proof false :is_type_invariant_fn false :is_external_body false :is_unsafe false :exec_assume_termination
+   false :exec_allows_no_decreases_clause false :tracked_swap false :tracked_take_option false :is_async false
+  ) :has (FunctionSstHas :has_body true :has_requires false :has_ensures true :has_decrease false :has_mask_spec false :has_return_name
+   true :is_recursive false
+  ) :decl (FuncDeclSst :req_inv_pars ((@ "vacuity.rs:92:23: 92:29 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam))
+      :typ (Typ Int (IntRange U 32)) :mode Exec :purpose (ParPurpose Regular)))
+   ) :ens_pars ((@ "vacuity.rs:92:23: 92:29 (#0)" (Par :name (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange
+        U 32)
+      ) :mode Exec :purpose (ParPurpose Regular))
+    ) (@ "vacuity.rs:92:38: 92:41 (#0)" (Par :name (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32))
+      :mode Exec :purpose (ParPurpose Regular)))
+   ) :reqs () :enss (tuple ((@@ "vacuity.rs:93:13: 93:19 (#0)" (Exp Binary (BinaryOp Inequality (InequalityOp Ge)) (@@ "vacuity.rs:93:13: 93:14 (#0)"
+        (Exp Var (VarIdent "r" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))
+       ) (@@ "vacuity.rs:93:18: 93:19 (#0)" (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32)))
+      ) (Typ Bool))
+    ) ()
+   ) :inv_masks () :unwind_condition None :fndef_axioms ()
+  ) :axioms (FuncAxiomsSst :spec_axioms None :proof_exec_axioms None) :exec_proof_check (FuncCheckSst :reqs () :post_condition
+   (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam)) :ens_exps ((@@ "vacuity.rs:93:13: 93:19 (#0)" (Exp Binary
+       (BinaryOp Inequality (InequalityOp Ge)) (@@ "vacuity.rs:93:13: 93:14 (#0)" (Exp Var (VarIdent "r" (VarIdentDisambiguate VirParam)))
+        (Typ Int (IntRange U 32))
+       ) (@@ "vacuity.rs:93:18: 93:19 (#0)" (Exp VarAt (VarIdent "x" (VarIdentDisambiguate VirParam)) (VarAt Pre)) (Typ Int (IntRange
+          U 32)))
+      ) (Typ Bool))
+    ) :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
+   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:94:1: 99:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level
+      Error :note "postcondition not satisfied" :spans () :labels ((MessageLabel :span "vacuity.rs:98:5: 98:6 (#0)" :note "at the end of the function body"
+        :is_proof_note false :is_custom_err false)
+      ) :help None :fancy_note None
+     ) :ret_exp (@@ "vacuity.rs:94:1: 99:2 (#0)" (Exp Bind (@ "vacuity.rs:95:9: 95:10 (#0)" (Bnd Let ((-> a$ (@@ "vacuity.rs:95:13: 95:14 (#0)"
+            (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))))))
+       ) (@@ "vacuity.rs:94:1: 99:2 (#0)" (Exp Bind (@ "vacuity.rs:97:9: 97:10 (#0)" (Bnd Let ((-> b$ (@@ "vacuity.rs:97:13: 97:14 (#0)"
+              (Exp Var (VarIdent "a" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange U 32))))))
+         ) (@@ "vacuity.rs:98:5: 98:6 (#0)" (Exp Var (VarIdent "b" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange U 32)))
+        ) (Typ Int (IntRange U 32)))
+      ) (Typ Int (IntRange U 32))
+     ) :inside_body false)
+   ) :local_decls ((LocalDecl :ident (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind
+      Return)
+    ) (LocalDecl :ident (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind Param
+      :mutable false))
+   ) :local_decls_decreases_init () :statics ()
+  ) :recommends_check (FuncCheckSst :reqs () :post_condition (PostConditionSst :dest (VarIdent "r" (VarIdentDisambiguate VirParam))
+    :ens_exps () :ens_spec_precondition_stms () :kind (PostConditionKind Ensures)
+   ) :unwind (UnwindSst MayUnwind) :body (@ "vacuity.rs:94:1: 99:2 (#0)" (Stm Return :assert_id (0) :base_error (Message :level
+      Error :note "postcondition not satisfied" :spans () :labels ((MessageLabel :span "vacuity.rs:98:5: 98:6 (#0)" :note "at the end of the function body"
+        :is_proof_note false :is_custom_err false)
+      ) :help None :fancy_note None
+     ) :ret_exp (@@ "vacuity.rs:94:1: 99:2 (#0)" (Exp Bind (@ "vacuity.rs:95:9: 95:10 (#0)" (Bnd Let ((-> a$ (@@ "vacuity.rs:95:13: 95:14 (#0)"
+            (Exp Var (VarIdent "x" (VarIdentDisambiguate VirParam))) (Typ Int (IntRange U 32))))))
+       ) (@@ "vacuity.rs:94:1: 99:2 (#0)" (Exp Bind (@ "vacuity.rs:97:9: 97:10 (#0)" (Bnd Let ((-> b$ (@@ "vacuity.rs:97:13: 97:14 (#0)"
+              (Exp Var (VarIdent "a" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange U 32))))))
+         ) (@@ "vacuity.rs:98:5: 98:6 (#0)" (Exp Var (VarIdent "b" (VarIdentDisambiguate VirExprNoNumber))) (Typ Int (IntRange U 32)))
+        ) (Typ Int (IntRange U 32)))
+      ) (Typ Int (IntRange U 32))
+     ) :inside_body false)
+   ) :local_decls ((LocalDecl :ident (VarIdent "r" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind
+      Return)
+    ) (LocalDecl :ident (VarIdent "x" (VarIdentDisambiguate VirParam)) :typ (Typ Int (IntRange U 32)) :kind (LocalDeclKind Param
+      :mutable false))
+   ) :local_decls_decreases_init () :statics ()
+  ) :safe_api_check None :async_ret None))
+
 (trait (@ "vstd/std_specs/core.rs:9:1: 11:2 (#0)" (Trait :name core::marker::Tuple :proxy (@ "vstd/std_specs/core.rs:9:1: 11:2 (#0)"
     vstd::std_specs::core::ExTuple
    ) :visibility (Visibility :restricted_to None) :typ_params () :typ_bounds (

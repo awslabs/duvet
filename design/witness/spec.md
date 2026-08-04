@@ -589,19 +589,53 @@ for a claim about one conjunct.
 
 ### 5.4 Closure {#closure}
 
-A constructed witness's `files` maps MUST equal the source spans
-of the downward reachable set of the prover's obligation graph,
-starting from the discharge unit.
+A constructed witness's `files` maps MUST equal the set of
+**span-start lines** over the downward reachable set of the
+prover's obligation graph, starting from the discharge unit
+(decisions.md, [Decision 23](decisions.md#decision-23)):
+a line enters a fill iff a span of a reached function begins on
+that line — every span, at every nesting depth, declaration
+spans included, so the header line of a wrapped signature is
+addressable.
 Reachability is transitive: the closure follows the obligation
 graph's reference edges through any number of call or reference
 hops — a lemma reaching a fn reaching a fn reaching a fn: all of
 them enter — until a fixpoint.
+The fill is a declared **projection** of the retained fact — the
+per-function consulted span set the producer parses and keeps —
+chosen for the consumer that exists today, positional annotation
+evaluation (`target ∈ fill`), for which it is lossless; a future
+consumer needing execution extents (runtime-map union, strength
+comparison) MUST extend the producer to deliver the retained
+spans rather than reinterpret the fill.
+Every function in the reachable set — exec, proof, and spec
+alike — is **transparent** to this evaluation: the fill applies
+the same span-start rule to the root's own body and, recursively,
+to the body of every consulted function, with no special case at
+the function barrier. Transparency is a traceability property of
+what duvet reads, not a change to proof semantics: the prover
+keeps reasoning by contract.
+
+Comment and blank lines are excluded by **theorem**, not by
+rule: spans anchor AST nodes, and ordinary comments and blanks
+are not nodes, so no span begins on one. Producers MUST NOT
+lexically classify lines at runtime, and MUST pin the theorem
+with a test that lexes checked-in fixture sources against the
+golden artifacts (guarding against macro-expansion span
+placement). A doc-comment line MAY begin a span — doc comments
+are attribute nodes — and the fill records it honestly. A line
+the verifier never elaborated — unverified code — appears in no
+span set and MUST NOT appear in any fill.
+
 The closure MUST be **reflexive**: it includes the discharge
-unit's own root span (`root ∈ closure(root)`), so that a witness
-always scores its own annotation as executed and `ByRootSpan`
-binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
-instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
-depends on this).
+unit's own root node (`root ∈ closure(root)`), so the root
+function's own span-start lines — its declaration line
+included — are in every one of its witnesses' fills.
+Binding stays positional and map-independent
+([§1.5](#claim-rules),
+[Property W7](#property-w7-positional-binding-map-independence)):
+a root-span line on which no span begins binds its annotation by
+geometry even when it is absent from the fill.
 Producers MUST carry a unit test asserting reflexivity for every
 constructed witness.
 Only reachable nodes contribute;
@@ -670,6 +704,17 @@ artifact granularity investigation and solver-replay spike,
   at the solver level (recoverable by z3 replay with cores —
   demonstrated, and deliberately not consumed; decisions.md,
   [Decision 7](decisions.md#decision-7)).
+- Fills are span-start-line sets ([§5.4](#closure), decisions.md,
+  [Decision 23](decisions.md#decision-23)): per reached
+  `FunctionSst`, the producer collects every span-shaped string
+  in the block as an inclusive line range — the function's span
+  set — and the node contributes exactly the start line of each
+  range. Grounded empirically (2026-08-04, pinned Verus): no
+  ordinary-comment or blank line begins a span anywhere in the
+  golden corpus or the dogfood run (the §5.4 theorem, pinned by
+  the tripwire test); exec statements inside verified functions
+  do begin spans — the verifier traverses what it checks — and
+  are claimed.
 - The Verus producer MUST treat `FunctionSst` blocks as closure
   nodes and `Fun :path` references as edges, and MUST support
   discharge units of all four kinds: obligation extents,

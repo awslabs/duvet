@@ -35,7 +35,12 @@ Glue assumptions, named per the
 
 - **PG1 (graph translation).** The adapter constructs the model
   faithfully from the parsed structure: injective node-id
-  assignment, exactly the resolving edges, spans as parsed.
+  assignment, exactly the resolving edges, and per-node span rows
+  materialized under the fill rule of
+  [spec §5.4](spec.md#closure) (span-start lines,
+  decisions.md Decision 23) — the model proves the union over the
+  reached set; which lines each node contributes is the adapter's
+  glue.
   Checked by the golden corpus ([spec §4.3](spec.md#obligation-testing));
   this is the SST-grammar-faithfulness residue of the trusted base.
 - **PG2 (call obligation).** The producer computes every closure,

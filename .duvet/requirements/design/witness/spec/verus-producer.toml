@@ -44,6 +44,17 @@ target = "design/witness/spec.md#verus-producer"
 #   at the solver level (recoverable by z3 replay with cores —
 #   demonstrated, and deliberately not consumed; decisions.md,
 #   [Decision 7](decisions.md#decision-7)).
+# - Fills are span-start-line sets ([§5.4](#closure), decisions.md,
+#   [Decision 23](decisions.md#decision-23)): per reached
+#   `FunctionSst`, the producer collects every span-shaped string
+#   in the block as an inclusive line range — the function's span
+#   set — and the node contributes exactly the start line of each
+#   range. Grounded empirically (2026-08-04, pinned Verus): no
+#   ordinary-comment or blank line begins a span anywhere in the
+#   golden corpus or the dogfood run (the §5.4 theorem, pinned by
+#   the tripwire test); exec statements inside verified functions
+#   do begin spans — the verifier traverses what it checks — and
+#   are claimed.
 # - The Verus producer MUST treat `FunctionSst` blocks as closure
 #   nodes and `Fun :path` references as edges, and MUST support
 #   discharge units of all four kinds: obligation extents,

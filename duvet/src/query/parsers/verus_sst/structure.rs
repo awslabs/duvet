@@ -149,12 +149,98 @@ pub struct ObligationNode {
     /// Sub-function discharge units (ensures clauses, loop
     /// invariants, proof asserts), in kind-then-artifact order.
     pub units: Vec<ClauseUnit>,
-    /// Every span inside the block, expanded to per-file line sets.
+    /// Every span inside the block, deduplicated to inclusive line
+    /// ranges per file — the node's **span set**, the retained fact
+    /// the fill projects. Two views derive from it and they are
+    /// deliberately different (spec §5.2 vs §5.4): the
+    /// aggregate/liveness view sweeps every range in full
+    /// ([`super::closure::aggregate_map`], [`Self::elaborates`]),
+    /// while the witness fill takes span START lines only
+    /// ([`Self::fill_lines`]).
     /// Unfiltered: project-file filtering is a *view* applied by
     /// closure/aggregation, not baked into the structure.
-    pub spans: BTreeMap<String, BTreeSet<u32>>,
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# The fill is a declared **projection** of the retained fact — the
+    //# per-function consulted span set the producer parses and keeps —
+    //# chosen for the consumer that exists today, positional annotation
+    //# evaluation (`target ∈ fill`), for which it is lossless; a future
+    //# consumer needing execution extents (runtime-map union, strength
+    //# comparison) MUST extend the producer to deliver the retained
+    //# spans rather than reinterpret the fill.
+    pub span_ranges: BTreeMap<String, BTreeSet<(u32, u32)>>,
     /// Symbolic `(Fun :path X)` references, self excluded.
     pub edges: BTreeSet<String>,
+}
+
+impl ObligationNode {
+    /// Whether any recorded span of this node covers `file:line` —
+    /// the elaboration (liveness/not-proof-testable) view of the
+    /// span set: full ranges, containers included (spec §5.2's
+    /// aggregate semantics, Decision 13's "elaborated").
+    pub fn elaborates(&self, file: &str, line: u32) -> bool {
+        self.span_ranges
+            .get(file)
+            .is_some_and(|ranges| ranges.iter().any(|&(s, e)| s <= line && line <= e))
+    }
+
+    /// The node's witness-fill contribution: the start line of
+    /// every span, per file (spec §5.4, Decision 23 — the hoisted
+    /// rule, strict variant).
+    ///
+    /// Precisely: the span set is the deduplicated inclusive line
+    /// ranges of every span-shaped string in the node's block
+    /// (columns discarded — the witness model is line-granular),
+    /// and the fill is the set of range START lines. Nesting depth
+    /// is irrelevant: declaration spans contribute their header
+    /// line exactly like statement and expression spans contribute
+    /// theirs. Ranges containing no line (inverted spans) are
+    /// excluded — they also never elaborate, so fills stay inside
+    /// the aggregate by construction.
+    ///
+    /// Comment/blank exclusion is a theorem, not a rule computed
+    /// here: spans anchor AST nodes, ordinary comments and blanks
+    /// are not nodes, so no span begins on one. This function never
+    /// reads source text; the theorem is pinned by the tripwire
+    /// test over the golden artifacts and their checked-in sources.
+    ///
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# a line enters a fill iff a span of a reached function begins on
+    //# that line — every span, at every nesting depth, declaration
+    //# spans included, so the header line of a wrapped signature is
+    //# addressable.
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# Producers MUST NOT
+    //# lexically classify lines at runtime, and MUST pin the theorem
+    //# with a test that lexes checked-in fixture sources against the
+    //# golden artifacts (guarding against macro-expansion span
+    //# placement).
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# A doc-comment line MAY begin a span — doc comments
+    //# are attribute nodes — and the fill records it honestly.
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# A line
+    //# the verifier never elaborated — unverified code — appears in no
+    //# span set and MUST NOT appear in any fill.
+    pub fn fill_lines(&self) -> BTreeMap<&str, BTreeSet<u32>> {
+        let mut out: BTreeMap<&str, BTreeSet<u32>> = BTreeMap::new();
+        for (file, ranges) in &self.span_ranges {
+            let lines: BTreeSet<u32> = ranges
+                .iter()
+                .copied()
+                .filter(|&(start, end)| start <= end)
+                .map(|(start, _)| start)
+                .collect();
+            if !lines.is_empty() {
+                out.insert(file.as_str(), lines);
+            }
+        }
+        out
+    }
 }
 
 /// The parsed artifact of record: all obligation nodes, by name.
@@ -270,7 +356,7 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 
         let units = clause_units(items, &name)?;
 
-        let mut spans: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
+        let mut spans: BTreeMap<String, BTreeSet<(u32, u32)>> = BTreeMap::new();
         let mut edges = BTreeSet::new();
         // Walk the whole top-level node (including its own head span)
         // with an explicit stack — expression trees in real logs are
@@ -300,7 +386,7 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
                         spans
                             .entry(span.file.clone())
                             .or_default()
-                            .extend(span.start_line..=span.end_line);
+                            .insert((span.start_line, span.end_line));
                     }
                 }
                 Sexpr::List(list) => {
@@ -319,7 +405,7 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
             name,
             extent,
             units,
-            spans,
+            span_ranges: spans,
             edges,
         });
     }
@@ -549,8 +635,8 @@ impl ObligationGraph {
                                 second: node.extent,
                             });
                         }
-                        for (file, lines) in node.spans {
-                            existing.spans.entry(file).or_default().extend(lines);
+                        for (file, ranges) in node.span_ranges {
+                            existing.span_ranges.entry(file).or_default().extend(ranges);
                         }
                         existing.edges.extend(node.edges);
                         // Re-logged declarations repeat the same
@@ -653,14 +739,102 @@ mod tests {
         assert_eq!((alpha.extent.start_line, alpha.extent.end_line), (10, 20));
         // Head span 10..=20, expression-level (@@) span 25..=26, and
         // the bare `:spans (...)` string 30 — all three span-carrying
-        // contexts contribute.
-        let expected: BTreeSet<u32> = (10..=20).chain(25..=26).chain([30]).collect();
-        assert_eq!(alpha.spans["src/a.rs"], expected);
+        // contexts contribute to the span set, as dedup'd line ranges.
+        let expected: BTreeSet<(u32, u32)> = [(10, 20), (25, 26), (30, 30)].into();
+        assert_eq!(alpha.span_ranges["src/a.rs"], expected);
+        // The elaboration view sweeps ranges in full…
+        assert!(alpha.elaborates("src/a.rs", 15));
+        assert!(!alpha.elaborates("src/a.rs", 22));
+        assert!(!alpha.elaborates("src/nope.rs", 15));
+        // …while the fill takes each range's START line only. Both
+        // are projections of the retained span set — the fact stays
+        // available to future consumers needing real extents.
+        //= design/witness/spec.md#closure
+        //= type=test
+        //# The fill is a declared **projection** of the retained fact — the
+        //# per-function consulted span set the producer parses and keeps —
+        //# chosen for the consumer that exists today, positional annotation
+        //# evaluation (`target ∈ fill`), for which it is lossless; a future
+        //# consumer needing execution extents (runtime-map union, strength
+        //# comparison) MUST extend the producer to deliver the retained
+        //# spans rather than reinterpret the fill.
+        let fill: BTreeSet<u32> = [10, 25, 30].into();
+        assert_eq!(alpha.fill_lines()["src/a.rs"], fill);
         // Self-reference excluded; beta edge captured.
         assert_eq!(alpha.edges, BTreeSet::from(["crate::beta".to_string()]));
 
         assert_eq!(nodes[1].name, "crate::beta");
         assert!(nodes[1].edges.is_empty());
+    }
+
+    #[test]
+    fn fill_lines_start_lines_at_every_depth() {
+        // A body-shaped nest: extent 10..=30 contains a body block
+        // 12..=28, which contains three statement spans. Every span
+        // contributes its START line — the extent's header line 10
+        // and the block's opening line 12 included (declaration
+        // spans are not special) — and nothing else: continuation
+        // lines (14..=15, 22), the extent's interior gap lines
+        // (16..=19, 23..=27), and the closing lines (29..=30) are
+        // NOT in the fill because no span begins there.
+        let src = r#"
+(@ "src/a.rs:10:1: 30:2 (#0)"
+ (FunctionSst :name (Fun :path crate::nested) :body
+  (@ "src/a.rs:12:5: 28:6 (#0)" (Stm Block (
+   (@@ "src/a.rs:13:9: 15:20 (#0)" (Exp One))
+   (@@ "src/a.rs:20:9: 20:20 (#0)" (Exp Two))
+   (@@ "src/a.rs:21:9: 22:20 (#0)" (Exp Three)))))))
+"#;
+        let nodes = parse_module(src).unwrap();
+        //= design/witness/spec.md#closure
+        //= type=test
+        //# a line enters a fill iff a span of a reached function begins on
+        //# that line — every span, at every nesting depth, declaration
+        //# spans included, so the header line of a wrapped signature is
+        //# addressable.
+        let expected: BTreeSet<u32> = [10, 12, 13, 20, 21].into();
+        assert_eq!(nodes[0].fill_lines()["src/a.rs"], expected);
+        // The elaboration view still sweeps the full ranges.
+        assert!(nodes[0].elaborates("src/a.rs", 17));
+        assert!(nodes[0].elaborates("src/a.rs", 29));
+    }
+
+    #[test]
+    fn fill_lines_edge_shapes() {
+        use std::collections::BTreeMap;
+        let node = |ranges: &[(u32, u32)]| ObligationNode {
+            name: "c::x".into(),
+            extent: Span {
+                file: "f.rs".into(),
+                start_line: 1,
+                end_line: 1,
+            },
+            units: Vec::new(),
+            span_ranges: BTreeMap::from([(
+                "f.rs".to_string(),
+                ranges.iter().copied().collect::<BTreeSet<_>>(),
+            )]),
+            edges: BTreeSet::new(),
+        };
+        let fill = |ranges: &[(u32, u32)]| -> BTreeSet<u32> {
+            node(ranges).fill_lines().remove("f.rs").unwrap_or_default()
+        };
+        // Single-line span: its start line (single-line
+        // signature-only obligations stay addressable).
+        assert_eq!(fill(&[(5, 5)]), [5].into());
+        // Nesting is irrelevant — container and containee both
+        // contribute their start lines; shared starts dedup.
+        assert_eq!(fill(&[(10, 20), (10, 12)]), [10].into());
+        assert_eq!(fill(&[(10, 20), (18, 20)]), [10, 18].into());
+        assert_eq!(fill(&[(1, 30), (5, 20), (7, 9)]), [1, 5, 7].into());
+        // Overlap without containment: both start lines.
+        assert_eq!(fill(&[(10, 15), (12, 18)]), [10, 12].into());
+        // Continuation lines of a multi-line span never enter.
+        assert_eq!(fill(&[(3, 9)]), [3].into());
+        // Inverted ranges contain no line and are excluded (they
+        // also never elaborate, so fills stay inside the aggregate).
+        assert_eq!(fill(&[(9, 3)]), BTreeSet::new());
+        assert_eq!(fill(&[(9, 3), (5, 6)]), [5].into());
     }
 
     #[test]

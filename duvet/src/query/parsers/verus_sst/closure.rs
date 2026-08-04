@@ -64,9 +64,12 @@ pub fn aggregate_map(
 ) -> AggregateExecutabilityMap {
     let mut out: FileLines = BTreeMap::new();
     for node in graph.nodes.values() {
-        for (file, lines) in &node.spans {
+        for (file, ranges) in &node.span_ranges {
             if project(file) {
-                out.entry(file.clone()).or_default().extend(lines);
+                let lines = out.entry(file.clone()).or_default();
+                for &(start, end) in ranges {
+                    lines.extend(start..=end);
+                }
             }
         }
     }
@@ -82,8 +85,11 @@ pub struct Closure {
     /// The subset of `reached` contributing at least one project
     /// span — the "obligations" count in golden-test terms.
     pub project_obligations: BTreeSet<String>,
-    /// Union of project-file spans over `reached`: the witness's
-    /// `files` content (before conversion to coverage types).
+    /// Union of project-file **span-start lines** over `reached`
+    /// (spec §5.4, Decision 23): the witness's `files` content
+    /// (before conversion to coverage types). Comment and blank
+    /// lines never enter — by theorem, not lexing: no span begins
+    /// on one.
     pub files: FileLines,
 }
 
@@ -91,10 +97,12 @@ pub struct Closure {
 /// not a node in the graph.
 ///
 /// The construction claim ("A constructed witness's `files` maps MUST
-/// equal the source spans of the downward reachable set…") is owned by
-/// the verified core: the annotation lives in
-/// `duvet_coverage::producer_core::assemble_witness_lines`, whose
-/// iff-`ensures` proves it. This function is the adapter around it.
+/// equal the set of **span-start lines** over the downward reachable
+/// set…") splits: the union-over-reached half is owned by the verified
+/// core (`duvet_coverage::producer_core::assemble_witness_lines`,
+/// whose iff-`ensures` proves it); the span-start half is the adapter's
+/// (`ObligationNode::fill_lines` decides each node's rows — spec §5.4,
+/// Decision 23 — and the golden corpus checks it).
 ///
 /// The reflexivity claim ("root ∈ closure(root)") is likewise owned by
 /// the verified core: its annotation lives in
@@ -158,10 +166,21 @@ pub fn closure(
                 .filter_map(|e| index.get(e.as_str()).copied())
                 .collect(),
         );
+        // Each node's span rows are its span-START lines (spec §5.4,
+        // Decision 23): the same evaluation for the root and for
+        // every consulted callee — the verified union below never
+        // learns which node was the root's own body.
+        //= design/witness/spec.md#closure
+        //= type=implementation
+        //# Every function in the reachable set — exec, proof, and spec
+        //# alike — is **transparent** to this evaluation: the fill applies
+        //# the same span-start rule to the root's own body and, recursively,
+        //# to the body of every consulted function, with no special case at
+        //# the function barrier.
         let mut rows = Vec::new();
-        for (file, lines) in &node.spans {
-            let id = *file_ids.entry(file.as_str()).or_insert_with(|| {
-                file_names.push(file.as_str());
+        for (file, lines) in node.fill_lines() {
+            let id = *file_ids.entry(file).or_insert_with(|| {
+                file_names.push(file);
                 (file_names.len() - 1) as u64
             });
             rows.extend(lines.iter().map(|&l| (id, l)));
@@ -197,7 +216,7 @@ pub fn closure(
         }
         reached.insert(name.clone());
         if node
-            .spans
+            .span_ranges
             .keys()
             .any(|file| files.contains_key(file.as_str()))
         {
@@ -260,8 +279,8 @@ mod tests {
         assert!(!c.reached.contains("c::phantom"));
         assert_eq!(
             c.files["src/a.rs"],
-            [1, 2, 10, 11].into_iter().collect(),
-            "span set is exactly the two real blocks' extents"
+            [1, 10].into_iter().collect(),
+            "fill is exactly the two real blocks' span-start lines"
         );
     }
 
@@ -274,10 +293,7 @@ mod tests {
         assert_eq!(c.reached.len(), 4);
         // bottom's span is non-project: reached but not counted.
         assert_eq!(c.project_obligations.len(), 3);
-        assert_eq!(
-            c.files["src/a.rs"],
-            [1, 2, 10, 11, 20, 21].into_iter().collect()
-        );
+        assert_eq!(c.files["src/a.rs"], [1, 10, 20].into_iter().collect());
         assert!(!c.files.contains_key("vstd/x.rs"));
         // island is not downward-reachable: never enters.
         //= design/witness/spec.md#closure
@@ -290,6 +306,37 @@ mod tests {
     #[test]
     fn closure_of_unknown_root_is_none() {
         assert!(closure(&graph(), "c::nope", |_| true).is_none());
+    }
+
+    #[test]
+    fn fills_are_uniform_across_the_function_barrier() {
+        // Root and callee have identical span shapes: a fn extent
+        // plus one inner expression. The fill applies the same
+        // span-start rule to both — the callee's continuation and
+        // gap lines are as absent as the root's own; no special
+        // case at the barrier.
+        //= design/witness/spec.md#closure
+        //= type=test
+        //# Every function in the reachable set — exec, proof, and spec
+        //# alike — is **transparent** to this evaluation: the fill applies
+        //# the same span-start rule to the root's own body and, recursively,
+        //# to the body of every consulted function, with no special case at
+        //# the function barrier.
+        const NESTED: &str = r#"
+(@ "src/a.rs:10:1: 19:2 (#0)"
+ (FunctionSst :name (Fun :path c::root)
+  ((@@ "src/a.rs:12:5: 13:9 (#0)" (Exp X)) (Fun :path c::callee))))
+(@ "src/a.rs:30:1: 39:2 (#0)"
+ (FunctionSst :name (Fun :path c::callee)
+  ((@@ "src/a.rs:32:5: 33:9 (#0)" (Exp Y)))))
+"#;
+        let g = ObligationGraph::merge([parse_module(NESTED).unwrap()]).unwrap();
+        let c = closure(&g, "c::root", |f| f.starts_with("src/")).unwrap();
+        assert_eq!(
+            c.files["src/a.rs"],
+            [10, 12, 30, 32].into_iter().collect(),
+            "start lines of root AND callee spans; no range sweeps"
+        );
     }
 
     #[test]

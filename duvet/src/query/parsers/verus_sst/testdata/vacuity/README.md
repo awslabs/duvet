@@ -32,6 +32,16 @@ Plus a label fixture:
    Decision 20 label extraction (`ProofNoteLabel` text when
    recorded, span identity otherwise).
 
+Plus a fill fixture:
+
+5. `commented_body` (line 92) — a verified fn with an interior
+   comment line (96) in its body, pinning Decision 23's
+   span-start-line fills: no span begins on a comment line, so it
+   appears in no witness's fill (the old extent sweep marked it
+   Hit), while its code neighbors do. The unverified `fn main()`
+   below the `verus!` block (line 103) pins the same fact at file
+   grain: no SST record, no fill, ever.
+
 ## Regeneration
 
 Pinned Verus: 0.2026.05.24.ecee80a (matches `vstd` in Cargo.lock and
@@ -45,5 +55,5 @@ $ mv sst/root-sst.vir vacuity-sst.vir && rmdir sst
 $ rm -f vacuity            # discard the compiled binary
 ```
 
-Expected: `7 verified, 0 errors`, and spans in the log read
+Expected: `8 verified, 0 errors`, and spans in the log read
 `vacuity.rs:<line>:<col>: ...` (relative path, no directory prefix).

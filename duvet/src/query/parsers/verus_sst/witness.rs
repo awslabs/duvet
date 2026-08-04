@@ -145,10 +145,7 @@ pub fn classify_position<'g>(
     if !rooted.is_empty() {
         return PositionKind::Rooted(rooted);
     }
-    let elaborated = graph
-        .nodes
-        .values()
-        .any(|n| n.spans.get(file).is_some_and(|lines| lines.contains(&line)));
+    let elaborated = graph.nodes.values().any(|n| n.elaborates(file, line));
     if elaborated {
         PositionKind::NotProofTestable
     } else {

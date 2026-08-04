@@ -551,19 +551,47 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: MUST NOT select among them (decisions.md, Decision 12).
 
   SECTION: [5.4 Closure](#closure)
-    TEXT[!MUST,implementation,test]: A constructed witness's `files` maps MUST equal the source spans
-    TEXT[!MUST,implementation,test]: of the downward reachable set of the prover's obligation graph,
-    TEXT[!MUST,implementation,test]: starting from the discharge unit.
+    TEXT[!MUST,implementation,test]: A constructed witness's `files` maps MUST equal the set of
+    TEXT[!MUST,implementation,test]: **span-start lines** over the downward reachable set of the
+    TEXT[!MUST,implementation,test]: prover's obligation graph, starting from the discharge unit
+    TEXT[!MUST,implementation,test]: (decisions.md, [Decision 23](decisions.md#decision-23)):
+    TEXT[!MUST,implementation,test]: a line enters a fill iff a span of a reached function begins on
+    TEXT[!MUST,implementation,test]: that line — every span, at every nesting depth, declaration
+    TEXT[!MUST,implementation,test]: spans included, so the header line of a wrapped signature is
+    TEXT[!MUST,implementation,test]: addressable.
     TEXT[implementation,test]: Reachability is transitive: the closure follows the obligation
     TEXT[implementation,test]: graph's reference edges through any number of call or reference
     TEXT[implementation,test]: hops — a lemma reaching a fn reaching a fn reaching a fn: all of
     TEXT[implementation,test]: them enter — until a fixpoint.
+    TEXT[!MUST,implementation,test]: The fill is a declared **projection** of the retained fact — the
+    TEXT[!MUST,implementation,test]: per-function consulted span set the producer parses and keeps —
+    TEXT[!MUST,implementation,test]: chosen for the consumer that exists today, positional annotation
+    TEXT[!MUST,implementation,test]: evaluation (`target ∈ fill`), for which it is lossless; a future
+    TEXT[!MUST,implementation,test]: consumer needing execution extents (runtime-map union, strength
+    TEXT[!MUST,implementation,test]: comparison) MUST extend the producer to deliver the retained
+    TEXT[!MUST,implementation,test]: spans rather than reinterpret the fill.
+    TEXT[implementation,test]: Every function in the reachable set — exec, proof, and spec
+    TEXT[implementation,test]: alike — is **transparent** to this evaluation: the fill applies
+    TEXT[implementation,test]: the same span-start rule to the root's own body and, recursively,
+    TEXT[implementation,test]: to the body of every consulted function, with no special case at
+    TEXT[implementation,test]: the function barrier.
+    TEXT[test]: Comment and blank lines are excluded by **theorem**, not by
+    TEXT[test]: rule: spans anchor AST nodes, and ordinary comments and blanks
+    TEXT[test]: are not nodes, so no span begins on one.
+    TEXT[!MUST,implementation,test]: Producers MUST NOT
+    TEXT[!MUST,implementation,test]: lexically classify lines at runtime, and MUST pin the theorem
+    TEXT[!MUST,implementation,test]: with a test that lexes checked-in fixture sources against the
+    TEXT[!MUST,implementation,test]: golden artifacts (guarding against macro-expansion span
+    TEXT[!MUST,implementation,test]: placement).
+    TEXT[!MAY,implementation,test]: A doc-comment line MAY begin a span — doc comments
+    TEXT[!MAY,implementation,test]: are attribute nodes — and the fill records it honestly.
+    TEXT[!MUST,implementation,test]: A line
+    TEXT[!MUST,implementation,test]: the verifier never elaborated — unverified code — appears in no
+    TEXT[!MUST,implementation,test]: span set and MUST NOT appear in any fill.
     TEXT[!MUST,implementation,test]: The closure MUST be **reflexive**: it includes the discharge
-    TEXT[!MUST,implementation,test]: unit's own root span (`root ∈ closure(root)`), so that a witness
-    TEXT[!MUST,implementation,test]: always scores its own annotation as executed and `ByRootSpan`
-    TEXT[!MUST,implementation,test]: binding implies execution ([§1.5](#claim-rules)'s claim rules are thereby
-    TEXT[!MUST,implementation,test]: instances of one predicate; [Property W5](#property-w5-claim-refinement)'s refinement claim
-    TEXT[!MUST,implementation,test]: depends on this).
+    TEXT[!MUST,implementation,test]: unit's own root node (`root ∈ closure(root)`), so the root
+    TEXT[!MUST,implementation,test]: function's own span-start lines — its declaration line
+    TEXT[!MUST,implementation,test]: included — are in every one of its witnesses' fills.
     TEXT[!MUST,implementation,test]: Producers MUST carry a unit test asserting reflexivity for every
     TEXT[!MUST,implementation,test]: constructed witness.
     TEXT[implementation,test]: Only reachable nodes contribute;
