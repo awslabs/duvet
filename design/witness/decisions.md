@@ -1407,20 +1407,6 @@ and no container/leaf distinction at all.
 
 ### Decision: Option D, strict variant
 
-The rule is recorded as what it is: a **projection**, not the
-fact. The fact is the consulted span set — parsed and retained
-per function in the producer's structure; the fill projects it to
-anchor lines for the one consumer that exists, positional
-annotation evaluation (`target ∈ fill`), where it is lossless.
-The projection wears the pipeline's "executed lines" shape
-without being an execution extent: report phrasing already
-qualifies every executed-verb with the witness's strength
-("(consulted)"), and a future consumer that needs real extents —
-LCOV union, legible per-line failure text, strength-lattice
-comparison — extends the producer to deliver the retained spans
-instead of reinterpreting the fill
-(producers-deliver-facts, spec [§4](spec.md#producer-obligations)).
-
 Two variants were measured on the full unsliced dogfood run and
 the golden corpus (2026-08-04): **V1 (strict)** — span start
 lines only — and **V2** — start lines plus the full ranges of
@@ -1455,6 +1441,31 @@ Acceptance tests, pinned in the producer's suite:
 - The theorem tripwire: over the entire golden corpus and the
   vacuity fixture, no span's START line is an ordinary-comment or
   blank line of the matching checked-in sources.
+
+### The map is a projection
+
+The fact a prover producer derives is the consulted **span
+set** — parsed and retained per function in the producer's
+structure. The per-file line map delivered to the engine is the
+**anchor projection** of that fact: span start lines, chosen
+because the map's sole consumer is annotation-target membership
+(`target ∈ fill`), for which the projection is lossless. The map
+is NOT a claim that only those lines were consulted — it anchors,
+it does not bound. Three named future consumers need the fact,
+not the projection, and each extends the producer to deliver the
+retained spans rather than reinterpreting the line map:
+
+1. **LCOV-union comparison** — runtime maps are per-line
+   execution facts; unioning them with anchor projections would
+   silently mix semantics.
+2. **Strength-lattice work** — comparing `Consulted` against
+   stronger rungs needs extents, not anchors.
+3. **Report phrasing about specific lines** — "did not consult
+   line N" for a non-anchor N would be false as stated; today's
+   output never says it (every executed-verb carries its
+   strength qualifier, and per-line markers point only at
+   annotation targets, which are anchors), and it stays that way
+   by taking extents when the phrasing is wanted.
 
 Supersedes [Decision 18](#decision-18)'s extent-range fill. What
 survives of Decision 18: the closure *graph* insight — one solver

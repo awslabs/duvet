@@ -21,6 +21,12 @@ target = "design/witness/spec.md#closure"
 # consumer needing execution extents (runtime-map union, strength
 # comparison) MUST extend the producer to deliver the retained
 # spans rather than reinterpret the fill.
+# The map is not a claim that only those lines were consulted:
+# the three consumers named on record — LCOV-union comparison,
+# strength-lattice work, and report phrasing about specific
+# consulted lines — take the retained spans, never a
+# reinterpretation of this map
+# (decisions.md, [Decision 23](decisions.md#decision-23)).
 # Every function in the reachable set — exec, proof, and spec
 # alike — is **transparent** to this evaluation: the fill applies
 # the same span-start rule to the root's own body and, recursively,
