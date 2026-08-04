@@ -730,11 +730,6 @@ mod tests {
     }
 
     #[test]
-    // The whole runtime twin suite backs this umbrella sentence; the
-    // proving itself is discharged by the CI verify job (see report note).
-    //= design/query/coverage-model-spec.md#correctness-properties
-    //= type=test
-    //# These properties MUST be proven with Verus.
     fn test_property_2_sibling_scopes() {
         let c = vec![
             s(&[LineProperty::Declaration, LineProperty::ScopeOpen]),

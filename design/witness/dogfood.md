@@ -64,6 +64,15 @@ Hard-won by root-causing the 2026-08-02 failed-correlation set:
 - **One implementation owner per proof-tested spec text**, at the site
   whose `ensures` proves it; engine adapters keep a pointer comment.
 
+These rules are machine-enforced, not review discipline: the
+coverage query's **unwitnessable verdict**
+([Decision 22](decisions.md#decision-22),
+[spec §3](spec.md#verdict-output)) statically flags any annotation
+whose resolved target is a blank, comment, or attribute line —
+computed from source text alone, never from a witness — and CI
+gates the unsliced run on zero such findings
+([#ci-wiring](#ci-wiring)).
+
 ## Cross-crate pairs: implementation-true, witness-pending {#cross-crate-posture}
 
 The engine-side annotations quoting witness-property spec text are
@@ -106,6 +115,12 @@ The sliced witness-query gate runs in CI (`.github/workflows/ci.yml`):
   step: the full W1–W7 / P1–P4 slice must discharge with plain
   exit 0 — no thresholds, no expected-failure list. Sections in
   the slice can never backslide.
+- The **Unwitnessable placement gate** then runs the full
+  (unsliced) coverage query and asserts `Unwitnessable targets: 0`
+  tree-wide — a new placement defect anywhere in the scanned
+  sources fails CI. The unsliced run's discharge verdict stays
+  ungated (Decision 8) until the LCOV follow-up; only the static
+  placement count is asserted.
 
 ### Exit criterion
 
@@ -117,44 +132,55 @@ aggregate suite report (A2 violation).
 
 ## Staging: the unsliced proof-only residual {#staging}
 
-Measured 2026-08-02 (post gate1 closure and the meta-obligation
-flips, fresh SST logs, unsliced `duvet query -c coverage`):
+Current tool-checked state of the unsliced
+`duvet query -c coverage` run over fresh SST logs:
 **0 failed correlations, 0 tests with no implementation,
-32 successful correlations, 80 unwitnessed.**
+0 unwitnessable targets, 32 successful correlations,
+84 unwitnessed.**
 
-Of the 80 unwitnessed test annotations, 75 resolve to a runtime
-`#[test]`/`#[tokio::test]` construct (audited: no comment,
-attribute, or declaration targets remain). They are the
-LCOV-pending set — unwitnessed in a proof-only run by design
-(Decision 8) — and they are Gate 3's exit criterion: when the LCOV
-producer lands, the runtime rows of this table must go to zero.
+**Unwitnessable = 0 is enforced, not audited.** The coverage
+query's unwitnessable verdict
+([Decision 22](decisions.md#decision-22),
+[spec §3](spec.md#verdict-output)) statically flags any annotation
+whose resolved target is not code, and the CI unwitnessable
+placement gate ([#ci-wiring](#ci-wiring)) asserts the tree-wide
+count stays zero on every push. Every unwitnessed row below
+therefore resolves to an executable target — the precondition for
+a runtime witness ever covering it.
 
-The remaining 5 live in `.github/workflows/ci.yml`: test sides of
-the repo/CI meta-obligations ("MUST be proven with Verus" ×3 on the
-verify step; "proof files MUST carry annotations" ×2 on the
+Of the 84 unwitnessed test annotations, 78 are runtime test
+annotations placed on executable targets inside
+`#[test]`/`#[tokio::test]` code. They are the LCOV-pending set —
+unwitnessed in a proof-only run by design (Decision 8) — and they
+are Gate 3's exit criterion: when the LCOV producer lands, the
+runtime rows of this table must go to zero.
+
+The remaining 6 live in `.github/workflows/ci.yml`: test sides of
+the repo/CI meta-obligations ("MUST be proven with Verus" ×4 on
+the verify step; "proof files MUST carry annotations" ×2 on the
 snapshot step — one test owner per quote, the duplicates check
-enforces it). They are discharged by the CI run
-itself, which duvet's coverage machinery cannot consume (no
-CI-status producer; upstream follow-up). They persist in this
-table past Gate 3 until duvet can witness CI-discharged tests.
+enforces it). They are discharged by the CI run itself, which
+duvet's coverage machinery cannot consume (no CI-status producer;
+upstream follow-up). They persist in this table past Gate 3 until
+duvet can witness CI-discharged tests.
 
 | File | Unwitnessed (runtime, LCOV-pending) |
 |---|---|
 | duvet/src/query/parsers/verus_sst/tests.rs | 21 |
 | duvet/src/query/witness.rs | 15 |
 | duvet/src/query/producers.rs | 10 |
-| duvet/src/query/result.rs | 6 |
+| duvet/src/query/result.rs | 9 |
 | duvet-coverage/src/witness.rs (tests mod) | 6 |
-| duvet-coverage/src/proofs.rs (tests) | 6 |
+| duvet-coverage/src/proofs.rs (tests) | 5 |
 | duvet-coverage/src/scopes.rs (tests) | 3 |
 | duvet/src/query/parsers/verus_sst/closure.rs | 2 |
+| duvet/src/query/engine.rs | 2 |
 | duvet-coverage/src/execution_propagation.rs (tests) | 2 |
 | duvet-coverage/src/classify_postpass.rs (tests) | 2 |
-| duvet/src/query/engine.rs | 1 |
 | duvet-coverage/src/target_resolution.rs (tests) | 1 |
-| **Total (runtime, LCOV-pending)** | **75** |
-| .github/workflows/ci.yml (CI-discharged, persists past Gate 3) | 5 |
-| **Total unwitnessed** | **80** |
+| **Total (runtime, LCOV-pending)** | **78** |
+| .github/workflows/ci.yml (CI-discharged, persists past Gate 3) | 6 |
+| **Total unwitnessed** | **84** |
 
 ## What is still missing
 

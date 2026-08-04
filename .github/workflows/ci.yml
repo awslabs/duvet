@@ -203,8 +203,8 @@ jobs:
         # This step is the test side of the "MUST be proven with Verus"
         # obligations: it fails unless every property in the verified crate
         # proves. The implementation side lives in the proof files
-        # (duvet-coverage/src/{witness,producer_core,degraded}.rs). These
-        # test annotations are discharged by this CI run itself, which
+        # (duvet-coverage/src/{witness,producer_core,degraded,proofs}.rs).
+        # These test annotations are discharged by this CI run itself, which
         # duvet's coverage machinery cannot consume — they stay unwitnessed
         # in the proof-only coverage table by design.
         #= design/witness/spec.md#engine-properties
@@ -219,6 +219,9 @@ jobs:
         #% properties that MUST be proven with Verus, as a new phase of the
         #% verified coverage model, over a verified model of the parsed
         #% obligation graph.
+        #= design/query/coverage-model-spec.md#correctness-properties
+        #= type=test
+        #% These properties MUST be proven with Verus.
         #= design/query/coverage-model-spec.md#degraded-properties
         #= type=test
         #% These properties MUST be proven with Verus for the degraded path,
@@ -261,10 +264,12 @@ jobs:
     # feeds the SST logs the `verify` job left behind to
     # `duvet query -c coverage`, sliced to the witness properties
     # (W1–W7, P1–P4), and gates on every property pair discharging.
-    # The full (unsliced) proof-only run is NOT gated here: the runtime
-    # `type=test` annotations are unwitnessed in a proof-only run by
-    # design (the LCOV mixed-coverage producer is the follow-up that
-    # expands this floor).
+    # The full (unsliced) proof-only run is gated only on its
+    # unwitnessable count (zero placement defects tree-wide); its
+    # discharge verdict is NOT gated: the runtime `type=test`
+    # annotations are unwitnessed in a proof-only run by design (the
+    # LCOV mixed-coverage producer is the follow-up that expands this
+    # floor).
     runs-on: ubuntu-latest
     needs: verify
     steps:
@@ -337,3 +342,24 @@ jobs:
           ./target/debug/duvet query -c coverage \
             --coverage-source verus-sst=verus-sst-logs \
             -s "$SECTIONS"
+
+      - name: Unwitnessable placement gate
+        # Placement floor over the WHOLE tree: the sliced gate above
+        # covers only the witness-property slice, so a new unwitnessable
+        # placement elsewhere (an annotation whose resolved target is a
+        # blank, comment, or attribute line — a defect no run can ever
+        # witness; Decision 22) would otherwise pass CI. This runs the
+        # full (unsliced) coverage query and asserts the static
+        # unwitnessable verdict is zero, tree-wide. The unsliced run's
+        # exit code is NOT the gate — its runtime type=test annotations
+        # are unwitnessed in a proof-only run by design (Decision 8) —
+        # the gate is the unwitnessable count alone: plain zero, no
+        # thresholds, no expected-failure list.
+        run: |
+          set -euo pipefail
+          out=$(./target/debug/duvet query -c coverage \
+            --coverage-source verus-sst=verus-sst-logs 2>&1) || true
+          # No `grep -q`: it exits at first match, SIGPIPEs the printf,
+          # and pipefail turns that into a spurious 141.
+          printf '%s\n' "$out" | grep -E '^\s*Unwitnessable targets:'
+          printf '%s\n' "$out" | grep -E '^\s*Unwitnessable targets: 0$' > /dev/null

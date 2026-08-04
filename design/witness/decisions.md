@@ -1340,6 +1340,42 @@ for it.
   proved-but-never-executed, executed-but-never-proved, both, and
   neither, through one engine ([Decision 8](#decision-8)'s test
   matrix). A JaCoCo example documents the already-solved pattern.
+  The dogfood staging table
+  ([dogfood.md#staging](dogfood.md#staging)) holds 84 unwitnessed
+  rows; the 78 runtime rows are this producer's Gate 3 exit
+  criterion, and the placement burndown left every one on an
+  executable target (unwitnessable = 0 tree-wide, CI-gated), so
+  the producer's witnesses can actually cover them. The 6
+  CI-discharged meta-obligation rows persist past Gate 3.
+
+- **LCOV-classifier axiom tripwire.**
+  The unwitnessable verdict ([Decision 22](#decision-22)) rests on
+  a named, currently-untestable axiom: a line the static
+  classifier flags (blank, comment, attribute) never receives an
+  LCOV `DA` record. The LCOV follow-up PR MUST carry a test
+  asserting exactly that — no `DA` record on any line the
+  classifier calls unwitnessable — so producer/classifier
+  divergence fails loudly instead of silently contradicting the
+  placement verdict. This is not obviously true: on the prover
+  side, a consulted-span fill marks interior comment lines Hit, so
+  the classifier is deliberately stricter than prover evidence
+  ([Decision 22](#decision-22) records why the evidence-based
+  alternative was rejected); runtime line records could hide an
+  analogous granularity accident. The tripwire converts the axiom
+  into a checked property the moment a runtime producer exists.
+
+- **Rust language classifier.**
+  The root cause of degraded resolution for `.rs` sources: with no
+  language line classifier, target resolution skips only blank and
+  annotation lines — which is exactly what makes attribute and
+  prose lines displaceable targets. The tension to preserve: a
+  resolution change that silently SKIPS attribute/comment lines
+  would dissolve unwitnessable findings rather than flag them, so
+  any Rust classifier (or resolution-semantics change) MUST
+  preserve the placement rule's enforceability —
+  [Decision 22](#decision-22) makes the unwitnessable classifier
+  spec §1.1's enforcing site, and that enforcement must survive
+  finer-grained resolution.
 
 - **Retrofit pass over the pre-existing annotations.**
   The old `type=implication` annotations on `duvet-coverage`'s
@@ -1409,19 +1445,3 @@ for it.
   normative. Includes the upstream Verus report for the
   `proof_note`-on-ensures defect ([Decision 20](#decision-20)),
   which blocks `proof_note` labels on ensures clauses.
-
-5. **Verify the producer core.**
-   The closure fixpoint, most-specific-wins selection, witness
-   assembly, and the transparency and filter-soundness properties
-   ([spec §1.7](spec.md#producer)) become proven theorems over the
-   parsed obligation graph in `duvet-coverage`, called through the
-   same adapter pattern the engine uses. The trusted base shrinks
-   to SST grammar faithfulness (golden corpus) plus IO.
-   Rationale (ryanemer): proving against a self-authored spec of
-   the artifact pays even without an official format spec — the
-   spec functions as a symbolic integration test across the code.
-   When the format changes, or a formal spec arrives, the proofs
-   identify exactly which properties and functions a change
-   impacts; changes become auditable instead of exploratory.
-   The producer's proofs would then be discharged as witnesses by
-   the producer itself. Slotted after the LCOV follow-up.
