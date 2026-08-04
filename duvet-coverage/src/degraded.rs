@@ -35,7 +35,15 @@
 //! not propagate, so its blindness to `NonLinearControl` cannot cause an unsound
 //! inference. It reports only what coverage directly says about the target line.
 
+// Meta-requirement about this proof file itself: "MUST be proven with
+// Verus" is implemented HERE (the D-properties below are the Verus
+// proofs, checked by CI's verify job) and demonstrated by the runtime
+// tests in this file's tests mod — the same pattern `proofs.rs` uses
+// for the Section 5 twin of this quote.
 #[cfg(verus_keep_ghost)]
+//= design/query/coverage-model-spec.md#degraded-properties
+//# These properties MUST be proven with Verus for the degraded path,
+//# alongside the Section 5 properties for the classified path.
 use crate::{
     annotation_execution::execution_status_of, predicates::validly_in_exec_set,
     target_resolution::annotation_target_spec,
@@ -264,7 +272,14 @@ mod tests {
     }
 
     // Minimal universal classification: whitespace + annotation known, rest None.
+    // The proof side of this quote is the Verus `ensures`/proof fns above
+    // (checked by CI's verify job); this test demonstrates the proven
+    // degraded path on a concrete input, per the `proofs.rs` pattern.
     #[test]
+    //= design/query/coverage-model-spec.md#degraded-properties
+    //= type=test
+    //# These properties MUST be proven with Verus for the degraded path,
+    //# alongside the Section 5 properties for the classified path.
     fn hit_on_nearest_line_is_executed() {
         // annotation lines 1-2, blank line 3, covered code line 4.
         let c = vec![

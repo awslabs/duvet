@@ -92,6 +92,13 @@ jobs:
         run: |
           cargo xtask build
 
+      - name: Duvet annotation checks (dogfood)
+        # duvet run on its own repo, judged by exit code alone: every spec
+        # requirement carries an implementation annotation, every
+        # implementation annotation carries a test annotation, and no
+        # (type, quote) pair has more than one owner.
+        run: ./target/debug/duvet query -c implementation,test,duplicates
+
       - name: Run cargo udeps
         run: cargo udeps --workspace --all-targets
         env:

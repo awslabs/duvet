@@ -384,6 +384,15 @@ async fn execute_coverage_check(
     // (annotations are `Unknown`, the run continues); the hard-error gate belongs
     // to `report` once it consumes coverage. We report *that* and *where*, never
     // a *cause* (mislabeled vs. classifier gap is undecidable here).
+    //= design/query/coverage-model-spec.md#scopes
+    //# When the stream is unbalanced,
+    //# the coverage model MUST NOT score annotations against the collapsed scope tree;
+    //# it MUST surface the file as a defeated classification and escalate
+    //# (see [Classifier Selection and Dispatch](#dispatch)).
+    //= design/query/coverage-model-spec.md#trust-taxonomy
+    //= type=implementation
+    //# duvet MUST NOT silently substitute the coarse model or score against
+    //# the collapsed scope tree; it MUST escalate, reporting each located issue.
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
         let mut defeated: std::collections::BTreeMap<
@@ -841,4 +850,80 @@ fn expand_coverage_globs(reports: &[String]) -> Result<Vec<String>> {
     }
 
     Ok(expanded_paths)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::query::{
+        checks::coverage::FileExecutionData,
+        classify::{ClassifierFailure, ClassifierIssue},
+    };
+    use std::sync::Arc;
+
+    /// Minimal annotation in `path`: `//= spec#s` on line 1, `code();` on
+    /// line 2. Single-line string literal on purpose — a multiline fixture
+    /// with `//=` at line start would be ingested as a real annotation now
+    /// that this file is a scanned source (see `.duvet/config.toml`).
+    fn annotation(path: &str) -> Arc<Annotation> {
+        use crate::annotation::AnnotationLevel;
+        use duvet_core::file::SourceFile as CoreSourceFile;
+        let contents = "//= spec#s\ncode();\n";
+        let source = CoreSourceFile::new(path, contents).unwrap();
+        let text = source.substr_range(0..10).unwrap();
+        let target = source.substr_range(4..10).unwrap();
+        let quote = source.substr_range(11..18).unwrap();
+        Arc::new(Annotation {
+            source: source.path().clone(),
+            anno_line: 1,
+            original_target: target,
+            original_text: text,
+            original_quote: quote,
+            anno: AnnotationType::Citation,
+            target: "spec#s".to_string(),
+            quote: String::new(),
+            comment: String::new(),
+            manifest_dir: source.path().clone(),
+            level: AnnotationLevel::Auto,
+            format: crate::specification::Format::Auto,
+            tracking_issue: String::new(),
+            feature: String::new(),
+            tags: Default::default(),
+            blob_link: None,
+        })
+    }
+
+    /// A file whose classification was defeated (here: an unbalanced scope
+    /// stream) is never scored: its annotations resolve to a located
+    /// `Unknown` anchored at the issue — not an `Executed`/`NotExecuted`
+    /// verdict computed against the collapsed whole-file scope tree, and not
+    /// a silent hand-off to the coarse degraded model.
+    #[test]
+    fn defeated_classification_is_surfaced_not_scored() {
+        let ann = annotation("a/broken.rs");
+        let mut map = ExecutionDataMap::default();
+        map.insert(
+            std::path::PathBuf::from("a/broken.rs"),
+            FileExecutionData::DefeatedClassification {
+                issues: vec![ClassifierIssue {
+                    reason: ClassifierFailure::UnbalancedScopes,
+                    line: 7,
+                }],
+            },
+        );
+        //= design/query/coverage-model-spec.md#scopes
+        //= type=test
+        //# When the stream is unbalanced,
+        //# the coverage model MUST NOT score annotations against the collapsed scope tree;
+        //# it MUST surface the file as a defeated classification and escalate
+        //# (see [Classifier Selection and Dispatch](#dispatch)).
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=test
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
+        assert!(matches!(
+            executed_status_for(&ann, &map),
+            ExecutionStatus::Unknown { line_number: 7 }
+        ));
+    }
 }
