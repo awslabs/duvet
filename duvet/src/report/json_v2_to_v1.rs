@@ -1567,6 +1567,45 @@ mod tests {
         assert!(validate_semantics(&direct, &changed_coverage, true).is_err());
     }
 
+    /// Interpret `mask`'s low three bits as a subset of the annotation names
+    /// the canonical-line property tests draw from.
+    fn canonical_annotations(mask: u8) -> Vec<String> {
+        ["spec", "test", "todo"]
+            .into_iter()
+            .enumerate()
+            .filter(|(bit, _)| mask & (1 << bit) != 0)
+            .map(|(_, name)| name.to_string())
+            .collect()
+    }
+
+    /// Metadata covering every name `canonical_annotations` can produce, so
+    /// status resolution never fails for a generated overlay.
+    fn canonical_annotation_metadata() -> BTreeMap<String, CanonicalAnnotationMeta> {
+        BTreeMap::from([
+            (
+                "spec".to_string(),
+                CanonicalAnnotationMeta {
+                    anno_type: "SPEC".to_string(),
+                    level: "MUST".to_string(),
+                },
+            ),
+            (
+                "test".to_string(),
+                CanonicalAnnotationMeta {
+                    anno_type: "TEST".to_string(),
+                    level: "SHOULD".to_string(),
+                },
+            ),
+            (
+                "todo".to_string(),
+                CanonicalAnnotationMeta {
+                    anno_type: "TODO".to_string(),
+                    level: "MAY".to_string(),
+                },
+            ),
+        ])
+    }
+
     #[test]
     fn canonical_line_is_invariant_under_segmentation_refinement() {
         bolero::check!()
@@ -1582,14 +1621,6 @@ mod tests {
                     .map(|byte| byte & 0b111)
                     .collect();
 
-                let annotations = |mask: u8| {
-                    ["spec", "test", "todo"]
-                        .into_iter()
-                        .enumerate()
-                        .filter(|(bit, _)| mask & (1 << bit) != 0)
-                        .map(|(_, name)| name.to_string())
-                        .collect::<Vec<_>>()
-                };
                 let mut maximal = Vec::new();
                 let mut refined = Vec::new();
                 let mut start = 0;
@@ -1598,42 +1629,20 @@ mod tests {
                     while end < len && coverage[end] == coverage[start] {
                         end += 1;
                     }
-                    maximal.push((start, end, annotations(coverage[start])));
+                    maximal.push((start, end, canonical_annotations(coverage[start])));
                     let mut split = start;
                     while split < end {
                         let mut next = split + 1;
                         while next < end && split_seed[next] % 2 == 0 {
                             next += 1;
                         }
-                        refined.push((split, next, annotations(coverage[start])));
+                        refined.push((split, next, canonical_annotations(coverage[start])));
                         split = next;
                     }
                     start = end;
                 }
 
-                let metadata = BTreeMap::from([
-                    (
-                        "spec".to_string(),
-                        CanonicalAnnotationMeta {
-                            anno_type: "SPEC".to_string(),
-                            level: "MUST".to_string(),
-                        },
-                    ),
-                    (
-                        "test".to_string(),
-                        CanonicalAnnotationMeta {
-                            anno_type: "TEST".to_string(),
-                            level: "SHOULD".to_string(),
-                        },
-                    ),
-                    (
-                        "todo".to_string(),
-                        CanonicalAnnotationMeta {
-                            anno_type: "TODO".to_string(),
-                            level: "MAY".to_string(),
-                        },
-                    ),
-                ]);
+                let metadata = canonical_annotation_metadata();
                 let maximal = render_canonical_line(
                     CanonicalLine {
                         text: text.clone(),
@@ -1651,6 +1660,88 @@ mod tests {
                 )
                 .unwrap();
                 assert_eq!(maximal, refined);
+            });
+    }
+
+    /// `merge_canonical_specification` appends the overlays of duplicate
+    /// RFC-target specifications onto one line, so `render_canonical_line`
+    /// receives overlays that overlap, nest, and leave gaps. The per-window
+    /// containment test that turns those overlays into labels is ordinary
+    /// unverified glue; this property stands in for a proof that it depends
+    /// only on the per-byte union, not on how the union is cut into overlays
+    /// or in which order they arrive.
+    #[test]
+    fn canonical_line_is_invariant_under_overlapping_overlay_refinement() {
+        bolero::check!()
+            .with_type::<([u8; 24], [u8; 33], [u8; 24])>()
+            .for_each(|(text_seed, overlay_seed, split_seed)| {
+                let len = usize::from(text_seed[0] % 24) + 1;
+                let text: String = text_seed[..len]
+                    .iter()
+                    .map(|byte| char::from(b'a' + byte % 26))
+                    .collect();
+
+                // Each overlay is drawn independently of the others, so nothing
+                // keeps them disjoint, contiguous, or ordered.
+                let overlay_count = usize::from(text_seed[1]) % 12;
+                let base: Vec<_> = overlay_seed
+                    .chunks_exact(3)
+                    .take(overlay_count)
+                    .map(|chunk| {
+                        let first = usize::from(chunk[0]) % len;
+                        let second = usize::from(chunk[1]) % len;
+                        (
+                            first.min(second),
+                            first.max(second) + 1,
+                            canonical_annotations(chunk[2]),
+                        )
+                    })
+                    .collect();
+
+                // A byte's annotation set is the union over the overlays
+                // containing it, so both transformations below leave every
+                // byte's set untouched even where overlays overlap: splitting
+                // an overlay at an interior point covers the same bytes with
+                // the same annotations, and a duplicate contributes nothing new
+                // to a union.
+                let mut refined = Vec::new();
+                for (index, (start, end, annotations)) in base.iter().enumerate() {
+                    let seed = usize::from(split_seed[index]);
+                    if end - start > 1 && seed % 4 != 0 {
+                        let mid = start + 1 + seed % (end - start - 1);
+                        refined.push((*start, mid, annotations.clone()));
+                        refined.push((mid, *end, annotations.clone()));
+                    } else {
+                        refined.push((*start, *end, annotations.clone()));
+                    }
+                    if seed % 3 == 0 {
+                        refined.push((*start, *end, annotations.clone()));
+                    }
+                }
+                // The union is also insensitive to overlay order, so a
+                // reversed list must render identically; this catches
+                // accumulation logic that privileges the first (or last)
+                // covering overlay.
+                refined.reverse();
+
+                let metadata = canonical_annotation_metadata();
+                let base = render_canonical_line(
+                    CanonicalLine {
+                        text: text.clone(),
+                        overlays: base,
+                    },
+                    &metadata,
+                )
+                .unwrap();
+                let refined = render_canonical_line(
+                    CanonicalLine {
+                        text,
+                        overlays: refined,
+                    },
+                    &metadata,
+                )
+                .unwrap();
+                assert_eq!(base, refined);
             });
     }
 
