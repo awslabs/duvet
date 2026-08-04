@@ -1340,13 +1340,16 @@ for it.
   proved-but-never-executed, executed-but-never-proved, both, and
   neither, through one engine ([Decision 8](#decision-8)'s test
   matrix). A JaCoCo example documents the already-solved pattern.
-  The dogfood staging table
-  ([dogfood.md#staging](dogfood.md#staging)) holds 84 unwitnessed
-  rows; the 78 runtime rows are this producer's Gate 3 exit
-  criterion, and the placement burndown left every one on an
-  executable target (unwitnessable = 0 tree-wide, CI-gated), so
-  the producer's witnesses can actually cover them. The 6
-  CI-discharged meta-obligation rows persist past Gate 3.
+  The dogfood staging categories
+  ([dogfood.md#staging](dogfood.md#staging)) name this producer's
+  Gate 3 exit criterion: the unwitnessed runtime test annotations
+  go to zero when its witnesses land, and the placement burndown
+  left every one on an executable target, so the
+  producer's witnesses can actually cover them. The CI-discharged
+  meta-obligation rows persist past Gate 3, and the full-run
+  (unsliced) coverage gate becomes enableable once the producer
+  set is complete — the coverage check is strict, so nothing
+  short of complete witnesses turns that gate green.
 
 - **LCOV-classifier axiom tripwire.**
   The unwitnessable verdict ([Decision 22](#decision-22)) rests on

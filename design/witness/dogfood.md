@@ -115,12 +115,6 @@ The sliced witness-query gate runs in CI (`.github/workflows/ci.yml`):
   step: the full W1–W7 / P1–P4 slice must discharge with plain
   exit 0 — no thresholds, no expected-failure list. Sections in
   the slice can never backslide.
-- The **Unwitnessable placement gate** then runs the full
-  (unsliced) coverage query and asserts `Unwitnessable targets: 0`
-  tree-wide — a new placement defect anywhere in the scanned
-  sources fails CI. The unsliced run's discharge verdict stays
-  ungated (Decision 8) until the LCOV follow-up; only the static
-  placement count is asserted.
 
 ### Exit criterion
 
@@ -132,63 +126,65 @@ aggregate suite report (A2 violation).
 
 ## Staging: the unsliced proof-only residual {#staging}
 
-Current tool-checked state of the unsliced
-`duvet query -c coverage` run over fresh SST logs:
-**0 failed correlations, 0 tests with no implementation,
-0 unwitnessable targets, 32 successful correlations,
-84 unwitnessed.**
+This section deliberately carries no counts: numbers drift and
+rot the moment they are written down. Today's numbers come from
+the tool — the unsliced coverage query over fresh SST logs:
 
-**Unwitnessable = 0 is enforced, not audited.** The coverage
-query's unwitnessable verdict
+```console
+$ duvet query -c coverage \
+    --coverage-source verus-sst=verus-sst-logs
+```
+
+(`verus-sst-logs` is the SST log directory the proof run produces;
+CI downloads it from the `verify` job's artifact. The run prints
+every category's count and rows; its exit code is nonzero until
+the LCOV producer lands — the coverage check is strict, and a
+proof-only run leaves the runtime annotations unwitnessed.)
+
+What the run's findings mean, by category:
+
+**Unwitnessable placements — reported by the coverage check.** The
+static unwitnessable verdict
 ([Decision 22](decisions.md#decision-22),
-[spec §3](spec.md#verdict-output)) statically flags any annotation
-whose resolved target is not code, and the CI unwitnessable
-placement gate ([#ci-wiring](#ci-wiring)) asserts the tree-wide
-count stays zero on every push. Every unwitnessed row below
-therefore resolves to an executable target — the precondition for
-a runtime witness ever covering it.
+[spec §3](spec.md#verdict-output)) flags any annotation whose
+resolved target is not code, and the coverage check reports and
+fails on the finding among the annotations its runs consider. A
+new entry in this category is a placement defect to fix, never a
+row to stage. Zero here also means every unwitnessed annotation
+resolves to an executable target — the precondition for a runtime
+witness ever covering it.
 
-Of the 84 unwitnessed test annotations, 78 are runtime test
-annotations placed on executable targets inside
-`#[test]`/`#[tokio::test]` code. They are the LCOV-pending set —
-unwitnessed in a proof-only run by design (Decision 8) — and they
-are Gate 3's exit criterion: when the LCOV producer lands, the
-runtime rows of this table must go to zero.
+**Unwitnessed runtime test annotations — the LCOV-pending set.**
+Test annotations on executable targets inside
+`#[test]`/`#[tokio::test]` code are unwitnessed in a proof-only
+run by design ([Decision 8](decisions.md#decision-8)): no
+configured producer can deliver a runtime witness. This category
+is Gate 3's exit criterion — when the LCOV producer lands, it goes
+to zero.
 
-The remaining 6 live in `.github/workflows/ci.yml`: test sides of
-the repo/CI meta-obligations ("MUST be proven with Verus" ×4 on
-the verify step; "proof files MUST carry annotations" ×2 on the
-snapshot step — one test owner per quote, the duplicates check
-enforces it). They are discharged by the CI run itself, which
-duvet's coverage machinery cannot consume (no CI-status producer;
-upstream follow-up). They persist in this table past Gate 3 until
-duvet can witness CI-discharged tests.
+**Unwitnessed CI-discharged meta-obligations.** Test sides of the
+repo/CI obligations ("MUST be proven with Verus" on the verify
+step; "proof files MUST carry annotations" on the snapshot step —
+one test owner per quote, the duplicates check enforces it) are
+discharged by the CI run itself, which duvet's coverage machinery
+cannot consume (no CI-status producer; upstream follow-up). This
+category persists past Gate 3 until duvet can witness
+CI-discharged tests.
 
-| File | Unwitnessed (runtime, LCOV-pending) |
-|---|---|
-| duvet/src/query/parsers/verus_sst/tests.rs | 21 |
-| duvet/src/query/witness.rs | 15 |
-| duvet/src/query/producers.rs | 10 |
-| duvet/src/query/result.rs | 9 |
-| duvet-coverage/src/witness.rs (tests mod) | 6 |
-| duvet-coverage/src/proofs.rs (tests) | 5 |
-| duvet-coverage/src/scopes.rs (tests) | 3 |
-| duvet/src/query/parsers/verus_sst/closure.rs | 2 |
-| duvet/src/query/engine.rs | 2 |
-| duvet-coverage/src/execution_propagation.rs (tests) | 2 |
-| duvet-coverage/src/classify_postpass.rs (tests) | 2 |
-| duvet-coverage/src/target_resolution.rs (tests) | 1 |
-| **Total (runtime, LCOV-pending)** | **78** |
-| .github/workflows/ci.yml (CI-discharged, persists past Gate 3) | 6 |
-| **Total unwitnessed** | **84** |
+**Failed correlations and tests with no correlated
+implementation** are not a staging category: the sliced CI gate
+holds them at zero for the witness properties, and the coverage
+check fails on them everywhere it runs.
 
 ## What is still missing
 
-- **The full-run (unsliced) proof-only gate.** Runtime `type=test`
+- **The full-run (unsliced) coverage gate.** Runtime `type=test`
   annotations are unwitnessed in a proof-only run by design
-  (Decision 8); they stay enabled, and the full-run gate is
-  deferred to the LCOV follow-up (Decision 16, Follow-ups).
+  (Decision 8), the coverage check is strict — there is no
+  tolerance mode — so the full-run gate is deferred to the LCOV
+  follow-up (Decision 16, Follow-ups), which completes the
+  producer set.
 - **Richer CI-consumable report output** for the witness verdicts.
-  The exit code + grep is the gate today; the human-oriented output
-  is what CI logs show.
+  The exit code is the gate today; the human-oriented output is
+  what CI logs show.
 - **LCOV mixed-coverage producer** — the exit criterion above.
