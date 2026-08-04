@@ -815,8 +815,8 @@ public class Two {
 
         // Coverage: line 1 hit (count 1), line 3 not hit (count 0) -> Hit / Miss.
         let mut lines = std::collections::BTreeMap::new();
-        lines.insert(1u32, 1u64);
-        lines.insert(3u32, 0u64);
+        lines.insert(1u64, 1u64);
+        lines.insert(3u64, 0u64);
         let file_coverage = FileCoverage {
             lines,
             branches: std::collections::BTreeMap::new(),

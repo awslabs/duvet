@@ -133,16 +133,16 @@ fn parse_jacoco_report_package<T: BufRead>(
 }
 
 struct JacocoSourceFileData {
-    lines: BTreeMap<u32, u64>,
-    branches: BTreeMap<u32, Vec<bool>>,
+    lines: BTreeMap<u64, u64>,
+    branches: BTreeMap<u64, Vec<bool>>,
 }
 
 fn parse_jacoco_report_sourcefile<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
 ) -> Result<JacocoSourceFileData, CoverageError> {
-    let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
-    let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
+    let mut lines: BTreeMap<u64, u64> = BTreeMap::new();
+    let mut branches: BTreeMap<u64, Vec<bool>> = BTreeMap::new();
 
     loop {
         match parser.read_event_into(buf) {
@@ -172,7 +172,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
                             )?)
                         }
                         b"nr" => {
-                            nr = Some(String::from_utf8_lossy(&a.value).parse::<u32>().map_err(
+                            nr = Some(String::from_utf8_lossy(&a.value).parse::<u64>().map_err(
                                 |_| CoverageError::InvalidData("Invalid nr value".to_string()),
                             )?)
                         }
@@ -437,9 +437,9 @@ mod tests {
         // Construct an (artificial) overlap the parser wouldn't currently emit:
         // line 7 is a missed statement AND a taken branch.
         let mut lines = BTreeMap::new();
-        lines.insert(7u32, 0u64); // Miss
+        lines.insert(7u64, 0u64); // Miss
         let mut branches = BTreeMap::new();
-        branches.insert(7u32, vec![true]); // Hit
+        branches.insert(7u64, vec![true]); // Hit
 
         let fc = FileCoverage { lines, branches };
 

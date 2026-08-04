@@ -69,13 +69,14 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
     let mut records_by_file: FxHashMap<String, Vec<DaRecord>> = FxHashMap::default();
     let mut current_file: Option<String> = None;
 
+    //= design/lcov-parser/spec.md#report-structure
+    //= type=implementation
+    //# The parser MUST accept both LF and CRLF line endings.
+    // Discharged by the stdlib: `BufRead::lines` recognizes both `\n` and
+    // `\r\n` as terminators and strips them from the yielded lines.
     for (idx, line) in reader.lines().enumerate() {
         let line_no = idx + 1;
-        let raw = line?;
-        //= design/lcov-parser/spec.md#report-structure
-        //= type=implementation
-        //# The parser MUST accept both LF and CRLF line endings.
-        let line = raw.strip_suffix('\r').unwrap_or(&raw);
+        let line = line?;
 
         //= design/lcov-parser/spec.md#report-structure
         //= type=implementation
@@ -176,15 +177,9 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
         //# coverage for its file.
         let aggregated = aggregate_da_records(&records);
 
-        let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
-        for (line, count) in aggregated {
-            // Property 1 (domain exactness): every output line is an input
-            // line, and the lexer only produces lines that fit in u32
-            // (spec §3), so this conversion cannot truncate.
-            let line = u32::try_from(line)
-                .expect("verified core preserves the input domain; lexer lines fit in u32");
-            lines.insert(line, count);
-        }
+        // Property 3 (ordered uniqueness): the pairs are strictly sorted with
+        // unique keys, so this collect is a structurally trivial conversion.
+        let lines: BTreeMap<u64, u64> = aggregated.into_iter().collect();
 
         //= design/lcov-parser/spec.md#aggregation
         //= type=implementation
@@ -232,8 +227,8 @@ fn parse_da_payload(payload: &str) -> std::result::Result<DaRecord, String> {
     //= type=implementation
     //# The parser MUST parse `<line>` as a decimal integer
     //# greater than or equal to 1
-    //# and less than 2^32.
-    let line: u32 = line_field
+    //# and representable in an unsigned 64-bit integer.
+    let line: u64 = line_field
         .parse()
         .map_err(|_| format!("invalid line number '{line_field}'"))?;
     if line == 0 {
@@ -248,10 +243,7 @@ fn parse_da_payload(payload: &str) -> std::result::Result<DaRecord, String> {
         .parse()
         .map_err(|_| format!("invalid count '{count_field}'"))?;
 
-    Ok(DaRecord {
-        line: line as u64,
-        count,
-    })
+    Ok(DaRecord { line, count })
 }
 
 #[cfg(test)]
@@ -477,7 +469,7 @@ mod tests {
     //= type=test
     //# The parser MUST parse `<line>` as a decimal integer
     //# greater than or equal to 1
-    //# and less than 2^32.
+    //# and representable in an unsigned 64-bit integer.
     //= design/lcov-parser/spec.md#da-record-syntax
     //= type=test
     //# The parser MUST parse `<count>` as a decimal integer
@@ -494,8 +486,12 @@ mod tests {
         assert!(parse_err("SF:a.rs\nDA:-1,1\n").contains("invalid line number"));
         // Line 0 is producer error (LCOV is 1-based).
         assert!(parse_err("SF:a.rs\nDA:0,1\n").contains(">= 1"));
-        // Line numbers must fit in u32 (duvet's line key width).
-        assert!(parse_err("SF:a.rs\nDA:4294967296,1\n").contains("invalid line number"));
+        // Line numbers must fit in u64 (duvet's line key width); 2^64 does not.
+        assert!(parse_err("SF:a.rs\nDA:18446744073709551616,1\n").contains("invalid line number"));
+        // A line number at the u32 boundary is representable now that the
+        // whole pipeline keys lines as u64.
+        let data = parse("SF:a.rs\nDA:4294967296,1\nend_of_record\n");
+        assert_eq!(data.files.get("a.rs").unwrap().lines.get(&4294967296), Some(&1));
         // Counts must fit in u64.
         assert!(parse_err("SF:a.rs\nDA:1,18446744073709551616\n").contains("invalid count"));
     }
@@ -530,20 +526,20 @@ mod tests {
         include_str!("../../../tests/lcov-corpora/verus-corpus/lcov.info");
 
     /// 1-based line number of the `occurrence`-th line containing `needle`.
-    fn line_of(src: &str, needle: &str, occurrence: usize) -> u32 {
+    fn line_of(src: &str, needle: &str, occurrence: usize) -> u64 {
         let mut seen = 0;
         for (idx, line) in src.lines().enumerate() {
             if line.contains(needle) {
                 seen += 1;
                 if seen == occurrence {
-                    return (idx + 1) as u32;
+                    return (idx + 1) as u64;
                 }
             }
         }
         panic!("needle {needle:?} occurrence {occurrence} not found in corpus source");
     }
 
-    fn corpus_lines(info: &str, sf_key: &str) -> BTreeMap<u32, u64> {
+    fn corpus_lines(info: &str, sf_key: &str) -> BTreeMap<u64, u64> {
         let data = parse(info);
         data.files
             .get(sf_key)
@@ -624,7 +620,7 @@ mod tests {
         let lines = corpus_lines(VERUS_CORPUS_INFO, "/tmp/verus-corpus/vexample.rs");
 
         // spec fn / proof fn bodies: entirely absent (erased).
-        for (needle, span) in [("spec fn abs_spec", 7u32), ("proof fn abs_nonneg", 7u32)] {
+        for (needle, span) in [("spec fn abs_spec", 7u64), ("proof fn abs_nonneg", 7u64)] {
             let start = line_of(src, needle, 1);
             for l in start..start + span {
                 assert_eq!(lines.get(&l), None, "ghost item line {l} ({needle}) is absent");
@@ -695,10 +691,10 @@ mod tests {
     /// Deterministically derive (tracefile text, reference model) from bytes.
     /// The reference sums in u128 and saturates to u64 independently of the
     /// implementation under test.
-    fn gen_lcov(bytes: &[u8]) -> (String, FxHashMap<String, BTreeMap<u32, u64>>) {
+    fn gen_lcov(bytes: &[u8]) -> (String, FxHashMap<String, BTreeMap<u64, u64>>) {
         const FILES: [&str; 2] = ["gen/a.rs", "gen/sub/b.rs"];
         let mut text = String::new();
-        let mut sums: FxHashMap<String, BTreeMap<u32, u128>> = FxHashMap::default();
+        let mut sums: FxHashMap<String, BTreeMap<u64, u128>> = FxHashMap::default();
 
         let mut chunks = bytes.chunks_exact(4);
         let mut open = false;
@@ -725,7 +721,7 @@ mod tests {
                 text.push_str(&format!("VER:future-record{eol}{eol}"));
             }
 
-            let line = (b1 % 8) as u32 + 1;
+            let line = (b1 % 8) as u64 + 1;
             let count: u64 = match b2 % 4 {
                 0 => 0,
                 1 => b3 as u64,

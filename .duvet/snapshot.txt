@@ -8,7 +8,7 @@ SPECIFICATION: [Duvet LCOV Coverage Parser: Specification](design/lcov-parser/sp
   SECTION: [3. DA Record Syntax](#da-record-syntax)
     TEXT[!MUST,implementation,test]: The parser MUST parse `<line>` as a decimal integer
     TEXT[!MUST,implementation,test]: greater than or equal to 1
-    TEXT[!MUST,implementation,test]: and less than 2^32.
+    TEXT[!MUST,implementation,test]: and representable in an unsigned 64-bit integer.
     TEXT[!MUST,implementation,test]: The parser MUST parse `<count>` as a decimal integer
     TEXT[!MUST,implementation,test]: representable in an unsigned 64-bit integer.
     TEXT[!MUST,implementation,test]: The parser MUST accept and ignore the optional third

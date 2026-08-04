@@ -36,8 +36,8 @@ impl GenericCoverageData {
 /// Coverage data for a single file
 #[derive(Clone, Debug)]
 pub struct FileCoverage {
-    pub lines: BTreeMap<u32, u64>,          // line_number -> hit_count
-    pub branches: BTreeMap<u32, Vec<bool>>, // line_number -> [taken, not_taken, ...]
+    pub lines: BTreeMap<u64, u64>,          // line_number -> hit_count
+    pub branches: BTreeMap<u64, Vec<bool>>, // line_number -> [taken, not_taken, ...]
 }
 
 impl FileCoverage {
@@ -71,7 +71,7 @@ impl FileCoverage {
             } else {
                 CoverageStatus::Miss
             };
-            record(line_num as u64, status);
+            record(line_num, status);
         }
         for (&line_num, branches) in &self.branches {
             let status = if branches.iter().any(|&taken| taken) {
@@ -79,7 +79,7 @@ impl FileCoverage {
             } else {
                 CoverageStatus::Miss
             };
-            record(line_num as u64, status);
+            record(line_num, status);
         }
         report
     }

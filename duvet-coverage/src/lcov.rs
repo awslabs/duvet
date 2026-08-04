@@ -231,16 +231,51 @@ pub fn aggregate_da_records(records: &Vec<DaRecord>) -> (out: Vec<(u64, u64)>)
             assert(records@[k as int].count == r_count);
         }
 
-        // Find the insertion/update position: first index whose line >= r_line.
-        let mut pos: usize = 0;
-        while pos < out.len() && out[pos].0 < r_line
+        // Find the insertion/update position: the first index whose line is
+        // >= r_line. Binary search: `out` is strictly sorted (loop invariant
+        // `lines_sorted`), so `out[i].0 < r_line` is monotone in `i` and the
+        // standard lo/hi bisection applies. Complexity note: real producers
+        // emit `DA` records in ascending line order, which made a linear scan
+        // O(n) per record — the *common* case was the worst case. Bisection is
+        // O(log n) per record; the `Vec::insert` below still shifts O(n) in
+        // the worst case, but for ascending input the insertion point is the
+        // end, so the shift is empty and the common case is O(n log n) total.
+        let mut lo: usize = 0;
+        let mut hi: usize = out.len();
+        while lo < hi
             invariant
-                pos <= out@.len(),
-                forall|i: int| 0 <= i < pos as int ==> (#[trigger] out@[i]).0 < r_line,
-            decreases out@.len() - pos,
+                lo <= hi <= out@.len(),
+                lines_sorted(out@),
+                forall|i: int| 0 <= i < lo as int ==> (#[trigger] out@[i]).0 < r_line,
+                forall|i: int| hi as int <= i < out@.len() ==> (#[trigger] out@[i]).0 >= r_line,
+            decreases hi - lo,
         {
-            pos = pos + 1;
+            let mid = lo + (hi - lo) / 2;
+            if out[mid].0 < r_line {
+                proof {
+                    // Everything at or left of mid is < r_line by sortedness.
+                    assert forall|i: int| 0 <= i < mid as int + 1 implies (#[trigger] out@[i]).0
+                        < r_line by {
+                        if i < mid as int {
+                            assert(out@[i].0 < out@[mid as int].0);
+                        }
+                    }
+                }
+                lo = mid + 1;
+            } else {
+                proof {
+                    // Everything at or right of mid is >= r_line by sortedness.
+                    assert forall|i: int| mid as int <= i < out@.len() implies (#[trigger] out@[i]).0
+                        >= r_line by {
+                        if i > mid as int {
+                            assert(out@[mid as int].0 < out@[i].0);
+                        }
+                    }
+                }
+                hi = mid;
+            }
         }
+        let pos = lo;
 
         let ghost old_out = out@;
         let ghost prefix = records@.take(k as int);

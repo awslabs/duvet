@@ -56,7 +56,7 @@ DA:<line>,<count>[,<checksum>]
 
 The parser MUST parse `<line>` as a decimal integer
 greater than or equal to 1
-and less than 2^32.
+and representable in an unsigned 64-bit integer.
 
 The parser MUST parse `<count>` as a decimal integer
 representable in an unsigned 64-bit integer.
@@ -68,9 +68,10 @@ The parser MUST reject a `DA` record whose payload does
 not conform to this syntax.
 
 Rationale for the `<line>` bounds: LCOV line numbers are 1-based, so `0` is
-producer error, and duvet's coverage tables key lines as `u32`, so a line
-number at or above 2^32 cannot be represented and silently truncating it
-would misattribute coverage.
+producer error, and duvet keys lines as `u64` throughout the coverage
+pipeline, so every parseable value is representable end-to-end with no
+narrowing conversion; a value above 2^64 - 1 cannot be represented and is
+rejected rather than silently truncated.
 
 ## 4. Report Structure {#report-structure}
 
