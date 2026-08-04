@@ -635,12 +635,41 @@ pub fn canonicalize_spans(input: &[SegmentSpan]) -> (output: Vec<SegmentSpan>)
     output
 }
 
+/// The span list a boundary/label pair denotes: span `j` runs from
+/// `boundaries[j]` to `boundaries[j + 1]` and carries `labels[j]`.
+pub open spec fn induced_spans(
+    boundaries: Seq<usize>,
+    labels: Seq<usize>,
+) -> Seq<SegmentSpan> {
+    Seq::new(
+        labels.len(),
+        |j: int|
+            SegmentSpan {
+                start: boundaries[j],
+                end: boundaries[j + 1],
+                label: labels[j],
+            },
+    )
+}
+
 /// Validate boundary shape and construct canonical spans without exposing a
 /// proof precondition to ordinary Rust callers.
+///
+/// `None` means the inputs are not a valid segmentation: fewer than two
+/// boundaries, a first boundary other than zero, a label count that does not
+/// match the boundary count, or a non-increasing boundary pair. `Some` carries
+/// the canonicalization of exactly the spans those boundaries induce.
 pub fn canonicalize_boundaries(
     boundaries: &[usize],
     labels: &[usize],
 ) -> (output: Option<Vec<SegmentSpan>>)
+    ensures
+        output is Some ==> {
+            &&& output->Some_0@ == canonicalize_spec(induced_spans(boundaries@, labels@))
+            &&& spans_well_formed(output->Some_0@)
+            &&& coalesced(output->Some_0@)
+            &&& denote(output->Some_0@) == denote(induced_spans(boundaries@, labels@))
+        },
 {
     if boundaries.len() < 2 || boundaries[0] != 0 {
         return None;
@@ -657,7 +686,7 @@ pub fn canonicalize_boundaries(
             boundaries@[0] == 0,
             0 <= i <= labels@.len(),
             spans@.len() == i,
-            forall|j: int| 0 <= j < i ==> spans@[j] == (SegmentSpan {
+            forall|j: int| 0 <= j < i ==> (#[trigger] spans@[j]) == (SegmentSpan {
                 start: boundaries@[j],
                 end: boundaries@[j + 1],
                 label: labels@[j],
@@ -673,6 +702,10 @@ pub fn canonicalize_boundaries(
         spans.push(SegmentSpan { start, end, label: labels[i] });
         i = i + 1;
     }
+    // The loop invariant pins every element of `spans`, but element-wise
+    // agreement with the spec sequence is not sequence equality until the
+    // extensional rule is applied.
+    assert(spans@ =~= induced_spans(boundaries@, labels@));
     Some(canonicalize_spans(&spans))
 }
 

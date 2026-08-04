@@ -1458,6 +1458,10 @@ fn render_canonical_line(
         };
         labels.push(label);
     }
+    // Defensively unreachable: `boundaries` is a `BTreeSet` seeded with
+    // `{0, text.len()}`, so it is sorted, distinct, starts at 0, and has at
+    // least two entries (the text is non-empty here); `labels` gets exactly one
+    // entry per window.
     let spans = canonicalize_boundaries(&boundaries, &labels).ok_or_else(|| {
         duvet_core::error!("invalid canonical line boundaries or annotation label count")
     })?;
