@@ -16,7 +16,7 @@ per-source-file blocks delimited by `SF:` and `end_of_record`.
 
 Terminology used throughout this specification: a *record* is a single line
 of the tracefile, taken after line-terminator handling (Section 4) and
-excluding blank lines. The parser *recognizes* a record by exact,
+excluding blank and whitespace-only lines. The parser *recognizes* a record by exact,
 case-sensitive match on its leading characters: a record beginning with
 `SF:` is an `SF` record, a record beginning with `DA:` is a `DA` record, a
 record whose entire content is `end_of_record` is an `end_of_record` record,
@@ -113,6 +113,10 @@ surface with no consumer; the grammar pins exactly what is accepted.
 Leading zeros consist of digits, so they conform and carry their numeric
 value.
 
+The checksum field has no grammar: it is ignored unparsed, so any content —
+including the empty string (`DA:4,1,`) — conforms. Constraining a field the
+parser never reads would reject inputs for no consumer's benefit.
+
 ## 4. Report Structure {#report-structure}
 
 An `SF:` record opens a source-file block; `end_of_record` closes it.
@@ -129,7 +133,8 @@ appears outside a source-file block.
 The parser MUST accept end-of-input while a source-file
 block is open, treating it as an implicit `end_of_record`.
 
-The parser MUST ignore blank lines.
+The parser MUST ignore blank lines and lines consisting
+solely of whitespace.
 
 The parser MUST accept both LF and CRLF line endings.
 

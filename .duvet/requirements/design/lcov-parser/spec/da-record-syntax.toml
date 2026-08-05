@@ -36,6 +36,10 @@ target = "design/lcov-parser/spec.md#da-record-syntax"
 # surface with no consumer; the grammar pins exactly what is accepted.
 # Leading zeros consist of digits, so they conform and carry their numeric
 # value.
+# 
+# The checksum field has no grammar: it is ignored unparsed, so any content —
+# including the empty string (`DA:4,1,`) — conforms. Constraining a field the
+# parser never reads would reject inputs for no consumer's benefit.
 
 [[spec]]
 level = "MUST"

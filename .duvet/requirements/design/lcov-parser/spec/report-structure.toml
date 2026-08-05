@@ -16,7 +16,8 @@ target = "design/lcov-parser/spec.md#report-structure"
 # The parser MUST accept end-of-input while a source-file
 # block is open, treating it as an implicit `end_of_record`.
 # 
-# The parser MUST ignore blank lines.
+# The parser MUST ignore blank lines and lines consisting
+# solely of whitespace.
 # 
 # The parser MUST accept both LF and CRLF line endings.
 # 
@@ -59,7 +60,8 @@ block is open, treating it as an implicit `end_of_record`.
 [[spec]]
 level = "MUST"
 quote = '''
-The parser MUST ignore blank lines.
+The parser MUST ignore blank lines and lines consisting
+solely of whitespace.
 '''
 
 [[spec]]

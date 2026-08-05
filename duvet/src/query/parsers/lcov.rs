@@ -75,7 +75,8 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
 
         //= design/lcov-parser/spec.md#report-structure
         //= type=implementation
-        //# The parser MUST ignore blank lines.
+        //# The parser MUST ignore blank lines and lines consisting
+        //# solely of whitespace.
         if line.trim().is_empty() {
             continue;
         }
@@ -373,7 +374,9 @@ mod tests {
         );
     }
 
-    /// The optional third checksum field is accepted and ignored.
+    /// The optional third checksum field is accepted and ignored. The field
+    /// has no grammar (spec §3): it is ignored unparsed, so any content —
+    /// including the empty string — conforms.
     #[test]
     //= design/lcov-parser/spec.md#da-record-syntax
     //= type=test
@@ -381,6 +384,9 @@ mod tests {
     //# checksum field.
     fn da_checksum_field_ignored() {
         let data = parse("SF:a.rs\nDA:4,1,abc123\nend_of_record\n");
+        assert_eq!(data.files.get("a.rs").unwrap().lines.get(&4), Some(&1));
+        // Empty checksum field: `DA:4,1,` conforms and parses identically.
+        let data = parse("SF:a.rs\nDA:4,1,\nend_of_record\n");
         assert_eq!(data.files.get("a.rs").unwrap().lines.get(&4), Some(&1));
     }
 
@@ -396,6 +402,26 @@ mod tests {
         // Absolute paths stay verbatim.
         let data = parse("SF:/abs/path/src/lib.rs\nDA:1,1\nend_of_record\n");
         assert!(data.files.contains_key("/abs/path/src/lib.rs"));
+    }
+
+    /// Edge cases of "verbatim except a leading `./`": an *embedded* `/./`
+    /// segment is not stripped, and trailing whitespace is part of the key.
+    /// Both keys will simply fail to suffix-match any real source file —
+    /// the parser does not invent normalization the spec doesn't name.
+    #[test]
+    fn sf_path_verbatim_edge_cases() {
+        // Embedded ./ segment: only the *leading* ./ is stripped.
+        let data = parse("SF:src/./lib.rs\nDA:1,1\nend_of_record\n");
+        assert!(data.files.contains_key("src/./lib.rs"));
+        assert!(!data.files.contains_key("src/lib.rs"));
+        // Trailing space: kept verbatim (SF has no payload grammar beyond
+        // non-emptiness; a trailing space is producer error the key exposes).
+        let data = parse("SF:src/lib.rs \nDA:1,1\nend_of_record\n");
+        assert!(data.files.contains_key("src/lib.rs "));
+        assert!(!data.files.contains_key("src/lib.rs"));
+        // Leading ./ then trailing space: both rules visible at once.
+        let data = parse("SF:./src/lib.rs \nDA:1,1\nend_of_record\n");
+        assert!(data.files.contains_key("src/lib.rs "));
     }
 
     /// Non-DA record types are ignored, including unknown ones. Recognition
@@ -428,16 +454,23 @@ mod tests {
         assert!(fc.branches.is_empty());
     }
 
-    /// CRLF line endings and blank lines are tolerated.
+    /// CRLF line endings, blank lines, and whitespace-only lines are
+    /// tolerated. A whitespace-only line is *not* a record (spec §1) — in
+    /// particular it is not a near-miss of anything — it is skipped like a
+    /// blank line.
     #[test]
     //= design/lcov-parser/spec.md#report-structure
     //= type=test
-    //# The parser MUST ignore blank lines.
+    //# The parser MUST ignore blank lines and lines consisting
+    //# solely of whitespace.
     //= design/lcov-parser/spec.md#report-structure
     //= type=test
     //# The parser MUST accept both LF and CRLF line endings.
-    fn crlf_and_blank_lines() {
+    fn crlf_blank_and_whitespace_only_lines() {
         let data = parse("SF:a.rs\r\n\r\nDA:1,1\r\n\nend_of_record\r\n");
+        assert_eq!(data.files.get("a.rs").unwrap().lines.get(&1), Some(&1));
+        // Whitespace-only lines (spaces and tabs) are ignored too.
+        let data = parse("SF:a.rs\n \t \nDA:1,1\n   \nend_of_record\n");
         assert_eq!(data.files.get("a.rs").unwrap().lines.get(&1), Some(&1));
     }
 

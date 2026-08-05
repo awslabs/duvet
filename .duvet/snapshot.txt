@@ -31,7 +31,8 @@ SPECIFICATION: [Duvet LCOV Coverage Parser: Specification](design/lcov-parser/sp
     TEXT[!MUST,implementation,test]: appears outside a source-file block.
     TEXT[!MUST,implementation,test]: The parser MUST accept end-of-input while a source-file
     TEXT[!MUST,implementation,test]: block is open, treating it as an implicit `end_of_record`.
-    TEXT[!MUST,implementation,test]: The parser MUST ignore blank lines.
+    TEXT[!MUST,implementation,test]: The parser MUST ignore blank lines and lines consisting
+    TEXT[!MUST,implementation,test]: solely of whitespace.
     TEXT[!MUST,implementation,test]: The parser MUST accept both LF and CRLF line endings.
     TEXT[!MUST,implementation,test]: The parser MUST reject input that is not valid UTF-8.
 
