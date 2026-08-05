@@ -209,4 +209,18 @@ each named here with its mitigation:
   Property 3; unit-tested.
 - **`FileCoverage::to_coverage_report`**: shared with the JaCoCo parser;
   Hit-priority merge, unit-tested where it is defined.
+- **`verus!` erasure macro** (`verus_builtin_macros`): production builds
+  compile the macro's ghost-erased expansion without `vstd`, while
+  verification runs the same source with `--features verify`. The claim
+  that the *exec* code is identical across those two configurations is
+  exactly the proof-implementation-divergence risk class. Mitigated by the
+  ghost-only-`vstd` discipline documented in `duvet-coverage/src/lib.rs`:
+  every `vstd` path in the crate sits inside ghost code, so erasure removes
+  only ghost items and the exec expansion cannot depend on the feature.
+- **Report I/O glue** (`parse_report_blocking` in
+  `duvet/src/query/coverage.rs`, over `duvet_core::vfs::read_string`):
+  reads the tracefile into memory and hands a `Cursor` to the lexer.
+  Trivial by inspection; the parser tests bypass it by construction (they
+  feed the lexer a `Cursor` directly), so its only coverage is shared use
+  by every coverage-check invocation and the JaCoCo parser.
 - **Verus toolchain** (verifier, Z3, vstd): trusted.
