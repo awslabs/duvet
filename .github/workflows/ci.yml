@@ -35,10 +35,9 @@ jobs:
       - name: Evaluate definitions
         id: definitions
         run: |
-          rustup show active-toolchain
-          export MSRV=$(rustup show active-toolchain | awk -F'-' '{print $1}')
+          export MSRV=$(grep -m1 '^rust-version' duvet/Cargo.toml | sed -E 's/^rust-version *= *"(.+)"/\1/')
           if [ -z "$MSRV" ]; then
-            echo "Error: MSRV did not parse correctly"
+            echo "Error: MSRV did not parse correctly from duvet/Cargo.toml"
             exit 1
           fi
           echo "msrv=$MSRV" >> "$GITHUB_OUTPUT"
