@@ -161,6 +161,129 @@ pub proof fn lemma_sum_concat(a: Seq<DaRecord>, b: Seq<DaRecord>, line: u64)
     }
 }
 
+/// The insert branch of [`aggregate_da_records`] re-establishes its loop
+/// invariants: inserting record `k`'s `(line, count)` as a *new* entry at
+/// its sorted position `pos` preserves sortedness, domain soundness, count
+/// correctness, and completeness for the extended prefix `take(k + 1)`.
+///
+/// The `requires` are exactly what the exec code knows at the insert: the
+/// binary search's position facts — strictly smaller left of `pos`,
+/// strictly greater from `pos` on, so the line is genuinely new — plus the
+/// loop invariants for `take(k)`.
+proof fn lemma_insert_reestablishes_invariants(
+    records: Seq<DaRecord>,
+    k: int,
+    old_out: Seq<(u64, u64)>,
+    pos: int,
+)
+    requires
+        0 <= k < records.len(),
+        0 <= pos <= old_out.len(),
+        lines_sorted(old_out),
+        forall|i: int| 0 <= i < pos ==> (#[trigger] old_out[i]).0 < records[k].line,
+        forall|i: int| pos <= i < old_out.len() ==> (#[trigger] old_out[i]).0 > records[k].line,
+        forall|i: int|
+            0 <= i < old_out.len() ==> has_line(records.take(k), (#[trigger] old_out[i]).0),
+        forall|i: int|
+            0 <= i < old_out.len() ==> (#[trigger] old_out[i]).1 == saturate_u64(
+                sum_counts(records.take(k), old_out[i].0),
+            ),
+        forall|l: u64| #[trigger] has_line(records.take(k), l) ==> contains_line(old_out, l),
+    ensures
+        ({
+            let new_out = old_out.insert(pos, (records[k].line, records[k].count));
+            let prefix1 = records.take(k + 1);
+            &&& lines_sorted(new_out)
+            &&& forall|i: int|
+                0 <= i < new_out.len() ==> has_line(prefix1, (#[trigger] new_out[i]).0)
+            &&& forall|i: int|
+                0 <= i < new_out.len() ==> (#[trigger] new_out[i]).1 == saturate_u64(
+                    sum_counts(prefix1, new_out[i].0),
+                )
+            &&& forall|l: u64| #[trigger] has_line(prefix1, l) ==> contains_line(new_out, l)
+        }),
+{
+    let r_line = records[k].line;
+    let r_count = records[k].count;
+    let prefix = records.take(k);
+    let prefix1 = records.take(k + 1);
+    let new_out = old_out.insert(pos, (r_line, r_count));
+
+    // r_line is genuinely new: no old entry holds it (position facts), so
+    // no record for it exists in the prefix (completeness, contrapositive)
+    // and its prefix sum is zero — record k alone contributes.
+    assert(!contains_line(old_out, r_line)) by {
+        if contains_line(old_out, r_line) {
+            let m = choose|m: int| 0 <= m < old_out.len() && old_out[m].0 == r_line;
+            assert(old_out[m].0 != r_line);
+        }
+    }
+    assert(!has_line(prefix, r_line));
+    lemma_sum_absent(prefix, r_line);
+    lemma_sum_take_step(records, k, r_line);
+    assert(sum_counts(prefix1, r_line) == r_count as nat);
+
+    // Index layout of the inserted sequence.
+    assert forall|j: int| 0 <= j < pos implies new_out[j] == old_out[j] by {}
+    assert(new_out[pos] == (r_line, r_count));
+    assert forall|j: int| pos < j < new_out.len() implies new_out[j] == old_out[j - 1] by {}
+
+    assert(lines_sorted(new_out)) by {
+        assert forall|i: int, j: int| 0 <= i < j < new_out.len() implies new_out[i].0
+            < new_out[j].0 by {
+            // Case split on which side of pos each index falls; same-side
+            // pairs follow from old sortedness through the index layout.
+            if i < pos && j == pos {
+                assert(new_out[i].0 == old_out[i].0 && old_out[i].0 < r_line);
+            } else if i == pos && j > pos {
+                assert(pos <= j - 1 < old_out.len());
+                assert(new_out[j].0 == old_out[j - 1].0 && old_out[j - 1].0 > r_line);
+            } else if i < pos && j > pos {
+                assert(new_out[i].0 == old_out[i].0 && old_out[i].0 < r_line);
+                assert(pos <= j - 1 < old_out.len());
+                assert(new_out[j].0 == old_out[j - 1].0 && old_out[j - 1].0 > r_line);
+            }
+        }
+    }
+
+    assert forall|i: int| 0 <= i < new_out.len() implies has_line(
+        prefix1,
+        (#[trigger] new_out[i]).0,
+    ) by {
+        lemma_has_line_take_step(records, k, new_out[i].0);
+    }
+
+    assert forall|i: int| 0 <= i < new_out.len() implies (#[trigger] new_out[i]).1
+        == saturate_u64(sum_counts(prefix1, new_out[i].0)) by {
+        if i == pos {
+            assert(new_out[i] == (r_line, r_count));
+            assert(r_count as nat <= u64::MAX);
+        } else {
+            let oi = if i < pos { i } else { i - 1 };
+            assert(new_out[i] == old_out[oi]);
+            // Every surviving entry has a different line (position facts),
+            // so record k leaves its sum unchanged.
+            assert(old_out[oi].0 != r_line);
+            lemma_sum_take_step(records, k, old_out[oi].0);
+        }
+    }
+
+    assert forall|l: u64| #[trigger] has_line(prefix1, l) implies contains_line(new_out, l) by {
+        lemma_has_line_take_step(records, k, l);
+        if l == r_line {
+            assert(new_out[pos].0 == l);
+        } else {
+            assert(has_line(prefix, l));
+            let m = choose|m: int| 0 <= m < old_out.len() && old_out[m].0 == l;
+            if m < pos {
+                assert(new_out[m].0 == l);
+            } else {
+                assert(new_out[m + 1].0 == l);
+            }
+        }
+    }
+}
+
 //= design/lcov-parser/spec.md#property-1-domain-exactness
 //= type=implication
 //# A line number appears in the aggregated output
@@ -358,112 +481,24 @@ pub fn aggregate_da_records(records: &[DaRecord]) -> (out: Vec<(u64, u64)>)
                 }
             }
         } else {
-            // No entry for r_line exists: `pos` is its sorted insertion point.
+            // No entry for r_line exists: `pos` is its sorted insertion
+            // point. Invariant maintenance is
+            // `lemma_insert_reestablishes_invariants`; here we only supply
+            // its strictness precondition (the search gives >= at and right
+            // of `pos`; equality at `pos` is excluded by this branch's
+            // test, and beyond `pos` by sortedness through `pos`).
             proof {
-                // r_line is not in `out`: everything left of pos is smaller,
-                // everything from pos on is larger.
-                assert(!contains_line(old_out, r_line)) by {
-                    if contains_line(old_out, r_line) {
-                        let m = choose|m: int| 0 <= m < old_out.len() && old_out[m].0 == r_line;
-                        if m < pos as int {
-                            assert(old_out[m].0 < r_line);
-                        } else {
-                            assert(pos < out.len());
-                            if m > pos as int {
-                                assert(old_out[pos as int].0 < old_out[m].0);
-                            }
-                        }
+                assert forall|i: int| pos as int <= i < old_out.len() implies (#[trigger] old_out[i]).0
+                    > r_line by {
+                    if i > pos as int {
+                        assert(old_out[pos as int].0 < old_out[i].0);
                     }
                 }
-                // Hence no record for r_line in the prefix (contrapositive of
-                // the completeness invariant), so its prefix sum is zero.
-                assert(!has_line(prefix, r_line));
-                lemma_sum_absent(prefix, r_line);
-                lemma_sum_take_step(records@, k as int, r_line);
-                assert(sum_counts(prefix1, r_line) == r_count as nat);
+                lemma_insert_reestablishes_invariants(records@, k as int, old_out, pos as int);
             }
             out.insert(pos, (r_line, r_count));
             proof {
                 assert(out@ =~= old_out.insert(pos as int, (r_line, r_count)));
-                assert forall|j: int| 0 <= j < pos as int implies out@[j] == old_out[j] by {}
-                assert(out@[pos as int] == (r_line, r_count));
-                assert forall|j: int| (pos as int) < j < out@.len() implies out@[j] == old_out[j - 1] by {}
-
-                assert(lines_sorted(out@)) by {
-                    assert forall|i: int, j: int| 0 <= i < j < out@.len() implies out@[i].0
-                        < out@[j].0 by {
-                        // Case split on which side of pos each index falls.
-                        if i < pos as int && j == pos as int {
-                            assert(out@[i].0 < r_line);
-                        } else if i == pos as int && j > pos as int {
-                            // old_out[j-1] is at or right of the old pos.
-                            assert((pos as int) <= j - 1 < old_out.len());
-                            if j - 1 == pos as int {
-                                assert(old_out[pos as int].0 > r_line);
-                            } else {
-                                assert(old_out[pos as int].0 < old_out[j - 1].0);
-                                assert(old_out[pos as int].0 > r_line);
-                            }
-                        } else if i < pos as int && j > pos as int {
-                            assert(out@[i].0 == old_out[i].0);
-                            assert(out@[j].0 == old_out[j - 1].0);
-                            if i == j - 1 {
-                                assert(old_out[i].0 < r_line);
-                                assert(old_out[pos as int].0 > r_line);
-                            }
-                        }
-                    }
-                }
-
-                assert forall|i: int| 0 <= i < out@.len() implies has_line(
-                    prefix1,
-                    (#[trigger] out@[i]).0,
-                ) by {
-                    lemma_has_line_take_step(records@, k as int, out@[i].0);
-                }
-
-                assert forall|i: int| 0 <= i < out@.len() implies (#[trigger] out@[i]).1
-                    == saturate_u64(sum_counts(prefix1, out@[i].0)) by {
-                    if i == pos as int {
-                        assert(out@[i] == (r_line, r_count));
-                        assert(r_count as nat <= u64::MAX);
-                    } else {
-                        let oi = if i < pos as int { i } else { i - 1 };
-                        assert(out@[i] == old_out[oi]);
-                        assert(old_out[oi].0 != r_line) by {
-                            if oi < pos as int {
-                                assert(old_out[oi].0 < r_line);
-                            } else {
-                                assert(pos < out.len() - 1 || pos < old_out.len());
-                                if oi == pos as int {
-                                    assert(old_out[pos as int].0 > r_line);
-                                } else {
-                                    assert(old_out[pos as int].0 < old_out[oi].0);
-                                    assert(old_out[pos as int].0 > r_line);
-                                }
-                            }
-                        }
-                        lemma_sum_take_step(records@, k as int, old_out[oi].0);
-                    }
-                }
-
-                assert forall|l: u64| #[trigger] has_line(prefix1, l) implies contains_line(
-                    out@,
-                    l,
-                ) by {
-                    lemma_has_line_take_step(records@, k as int, l);
-                    if l == r_line {
-                        assert(out@[pos as int].0 == l);
-                    } else {
-                        assert(has_line(prefix, l));
-                        let m = choose|m: int| 0 <= m < old_out.len() && old_out[m].0 == l;
-                        if m < pos as int {
-                            assert(out@[m].0 == l);
-                        } else {
-                            assert(out@[m + 1].0 == l);
-                        }
-                    }
-                }
             }
         }
 
