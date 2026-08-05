@@ -12,6 +12,9 @@ on:
 
 name: ci
 
+permissions:
+  contents: read
+
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
@@ -199,3 +202,45 @@ jobs:
         run: duvet --help
       - name: duvet report
         run: duvet report
+
+  dogfood: # duvet runs on itself: the branch-built duvet checks the repo's own
+    # requirement annotations against .duvet/config.toml. `report --ci`
+    # compares the freshly generated snapshot against the committed
+    # .duvet/snapshot.txt and fails on any drift; the annotation checks
+    # are judged by exit code alone — no output parsing, no thresholds,
+    # no expected-failure lists.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable
+          rustup override set stable
+
+      - uses: camshaft/rust-cache@v1
+
+      - name: Cache node_modules
+        uses: actions/cache@v6
+        continue-on-error: true
+        with:
+          path: duvet/www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
+
+      - name: Build duvet
+        run: |
+          cargo xtask build
+
+      - name: Run duvet on its own annotations
+        # Snapshot gate: any coverage regression — or an unintended new
+        # citation — drifts the generated snapshot from the committed one
+        # and fails this step; improving coverage requires regenerating
+        # and committing the snapshot.
+        run: ./target/debug/duvet report --ci
+
+      - name: Annotation checks
+        # Tree-wide invariant, plain customer invocation: every spec
+        # requirement carries an implementation annotation, every
+        # implementation annotation carries a test annotation, and no
+        # (type, quote) pair has more than one owner.
+        run: ./target/debug/duvet query -c implementation,test,duplicates
