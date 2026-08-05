@@ -336,3 +336,47 @@ rejections are normative in [spec.md §2](spec.md#record-consumption).
 Genuinely different keywords (`DX:`, `VER:`, `#comment` lines from
 geninfo's `--comment` flag, whitespace-indented records) remain ignored
 under Decision 4.
+
+## Decision 10: Aliased `SF:` spellings of one file are refused, not merged {#decision-10}
+
+**Context:** An `lcov -a` merge of tracefiles from heterogeneous producers
+can name the *same* source file under two `SF:` spellings — llvm-cov and
+cargo-llvm-cov emit absolute paths (`SF:/home/ci/pkg/src/lib.rs`), grcov
+configurations emit build-relative ones (`SF:src/lib.rs`). Per
+[Decision 6](#decision-6) the parser keeps both verbatim as distinct keys.
+Downstream, both keys suffix-match the same duvet source file
+(`coverage_path_matches`), and `build_execution_data` refuses with the
+"matches multiple report entries" ambiguity error. Until now that refusal
+was an *emergent* consequence of Decision 6 plus the suffix rule — nobody
+had decided it, so a change to the matching code could alter it silently.
+This entry makes it a decision.
+
+### Option A: Refuse as ambiguous
+
+- Pro: The paths alone do not prove the two spellings denote one file —
+  `src/lib.rs` relative to *what*? A monorepo can contain
+  `/home/ci/pkg/src/lib.rs` and `/home/ci/other/src/lib.rs`; a report
+  produced elsewhere can name a file that merely *looks* like a local one.
+  Refusing tells the user exactly what duvet cannot tell apart, consistent
+  with the multi-module mirror case (one entry claimed by two files), which
+  already refuses for the same reason.
+- Con: A genuinely-aliased merge (both spellings really are one file) makes
+  the user fix their report pipeline (e.g. `lcov -a` with `--substitute` to
+  canonicalize paths) instead of duvet absorbing it.
+
+### Option B: Merge entries that suffix-match each other
+
+- Pro: The heterogeneous-merge case "just works".
+- Con: Merging invents an equivalence the paths don't prove. A false merge
+  silently combines two different files' counts into one verdict — a
+  confidently wrong Executed/NotExecuted answer, strictly worse than an
+  error. It would also make the parser's output depend on inter-key
+  relationships, breaking Decision 6's verbatim-keys property.
+
+**Chosen: Option A.** Same principle as the multi-module refusal: when the
+information needed to disambiguate is not in the paths, refuse rather than
+guess. Pinned by
+`aliased_sf_spellings_for_same_file_are_refused_as_ambiguous`
+(`duvet/src/query/checks/coverage.rs`), which builds the two-spelling
+tracefile against the process's real absolute path and asserts the error's
+shape, so the behavior can no longer drift silently.

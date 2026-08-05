@@ -875,4 +875,90 @@ public class Two {
             "forward walk lands on line 3 (Miss)"
         );
     }
+
+    // --- aliased SF spellings (decisions.md Decision 10) ---
+
+    /// Pins the refusal for aliased `SF:` spellings of the same file
+    /// (decisions.md Decision 10).
+    ///
+    /// An `lcov -a` merge of tracefiles from heterogeneous producers can name
+    /// the SAME source file under two spellings: llvm-cov emits absolute paths
+    /// (`SF:/home/ci/pkg/src/lib.rs`) while grcov configurations emit
+    /// build-relative ones (`SF:src/lib.rs`). Per Decision 6 the parser keeps
+    /// both verbatim as distinct keys; both keys then suffix-match the same
+    /// duvet source file, and `build_execution_data` must refuse with the
+    /// "matches multiple report entries" ambiguity error — merging (or silently
+    /// picking one) would invent an equivalence the paths don't prove.
+    ///
+    /// The tracefile is generated with this process's real absolute path for
+    /// the file, reproducing the CI-host scenario where the absolute spelling
+    /// genuinely refers to the checkout duvet is run from. Without that, the
+    /// absolute entry would simply not match and no ambiguity would arise.
+    #[tokio::test]
+    async fn aliased_sf_spellings_for_same_file_are_refused_as_ambiguous() {
+        use crate::query::parsers::lcov::parse_lcov_report;
+
+        let relative = "src/lib.rs";
+        // `std::path::absolute` is lexical (resolves against cwd, no
+        // filesystem access) — exactly what `build_execution_data` itself
+        // does to the duvet source, so the two spellings are guaranteed to
+        // collide the way they do on the producing host.
+        let absolute = std::path::absolute(relative)
+            .expect("cwd is valid")
+            .to_string_lossy()
+            .into_owned();
+
+        // One tracefile, two SF blocks for the same file — the shape
+        // `lcov -a` produces when merging an absolute-path tracefile with a
+        // relative-path one.
+        let tracefile = format!(
+            "SF:{absolute}\nDA:4,1\nend_of_record\nSF:{relative}\nDA:4,0\nend_of_record\n"
+        );
+
+        // Decision 6 precondition: both spellings survive parsing as distinct
+        // keys. If a future change made the parser normalize them together,
+        // this test's subject would vanish — fail loudly instead.
+        let generic = parse_lcov_report(std::io::Cursor::new(tracefile))
+            .expect("tracefile is well-formed");
+        assert_eq!(
+            generic.files.len(),
+            2,
+            "Decision 6: aliased spellings must remain distinct keys"
+        );
+
+        let coverage_data = CoverageData::Generic(generic);
+        // Annotations are irrelevant: the refusal fires during path matching,
+        // before any annotation is consulted.
+        let annotations: AnnotationSet = Arc::new(std::collections::BTreeSet::new());
+
+        let mut project_sources = HashSet::new();
+        project_sources.insert(SourceFile::Text {
+            pattern: Default::default(),
+            default_type: AnnotationType::Citation,
+            path: relative.to_string().into(),
+            blob_link: None,
+        });
+
+        let err = build_execution_data(&annotations, &coverage_data, &project_sources)
+            .await
+            .expect_err("aliased spellings must be refused, not silently merged or picked");
+
+        // Pin the message shape: it names the source file and BOTH aliased
+        // report entries, so the user learns exactly what duvet cannot tell
+        // apart. A drift to silent-pick or merge changes the Result variant;
+        // a drift in the diagnostic changes these substrings.
+        let message = err.to_string();
+        assert!(
+            message.contains("coverage is ambiguous for src/lib.rs"),
+            "refusal must name the source file; got: {message}"
+        );
+        assert!(
+            message.contains("matches multiple report entries"),
+            "refusal must state the multi-entry ambiguity; got: {message}"
+        );
+        assert!(
+            message.contains(&absolute),
+            "refusal must name the absolute spelling; got: {message}"
+        );
+    }
 }
