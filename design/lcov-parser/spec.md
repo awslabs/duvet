@@ -133,6 +133,14 @@ The parser MUST ignore blank lines.
 
 The parser MUST accept both LF and CRLF line endings.
 
+The parser MUST reject input that is not valid UTF-8.
+
+Rationale for the encoding rule: every known producer emits ASCII record
+keywords and UTF-8 (in practice, almost always ASCII) paths. The parser
+reads the tracefile as UTF-8 text, so non-UTF-8 input surfaces as an I/O
+error at the offending line rather than being lossily decoded into a key
+that can never match a source file.
+
 ## 5. Path Handling {#path-handling}
 
 The `SF:` payload names the source file. Producers differ: raw
@@ -230,9 +238,10 @@ each named here with its mitigation:
 - **Line lexer** (`duvet/src/query/parsers/lcov.rs`): text → record
   sequence per file (Sections 2–5). Not verified — Verus string support is
   too thin to earn its keep today. Mitigated by exhaustive unit tests, a
-  property-based render/lex round-trip test, and three pinned real-producer
-  corpora. A byte-level verified lexer is a named follow-up
-  ([decisions.md, Decision 5](decisions.md#decision-5)).
+  property-based render/lex round-trip test, a raw-byte totality fuzz test
+  (arbitrary input must return `Ok` or `Err`, never panic), and three
+  pinned real-producer corpora. A byte-level verified lexer is a named
+  follow-up ([decisions.md, Decision 5](decisions.md#decision-5)).
 - **Per-file grouping**: routing lexed records to their `SF:` file key.
   Exercised by the same tests.
 - **Ordered-map conversion**: verified-core output → `BTreeMap`. Trivial by

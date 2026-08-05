@@ -66,6 +66,11 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
     // `\r\n` as terminators and strips them from the yielded lines.
     for (idx, line) in reader.lines().enumerate() {
         let line_no = idx + 1;
+        //= design/lcov-parser/spec.md#report-structure
+        //= type=implementation
+        //# The parser MUST reject input that is not valid UTF-8.
+        // `BufRead::lines` decodes each line as UTF-8 and yields an
+        // `InvalidData` io error for non-UTF-8 bytes; `?` propagates it.
         let line = line?;
 
         //= design/lcov-parser/spec.md#report-structure
@@ -596,6 +601,35 @@ mod tests {
     fn empty_input_is_empty_report() {
         let data = parse("");
         assert!(data.files.is_empty());
+    }
+
+    /// Input that is not valid UTF-8 is rejected with the io error from
+    /// `BufRead::lines` — not lossily decoded, not a panic.
+    #[test]
+    //= design/lcov-parser/spec.md#report-structure
+    //= type=test
+    //# The parser MUST reject input that is not valid UTF-8.
+    fn invalid_utf8_is_io_error() {
+        let bytes: &[u8] = b"SF:a.rs\nDA:1,1\xFF\nend_of_record\n";
+        let err = parse_lcov_report(Cursor::new(bytes)).unwrap_err();
+        assert!(
+            matches!(&err, CoverageError::Io(e) if e.kind() == std::io::ErrorKind::InvalidData),
+            "{err:?}"
+        );
+    }
+
+    /// Totality of the lexer on raw bytes (spec §8): for ALL inputs — not
+    /// just the well-formed renders `prop_render_parse_round_trip` feeds —
+    /// parsing returns `Ok` or `Err` and never panics. bolero fails the
+    /// target on panic; arbitrary bytes have no reference model, so "did not
+    /// panic" is the whole property.
+    #[test]
+    fn prop_raw_bytes_never_panic() {
+        use bolero::check;
+
+        check!().with_type::<Vec<u8>>().for_each(|bytes| {
+            let _ = parse_lcov_report(Cursor::new(bytes.as_slice()));
+        });
     }
 
     // -------------------------------------------------------------------------
