@@ -601,7 +601,15 @@ mod tests {
         assert!(parse_err("SF:a.rs\nDA:-1,1\n").contains("invalid line number"));
         // Line 0 is producer error (LCOV is 1-based).
         assert!(parse_err("SF:a.rs\nDA:0,1\n").contains(">= 1"));
-        // Line numbers must fit in u64 (duvet's line key width); 2^64 does not.
+        // Line numbers must be representable in u64 (duvet's line key
+        // width). The boundary, pinned from both sides: 2^64 - 1 (u64::MAX,
+        // the largest representable value) is accepted; 2^64 — the smallest
+        // value "above 2^64 - 1" in the words of spec §3 — is rejected.
+        let data = parse(&format!("SF:a.rs\nDA:{},1\nend_of_record\n", u64::MAX));
+        assert_eq!(
+            data.files.get("a.rs").unwrap().lines.get(&u64::MAX),
+            Some(&1)
+        );
         assert!(parse_err("SF:a.rs\nDA:18446744073709551616,1\n").contains("invalid line number"));
         // A line number at the u32 boundary is representable now that the
         // whole pipeline keys lines as u64.

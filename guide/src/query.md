@@ -50,6 +50,8 @@ Both flags are required for coverage checks. `--coverage-report` (short: `-r`) a
 
 The `lcov` format reads LCOV tracefiles (`.info`), as produced by `llvm-cov export --format=lcov` (and its wrappers `cargo-llvm-cov` and `grcov`) for Rust/C/C++, `coverage.py` + `lcov` toolchains for Python, and `geninfo` generally. Only `DA` (per-line execution count) records are consumed; function and branch records are ignored, and a line absent from the tracefile is treated as "no opinion" rather than a miss. The full behavior is specified in [`design/lcov-parser/spec.md`](https://github.com/awslabs/duvet/blob/main/design/lcov-parser/spec.md), and the aggregation semantics are machine-checked with Verus.
 
+Report paths (`SF:` payloads) are matched against your source files by path suffix at `/` boundaries: an absolute report path like `/build/pkg/src/lib.rs` matches the source file `src/lib.rs` and vice versa, as long as the components agree. The one normalization applied is stripping a leading `./` from the report path; anything else — embedded `./` segments, `..`, stray whitespace — is kept verbatim and will prevent a match, so if a report unexpectedly shows no coverage for a file, compare the `SF:` line against the source path component by component.
+
 For each test annotation in scope, duvet determines which lines were executed during the run, finds the implementation annotations that cover those lines, and reports whether the test's claimed implementations were actually exercised.
 
 ### Two-phase coverage model
