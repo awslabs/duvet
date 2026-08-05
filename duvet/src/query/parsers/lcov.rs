@@ -42,6 +42,17 @@ use duvet_coverage::lcov::{aggregate_da_records, DaRecord};
 /// LCOV tracefile coverage parser.
 pub struct LcovParser;
 
+/// Flush a closed source-file block's records into the per-file map.
+/// The entry already exists whenever the block was opened (`SF:` handling
+/// registers it), but `entry().or_default()` keeps this structurally total.
+fn flush_block(
+    records_by_file: &mut FxHashMap<String, Vec<DaRecord>>,
+    file: String,
+    records: Vec<DaRecord>,
+) {
+    records_by_file.entry(file).or_default().extend(records);
+}
+
 impl CoverageParser for LcovParser {
     async fn parse(&self, file_path: &Path) -> Result<CoverageData> {
         parse_report_blocking(file_path, parse_lcov_report).await
@@ -144,9 +155,8 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
                     "line {line_no}: end_of_record outside a source-file block"
                 )));
             };
-            // Flush the block: the entry exists since SF handling registered
-            // it, but `entry().or_default()` keeps this structurally total.
-            records_by_file.entry(file).or_default().extend(records);
+            // Flush the block: explicit close.
+            flush_block(&mut records_by_file, file, records);
         } else if line.starts_with("DA") {
             //= design/lcov-parser/spec.md#record-consumption
             //= type=implementation
@@ -189,8 +199,11 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
     //= type=implementation
     //# The parser MUST accept end-of-input while a source-file
     //# block is open, treating it as an implicit `end_of_record`.
+    // A real code path, not a fallthrough: the implicit close at EOF is the
+    // same flush as an explicit `end_of_record`, and this annotation lives
+    // here so the requirement traces to the EOF path specifically.
     if let Some((file, records)) = open_block.take() {
-        records_by_file.entry(file).or_default().extend(records);
+        flush_block(&mut records_by_file, file, records);
     }
 
     let mut coverage_data = GenericCoverageData::new();
