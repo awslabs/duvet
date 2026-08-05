@@ -5,7 +5,7 @@
 //!
 //! Maps tree-sitter CST node types to `LineProperty` sets per the plan's mapping table.
 //! Returns `None` for lines the tree-sitter walk does not visit and that are not
-//! blank or annotations (Decision 9).
+//! blank or annotations (coverage-model-spec §1.3: `None` means the classifier could not determine the line).
 
 use crate::query::classify::{Classification, ClassifierFailure, LineClassifier};
 use duvet_coverage::types::{LineProperty, ScopeEvent};

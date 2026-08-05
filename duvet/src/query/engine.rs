@@ -64,7 +64,7 @@ pub async fn execute_checks(
                 results.push(result);
             }
             CheckType::Coverage | CheckType::ExecutedCoverage => {
-                // Assemble the declared coverage sources (Decision 10: each
+                // Assemble the declared coverage sources (each
                 // source pairs a producer with its artifacts, declared
                 // repeatably). The legacy flags are the one-source
                 // degenerate case and combine with --coverage-source.
@@ -372,7 +372,7 @@ async fn execute_test_check(
 struct WitnessLoad {
     witnesses: Vec<Witness>,
     /// Positions a prover producer elaborated but which root no
-    /// obligation (spec §5.2, Decision 13): delivered as a fact by
+    /// obligation (spec §5.2): delivered as a fact by
     /// `produce`, consumed here only to refine the *report* for
     /// unwitnessed annotations — never the verdict.
     not_proof_testable: Vec<RequestedPosition>,
@@ -721,8 +721,8 @@ async fn execute_coverage_check(
         if !test_is_unwitnessed {
             // The test is witnessed:
             // Evaluate each covering implementation against EVERY bound
-            // witness — bound witnesses are never outvoted (decisions.md,
-            // Decision 14). Spec §1.6 discharge; the citation lives on the
+            // witness — bound witnesses are never outvoted
+            // (spec §1.6 discharge); the citation lives on the
             // verified `discharged` spec fn in `duvet-coverage`:
             let mut executed_implementations = Vec::new();
             let mut not_executed_implementations = Vec::new();

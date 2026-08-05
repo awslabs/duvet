@@ -20,7 +20,7 @@
 //! closure ceiling).
 //!
 //! A prover producer only ever delivers strength `Consulted`
-//! (Decision 7: consulted semantics, execution parity, no
+//! (spec §1.3: consulted semantics, execution parity, no
 //! stronger); the runtime rung (`Executed`) is never constructed
 //! here.
 
@@ -42,12 +42,12 @@ pub const NOT_PROOF_TESTABLE: &str = "this position carries no dischargeable obl
      it can only be witnessed by an execution-style producer";
 
 /// What a source position is, to the discharge-unit map
-/// (spec §5.2/§5.3, Decision 13).
+/// (spec §5.2/§5.3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PositionKind<'g> {
     /// In `dom(du)`: at least one discharge unit is rooted here.
     /// Several when byte-identical spans tie at one specificity
-    /// level (Decision 12); under Decision 14 the annotation is
+    /// level (spec §5.3); under W1 the annotation is
     /// held to ALL of them.
     ///
     //= design/witness/spec.md#discharge-unit
@@ -115,7 +115,7 @@ impl<'g> DischargeUnit<'g> {
     }
 }
 
-/// Classify a position against the artifact (Decision 13).
+/// Classify a position against the artifact (spec §5.2).
 ///
 /// The domain check is exact — it is the soundness boundary: a
 /// position is in `dom(du)` iff a discharge unit is *rooted* there.
@@ -350,12 +350,12 @@ pub fn witness_for_unit(
 /// (spec §5.2 pass 2, §5.5): one witness per rooted discharge unit.
 ///
 /// Usually a singleton. Byte-identical span ties at one specificity
-/// level (Decision 12) yield one witness per rooting unit, each
+/// level (spec §5.3) yield one witness per rooting unit, each
 /// individually A2-sound (one unit, its function's closure, its own
-/// root span); under Decision 14 discharge holds the annotation to
+/// root span); under W1 discharge holds the annotation to
 /// all of them. Empty when the position is outside `dom(du)` — use
 /// [`classify_position`] to distinguish not-proof-testable
-/// (Decision 13 report) from unelaborated (Property W6).
+/// (spec §5.2 report) from unelaborated (Property W6).
 // Golden-test reference surface (spec §5.2 pass-2 entry point; the
 // engine path consumes the Rooted payload and calls
 // `witness_for_unit` directly): no engine-path consumer.
@@ -377,7 +377,7 @@ pub fn construct_witnesses(
 /// Every discharge unit the artifact records, in ascending
 /// (obligation name, unit kind, clause index) order: obligation
 /// extents plus all clause-kind units of every node (spec §5.3,
-/// Decision 18).
+/// spec §5.5).
 // Golden-test reference surface (full-universe entry point): no
 // engine-path consumer.
 #[allow(dead_code)]
@@ -463,7 +463,7 @@ mod tests {
     #[test]
     fn body_lines_are_not_proof_testable() {
         // Exec-mode shape: declaration-only extent (line 10), body
-        // recorded as inner spans (11..=14). Under Decision 13 the
+        // recorded as inner spans (11..=14). Under spec §5.3 the
         // body lines root nothing — they are proof ingredients, not
         // claims — so du refuses them and classification names the
         // distinct not-proof-testable outcome, NOT W6.
@@ -498,7 +498,7 @@ mod tests {
     #[test]
     fn shared_consulted_line_roots_nothing() {
         // Two same-file obligations both *consult* line 30 but
-        // neither's extent contains it: under Decision 13 there is
+        // neither's extent contains it: under spec §5.3 there is
         // no ownership fallback — the line roots nothing and is
         // not proof-testable, regardless of merge order.
         let f_first = r#"
@@ -546,7 +546,7 @@ mod tests {
     fn containment_short_circuits_ownership() {
         // Line 10 is inside c::inner's extent AND merely consulted
         // by c::outer: containment roots it in c::inner alone —
-        // consulted spans never confer rooting (Decision 13).
+        // consulted spans never confer rooting (spec §5.3).
         let src = r#"
 (@ "src/a.rs:10:1: 12:2 (#0)"
  (FunctionSst :name (Fun :path c::inner) :body ()))
@@ -579,7 +579,7 @@ mod tests {
         let g = ObligationGraph::merge([parse_module(src).unwrap()]).unwrap();
         // Strict nesting: only the minimal-extent nodes, not wide.
         // Equal minimal extents: ALL of them — selecting one would
-        // be arbitrary (Decision 12).
+        // be arbitrary (spec §5.3).
         assert_eq!(
             unit_names(&find_discharge_units(&g, "src/a.rs", 6)),
             ["c::narrow", "c::twin_a", "c::twin_b"]

@@ -109,7 +109,7 @@ pub enum ClaimRule {
 /// `CoverageReport` type; the multi-file map lives INSIDE the verified
 /// witness so that W1's same-witness conjunction is over one object —
 /// projecting per-file in glue would reintroduce the correlation bug's
-/// shape (decisions.md, Relationship section).
+/// shape (spec §6, Relationship).
 ///
 /// The maps are `Arc`-shared so the glue can hand the SAME report to the
 /// engine's diagnostic cells and the verified witness without doubling
@@ -267,7 +267,7 @@ pub open spec fn binds(
     }
 }
 
-/// Spec §1.6 (Decision 14 form).
+/// Spec §1.6.
 //= design/witness/spec.md#discharge
 //# ```
 //# witnesses_for(T)  =  { w ∈ delivered : binds(T, w) }
@@ -555,7 +555,7 @@ pub fn is_bound_by(
 // The report functions (engine-callable verdicts; design/witness/spec.md#engine-properties)
 // ---------------------------------------------------------------------------
 
-/// Property W1: Universal Same-Witness Discharge (Decision 14 form).
+/// Property W1: Universal Same-Witness Discharge.
 ///
 /// `binds(T, w)` and `executed(I, w)` are evaluated against the SAME loop
 /// element `w`, so the per-witness correlation holds by construction, and
@@ -1003,7 +1003,7 @@ pub fn is_unwitnessed(
 
 /// Spec: every witness of `ws` occurs (as an equal value) in `ws2`.
 /// Witness sets are `Seq`-valued with no uniqueness assumption
-/// (decisions.md, Decision 12): duplicates and multiple witnesses per
+/// (spec §5.3 ties): duplicates and multiple witnesses per
 /// annotation are allowed, and membership is all the ∃-quantified
 /// properties ever inspect.
 pub open spec fn witness_subset(ws: Seq<Witness>, ws2: Seq<Witness>) -> bool {
@@ -1011,8 +1011,8 @@ pub open spec fn witness_subset(ws: Seq<Witness>, ws2: Seq<Witness>) -> bool {
         ==> exists|j: int| 0 <= j < ws2.len() && ws2[j] == #[trigger] ws[k]
 }
 
-/// Property W4: Failure Monotonicity (the Decision 14 direction —
-/// decisions.md#decision-14). The form proved here is the equivalent
+/// Property W4: Failure Monotonicity (the deliberate inversion —
+/// spec W4). The form proved here is the equivalent
 /// case split on whether T is witnessed in `ws`.
 ///
 /// Proof shape (falls out of the ∀, as the design analysis predicted): if T
@@ -1273,7 +1273,7 @@ mod tests {
         )
     }
 
-    /// W1 (universal form, Decision 14): one bound witness that executes I
+    /// W1 (universal form): one bound witness that executes I
     /// discharges; evidence split across two witnesses does NOT; and a
     /// bound witness that misses I fails the pair even when another bound
     /// witness covers it — no outvoting.
@@ -1442,7 +1442,7 @@ mod tests {
     ///   enter the pair's ∀-set. T stays unwitnessed; the pair is neither
     ///   passed nor failed by it.
     /// - `ByExecution`: the same map DOES bind T (evidence rule) — the
-    ///   trench coat — and under Decision 14 the bound witness that never
+    ///   trench coat — and under W1 the bound witness that never
     ///   reaches I fails the pair.
     ///
     /// The difference between the fat proof witness and the trench coat is
@@ -1496,7 +1496,7 @@ mod tests {
             &by_root_elsewhere
         )));
         // The SAME map under ByExecution is the trench coat: it binds T by
-        // evidence, and having never reached I, fails the pair (Decision 14).
+        // evidence, and having never reached I, fails the pair (W1).
         let trench_coat = Witness {
             claim: ClaimRule::ByExecution,
             files: fat_map,
@@ -1551,7 +1551,7 @@ mod tests {
         ));
     }
 
-    /// W4 (Failure Monotonicity, Decision 14): adding a witness that does
+    /// W4 (Failure Monotonicity): adding a witness that does
     /// NOT bind T preserves discharge; adding one that binds T and misses I
     /// deliberately fails the pair (the inversion of the old property); and
     /// the only pass-creating addition is witnessing a previously
@@ -1572,7 +1572,7 @@ mod tests {
         assert!(discharged_verdict(&[w_i_only(), w_both()]));
     }
 
-    /// Decision 14 ambiguity ruling: at a position rooting N obligations
+    /// The ambiguity ruling (spec §5.3): at a position rooting N obligations
     /// (N ByRootSpan witnesses binding the same T), ALL N must execute I —
     /// no best-of-N.
     ///

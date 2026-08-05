@@ -147,7 +147,7 @@ pub struct CoveredTestAnnotation {
     pub test: Arc<Annotation>,
     pub test_execution_status: ExecutionStatus,
     /// The witnesses bound to this test. The verdict for each covering
-    /// implementation is universal over this set (Decision 14).
+    /// implementation is universal over this set (spec §1.6).
     pub bound_witnesses: Vec<WitnessRef>,
     /// Implementations every bound witness executed (discharged).
     pub executed_implementations: Vec<Arc<Annotation>>,
@@ -185,7 +185,7 @@ pub struct UnwitnessedTestAnnotation {
     /// witnesses — diagnostic detail only (Unknown carries a line).
     pub diagnostic_status: ExecutionStatus,
     /// A prover producer elaborated this test's resolved target but no
-    /// obligation is rooted there (spec §5.2, Decision 13): no proof
+    /// obligation is rooted there (spec §5.2): no proof
     /// witness can exist for it by definition. Refines the report —
     /// distinct from W6's "no configured producer yielded a witness" —
     /// never the verdict.
@@ -465,7 +465,7 @@ impl fmt::Display for CoverageResult {
         // Test annotations no configured coverage source yielded a witness
         // for (spec W6): reported distinctly from bound-but-not-discharged,
         // never silently. With multiple producers configured, "unwitnessed"
-        // means unwitnessed by ALL of them (Decision 8).
+        // means unwitnessed by ALL of them (spec W6).
         if unwitnessed > 0 {
             for entry in &self.unwitnessed {
                 let detail = if entry.not_proof_testable {
@@ -612,7 +612,7 @@ impl fmt::Display for CoverageResult {
                         "Every witness bound to this test, with its \
                          per-witness result (a pair is discharged only when \
                          ALL bound witnesses executed the implementation — \
-                         design/witness/decisions.md, Decision 14):\n{}",
+                         design/witness/spec.md §1.6):\n{}",
                         help_lines.join("\n")
                     ));
                 }
@@ -637,7 +637,7 @@ impl fmt::Display for CoverageResult {
                     "Executed implementation",
                 );
 
-                // Spec §3 (Decision 14): for every discharged pair, name
+                // Spec §3: for every discharged pair, name
                 // EVERY bound witness (label + strength) — the discharge
                 // claim is that all of them executed the implementation.
                 // Scoped to verbose output by §3:

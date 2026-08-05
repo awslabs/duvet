@@ -399,14 +399,14 @@ fn no_discharge_unit_no_witness() {
 fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
     // The generated arrow-accessor pair on `types::ExecutionStatus`
     // shares the extent types.rs 154..=166 EXACTLY, so any line in
-    // it roots both obligations. Per Decision 12 the producer
+    // it roots both obligations. Per spec §5.3 the producer
     // delivers BOTH witnesses — each with its own closure and
-    // provenance, never selecting — and per Decision 14 an
+    // provenance, never selecting — and per W1 an
     // annotation there is held to both.
     //
     // Line 167 (the enum's closing region, formerly attributed via
     // the deleted own-span fallback) is consulted-but-unrooted:
-    // not proof-testable under Decision 13.
+    // not proof-testable under spec §5.3.
     let graph = corpus();
     let file = "duvet-coverage/src/types.rs";
     let ws = construct_witnesses(graph, file, 160, "sst-poc", is_project);
@@ -455,7 +455,7 @@ fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
 
 #[test]
 fn body_line_is_not_proof_testable() {
-    // Decision 13 golden (the redirect's named case): a test
+    // Not-proof-testable golden (spec §5.2, the redirect's named case): a test
     // annotation targeting `execution_set`'s BODY. Its extent —
     // the declaration, lines 62..=66 — roots the obligation; body
     // line 90 (`let directly_executed = ...`) is elaborated (it
@@ -516,7 +516,7 @@ fn du_map_domain_split_over_the_aggregate() {
     // Multi-rooted positions: exactly the 13 lines of the
     // arrow-accessor pair's shared extent (types.rs 154..=166),
     // two extent units each — most-specific-wins does not disturb
-    // Decision 12's tie handling.
+    // the tie handling (spec §5.3).
     let graph = corpus();
     let agg = aggregate_map(graph, is_project);
     let (mut rooted, mut npt) = (0usize, 0usize);
@@ -631,7 +631,7 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
     // Spec §1.7: the witness universe is defined by the artifact
     // alone; the annotations input only selects which members get
     // materialized. The universe has one witness per discharge
-    // unit (spec §5.3, Decision 18): 330 obligation extents plus
+    // unit (spec §5.3): 330 obligation extents plus
     // 445 clause-kind units (182 ensures clauses, 98 loop
     // invariants, 165 user proof asserts) = 775.
     //
@@ -649,7 +649,7 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
     //      most-specific-wins, spec §5.3 — a bound
     //      coarser witness is deliberately NOT materialized:
     //      hoisting to the enclosing function is refused, and ties
-    //      at the chosen level all materialize, Decision 12).
+    //      at the chosen level all materialize, spec §5.3).
     let graph = corpus();
     let universe = materialize_all(graph, "sst-poc", is_project);
     let units = all_units(graph);
@@ -732,7 +732,7 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
 
 // ---------------------------------------------------------------
 // Vacuity fixture: the honest boundary of consulted semantics
-// (spec §5.4, Decision 7; testdata/vacuity/README.md)
+// (spec §5.4; testdata/vacuity/README.md)
 // ---------------------------------------------------------------
 
 fn vacuity() -> &'static ObligationGraph {
@@ -801,7 +801,7 @@ fn scenario_2_mention_without_need_is_credited() {
     // `requires x != x` but the ensures textually mentions
     // `spec_add_one`: elaboration recorded the mention even though
     // the solver proved from false. Under consulted semantics
-    // (Decision 7, deliberately) this closure includes the spec fn,
+    // (spec §5.4, deliberately) this closure includes the spec fn,
     // so the pair IS credited. Pinned as the honest boundary: this
     // is the flagship case for needed-semantics strengthening, and
     // if that ever lands, this test is the one to flip.
@@ -822,14 +822,14 @@ fn scenario_3_self_inclusion_is_credited() {
     // Vacuous ensures, impl annotation inside the same fn's body
     // (line 57): discharge units carry their function's closure,
     // which self-includes the body, so the pair IS credited.
-    // Catching this now requires needed semantics (Decision 7 —
+    // Catching this now requires needed semantics (spec §5.4 —
     // clause-level units alone do not shrink the closure; spec
     // §5.4's closure-ceiling statement).
     //
     // `self_contained`'s extent is the declaration line alone
     // (54:1..54:41); the ensures clause (line 55) is its own
     // discharge unit now that :enss rooting has landed
-    // (spec §5.3, Decision 18 — this is the test that flipped, as
+    // (spec §5.3 — this is the test that flipped, as
     // its pre-flip text anticipated). The clause-rooted witness
     // carries the same function-level closure and still
     // self-includes body line 57.

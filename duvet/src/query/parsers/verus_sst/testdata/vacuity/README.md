@@ -3,7 +3,7 @@
 `vacuity-sst.vir` is the Verus SST elaboration record of `vacuity.rs`,
 used by the `verus_sst` producer's golden tests to pin the honest
 boundary of consulted-closure semantics (design/witness/spec.md §5.4,
-design/witness/decisions.md Decision 7; empirical background in the
+empirical background in the
 SST POC findings, 2026-07-26).
 
 Three scenarios:
@@ -17,7 +17,7 @@ Three scenarios:
    the mention, so the closure includes `spec_add_one` and the pair
    IS credited. Deliberate: consulted semantics cannot catch
    mention-without-need; this is the flagship case for the
-   needed-semantics strengthening that Decision 7 reserves room for.
+   needed-semantics strengthening the spec reserves room for (§1.3 strength rungs).
 3. `self_contained` (line 54) — vacuous `ensures`, impl annotation
    inside the same fn's body (line 57). Discharge units carry their
    function's closure (design/witness/spec.md §5.4), which

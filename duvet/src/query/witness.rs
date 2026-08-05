@@ -134,7 +134,7 @@ pub struct Provenance {
 }
 
 /// The (label, strength) pair of one bound witness in verdict output
-/// (decisions.md, Decision 7).
+/// (spec §3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 //= design/witness/spec.md#verdict-output
 //# For every discharged pair, the output MUST name, in verbose
@@ -467,7 +467,7 @@ impl<'a> VerifiedVerdicts<'a> {
     /// list and the same `ctx_of(t)` context — establishing the sound-
     /// and-complete-by-index precondition of the verified entry point,
     /// whose `ensures` then equals `report_discharged`'s verbatim
-    /// (Decision 14's universal form: one bound witness that never
+    /// (W1's universal form: one bound witness that never
     /// reaches I fails the pair — bound witnesses are never outvoted).
     ///
     /// The per-witness results (spec §3: every bound witness, in bound
@@ -546,7 +546,7 @@ impl<'a> VerifiedVerdicts<'a> {
         )
     }
 
-    /// Decision 12's diagnostic shape: when a pair fails
+    /// The failure diagnostic shape (spec §3): when a pair fails
     /// bound-but-not-discharged, the report lists the bound witnesses by
     /// name (label + strength) so the reader can see which acts of
     /// checking claimed the test without reaching the implementation.
@@ -1140,7 +1140,7 @@ mod tests {
     /// W2/W6 boundness, the W1 pair verdict over a cell-assembled bound
     /// set, W3 ever-executed, and the per-witness failure diagnostics —
     /// comes out of one adapter whose entry points call the verified
-    /// layer's functions. The Decision 14 shape is asserted through that
+    /// layer's functions. The W1 shape is asserted through that
     /// path: a witness carrying both files discharges the pair; split
     /// evidence binds the test but fails the pair (and W3 still reports
     /// the implementation ever-executed, deliberately weaker).
@@ -1221,7 +1221,7 @@ mod tests {
         assert_eq!(verdict.per_witness[0].witness.label, "run-both");
 
         // Split evidence: the test is witnessed, but its bound witness never
-        // reached the implementation — the pair fails (Decision 14), and the
+        // reached the implementation — the pair fails (W1), and the
         // per-witness diagnostic names the failing claim. W3 stays true.
         let witnesses = [
             exec_witness("run-t-only", Strength::Executed),

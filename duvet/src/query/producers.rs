@@ -29,7 +29,7 @@ use duvet_core::diagnostic::IntoDiagnostic;
 use glob::glob;
 use std::collections::BTreeMap;
 
-/// Which producer interprets a source's artifacts (Decision 10:
+/// Which producer interprets a source's artifacts (spec:
 /// a coverage source is a (producer, artifacts) pair, declared
 /// repeatably; N producers is N declarations).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,7 +42,7 @@ pub enum CoverageProducer {
     VerusSst,
 }
 
-/// The legacy `-f`/`--coverage-format` vocabulary (Decision 10: the
+/// The legacy `-f`/`--coverage-format` vocabulary (the
 /// `-r`/`-f` pair is the one-source degenerate shorthand for
 /// `--coverage-source`). Report formats only — prover producers take
 /// log directories, not report files, so they are deliberately not
@@ -125,7 +125,7 @@ pub struct Produced {
     //# producer; the engine consumes only `Vec<Witness>`.
     pub witnesses: Vec<Witness>,
     /// Requested positions a prover artifact elaborated but which
-    /// root no obligation (Decision 13): proof ingredients, not
+    /// root no obligation (spec §5.2): proof ingredients, not
     /// claims. No witness exists for them by definition; the report
     /// identifies them distinctly from Property W6's "no witness
     /// from any configured producer."
@@ -215,7 +215,7 @@ pub async fn produce(
 
 /// Wrap one JaCoCo report file as one witness: claim `ByExecution`,
 /// strength `Executed`, per-file maps exactly as the report states
-/// them (Decision 2: JaCoCo/LCOV is one file → one witness).
+/// them (one report file → one witness).
 /// Named axiom:
 //= design/witness/spec.md#obligation-individuation
 //# Runtime producers: individuation is the operator's
@@ -253,7 +253,7 @@ async fn jacoco_witness(artifact: &str) -> Result<Witness> {
 /// position: `Rooted` positions get witnesses (pass 2),
 /// `NotProofTestable` positions are reported as such — elaborated
 /// but rooting nothing dischargeable, so no witness exists for them
-/// by definition (Decision 13) — and `Unelaborated` positions get
+/// by definition (spec §5.2) — and `Unelaborated` positions get
 /// nothing (they surface through Property W6 if no other producer
 /// witnesses them). The aggregate-map liveness screen as a
 /// *pre-filter* is deliberately skipped: verdicts are identical
@@ -359,7 +359,7 @@ fn verus_witnesses_from_graph(
                 ));
             }
         };
-        // Pass 1 (spec §5.2, Decision 13): what is this position to
+        // Pass 1 (spec §5.2): what is this position to
         // the discharge-unit map? `Rooted` carries the rooting units
         // straight into witness construction (pass 2) — the payload
         // IS `find_discharge_units(file, line)`, so no re-derivation;
@@ -580,7 +580,7 @@ mod tests {
     fn elaborated_unrooted_position_is_reported_not_proof_testable() {
         // Line 25 is elaborated (a `@@` sub-span of c::caller's body)
         // but outside every obligation extent: a proof ingredient, not
-        // a claim (spec §5.2 pass 1, Decision 13). The producer
+        // a claim (spec §5.2 pass 1). The producer
         // delivers no witness for it and reports the position as not
         // proof-testable — a fact, never a verdict (spec §4).
         const BODY_SPAN: &str = r#"

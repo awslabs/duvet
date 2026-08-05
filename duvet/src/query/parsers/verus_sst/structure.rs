@@ -177,7 +177,7 @@ impl ObligationNode {
     /// Whether any recorded span of this node covers `file:line` —
     /// the elaboration (liveness/not-proof-testable) view of the
     /// span set: full ranges, containers included (spec §5.2's
-    /// aggregate semantics, Decision 13's "elaborated").
+    /// aggregate semantics: "elaborated").
     pub fn elaborates(&self, file: &str, line: u32) -> bool {
         self.span_ranges
             .get(file)

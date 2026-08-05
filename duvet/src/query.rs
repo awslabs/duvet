@@ -42,7 +42,7 @@ pub struct Query {
     #[clap(short = 'f', long)]
     pub coverage_format: Option<CoverageFormat>,
 
-    /// Coverage source as PRODUCER=PATH_OR_GLOB (repeatable; Decision 10:
+    /// Coverage source as PRODUCER=PATH_OR_GLOB (repeatable;
     /// each source pairs a producer with its artifacts, N sources per
     /// invocation). Producers: `jacoco-xml` (report files), `verus-sst`
     /// (Verus `--log vir-sst` log directories). Combines with the

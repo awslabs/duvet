@@ -132,7 +132,7 @@ pub struct Closure {
 /// faithfulness is what the golden corpus checks.
 ///
 /// Every symbolic reference is followed, whether or not the solver
-/// needed it (Decision 7):
+/// needed it (spec §5.4):
 //= design/witness/spec.md#closure
 //# and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
 //# not load-bearing dependency.
