@@ -169,22 +169,30 @@ raising N never flips a passing project to failing.
 `implementation` annotation carrying the same quote on the same
 line.
 
-**Decision:** Two annotations with the same claim and the same
-resolved target FAIL the duplicates check unconditionally,
-regardless of cap and **regardless of type**. The rule is
-overdetermined:
+### Option A: Same-type pairs only
 
-1. **Indistinguishability.** Binding is a function of the resolved
-   target, so the two annotations' witness sets are identical by
-   construction. No evidence that could ever arrive can tell them
-   apart. This argument never mentions types; restricting the rule
-   to same-type pairs would be an accident of the current
-   classification, not a decision.
-2. **Co-located claim forms are incoherent.** "This artifact tests
-   R" ∧ "this artifact implements R" at one position is the
-   definition of an `implication` spelled out in two annotations;
-   "we don't do R" ∧ anything-else-about-R is a contradiction
-   wherever it sits.
+Extend today's classification, which compares each type against
+itself.
+
+- Pro: no new classification machinery.
+- Con: the argument for failing stacked copies —
+  **indistinguishability** — never mentions types. Binding is a
+  function of the resolved target, so two annotations at one
+  target have identical witness sets by construction, whatever
+  their types. Restricting to same-type would be an accident of
+  the current implementation wearing a decision's clothes.
+- Con: the cross-type stack is independently incoherent. "This
+  artifact tests R" ∧ "this artifact implements R" at one position
+  is the definition of an `implication` spelled out in two
+  annotations; "we don't do R" ∧ anything-else-about-R is a
+  contradiction wherever it sits.
+
+### Option B: Fail for every type pair
+
+Two annotations with the same claim and the same resolved target
+FAIL unconditionally, regardless of cap and regardless of type.
+
+### Decision: Option B
 
 **Consequences:** The failure message is keyed to the pair —
 same-type: "collapse to one"; `test`+`implementation`: "did you
@@ -218,22 +226,29 @@ perspective on each copy:
 | `exception` | none — a declaration of absence has nothing to execute or prove | unique, always |
 | `implication` | none **today** | unique **today**; see below |
 
-**Implication is its own animal.** An exception's position is
-incidental; an implication's position is the claim ("*this
-artifact* is correct by construction"). Structurally it patterns
-with `implementation`, not with `exception`. What forces
-uniqueness today is the evidence question: implications carry no
-checkable obligation, and the proof-world answer (self-discharging
-implications, where a verifier's elaboration is the implication's
-own evidence) was deliberately deferred in the witness design
-("Option B: self-discharging implications" — nobody can state the
-discharge obligation precisely yet). Runtime execution of an
-implication's position is evidence about the wrong property: it
-shows liveness, not construction.
+**Implication was the arm-wrestle in this table.** Two readings
+were debated:
 
-**Decision:** unique today; revisit as a rider on the
-self-discharging-implications feature, which owns its own decision
-document.
+### Option A: Intrinsically unique, like `exception`
+
+- Con: it mistakes the type. An exception's position is
+  incidental (a declaration of absence); an implication's position
+  is the claim ("*this artifact* is correct by construction").
+  Structurally it patterns with `implementation`, not `exception`.
+
+### Option B: Unique today, contingent on future evidence
+
+What forces uniqueness today is the evidence question, not the
+type's nature: implications carry no checkable obligation, and the
+proof-world answer (self-discharging implications, where a
+verifier's elaboration is the implication's own evidence) was
+deliberately deferred in the witness design ("nobody can state the
+discharge obligation precisely yet"). Runtime execution of an
+implication's position was considered as interim evidence and
+rejected: it is evidence about the wrong property — liveness, not
+construction.
+
+### Decision: Option B — unique today; revisit as a rider on the self-discharging-implications feature, which owns its own decision document.
 
 ---
 
@@ -257,16 +272,41 @@ forms are its escape valve. A per-target rule cannot catch it: an
 `exception`'s position is incidental, so it evades any co-location
 check by sitting anywhere else.
 
-**Decision:** Within one claim class, the free claim forms are
-exclusive; the priced forms are combinable:
+### Option A: Leave it alone (today's behavior)
+
+- Con: the exploit is live. Adding an `implication` next to an
+  existing `implementation` annotation silently deflates the
+  requirement's obligations, and nothing reports the coexistence.
+
+### Option B: A pairwise contradiction matrix
+
+Enumerate the type pairs and assign each a verdict
+(`exception`+`test` = contradiction, `implication`+`test` =
+incoherent, …).
+
+- Pro: each verdict is individually explainable.
+- Con: every cell needs its own metaphysical justification, argued
+  pair by pair; a new annotation type multiplies the cells; and
+  the matrix invites cell-by-cell relitigating.
+
+### Option C: One exclusivity rule over the type multiset
 
 > If a claim class contains an `exception`, `implication`, or
 > `todo` annotation, that annotation must be the **only** member
 > of the class. Any combination of `test` and `implementation`
 > members is permitted, each billed on its own.
 
-Checking this against every pair it derives — no pair-by-pair
-metaphysics needed:
+- Pro: the entire matrix falls out as derived consequences, with
+  one uniform rationale: **a free form asserts something about the
+  requirement's nature that changes everyone's obligations, so it
+  does not get to share the claim with forms whose obligations it
+  would deflate.**
+- Pro: a future annotation type gets a verdict by answering one
+  question — is it priced? — instead of a row of debates.
+
+### Decision: Option C
+
+Checking the rule against every pair the matrix would have argued:
 
 | Coexistence (same claim) | Reading | Verdict under the rule |
 |---|---|---|
@@ -276,11 +316,6 @@ metaphysics needed:
 | `implication` + `test` | "not checkable by evidence" ∧ "tested" | fail — incompatible claims about R's nature |
 | `todo` + `implementation` | "not yet done" ∧ "done here" | fail — and todo→implementation is the intended *lifecycle*: the todo is replaced, not joined; exclusivity enforces exactly that |
 | `test` + `implementation` (different targets) | tested there, implemented here | permitted — this is `discharged(T, I)`, the system itself |
-
-The uniform rationale: **a free form asserts something about the
-requirement's nature that changes everyone's obligations, so it
-does not get to share the claim with forms whose obligations it
-would deflate.**
 
 **Consequences:** This is a static check over claim classes — no
 evidence needed; it belongs to the duplicates check. It is a
@@ -350,20 +385,46 @@ both answer "do you have evidence?" by pointing at the same
 evidence, and both pass. The current machinery interrogates each
 annotation separately and never notices the evidence is one unit.
 
-**Decision:** Within each claim class, the coverage check
-partitions the same-type test members by their bound witness set.
-**Every group of size ≥ 2 fails** — those members are mutually
-indistinguishable. Singleton groups pass.
+### Option A: Report the groups, never change the verdict
+
+Surface "these copies are evidentially indistinguishable" as an
+informational grouping — candidates for collapsing, no failure.
+This option was briefly adopted during design, out of sympathy
+for contained multiplicity ("silly but not intrinsically wrong").
+
+- Con: it quietly guts the design's central claim. If
+  indistinguishable copies never fail, coverage resolves only
+  *rot* (unwitnessed, undischarged copies), not *redundancy* —
+  and "the duplicates check can relax because coverage
+  disambiguates the copies" stops being true. The grouping
+  becomes a caption on a pass.
+- Con: the governing principle decides this case directly. If
+  `witnesses_for(A) = witnesses_for(B)`, coverage **cannot
+  disambiguate the copies** — and the principle says duplicates
+  are permissible exactly where it can. Allowing them is not
+  tolerance; it is the principle's own failure condition.
+
+### Option B: Fail the indistinguishable groups
+
+Within each claim class, partition the same-type test members by
+their bound witness set. **Every group of size ≥ 2 fails** —
+those members are mutually indistinguishable. Singleton groups
+pass.
+
+### Decision: Option B
 
 Property **W8 (evidential distinctness):** coverage PASS requires
 that no two same-type mutually-covering test annotations bind the
 same witness set.
 
-Two precisions the formulation carries deliberately:
+The formulation itself was arm-wrestled and carries two
+deliberate precisions:
 
-- **Distinct means unequal, never disjoint.** Two sets may share
-  witnesses and still be distinct: `{extent, e₁} ≠ {extent, e₂}`
-  passes. Requiring disjointness would fail legitimate structure.
+- **Distinct means unequal, never disjoint.** An earlier
+  "pairwise distinct sets" phrasing invited misreading as
+  disjointness. Two sets may share witnesses and still be
+  distinct: `{extent, e₁} ≠ {extent, e₂}` passes. Requiring
+  disjointness would fail legitimate structure.
 - **The verdict attaches to the indistinguishable group, not the
   class.** If A and B bind identically but C binds differently, A
   and B fail together and C is untouched. Coverage can prove the
@@ -371,17 +432,13 @@ Two precisions the formulation carries deliberately:
   human collapses it. (Implementation shape follows: group by
   witness set and flag collisions — linear, no pairwise walk.)
 
-This is the governing principle applied per-instance: identical
-witness sets mean the tool provably cannot tell the copies apart —
-disambiguation did not happen in fact.
-[Decision 2](#decision-2)'s same-target rule is exactly this
-rule's statically decidable shadow: same target implies identical
-sets by construction, but not conversely — positions that always
-execute together are positionally distinct and evidentially
-identical, and only this rule sees them.
-
 **Consequences:**
 
+- [Decision 2](#decision-2)'s same-target rule is exactly this
+  rule's statically decidable shadow: same target implies
+  identical sets by construction, but not conversely — positions
+  that always execute together are positionally distinct and
+  evidentially identical, and only this rule sees them.
 - The constructions this catches: N copies scattered through one
   test function (all bind that test's witnesses identically); two
   real tests under one merged suite report (both bind the single
@@ -476,12 +533,27 @@ design — it is the tight inner loop (run one test in seconds, not
 the suite in minutes). Duplicate copies on tests that did not run
 this invocation are unbilled there.
 
-**Decision:** Out of scope, by intent. The mode is deliberately
-partial for everything; duplicates inherit that partiality exactly
-as broken-but-not-run tests do. The gate is the full coverage
-check. (Unknown-status positions are still billed even in this
-mode — placement errors fail regardless — so spray at positions
-that resolve to nothing has no refuge here either.)
+### Option A: A narrow tightening for the mode
+
+When some members of a duplicate set executed and grouped
+vacuously, fail the set even in executed mode.
+
+- Con: it designs duplicate machinery into a debug loop. The
+  mode's entire purpose is deliberate partiality — run one test in
+  seconds without false positives from everything else. Building
+  duplicate guarantees into it confuses the intentionalities.
+
+### Option B: Out of scope, by intent
+
+The mode is deliberately partial for everything; duplicates
+inherit that partiality exactly as broken-but-not-run tests do.
+The gate is the full coverage check.
+
+### Decision: Option B
+
+**Consequences:** Unknown-status positions are still billed even
+in this mode — placement errors fail regardless — so spray at
+positions that resolve to nothing has no refuge here either.
 
 ---
 
@@ -537,7 +609,30 @@ test citing that requirement to execute the dumped-on function, so
 from the cause**. The evidence layer pushes back, but with poor
 diagnostic locality.
 
-**Decision, in three parts:**
+### Option A: A gate with a default threshold
+
+Fail targets bearing more than N annotations, N shipped with a
+biting default.
+
+- Con: no defensible N exists. A default that bites fails the
+  large legitimate population on day one; a default high enough
+  not to misses the five-stack that motivated the feature. Count
+  is a signal, not a discriminator.
+- Con: unlike every gate above, no evidence property is violated —
+  each stacked claim is billed and distinguishable. Failing code
+  the evidence supports would be the first rule in this document
+  to do so.
+
+### Option B: Disambiguate lazy stacks from dense code with evidence
+
+Use the execution data to tell a lazily-stacked function head from
+a precisely-annotated dense function.
+
+- Con: impossible within a unit, per [Decision 7](#decision-7) —
+  no execution gradient exists. (A related evidence-side idea
+  survives as a parked observation at the end of this document.)
+
+### Option C: Query first, snapshot ratchet, opt-in bounds
 
 1. **A query, not (by default) a gate.** A `duplicate-targets`
    query lists every target bearing more than one annotation,
@@ -561,6 +656,8 @@ diagnostic locality.
    that fail code for a *smell* rather than a violated evidence
    property — the entry price of the fan-in axis, named honestly:
    teams opt into the opinion.
+
+### Decision: Option C
 
 **Mixed claim forms on one target** deserve their own default. A
 position claimed as a test of R1 and an implementation of R2 means
@@ -643,14 +740,34 @@ containing indistinct duplicate pairs, and type coherence
 ([Decision 4](#decision-4)) makes the duplicates check fail
 cross-type coexistences that silently pass today.
 
-**Decision:** W8 ships **in the same release as proof coverage**,
-while the executed-coverage install base is effectively one user —
-the check simply always had these semantics. Type coherence ships
-as a tightened default with its cells pinnable per
-[Decision 10](#decision-10). No compatibility flags in either
-case: a `--no-distinctness` switch is a waiver-by-declaration,
-rejected on the same grounds as every other waiver in this
-document.
+### Option A: A compatibility flag
+
+Ship the new semantics behind `--no-distinctness` /
+`--legacy-coherence` switches.
+
+- Con: a waiver-by-declaration, rejected on the same grounds as
+  every other waiver in this document — and a permanent escape
+  hatch enters the interface for a transitional problem.
+
+### Option B: Staged rollout — warn one release, enforce the next
+
+- Pro: nobody gets ambushed; the warning release lists the exact
+  collapse/split remediation.
+- Con: unnecessary given the facts. It was designed under the
+  assumption of a broad executed-coverage install base; the actual
+  base is effectively one user, and proof coverage has not shipped
+  at all.
+
+### Option C: Ship strict with proof coverage; tightened defaults are pinnable
+
+W8 ships **in the same release as proof coverage** — the check
+simply always had these semantics; no lenient version ever
+existed to be compatible with. Type coherence ships as a
+tightened default with its cells pinnable per
+[Decision 10](#decision-10) — the release notes name the cell
+that restores prior behavior.
+
+### Decision: Option C
 
 **Consequences:** Enforcement invariance is stated honestly as
 **P-C1′**: the new coverage verdict equals the old on every input
