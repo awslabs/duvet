@@ -187,7 +187,7 @@ pub proof fn lemma_sum_concat(a: Seq<DaRecord>, b: Seq<DaRecord>, line: u64)
 ///   exact sum for its line.
 /// - Property 3 (Ordered Uniqueness): strictly sorted keys, so the caller's
 ///   ordered-map conversion cannot silently merge or reorder.
-pub fn aggregate_da_records(records: &Vec<DaRecord>) -> (out: Vec<(u64, u64)>)
+pub fn aggregate_da_records(records: &[DaRecord]) -> (out: Vec<(u64, u64)>)
     ensures
         lines_sorted(out@),
         forall|i: int| 0 <= i < out@.len() ==> has_line(records@, (#[trigger] out@[i]).0),

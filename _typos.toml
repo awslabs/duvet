@@ -1,2 +1,5 @@
 [files]
-extend-exclude = ["*.snap", "integration/snapshots/**", "specs/**"]
+# duvet/tests/lcov-corpora: pinned real-producer output (Decision 7); its
+# mangled Rust symbols (e.g. `...5testss_...`) are not prose and must stay
+# byte-exact.
+extend-exclude = ["*.snap", "integration/snapshots/**", "specs/**", "duvet/tests/lcov-corpora/**"]

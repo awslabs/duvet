@@ -56,6 +56,13 @@ impl Checks {
 
         for file in files.lines() {
             let file = Path::new(file);
+            // Pinned producer corpora (decisions.md Decision 7): the committed
+            // lcov.info files encode the exact line numbers of these sources as
+            // compiled by real toolchains. Prepending a copyright header would
+            // shift every line and desynchronize the pinned output.
+            if file.starts_with("duvet/tests/lcov-corpora") {
+                continue;
+            }
             let Some(ext) = file.extension().and_then(|v| v.to_str()) else {
                 continue;
             };

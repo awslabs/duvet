@@ -282,12 +282,9 @@ mod tests {
     }
 
     /// count > 0 -> Hit, count == 0 -> Miss, absent -> absent, through the
-    /// shared verified-model conversion.
+    /// shared verified-model conversion. (The absent-line requirement itself
+    /// is owned by `basic_da_records`; this exercises the downstream report.)
     #[test]
-    //= design/lcov-parser/spec.md#aggregation
-    //= type=test
-    //# A line with no `DA` record MUST be absent from the parsed
-    //# coverage for its file.
     fn hit_miss_absent_through_coverage_report() {
         use duvet_coverage::types::CoverageStatus;
 
@@ -299,12 +296,9 @@ mod tests {
     }
 
     /// Duplicate DA records for the same line in one block sum their counts.
+    /// (The summing requirement is owned by `duplicate_file_across_blocks_sums`,
+    /// which covers the full quote including "every source-file block".)
     #[test]
-    //= design/lcov-parser/spec.md#aggregation
-    //= type=test
-    //# The count recorded for a line MUST be the sum of the
-    //# counts of every `DA` record for that line in every
-    //# source-file block naming that file.
     fn duplicate_lines_within_block_sum() {
         let data = parse("SF:a.rs\nDA:7,2\nDA:7,3\nend_of_record\n");
         assert_eq!(data.files.get("a.rs").unwrap().lines.get(&7), Some(&5));
@@ -339,7 +333,10 @@ mod tests {
     fn count_sum_saturates() {
         let input = format!("SF:a.rs\nDA:1,{}\nDA:1,2\nend_of_record\n", u64::MAX - 1);
         let data = parse(&input);
-        assert_eq!(data.files.get("a.rs").unwrap().lines.get(&1), Some(&u64::MAX));
+        assert_eq!(
+            data.files.get("a.rs").unwrap().lines.get(&1),
+            Some(&u64::MAX)
+        );
     }
 
     /// The optional third checksum field is accepted and ignored.
@@ -495,7 +492,10 @@ mod tests {
         // A line number at the u32 boundary is representable now that the
         // whole pipeline keys lines as u64.
         let data = parse("SF:a.rs\nDA:4294967296,1\nend_of_record\n");
-        assert_eq!(data.files.get("a.rs").unwrap().lines.get(&4294967296), Some(&1));
+        assert_eq!(
+            data.files.get("a.rs").unwrap().lines.get(&4294967296),
+            Some(&1)
+        );
         // Counts must fit in u64.
         assert!(parse_err("SF:a.rs\nDA:1,18446744073709551616\n").contains("invalid count"));
     }
@@ -576,21 +576,37 @@ mod tests {
 
         // Executed fn: signature line AND closing-brace line are present & Hit.
         let sig = line_of(src, "pub fn covered_vec", 1);
-        assert_eq!(lines.get(&sig), Some(&1), "covered fn signature line is Hit");
+        assert_eq!(
+            lines.get(&sig),
+            Some(&1),
+            "covered fn signature line is Hit"
+        );
         // Body tail: `    v` then `}` — the closing brace line is present.
         let ret = line_of(src, "    v", 1);
-        assert_eq!(lines.get(&(ret + 1)), Some(&1), "covered fn closing brace is Hit");
+        assert_eq!(
+            lines.get(&(ret + 1)),
+            Some(&1),
+            "covered fn closing brace is Hit"
+        );
 
         // Macro-interior argument lines are ABSENT (no DA record at all) —
         // absent means "no opinion", never Miss.
         for needle in ["        1,", "        2,", "        3,"] {
             let l = line_of(src, needle, 1);
-            assert_eq!(lines.get(&l), None, "macro-interior line {l} ({needle:?}) is absent");
+            assert_eq!(
+                lines.get(&l),
+                None,
+                "macro-interior line {l} ({needle:?}) is absent"
+            );
         }
 
         // Compiled-but-uncalled fn: present with count 0 (a definite Miss).
         let sig = line_of(src, "pub fn uncovered_vec", 1);
-        assert_eq!(lines.get(&sig), Some(&0), "uncovered fn signature line is Miss");
+        assert_eq!(
+            lines.get(&sig),
+            Some(&0),
+            "uncovered fn signature line is Miss"
+        );
 
         // cfg'd-out fn: totally absent — every line in its item range.
         let start = line_of(src, "pub fn cfg_gated_out", 1);
@@ -600,7 +616,11 @@ mod tests {
 
         // Compiled-but-not-run #[test]: body lines present with count 0.
         let body = line_of(src, "assert_eq!(uncovered_vec()", 1);
-        assert_eq!(lines.get(&body), Some(&0), "unrun #[test] body line is Miss");
+        assert_eq!(
+            lines.get(&body),
+            Some(&0),
+            "unrun #[test] body line is Miss"
+        );
     }
 
     /// two-macros: identical multi-line call sites, different DA records —
@@ -642,13 +662,21 @@ mod tests {
         for (needle, span) in [("spec fn abs_spec", 7u64), ("proof fn abs_nonneg", 7u64)] {
             let start = line_of(src, needle, 1);
             for l in start..start + span {
-                assert_eq!(lines.get(&l), None, "ghost item line {l} ({needle}) is absent");
+                assert_eq!(
+                    lines.get(&l),
+                    None,
+                    "ghost item line {l} ({needle}) is absent"
+                );
             }
         }
 
         // Exec fn: signature Hit (called twice -> count 2).
         let sig = line_of(src, "fn abs_exec", 1);
-        assert_eq!(lines.get(&sig), Some(&2), "exec fn signature is Hit with call count");
+        assert_eq!(
+            lines.get(&sig),
+            Some(&2),
+            "exec fn signature is Hit with call count"
+        );
 
         // requires/ensures lines of the exec fn: absent.
         for l in sig + 1..sig + 6 {
@@ -667,10 +695,18 @@ mod tests {
 
         // Uncalled exec fn: present with count 0, including its proof block.
         let sig = line_of(src, "fn uncalled_exec", 1);
-        assert_eq!(lines.get(&sig), Some(&0), "uncalled exec fn signature is Miss");
+        assert_eq!(
+            lines.get(&sig),
+            Some(&0),
+            "uncalled exec fn signature is Miss"
+        );
         let proof_open = line_of(src, "    proof {", 2);
         for l in proof_open..proof_open + 3 {
-            assert_eq!(lines.get(&l), Some(&0), "uncalled proof-block line {l} is Miss");
+            assert_eq!(
+                lines.get(&l),
+                Some(&0),
+                "uncalled proof-block line {l} is Miss"
+            );
         }
     }
 
@@ -734,7 +770,7 @@ mod tests {
 
             // Noise records the parser must ignore.
             if b0 & 0x08 != 0 {
-                text.push_str(&format!("FN:1,gen_fn{eol}BRDA:1,0,0,{}{eol}", b3));
+                text.push_str(&format!("FN:1,gen_fn{eol}BRDA:1,0,0,{b3}{eol}"));
             }
             if b0 & 0x10 != 0 {
                 text.push_str(&format!("VER:future-record{eol}{eol}"));
