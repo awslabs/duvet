@@ -248,3 +248,61 @@ LCOV parser initially inherited the `u32`, which forced a
 **Chosen: Option B.** Bugs migrate to the glue; the type change makes the
 glue smaller. Normative in [spec.md §3](spec.md#da-record-syntax) (`<line>`
 bounded by u64).
+
+---
+
+## Decision 9: Near-misses of structural keywords are hard errors {#decision-9}
+
+**Context:** Decision 4 ignores unrecognized record types for forward
+compatibility, but the original spec never defined *record* or
+*recognition*, so "unrecognized" silently included *near-misses* of the two
+structural keywords: `end_of_record ` (trailing space), `end_of_recordX`,
+`DA1,2` (missing `:`), `DA 4,1`. For `end_of_record` the failure is
+structural corruption: the block stays open, subsequent `DA` records fold
+into the previous file (if the next block names the same file the counts
+merge silently), and the eventual error at the next `SF:` points at the
+wrong line with a misleading message. For `DA`, coverage silently vanishes
+despite §3's "MUST reject a `DA` record whose payload does not conform."
+
+A survey of the ecosystem (geninfo man page; lcov 1.16 and 2.x readers; the
+Rust `lcov` crate; JS `lcov-parse`; producers geninfo, llvm-cov, grcov,
+coverage.py, istanbul) found: every producer emits the exact spelling with
+no trailing whitespace; lcov 2.x itself treats a non-matching line as a
+fatal `format` error by default; the Rust crate hard-errors on both
+near-misses; and **no implementation anywhere leaves the block open on
+`end_of_record `** — the current silent-skip was unique to duvet and
+strictly worse than every reference behavior.
+
+### Option A: Keep uniform ignore semantics for every unrecognized line
+
+- Pro: One rule, no special cases; maximally lenient.
+- Con: The failure mode is silent data corruption in exactly the two record
+  types the parser's output depends on, and no ecosystem implementation
+  shares this behavior.
+
+### Option B: Normalize like lcov 2.x (strip trailing whitespace, then match)
+
+- Pro: Accepts hand-edited files the way the reference reader does.
+- Con: Accepting `end_of_record ` is untested surface no producer emits —
+  the same argument that pinned the §3 digit grammar. Does nothing for
+  `DA1,2`, which lcov 2.x rejects anyway.
+
+### Option C: Hard-error on records that begin with `DA` or `end_of_record`
+but are not exact matches
+
+- Pro: Converts silent corruption into a diagnostic naming the offending
+  line; consistent with §3's "the grammar pins exactly what is accepted";
+  matches or is stricter than every surveyed reader, and breaks no known
+  producer.
+- Con: A future LCOV record type whose keyword extends `DA` or
+  `end_of_record` would be rejected. No such keyword exists in any known
+  producer (`TN`, `SF`, `FN`, `FNDA`, `FNF`, `FNH`, `FNL`, `FNA`, `DA`,
+  `BRDA`, `BRF`, `BRH`, `LF`, `LH`, `VER`); if one appears, extend by
+  decision.
+
+**Chosen: Option C.** Recognition is defined in [spec.md §1](spec.md#scope)
+(a record is a line; recognition is exact, case-sensitive match), and the
+rejections are normative in [spec.md §2](spec.md#record-consumption).
+Genuinely different keywords (`DX:`, `VER:`, `#comment` lines from
+geninfo's `--comment` flag, whitespace-indented records) remain ignored
+under Decision 4.

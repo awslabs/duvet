@@ -14,6 +14,18 @@ LCOV tracefiles (`.info` files, as produced by `geninfo`, `llvm-cov export
 line is a record of the form `KEYWORD:payload`, and records are grouped into
 per-source-file blocks delimited by `SF:` and `end_of_record`.
 
+Terminology used throughout this specification: a *record* is a single line
+of the tracefile, taken after line-terminator handling (Section 4) and
+excluding blank lines. The parser *recognizes* a record by exact,
+case-sensitive match on its leading characters: a record beginning with
+`SF:` is an `SF` record, a record beginning with `DA:` is a `DA` record, a
+record whose entire content is `end_of_record` is an `end_of_record` record,
+and a record beginning with `KEYWORD:` for one of the keywords enumerated in
+Section 2 is a record of that type. There is no case folding, no whitespace
+trimming, and no prefix matching beyond these exact forms: `da:1,2`,
+`  DA:1,2` (leading whitespace), and `DA 1,2` (missing `:`) are not `DA`
+records.
+
 This specification defines how duvet parses an LCOV tracefile into per-file,
 per-line coverage data for the coverage model defined in
 [coverage-model-spec.md](../query/coverage-model-spec.md). It covers record
@@ -36,6 +48,12 @@ The parser MUST ignore records of the following types:
 
 The parser MUST ignore records of types it does not recognize.
 
+The parser MUST reject a record that begins with `DA`
+but is not a `DA` record.
+
+The parser MUST reject a record that begins with
+`end_of_record` but is not an `end_of_record` record.
+
 Rationale: `DA` is the only record type that carries per-line execution
 counts, which is the only granularity the coverage model consumes. Function
 (`FN*`) and branch (`BRDA`, `BR*`) records carry granularities the model does
@@ -45,6 +63,18 @@ grows record types over time (e.g. `VER`, `FNL`/`FNA` in recent geninfo) and
 a strict parser would break against exactly the producer variance this parser
 exists to absorb (see
 [decisions.md, Decision 4](decisions.md#decision-4)).
+
+Rationale for the near-miss rejections: `DA` and `end_of_record` are the two
+record types the parser's output and block structure depend on, so a
+near-miss of one of them is producer error or corruption, not a future
+record type — no known LCOV record keyword extends `DA` or `end_of_record`,
+and every surveyed producer emits the exact spelling (see
+[decisions.md, Decision 9](decisions.md#decision-9)). Ignoring such a line
+is not forward compatibility but silent structural corruption: an
+`end_of_record` followed by a trailing space would leave its block open,
+folding the next block's `DA` records into the wrong file; a `DA` record
+missing its `:` would silently drop coverage that Section 3 promises to
+either consume or reject.
 
 ## 3. DA Record Syntax {#da-record-syntax}
 

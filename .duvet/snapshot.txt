@@ -4,6 +4,10 @@ SPECIFICATION: [Duvet LCOV Coverage Parser: Specification](design/lcov-parser/sp
     TEXT[!MUST,implementation,test]: The parser MUST ignore records of the following types:
     TEXT[!MUST,implementation,test]: `TN`, `FN`, `FNDA`, `FNF`, `FNH`, `BRDA`, `BRF`, `BRH`, `LF`, `LH`.
     TEXT[!MUST,implementation,test]: The parser MUST ignore records of types it does not recognize.
+    TEXT[!MUST,implementation,test]: The parser MUST reject a record that begins with `DA`
+    TEXT[!MUST,implementation,test]: but is not a `DA` record.
+    TEXT[!MUST,implementation,test]: The parser MUST reject a record that begins with
+    TEXT[!MUST,implementation,test]: `end_of_record` but is not an `end_of_record` record.
 
   SECTION: [3. DA Record Syntax](#da-record-syntax)
     TEXT[!MUST,implementation,test]: The parser MUST parse `<line>` as a decimal integer

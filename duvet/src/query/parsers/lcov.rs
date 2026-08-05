@@ -11,7 +11,10 @@
 //!   type this parser does not recognize are ignored (spec §2): `DA` is the
 //!   only record carrying the per-line counts the coverage model consumes,
 //!   and unknown types are skipped for forward compatibility with newer
-//!   producers.
+//!   producers. Recognition is exact and case-sensitive (spec §1); a
+//!   *near-miss* of a structural keyword (`DA1,2`, `end_of_record `) is a
+//!   hard error, not an unknown type — ignoring it would silently corrupt
+//!   coverage or block structure (spec §2, decisions.md Decision 9).
 //! - A line absent from the report is *no opinion* — never a Miss
 //!   (coverage-model-spec §1.4). Only lines with a `DA` record appear in the
 //!   output; `count > 0` becomes Hit and `count == 0` becomes Miss downstream
@@ -138,6 +141,32 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
             // Flush the block: the entry exists since SF handling registered
             // it, but `entry().or_default()` keeps this structurally total.
             records_by_file.entry(file).or_default().extend(records);
+        } else if line.starts_with("DA") {
+            //= design/lcov-parser/spec.md#record-consumption
+            //= type=implementation
+            //# The parser MUST reject a record that begins with `DA`
+            //# but is not a `DA` record.
+            // Recognition is exact (spec §1): the `DA:` branch above did not
+            // match, so this is a near-miss (`DA1,2`, `DA 4,1`) — producer
+            // error or corruption, not a future record type. Ignoring it
+            // would silently drop coverage (decisions.md, Decision 9).
+            return Err(CoverageError::InvalidData(format!(
+                "line {line_no}: malformed record {line:?}: a record starting \
+                 with 'DA' must be 'DA:<line>,<count>[,<checksum>]'"
+            )));
+        } else if line.starts_with("end_of_record") {
+            //= design/lcov-parser/spec.md#record-consumption
+            //= type=implementation
+            //# The parser MUST reject a record that begins with
+            //# `end_of_record` but is not an `end_of_record` record.
+            // The exact-match branch above did not match, so this line has
+            // trailing content (e.g. `end_of_record `). Ignoring it would
+            // leave the block open and fold the next block's DA records into
+            // the wrong file (decisions.md, Decision 9).
+            return Err(CoverageError::InvalidData(format!(
+                "line {line_no}: malformed record {line:?}: a record starting \
+                 with 'end_of_record' must be exactly 'end_of_record'"
+            )));
         } else {
             //= design/lcov-parser/spec.md#record-consumption
             //= type=implementation
@@ -364,7 +393,12 @@ mod tests {
         assert!(data.files.contains_key("/abs/path/src/lib.rs"));
     }
 
-    /// Non-DA record types are ignored, including unknown ones.
+    /// Non-DA record types are ignored, including unknown ones. Recognition
+    /// is exact and case-sensitive (spec §1), so a lowercase `da:`, a
+    /// whitespace-indented `DA:`, and a geninfo `--comment` line (`#...`)
+    /// all fall into the unrecognized bucket — ignored, because none of them
+    /// *begins with* the `DA` or `end_of_record` keywords (decisions.md,
+    /// Decision 9).
     #[test]
     //= design/lcov-parser/spec.md#record-consumption
     //= type=test
@@ -378,11 +412,13 @@ mod tests {
     //# The parsed coverage MUST contain no branch data.
     fn non_da_records_ignored() {
         let data = parse(
-            "TN:my_test\nSF:a.rs\nVER:some-future-record\nFN:3,foo\nFNDA:1,foo\nFNF:1\nFNH:1\n\
-             BRDA:3,0,0,1\nBRF:1\nBRH:1\nDA:3,1\nLF:1\nLH:1\nend_of_record\n",
+            "#comment line from geninfo --comment\n\
+             TN:my_test\nSF:a.rs\nVER:some-future-record\nFN:3,foo\nFNDA:1,foo\nFNF:1\nFNH:1\n\
+             BRDA:3,0,0,1\nBRF:1\nBRH:1\nda:3,9\n  DA:3,9\nDA:3,1\nLF:1\nLH:1\nend_of_record\n",
         );
         let fc = data.files.get("a.rs").unwrap();
         assert_eq!(fc.lines.len(), 1);
+        // 1, not 10: the case-variant and indented records did not count.
         assert_eq!(fc.lines.get(&3), Some(&1));
         assert!(fc.branches.is_empty());
     }
@@ -459,6 +495,46 @@ mod tests {
     fn empty_sf_path_errors() {
         assert!(parse_err("SF:\n").contains("empty path"));
         assert!(parse_err("SF:./\n").contains("empty path"));
+    }
+
+    /// A record starting with `DA` that is not an exact `DA:` record is a
+    /// hard error, not an ignored unknown type: silently skipping it would
+    /// drop coverage (decisions.md, Decision 9).
+    #[test]
+    //= design/lcov-parser/spec.md#record-consumption
+    //= type=test
+    //# The parser MUST reject a record that begins with `DA`
+    //# but is not a `DA` record.
+    fn near_miss_da_errors() {
+        // Missing colon.
+        let err = parse_err("SF:a.rs\nDA1,2\nend_of_record\n");
+        assert!(err.contains("starting with 'DA'"), "{err}");
+        // Space instead of colon.
+        let err = parse_err("SF:a.rs\nDA 4,1\nend_of_record\n");
+        assert!(err.contains("starting with 'DA'"), "{err}");
+    }
+
+    /// A record starting with `end_of_record` that is not exactly
+    /// `end_of_record` is a hard error. Previously it was silently ignored,
+    /// which left the block open: the DA records of the *next* block folded
+    /// into the previous file and the eventual error surfaced at the next
+    /// `SF:` with a misleading message (decisions.md, Decision 9).
+    #[test]
+    //= design/lcov-parser/spec.md#record-consumption
+    //= type=test
+    //# The parser MUST reject a record that begins with
+    //# `end_of_record` but is not an `end_of_record` record.
+    fn near_miss_end_of_record_errors() {
+        // Trailing space — the silent-structural-corruption case. Assert the
+        // near-miss diagnostic specifically: before this rule, this input
+        // failed later, at `SF:b.rs`, with "inside an open source-file
+        // block".
+        let err = parse_err("SF:a.rs\nDA:1,1\nend_of_record \nSF:b.rs\nDA:2,1\nend_of_record\n");
+        assert!(err.contains("exactly 'end_of_record'"), "{err}");
+        assert!(err.contains("line 3"), "{err}");
+        // Trailing non-whitespace content.
+        let err = parse_err("SF:a.rs\nend_of_recordX\n");
+        assert!(err.contains("exactly 'end_of_record'"), "{err}");
     }
 
     #[test]
