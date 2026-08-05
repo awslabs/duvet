@@ -151,9 +151,39 @@ lexed records; lexer stays trusted glue
   passes the proofs.
 
 **Chosen: Option C.** The trusted base is named in
-[spec.md §8](spec.md#trusted-base). Follow-up: a byte-level verified lexer
-(Verus `Vec<u8>` support is adequate) if the lexer ever grows beyond
-trivial.
+[spec.md §8](spec.md#trusted-base).
+
+**Performance envelope (accepted, documented):** the parser is in-memory,
+per report file:
+
+- `parse_report_blocking` reads the whole tracefile into a `String`
+  (`duvet_core::vfs::read_string`), and the lexer buffers every `DA` record
+  per file key before aggregation. Peak memory is O(tracefile size);
+  big-monorepo tracefiles reach hundreds of MB.
+- `aggregate_da_records` bisects for each record's insertion point
+  (O(log n) per record) but inserts into a sorted `Vec`, and the insert
+  shift is O(n) per record in the worst case. Ascending line order — what
+  every observed producer emits — makes the shift empty: O(n log n) total.
+  Descending input hits the shift every time: O(n²) total.
+
+**Named follow-ups:**
+
+- *Byte-level verified lexer* (Verus `Vec<u8>` support is adequate) if the
+  lexer ever grows beyond trivial.
+- *Streaming lexer*: lex incrementally instead of slurping the tracefile,
+  bounding peak memory by the open block plus the accumulated records
+  rather than the whole report text.
+- *Verified sort-then-fold aggregation*: append all records, sort by line,
+  fold each group once — O(n log n) total regardless of input order, with
+  the same ensures (Properties 1–3). Property 4 licenses regrouping into
+  blocks; full order-insensitivity additionally needs a
+  permutation-invariance lemma for `sum_counts` (provable by induction via
+  `to_multiset`). Blocked on sort machinery: vstd's `Seq::sort_by` is
+  spec-level only — there is no verified *exec* sort and no assumed spec
+  for `slice::sort` — so this route needs a hand-verified exec merge sort
+  (a verified insertion sort would reproduce the O(n²) descending case),
+  or an assumed `slice::sort` contract, which would grow the trusted base
+  this crate exists to shrink.
 
 ---
 

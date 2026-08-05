@@ -234,12 +234,16 @@ pub fn aggregate_da_records(records: &[DaRecord]) -> (out: Vec<(u64, u64)>)
         // Find the insertion/update position: the first index whose line is
         // >= r_line. Binary search: `out` is strictly sorted (loop invariant
         // `lines_sorted`), so `out[i].0 < r_line` is monotone in `i` and the
-        // standard lo/hi bisection applies. Complexity note: real producers
-        // emit `DA` records in ascending line order, which made a linear scan
-        // O(n) per record — the *common* case was the worst case. Bisection is
-        // O(log n) per record; the `Vec::insert` below still shifts O(n) in
-        // the worst case, but for ascending input the insertion point is the
-        // end, so the shift is empty and the common case is O(n log n) total.
+        // standard lo/hi bisection applies. Complexity note: bisection is
+        // O(log n) per record, but the `Vec::insert` below shifts O(n) per
+        // record in the worst case, so the shift — not the search — bounds
+        // the total. Real producers emit `DA` records in ascending line
+        // order, so the insertion point is the end, the shift is empty, and
+        // the common case is O(n log n) total. *Descending* input shifts the
+        // whole vector on every insert: O(n^2) total. No observed producer
+        // emits descending records; if one surfaces, the fix is the
+        // sort-then-fold reorganization named in decisions.md Decision 5
+        // follow-ups, not further tuning here.
         let mut lo: usize = 0;
         let mut hi: usize = out.len();
         while lo < hi
