@@ -73,9 +73,7 @@ and must be pinned against the code, and partial overlap (the
 this framework. Second, an environmental fact about targets: code
 formatters relocate comments, so annotations can land on lines the
 author did not choose — same-target collisions can be tooling
-artifacts. This informs error-message wording ("these may have
-been moved together"), never verdicts; the remediation always
-exists.
+artifacts.
 
 One engine fact the type rules below depend on, stated as fact
 because the checks implement it: **an `exception` or `implication`
@@ -132,12 +130,9 @@ is the legacy strict behavior preserved?
 
 ### Option B: Per-type numeric caps, default 1
 
-A configured value per type, e.g. `test = 2`. Only `test` and
-`implementation` may be raised; the per-type verdicts are settled
-two decisions below. Default for every type is 1. Where
-configuration lives — file, flag, or both — is left open here and
-settled once all the policy values this document accumulates are
-on the table.
+A configured value per type, e.g. `test = 2`. Default for every
+type is 1. Which types accept a raised cap, and where
+configuration lives — file, flag, or both — are left open here.
 
 - Pro: at cap 1 the check is bit-for-bit the historical strict
   check (Property [P-D3](#properties)). Nothing loosens until a
@@ -194,12 +189,8 @@ FAIL unconditionally, regardless of cap and regardless of type.
 
 ### Decision: Option B
 
-**Consequences:** The failure message is keyed to the pair —
-same-type: "collapse to one"; `test`+`implementation`: "did you
-mean one `implication`?"; `exception`+anything: "these contradict;
-pick one."
-
-"Same location" is defined as **same resolved target**, not same
+**Consequences:** "Same location" is defined as **same resolved
+target**, not same
 source line: stacked copies above one statement collapse to one
 target and die here; copies scattered through a function body
 resolve to different targets and are governed by the cap and by
@@ -211,44 +202,68 @@ statically decidable fragment.
 
 ## Decision 3: Per-type permissibility {#decision-3}
 
-**Context:** Which annotation types can ever justify duplicates?
+**Context:** [Decision 1](#decision-1) established the cap
+mechanism and left open which types accept a raised cap. The
+question conflates two things that separate cleanly: what the
+evidence can support, and what a customer may configure.
 
-Applying the governing principle per-type — the cap may be raised
-exactly where the pricing table gives a coverage check some
+What the evidence supports is the pricing table's answer — a
+raised cap is meaningful exactly where a coverage check has some
 perspective on each copy:
 
-| Type | Coverage-check perspective | Duplicate verdict |
-|---|---|---|
-| `test` | witnessed + discharged (W6, §1.6) | cap may be raised |
-| `implementation` | executed under covering tests | cap may be raised |
-| `spec` | none | unique, always |
-| `todo` | none — and a todo-covered requirement already fails the implementation check, so a duplicate todo is noise on a fail | unique, always |
-| `exception` | none — a declaration of absence has nothing to execute or prove | unique, always |
-| `implication` | none **today** | unique **today**; see below |
+| Type | Coverage-check perspective |
+|---|---|
+| `test` | witnessed + discharged (W6, §1.6) |
+| `implementation` | executed under covering tests |
+| `spec` | none |
+| `todo` | none — and a todo-covered requirement already fails the implementation check |
+| `exception` | none — a declaration of absence has nothing to execute or prove |
+| `implication` | none **today**; the arm-wrestle below |
 
-**Implication was the arm-wrestle in this table.** Two readings
+### Option A: Every cap raisable, default 1
+
+- Pro: symmetric, and never refuses a customer's configuration.
+- Con: for the evidence-free forms, a raised cap does not admit
+  verified duplicates — it admits copies no check can ever
+  distinguish, which is exactly the duplication the governing
+  principle forbids, now blessed by a config line.
+- Con: the shipping asymmetry. A knob that never shipped can be
+  added the day a customer arrives with a real case; a shipped
+  knob can never be removed without a breaking change. Frivolous
+  knobs are permanent.
+
+### Option B: Caps raisable only where priced
+
+`test` and `implementation` get raisable caps. `spec`, `todo`,
+`exception`, and `implication` are unique with no knob — a
+shipping decision, not a metaphysical constraint. If a real case
+arrives, the knob is added then.
+
+### Decision: Option B
+
+**Implication was the arm-wrestle in the table.** Two readings
 were debated:
 
-### Option A: Intrinsically unique, like `exception`
+**Reading 1 — intrinsically unique, like `exception`.** Rejected
+because it mistakes the type: an exception's position is
+incidental (a declaration of absence); an implication's position
+is the claim ("*this artifact* is correct by construction").
+Structurally it patterns with `implementation`, not `exception`.
 
-- Con: it mistakes the type. An exception's position is
-  incidental (a declaration of absence); an implication's position
-  is the claim ("*this artifact* is correct by construction").
-  Structurally it patterns with `implementation`, not `exception`.
-
-### Option B: Unique today, contingent on future evidence
-
-What forces uniqueness today is the evidence question, not the
-type's nature: implications carry no checkable obligation, and the
+**Reading 2 — unique today, contingent on future evidence.** What
+forces uniqueness today is the evidence question, not the type's
+nature: implications carry no checkable obligation, and the
 proof-world answer (self-discharging implications, where a
 verifier's elaboration is the implication's own evidence) was
-deliberately deferred in the witness design ("nobody can state the
-discharge obligation precisely yet"). Runtime execution of an
+deliberately deferred in the witness design ("nobody can state
+the discharge obligation precisely yet"). Runtime execution of an
 implication's position was considered as interim evidence and
 rejected: it is evidence about the wrong property — liveness, not
 construction.
 
-### Decision: Option B — unique today; revisit as a rider on the self-discharging-implications feature, which owns its own decision document.
+Reading 2 stands. Revisit as a rider on the
+self-discharging-implications feature, which owns its own
+decision document.
 
 ---
 
@@ -377,13 +392,27 @@ duplicates. The report wording points at running both checks.
 
 ## Decision 6: Coverage fails evidentially indistinct duplicates (W8) {#decision-6}
 
-**Context:** Per-instance discharge (W6 + pair billing) is already
-enforced by the coverage check for every duplicate copy — each is
-an independent T. What existing correlation does **not** do is
-compare copies *to each other*: two copies in one test function
-both answer "do you have evidence?" by pointing at the same
-evidence, and both pass. The current machinery interrogates each
-annotation separately and never notices the evidence is one unit.
+**Context:** A project raises `test = 2`, and a requirement now
+carries two test annotations in two places. What the coverage
+check does with them today: it binds each annotation to its
+witness set — the concrete units of evidence, an instrumented
+test run, a proved clause — and verifies each annotation
+independently: witnessed? discharged against every covering
+implementation? Both copies can answer both questions by pointing
+at the same evidence, and both pass, because nothing ever
+compares the copies *to each other*. Per-instance discharge (W6
+plus pair billing) is already enforced for every copy; what no
+existing machinery asks is whether the two copies are two claims
+or one claim written twice.
+
+One question decides it: **do the copies bind the same witness
+set?** Everything duvet can check about a test annotation — in
+this check or any future one — is a function of its witness set.
+If two copies bind exactly equal sets, no check can ever tell
+them apart; the second copy adds no information. The governing
+principle says duplicates are permissible exactly where coverage
+can disambiguate them, and equal witness sets is precisely where
+it cannot.
 
 ### Option A: Report the groups, never change the verdict
 
@@ -398,15 +427,13 @@ for contained multiplicity ("silly but not intrinsically wrong").
   and "the duplicates check can relax because coverage
   disambiguates the copies" stops being true. The grouping
   becomes a caption on a pass.
-- Con: the governing principle decides this case directly. If
-  `witnesses_for(A) = witnesses_for(B)`, coverage **cannot
-  disambiguate the copies** — and the principle says duplicates
-  are permissible exactly where it can. Allowing them is not
-  tolerance; it is the principle's own failure condition.
+- Con: the governing principle decides this case directly.
+  Allowing indistinguishable copies is not tolerance; it is the
+  principle's own failure condition.
 
 ### Option B: Fail the indistinguishable groups
 
-Within each claim class, partition the same-type test members by
+Within each claim class, group the same-type test members by
 their bound witness set. **Every group of size ≥ 2 fails** —
 those members are mutually indistinguishable. Singleton groups
 pass.
@@ -417,20 +444,50 @@ Property **W8 (evidential distinctness):** coverage PASS requires
 that no two same-type mutually-covering test annotations bind the
 same witness set.
 
-The formulation itself was arm-wrestled and carries two
-deliberate precisions:
+**How you hit it in practice.** Three ways:
+
+- Copy-paste: N copies scattered through one test function all
+  bind that test's witnesses identically. Fails; collapse them.
+- One merged suite report: two *genuinely different* tests run as
+  a single instrumented invocation produce one fat witness, and
+  both annotations bind it. Fails — and this is the case that
+  feels like a false positive, because the tests really are
+  different. But the evidence handed to duvet cannot see the
+  difference, and duvet does not guess at distinctions its
+  evidence cannot support. Two exits, both improvements: collapse
+  the copies, or individuate the runs (per-test reports) so the
+  sets differ. Coarser evidence buys fewer allowed duplicates —
+  the monotonicity invariant surfacing as an incentive.
+- Two test annotations inside one Verus discharge unit bind the
+  same clause span. Fails. Copies on two *different* `ensures`
+  clauses of one function pass — the prover artifact records a
+  span per clause, so the sets were never equal. Two separately
+  recorded prover obligations are two units of evidence; edgy,
+  pinned by fixture, reopened if dogfooding says otherwise.
+
+The constructions this admits are the motivating ones: proof +
+PBT (`{w_verus}` vs `{w_jacoco}`), split tests with per-test
+reports.
+
+**There are no false positives in the strict sense.** Equal sets
+are computed from the delivered evidence, not estimated; when the
+rule fires, the indistinguishability is a fact. The unfair
+*feeling* is always the merged-report case — evidence coarser
+than reality — and the remediation message says so.
+
+The formulation carries two deliberate precisions, both
+arm-wrestled:
 
 - **Distinct means unequal, never disjoint.** An earlier
   "pairwise distinct sets" phrasing invited misreading as
-  disjointness. Two sets may share witnesses and still be
-  distinct: `{extent, e₁} ≠ {extent, e₂}` passes. Requiring
-  disjointness would fail legitimate structure.
+  disjointness, and disjointness would fail legitimate structure:
+  `{extent, e₁} ≠ {extent, e₂}` passes despite the shared
+  witness.
 - **The verdict attaches to the indistinguishable group, not the
   class.** If A and B bind identically but C binds differently, A
   and B fail together and C is untouched. Coverage can prove the
   group mutually vacuous but cannot pick the canonical member; a
-  human collapses it. (Implementation shape follows: group by
-  witness set and flag collisions — linear, no pairwise walk.)
+  human collapses it.
 
 **Consequences:**
 
@@ -439,31 +496,18 @@ deliberate precisions:
   identical sets by construction, but not conversely — positions
   that always execute together are positionally distinct and
   evidentially identical, and only this rule sees them.
-- The constructions this catches: N copies scattered through one
-  test function (all bind that test's witnesses identically); two
-  real tests under one merged suite report (both bind the single
-  fat witness — the next decision establishes why failing this is
-  correct); two test annotations inside one Verus discharge unit.
-- The constructions this admits: proof + PBT (`{w_verus}` vs
-  `{w_jacoco}`); two tests with per-test reports; two test
-  annotations on two different `ensures` clauses of one Verus
-  function (distinct clause units → distinct sets — the artifact
-  records a span per clause, so cross-clause copies were never
-  identical). The same-claim-on-two-ensures case is admitted
-  deliberately: two separately recorded prover obligations are two
-  units of evidence. Edgy; pinned by fixture; reopen if dogfooding
-  says otherwise.
 - **Robust to report duplication:** binding is content-determined
-  (`executed_by` reads the coverage map), so delivering one report
-  twice binds both copies identically for *every* annotation —
-  `{w₁, w₂} = {w₁, w₂}`, still indistinct. Evidence cannot be
-  photocopied into distinctness.
+  (`executed_by` reads the coverage map), so delivering one
+  report twice binds both copies identically for *every*
+  annotation — `{w₁, w₂} = {w₁, w₂}`, still indistinct. Evidence
+  cannot be photocopied into distinctness.
 - Implementation surface is additive: the check already computes
-  `bound_witnesses` per test; the new work is grouping, one new
-  result bucket, one status conjunct. Per the engine-glue
-  requirement, the W8 verdict flows through a verified-layer
-  predicate (set equality over the existing `binds` cells) with an
-  exactness proof: members grouped ⟺ witness sets equal.
+  `bound_witnesses` per test; the new work is grouping by witness
+  set, one new result bucket, one status conjunct — linear, no
+  pairwise walk. Per the engine-glue requirement, the W8 verdict
+  flows through a verified-layer predicate (set equality over the
+  existing `binds` cells) with an exactness proof: members
+  grouped ⟺ witness sets equal.
 - Implementation-side distinctness (comparing execution profiles
   of implementation copies) is deferred to a follow-up; tests are
   where the motivating case lives.
@@ -614,10 +658,16 @@ diagnostic locality.
 Fail targets bearing more than N annotations, N shipped with a
 biting default.
 
-- Con: no defensible N exists. A default that bites fails the
-  large legitimate population on day one; a default high enough
-  not to misses the five-stack that motivated the feature. Count
-  is a signal, not a discriminator.
+- Con: no defensible *intermediate* N exists — 3 and 5 are
+  arbitrary in a way 1 is not. A middle value fails some
+  legitimately dense code while missing some stack it was meant
+  to catch; count is a signal, not a discriminator. N = 1 is
+  different in kind: "one target, one annotation" is not a
+  threshold but the position-must-discriminate principle itself —
+  [Decision 1](#decision-1)'s strict-by-default posture on this
+  axis. Whether it is shippable as a default turns on how large
+  the legitimately dense population actually is; an empirical
+  question, taken up under Option C.
 - Con: unlike every gate above, no evidence property is violated —
   each stacked claim is billed and distinguishable. Failing code
   the evidence supports would be the first rule in this document
@@ -649,13 +699,21 @@ a precisely-annotated dense function.
    target surfaces as a snapshot diff in review — concentration
    becomes visible at the moment it grows, with no gate. This is
    the same posture as "raising a cap is visible in review."
-3. **Opt-in bounds for teams that want the bite**, all default
-   unlimited: `count` (max annotations per target), `sections`
-   (max distinct sections per target), `types` (max distinct claim
-   forms per target). These are the first bounds in this document
-   that fail code for a *smell* rather than a violated evidence
-   property — the entry price of the fan-in axis, named honestly:
-   teams opt into the opinion.
+3. **Opt-in bounds for teams that want the bite**: `count` (max
+   annotations per target), `sections` (max distinct sections per
+   target), `types` (distinct claim forms per target). `sections`
+   and `types` default unlimited. The shipped default for `count`
+   is deliberately left open between unlimited and 1: `count = 1`
+   is [Decision 1](#decision-1)'s posture on this axis — strict
+   by default, raised explicitly where density is real — but it
+   fails the legitimately dense population on day one if that
+   population is large. How large is measurable: survey the
+   public duvet corpus (s2n-quic, s2n-tls, the AWS crypto
+   tooling) for actual target fan-in; the default follows the
+   data, and the survey is a follow-up. These are the first
+   bounds in this document that fail code for a *smell* rather
+   than a violated evidence property — the entry price of the
+   fan-in axis, named honestly: teams opt into the opinion.
 
 ### Decision: Option C
 
@@ -756,7 +814,10 @@ emitted. Internal code keeps its vocabulary.
 
 **Consequences:** One canonical output name prevents the drift
 that two-names-for-one-thing invites. The rename never touches the
-enum.
+enum. The scope is the surfaces this document adds and new
+user-facing output going forward — not a license to retrofit
+existing code or existing output; any retroactive cleanup is its
+own change.
 
 ---
 
@@ -843,19 +904,30 @@ A verdict per type pair, like [Decision 4](#decision-4) Option B.
 
 ### Option C: A family of allowed type-sets
 
-Config declares which combinations may share a target. A target
-class G passes iff `types(G) ⊆ S` for some configured set S:
+Config declares which *combinations* may share a target. Each
+array element is one allowed set, `+` joining the types in it. A
+target class G bearing two or more distinct types passes iff
+`types(G) ⊆ S` for some allowed S. A single-type target always
+passes — one type is not a combination, so a rule about sharing
+never constrains it (singleton entries are legal but redundant):
 
 ```toml
 [duplicates.targets]
-types = ["implementation", "test", "exception+test"]
+types = ["exception+test", "implication+todo"]
+# exception+test on one target: allowed
+# implication+todo:             allowed
+# exception+todo:               fails — inside no allowed set
 ```
+
+`types = []` forbids all mixing; omitting the setting allows
+every combination (the opt-in posture of this axis).
 
 - Pro: downward-closed by construction — a subset of an allowed
   combination is always allowed, so permitting a combination never
-  forbids its parts.
-- Pro: subsumes the numeric form — `types = 1` is the family of
-  singletons. One primitive instead of two.
+  forbids its parts, and a lone annotation is never rejected by a
+  rule about sharing.
+- Pro: subsumes the numeric form — `types = 1` is `types = []`.
+  One primitive instead of two.
 - Pro: the mixed-form default stops being special-case machinery:
   the shipped default family is every combination **not**
   containing both `test` and `implementation`. The Appendix-A team
@@ -1117,10 +1189,11 @@ live in the verified layer.
   contains a target iff ≥ 2 annotations resolve to it; counts,
   type breakdowns, and section counts are exact.
 - **P-T2 (type-family exactness).** With a configured family, a
-  target class fails the type-combination rule iff its type set is
-  a subset of no allowed set. Adding an allowed set never flips a
-  passing project to failing; removing one never flips failing to
-  passing (the family form of P-D4).
+  target class bearing two or more distinct types fails the
+  type-combination rule iff its type set is a subset of no allowed
+  set; single-type targets never fail it. Adding an allowed set
+  never flips a passing project to failing; removing one never
+  flips failing to passing (the family form of P-D4).
 - **P-C1′ (scoped enforcement invariance).** New coverage verdict
   ≡ old on every input with no indistinct duplicate pair.
 - **P-C2 (per-instance billing).** coverage PASS ⟹ every in-scope
@@ -1160,6 +1233,9 @@ live in the verified layer.
   caps, fan-in bounds, the type-set family, coherence cells,
   shipped defaults; `citation` → `implementation` alias at the
   parse boundary, never emitted.
+- Survey the public duvet corpus (s2n-quic, s2n-tls, the AWS
+  crypto tooling) for actual target fan-in frequency — settles
+  Decision 9's open `count` default (unlimited vs 1).
 - Scoped overrides (Decision 14), if demand arrives: glob keys for
   target scope and their overlap-precedence rule; whether spec
   scope without section scope is worth having; fixtures for the
