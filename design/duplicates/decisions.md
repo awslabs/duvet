@@ -694,17 +694,10 @@ mixed-form default (Decision 9). Where do they live?
 
 All policy is checked-in configuration. The shipped defaults
 encode this document's verdicts; a project overrides individual
-cells; omitted cells take the defaults.
-
-```toml
-[duplicates]
-max-duplicates = { test = 2 }          # Decision 1; default: all 1
-# max-target   = { count = 5, sections = 3, types = 1 }   # Decision 9; default: unlimited
-# policy cells (Decision 4, Decision 9), shipped defaults shown:
-# "exception+test.same-claim"          = "fail"
-# "implication+implementation.same-claim" = "fail"
-# "test+implementation.same-target"    = "fail"
-```
+cells; omitted cells take the defaults. (The key vocabulary the
+policy is written in — what the settings are named and how the
+file is structured — is left open here and settled two decisions
+below, once the naming question is also on the table.)
 
 ### Decision: Option B
 
@@ -731,7 +724,254 @@ controls verbosity — display, never verdict.
 
 ---
 
-## Decision 11: Release posture {#decision-11}
+## Decision 11: User-facing vocabulary — `implementation`, not `citation` {#decision-11}
+
+**Context:** The code names the default annotation type
+`citation`. Every user-facing surface the preceding decisions add
+— config keys, report sections, failure messages — needs one name
+for it, and this document has already been using `implementation`
+throughout. Which name is canonical, and what happens to the
+other?
+
+### Option A: `citation` everywhere
+
+- Con: it names the mechanics (the annotation quotes the spec),
+  not the claim ("R is implemented here"). Every rule in this
+  document prices the claim; the pricing table's rows read
+  strangely against a name that describes quoting.
+
+### Option B: Rename the code
+
+- Con: eviscerates the codebase for a naming preference — every
+  touched line is review burden with zero behavior change.
+
+### Option C: Canonical user-facing name, alias at the parse boundary
+
+`implementation` is the one name emitted anywhere a user reads:
+config keys, reports, messages. `citation` remains accepted on
+input — existing annotations keep parsing, forever — and is never
+emitted. Internal code keeps its vocabulary.
+
+### Decision: Option C
+
+**Consequences:** One canonical output name prevents the drift
+that two-names-for-one-thing invites. The rename never touches the
+enum.
+
+---
+
+## Decision 12: One config namespace per coincidence axis {#decision-12}
+
+**Context:** [Decision 10](#decision-10) settled where policy
+lives; its sketch wrote the keys flat. This settles the vocabulary
+the policy is written in.
+
+### Option A: Flat keys
+
+`test`, `count`, `sections` side by side under `[duplicates]`.
+
+- Con: `count` is ambiguous between the two partitions — "how many
+  annotations may share a claim" versus "how many may share a
+  target" — and the ambiguity is not hypothetical: it was
+  committed during this design, in a draft that wrote `count`
+  meaning fan-in where a reader had every reason to read
+  multiplicity.
+
+### Option B: Disambiguating key prefixes
+
+`max-duplicates.test`, `max-target.count`.
+
+- Pro: unambiguous.
+- Con: a naming convention carries the structure instead of the
+  structure carrying it. The formal space has exactly two
+  partitions; the config file can mirror the model instead of
+  encoding it into hyphenated names.
+
+### Option C: Two namespaces mirroring the two partitions
+
+```toml
+[duplicates.claims]        # predicates over claim classes (D_Q)
+test = 2                   # per-type multiplicity caps (Decision 1)
+implementation = 1
+# coherence-cell overrides (Decision 4)
+
+[duplicates.targets]       # predicates over target classes (D_T)
+count = 3                  # fan-in bound (Decision 9)
+sections = 2               # distinct sections per target
+# allowed type combinations: next decision
+```
+
+Every setting lives in exactly one namespace; no setting name
+appears in both. "What does this key constrain" is answered by
+position in the file.
+
+### Decision: Option C
+
+**Consequences:** Both priced types sit on equal footing under
+`claims` — `implementation` caps are as configurable as `test`
+caps, with no privileged case. Whether a team wants duplicate
+implementations is the team's call, made in review by writing the
+number. [Decision 3](#decision-3)'s verdicts on the free forms are
+unaffected: those are not caps, and remain unique always
+([P-D2](#properties)).
+
+---
+
+## Decision 13: Target type combinations are an allowed-set family {#decision-13}
+
+**Context:** [Decision 9](#decision-9) named a `types` bound (max
+distinct claim forms per target) and a mixed-form default
+(`test`+`implementation` on one target fails). Stated as a number,
+the bound is expressive only at 1.
+
+### Option A: Numeric bound
+
+- Con: `types = 2` says "any two forms may share a target" — it
+  permits exactly the combination the mixed-form default forbids,
+  and cannot say "exception+test is fine, test+implementation is
+  not." The one distinction the axis exists to draw is the one a
+  count cannot express, so the mixed-form default would survive as
+  special-case machinery beside the bound.
+
+### Option B: Pairwise cells
+
+A verdict per type pair, like [Decision 4](#decision-4) Option B.
+
+- Con: rejected there for the same reasons that apply here —
+  per-cell metaphysics, invitation to relitigate, and every new
+  annotation type multiplies the cells.
+
+### Option C: A family of allowed type-sets
+
+Config declares which combinations may share a target. A target
+class G passes iff `types(G) ⊆ S` for some configured set S:
+
+```toml
+[duplicates.targets]
+types = ["implementation", "test", "exception+test"]
+```
+
+- Pro: downward-closed by construction — a subset of an allowed
+  combination is always allowed, so permitting a combination never
+  forbids its parts.
+- Pro: subsumes the numeric form — `types = 1` is the family of
+  singletons. One primitive instead of two.
+- Pro: the mixed-form default stops being special-case machinery:
+  the shipped default family is every combination **not**
+  containing both `test` and `implementation`. The Appendix-A team
+  adds one set to the family and owns it in review.
+- Pro: it is [Decision 4](#decision-4)'s shape — allowed type
+  combinations — transplanted to the other partition. The model's
+  symmetry, showing up in the config.
+
+### Decision: Option C
+
+**Consequences:** [P-D4](#properties) extends to families: adding
+an allowed set never flips a passing project to failing; removing
+one never flips failing to passing. Exactness is
+[P-T2](#properties).
+
+---
+
+## Decision 14: Scoped policy overrides — designed, deferred {#decision-14}
+
+**Context:** Every policy value so far is global — one value per
+setting per project. The legitimate-density population from
+[Decision 9](#decision-9) invites finer grain: the packet-format
+section genuinely hosts twelve MUSTs; the parser file genuinely
+hosts fan-in. Today the only relief is loosening the global bound,
+which surrenders the check everywhere to accommodate one place. Is
+there a scoping scheme that stays policy — a rule about a class —
+without becoming the per-instance waiver this document rejected at
+the outset?
+
+### Option A: Section scoping for everything
+
+Overrides keyed by `spec.md#section-id`, applying to every
+predicate.
+
+- Con: ill-typed for target predicates. A claim class has exactly
+  one section (its quote's); a target class has none — it may host
+  annotations from eight sections and two specs. This was
+  committed during design: a draft override scoped `count`
+  (fan-in) under a section key, the precise coordinate a target
+  class lacks.
+- Con: the `sections` bound becomes circular under section scoping
+  — bounding distinct-sections-per-target with a bound that itself
+  varies by section.
+
+### Option B: Strictest applicable bound
+
+Where a target hosts annotations from several sections, the
+strictest configured bound governs.
+
+- Con: action-at-a-distance. Importing one quote from a stricter
+  section onto an existing stack silently changes which bound
+  governs the whole target — the effective bound moves under
+  exactly the mutations pull requests contain.
+
+### Option C: Most-permissive applicable bound
+
+- Con: laundering. Route one annotation from the loose section
+  onto any target and its bound rises — type-shopping in scope
+  clothing. Rejected outright.
+
+### Option D: Axis-matched scoping
+
+Each predicate family scopes by the coordinate system its
+equivalence classes live in; most-specific wins; unset scopes
+inherit:
+
+- Claim predicates: global → spec → section, keyed in the same
+  `spec.md#section-id` form annotations use — same resolver, and a
+  key naming a nonexistent section fails like a bad annotation
+  reference.
+- Target predicates: global → file path, keyed by the target's
+  own address.
+
+```toml
+[duplicates.claims."rfc9000.md#packet-format"]
+test = 3
+
+[duplicates.targets."src/parser.rs"]
+count = 15
+```
+
+- Pro: each override names its blast radius in its own key.
+- Pro: bounds are stable under annotation arrival — a target's
+  bound is a function of its address, and no arriving annotation
+  from any section can change which bound applies.
+- Pro: still rule-level. A section or a file is a class; the
+  override is an audited statement about it, not an excuse for an
+  instance. The waiver door stays closed. The granularity ladder
+  is global → spec → section → per-annotation (rejected), and
+  scope stops at the finest grain that is still a rule.
+- Pro: the dense parser is bounded at its own address; the global
+  stays tight.
+
+### Decision: Option D is the design; shipping it is deferred
+
+Two reasons to wait, recorded so the deferral is a decision and
+not a drift. First, target-side scoping will immediately be asked
+to take globs — one file is rarely the real class, `src/parser/**`
+is — and glob keys need an overlap-precedence rule
+(`src/parser.rs` vs `src/**`) that is real, unresolved design
+surface. Second, no demonstrated need yet: global bounds plus the
+discovery loop may be enough, and adding scope resolution to the
+policy model before a user asks buys complexity without a
+customer.
+
+If it ships, it owes three properties, stated now so the future
+decision inherits them: **resolution determinism** (the effective
+value is a pure function of config plus the class's coordinates —
+no key-order dependence), **unconfigured equivalence** (a config
+with no scoped keys behaves identically to global-only), and
+**shadowing monotonicity** (a scoped key changes verdicts only
+inside its scope; nothing outside leaks).
+
+---
+
+## Decision 15: Release posture {#decision-15}
 
 **Context:** Executed (runtime) coverage has shipped; proof
 coverage has not. Two behavior changes are on the table: W8
@@ -876,6 +1116,11 @@ live in the verified layer.
 - **P-T1 (fan-in exactness).** The duplicate-targets listing
   contains a target iff ≥ 2 annotations resolve to it; counts,
   type breakdowns, and section counts are exact.
+- **P-T2 (type-family exactness).** With a configured family, a
+  target class fails the type-combination rule iff its type set is
+  a subset of no allowed set. Adding an allowed set never flips a
+  passing project to failing; removing one never flips failing to
+  passing (the family form of P-D4).
 - **P-C1′ (scoped enforcement invariance).** New coverage verdict
   ≡ old on every input with no indistinct duplicate pair.
 - **P-C2 (per-instance billing).** coverage PASS ⟹ every in-scope
@@ -911,8 +1156,14 @@ live in the verified layer.
   clause spans); cap fixtures at N=1 (legacy parity) and N=2;
   coherence fixtures per row of the Decision 4 table; fan-in
   listing exactness; mixed-form target default.
-- Config schema (`[duplicates]` section): caps, fan-in bounds,
-  policy cells, shipped defaults.
+- Config schema (`[duplicates.claims]` / `[duplicates.targets]`):
+  caps, fan-in bounds, the type-set family, coherence cells,
+  shipped defaults; `citation` → `implementation` alias at the
+  parse boundary, never emitted.
+- Scoped overrides (Decision 14), if demand arrives: glob keys for
+  target scope and their overlap-precedence rule; whether spec
+  scope without section scope is worth having; fixtures for the
+  three scoping properties.
 - `duplicate-targets` query, then snapshot inclusion once the
   format stabilizes.
 - Implementation-side distinctness (execution profiles) — own
