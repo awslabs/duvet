@@ -58,10 +58,22 @@ pub type CoverageReportMap = duvet_coverage::types::CoverageReport;
 
 /// The engine-side witness record (spec §1.2). The definitional
 /// citation ("one act of checking") lives on the verified projection in
-/// `duvet-coverage/src/witness.rs`; this mirror carries the engine
+/// `duvet-coverage/src/witness.rs`; this type carries the engine
 /// concerns the projection deliberately omits (label, provenance,
-/// path-keyed maps). Single-type unification across the PG1 boundary is
-/// a pending design discussion.
+/// path-keyed maps).
+///
+/// Deliberately NOT the verified `Witness` (and not a wrapper around
+/// one): the two types cannot unify because the verified vocabulary
+/// does not exist when this record is produced. Producers construct
+/// witnesses in path coordinates; the opaque file ids the verified
+/// type speaks are minted per-run by [`VerifiedVerdicts::build`] (G1),
+/// and the translation is fallible (ambiguous coordinates are refused,
+/// spec §1.5). Composition would also force the proof-shaped
+/// first-match `Vec<(u64, _)>` container into engine code whose
+/// `BTreeMap` keys serve dedup and deterministic iteration. The claim
+/// rule, whose shape IS coordinate-independent, is shared: one generic
+/// definition in `duvet_coverage`, instantiated per coordinate system
+/// (see [`ClaimRule`]).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Witness {
     /// Human-readable identity (report path; obligation path).
@@ -77,28 +89,15 @@ pub struct Witness {
     pub files: BTreeMap<String, Arc<CoverageReportMap>>,
 }
 
-// Mirrors the verified `ClaimRule` (spec §1.5) in engine coordinates
-// (producer path strings instead of opaque file ids). The spec text is
-// quoted once, at the verified type it declares
-// (`duvet_coverage::witness::ClaimRule`); unifying the two types is a
-// pending design discussion.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ClaimRule {
-    /// The runtime rule: the test claims the witness by evidence — its
-    /// own lines are executed in it (spec §1.5).
-    /// A named axiom for runtime producers (spec §4.2).
-    ByExecution,
-    /// The prover rule: ownership is positional and holds by
-    /// construction (spec §1.5).
-    /// `file` is in producer (artifact) coordinates; the adapter
-    /// translates it to a file identity by the suffix rule, refusing
-    /// ambiguity (spec §1.5).
-    ByRootSpan {
-        file: String,
-        start_line: u64,
-        end_line: u64,
-    },
-}
+/// The claim rule (spec §1.5) in engine coordinates: the verified
+/// definition (`duvet_coverage::witness::ClaimRule`, where the spec
+/// text is quoted) instantiated at `F = String` — producer (artifact)
+/// path coordinates, pre-translation. The adapter translates to the
+/// verified layer's `ClaimRule<u64>` (opaque G1 file ids) by the
+/// suffix rule, refusing ambiguity (spec §1.5). One definition on both
+/// sides of the trust boundary; only the file coordinate differs, and
+/// the two instantiations are distinct types the compiler keeps apart.
+pub type ClaimRule = verified::ClaimRule<String>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 //= design/witness/spec.md#provenance
@@ -305,7 +304,7 @@ impl<'a> VerifiedVerdicts<'a> {
                         }
                     };
                     verified::ClaimRule::ByRootSpan {
-                        file_id,
+                        file: file_id,
                         start_line: *start_line,
                         end_line: *end_line,
                     }
@@ -664,11 +663,11 @@ mod tests {
         // rooted in `a` carries a's id; the unmatched one carries a fresh
         // id outside the project range.
         match adapter.verified[0].claim {
-            verified::ClaimRule::ByRootSpan { file_id, .. } => assert_eq!(file_id, 0),
+            verified::ClaimRule::ByRootSpan { file, .. } => assert_eq!(file, 0),
             _ => unreachable!(),
         }
         match adapter.verified[1].claim {
-            verified::ClaimRule::ByRootSpan { file_id, .. } => assert_eq!(file_id, 2),
+            verified::ClaimRule::ByRootSpan { file, .. } => assert_eq!(file, 2),
             _ => unreachable!(),
         }
     }

@@ -88,19 +88,28 @@ pub enum ScoringMode {
     Unscorable,
 }
 
-/// How a test annotation claims a witness (spec §1.5).
+/// How a test annotation claims a witness (spec §1.5), generic over the
+/// file coordinate `F` because the claim's SHAPE is coordinate-independent
+/// — only where the rule points differs across the G1 trust boundary. The
+/// verified layer instantiates `F = u64` (opaque injective ids, the
+/// vocabulary the proofs quantify over); the engine instantiates
+/// `F = String` (producer path coordinates, pre-translation). One
+/// definition, two coordinate systems: the instantiations are distinct
+/// types the compiler keeps apart, and a variant added here exists on
+/// both sides of the boundary by construction — no mirror to drift.
 #[derive(Debug, Clone, PartialEq, Eq)]
 //= design/witness/spec.md#claim-rules
 //# ClaimRule ::= ByExecution | ByRootSpan(file, line_range)
-pub enum ClaimRule {
+pub enum ClaimRule<F> {
     // The rule definitions (`ByExecution` is the runtime rule / `ByRootSpan`
     // is the prover rule) are quoted at their definitional site — the match
     // arms of the `binds` spec fn below — where the witness's consulted
     // span can reach them. The variants declare; `binds` defines.
     ByExecution,
-    /// File identity is an opaque id (glue assumption G1); the line
-    /// range is inclusive.
-    ByRootSpan { file_id: u64, start_line: u64, end_line: u64 },
+    /// `file` is the claimed file in `F` coordinates — for the verified
+    /// instantiation, an opaque id (glue assumption G1). The line range
+    /// is inclusive.
+    ByRootSpan { file: F, start_line: u64, end_line: u64 },
 }
 
 /// Verified-model projection of a witness: claim rule plus per-file
@@ -122,7 +131,7 @@ pub enum ClaimRule {
 //# one test's execution, or one prover obligation's successful
 //# verification.
 pub struct Witness {
-    pub claim: ClaimRule,
+    pub claim: ClaimRule<u64>,
     pub files: Vec<(u64, std::sync::Arc<CoverageReport>)>,
 }
 
@@ -257,7 +266,7 @@ pub open spec fn binds(
         //= type=implementation
         //# The implementation MUST prove that binding under `ByRootSpan` does
         //# not depend on the witness's coverage maps:
-        ClaimRule::ByRootSpan { file_id: span_file, start_line, end_line } => {
+        ClaimRule::ByRootSpan { file: span_file, start_line, end_line } => {
             let target = annotation_target_spec(annotation, classifications, file_length);
             &&& !(mode is Unscorable)
             &&& file_id == span_file
@@ -527,7 +536,7 @@ pub fn is_bound_by(
         ClaimRule::ByExecution => {
             is_executed_by(file_id, annotation, mode, classifications, scopes, file_length, w)
         },
-        ClaimRule::ByRootSpan { file_id: span_file, start_line, end_line } => {
+        ClaimRule::ByRootSpan { file: span_file, start_line, end_line } => {
             // Unscorable annotations bind nothing (spec §1.5 refusal); the
             // guard also stands in front of `annotation_target`, whose
             // precondition (`end_line < u64::MAX`) only holds for scorable
@@ -1383,7 +1392,7 @@ mod tests {
         let c = t_classifications();
         let root = |file_id, start_line, end_line| Witness {
             claim: ClaimRule::ByRootSpan {
-                file_id,
+                file: file_id,
                 start_line,
                 end_line,
             },
@@ -1464,7 +1473,7 @@ mod tests {
         let fat_map = vec![(T_FILE, cov_hit(&[3])), (I_FILE, cov_hit(&[]))];
         let by_root_elsewhere = Witness {
             claim: ClaimRule::ByRootSpan {
-                file_id: T_FILE,
+                file: T_FILE,
                 start_line: 7,
                 end_line: 9,
             },
@@ -1529,7 +1538,7 @@ mod tests {
         };
         let w = Witness {
             claim: ClaimRule::ByRootSpan {
-                file_id: T_FILE,
+                file: T_FILE,
                 start_line: 1,
                 end_line: 100,
             },
@@ -1585,7 +1594,7 @@ mod tests {
     fn decision_14_all_bound_root_span_witnesses_must_execute() {
         let root_with_i = Witness {
             claim: ClaimRule::ByRootSpan {
-                file_id: T_FILE,
+                file: T_FILE,
                 start_line: 2,
                 end_line: 4,
             },
@@ -1593,7 +1602,7 @@ mod tests {
         };
         let root_without_i = Witness {
             claim: ClaimRule::ByRootSpan {
-                file_id: T_FILE,
+                file: T_FILE,
                 start_line: 2,
                 end_line: 4,
             },
@@ -1703,7 +1712,7 @@ mod tests {
     fn unscorable_binds_nothing_and_executes_nothing() {
         let root = Witness {
             claim: ClaimRule::ByRootSpan {
-                file_id: T_FILE,
+                file: T_FILE,
                 start_line: 1,
                 end_line: 100,
             },
