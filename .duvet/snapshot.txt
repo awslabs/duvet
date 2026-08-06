@@ -1,25 +1,25 @@
 SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverage-model-spec.md)
   SECTION: [1.3 Classification Function and Unknown Lines](#classification-function)
-    TEXT[!MUST]: A line classified as `{Annotation}` MUST NOT also have
-    TEXT[!MUST]: `Statement` or `Declaration` in its property set.
-    TEXT[!MUST]: Classifiers MUST apply a post-processing pass
-    TEXT[!MUST]: after AST classification:
-    TEXT[!MUST]: for any line that has `Annotation`, `Comment`, or `Whitespace`,
-    TEXT[!MUST]: remove `Statement` and `Declaration` from its property set.
+    TEXT[!MUST,implementation,test]: A line classified as `{Annotation}` MUST NOT also have
+    TEXT[!MUST,implementation,test]: `Statement` or `Declaration` in its property set.
+    TEXT[!MUST,implementation,test]: Classifiers MUST apply a post-processing pass
+    TEXT[!MUST,implementation,test]: after AST classification:
+    TEXT[!MUST,implementation,test]: for any line that has `Annotation`, `Comment`, or `Whitespace`,
+    TEXT[!MUST,implementation,test]: remove `Statement` and `Declaration` from its property set.
 
   SECTION: [1.5 Scopes](#scopes)
     TEXT[test]: A scope is a contiguous range of lines
     TEXT[test]: delimited by `ScopeOpen` and `ScopeClose` properties.
     TEXT[test]: Scopes nest.
-    TEXT[!MUST]: **Scope Balance Contract:** {#scope-balance-contract}
-    TEXT[!MUST]: A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
-    TEXT[!MUST]: matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
-    TEXT[!MUST]: no `ScopeClose` occurs with no open to match,
-    TEXT[!MUST]: and no `ScopeOpen` is left unmatched at end of file.
-    TEXT[!MUST]: When the stream is unbalanced,
-    TEXT[!MUST]: the coverage model MUST NOT score annotations against the collapsed scope tree;
-    TEXT[!MUST]: it MUST surface the file as a defeated classification and escalate
-    TEXT[!MUST]: (see [Classifier Selection and Dispatch](#dispatch)).
+    TEXT[!MUST,implementation,test]: **Scope Balance Contract:** {#scope-balance-contract}
+    TEXT[!MUST,implementation,test]: A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
+    TEXT[!MUST,implementation,test]: matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
+    TEXT[!MUST,implementation,test]: no `ScopeClose` occurs with no open to match,
+    TEXT[!MUST,implementation,test]: and no `ScopeOpen` is left unmatched at end of file.
+    TEXT[!MUST,implementation,test]: When the stream is unbalanced,
+    TEXT[!MUST,implementation,test]: the coverage model MUST NOT score annotations against the collapsed scope tree;
+    TEXT[!MUST,implementation,test]: it MUST surface the file as a defeated classification and escalate
+    TEXT[!MUST,implementation,test]: (see [Classifier Selection and Dispatch](#dispatch)).
 
   SECTION: [5. Correctness Properties](#correctness-properties)
     TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus.
@@ -104,16 +104,16 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[implication]: then `target.line_number > annotation.end_line`.
 
   SECTION: [Property 11: Scope-Stream Balance Detection](#property-11-scope-stream-balance-detection)
-    TEXT[!MUST,implementation]: The implementation MUST prove that the balance detector returns balanced if and
-    TEXT[!MUST,implementation]: only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
-    TEXT[!MUST,implementation]: no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
-    TEXT[!MUST,implementation]: end of file.
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that the balance detector returns balanced if and
+    TEXT[!MUST,implementation,test]: only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+    TEXT[!MUST,implementation,test]: no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+    TEXT[!MUST,implementation,test]: end of file.
     TEXT[test]: A stream with no scope delimiters is balanced, and its whole-file scope is
     TEXT[test]: legitimate.
 
   SECTION: [7.4 Properties](#degraded-properties)
-    TEXT[!MUST]: These properties MUST be proven with Verus for the degraded path,
-    TEXT[!MUST]: alongside the Section 5 properties for the classified path.
+    TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus for the degraded path,
+    TEXT[!MUST,implementation,test]: alongside the Section 5 properties for the classified path.
 
   SECTION: [Property D1: Direct Observation](#property-d1-direct-observation)
     TEXT[!MUST,implication]: The implementation MUST prove that the degraded status is a direct observation
@@ -137,9 +137,10 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MUST,implication]: `is_annotation_executed` returns, namely `Executed`.
 
   SECTION: [8.2 Trust Taxonomy and Response](#trust-taxonomy)
-    TEXT[!MUST]: duvet MUST NOT silently substitute the coarse model or score against
-    TEXT[!MUST]:   the collapsed scope tree; it MUST escalate, reporting each located issue.
+    TEXT[!MUST,implementation,test]: duvet MUST NOT silently substitute the coarse model or score against
+    TEXT[!MUST,implementation,test]:   the collapsed scope tree;
+    TEXT[!MUST,implementation,test]: it MUST escalate, reporting each located issue.
 
   SECTION: [8.3 Escalation](#escalation)
-    TEXT[!MUST]: When `report` consumes coverage, a defeated commitment MUST be a hard
-    TEXT[!MUST]: error there, because `report` is the authoritative artifact.
+    TEXT[!MUST,exception]: When `report` consumes coverage, a defeated commitment MUST be a hard
+    TEXT[!MUST,exception]: error there, because `report` is the authoritative artifact.
