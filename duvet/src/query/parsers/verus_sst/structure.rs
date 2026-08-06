@@ -362,43 +362,85 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
         // with an explicit stack — expression trees in real logs are
         // deep enough that call recursion is not safe here either.
         //
-        // Span collection is by *string shape*, not syntactic
-        // position: the writer records locations in at least four
+        // Span collection is by *grammar position*, not string
+        // shape: the writer records locations in exactly four
         // contexts — `(@ "span" ...)` declaration nodes,
         // `(@@ "span" ...)` expression nodes, `:span "span"` fields,
-        // and `:spans ("span" ...)` lists (assert/label metadata).
+        // and `:spans ("span" ...)` lists (assert/label metadata) —
+        // and only strings at those positions are collected.
         // Collecting only the @-forms was tried first and silently
         // lost 13 of the golden corpus's project lines (all in
         // types.rs, reachable only through `:span`/`:spans`; the
         // corpus total is pinned by the aggregate golden test in
-        // `tests.rs`). Every
-        // span-shaped string in the block is part of what this
-        // obligation's elaboration consulted; the span format
-        // (`path:l:c: l:c (#n)`) is specific enough that
-        // false-positive matches on ordinary string constants are
-        // not a practical concern, and over-collection within the
-        // block is the correct direction for consulted semantics.
+        // `tests.rs`), which is how the field contexts were found.
+        //
+        // A shape heuristic ("collect every string `Span::parse`
+        // accepts") was used before this rule and is UNSOUND in the
+        // fill direction: the artifact records user string
+        // *constants* verbatim (`Exp Const (Constant StrSlice
+        // "...")`, probed 2026-08-06 on Verus 0.2026.05.24.ecee80a),
+        // so a span-shaped literal in a verified fn would enter the
+        // span set, widen the witness fill, and could falsely
+        // discharge a pair on a line the prover never elaborated.
+        // Over-collection is fine for the liveness (aggregate) view
+        // but fail-UNSAFE for discharge; the grammar rule's failure
+        // direction is the safe one — a missed fifth context
+        // under-fills (a loud false FAIL), and the pinned corpus
+        // aggregate (1990 lines) trips on any collection delta.
+        //
+        // A string at a location position that fails `Span::parse`
+        // is skipped, not an error: the corpus carries "no location"
+        // heads on non-FunctionSst declarations, and extents/clause
+        // spans (the positions where silent skipping would re-root
+        // annotations) are already hard errors elsewhere
+        // (`MissingExtent`, `MissingClauseSpan`).
+        let mut collect = |s: &str| {
+            if let Some(span) = Span::parse(s) {
+                spans
+                    .entry(span.file.clone())
+                    .or_default()
+                    .insert((span.start_line, span.end_line));
+            }
+        };
         let mut work: Vec<&Sexpr> = vec![expr];
         while let Some(e) = work.pop() {
-            match e {
-                Sexpr::Str(s) => {
-                    if let Some(span) = Span::parse(s) {
-                        spans
-                            .entry(span.file.clone())
-                            .or_default()
-                            .insert((span.start_line, span.end_line));
-                    }
+            let Sexpr::List(list) = e else { continue };
+            if let Some(target) = as_fun_path(list) {
+                if target != name {
+                    edges.insert(target.to_string());
                 }
-                Sexpr::List(list) => {
-                    if let Some(target) = as_fun_path(list) {
-                        if target != name {
-                            edges.insert(target.to_string());
+            }
+            // Contexts 1 & 2: `(@ "span" ...)` / `(@@ "span" ...)`.
+            // Matched structurally (head atom + string at index 1)
+            // rather than via `as_at_node`, which also demands a
+            // payload: the location grammar is the first two
+            // elements; whether a payload follows is irrelevant.
+            if let [head, Sexpr::Str(s), ..] = list.as_slice() {
+                if matches!(head.as_atom(), Some("@" | "@@")) {
+                    collect(s);
+                }
+            }
+            // Contexts 3 & 4: `:span "span"` and `:spans ("span" ...)`.
+            for pair in list.windows(2) {
+                match pair[0].as_atom() {
+                    Some(":span") => {
+                        if let Some(s) = pair[1].as_str() {
+                            collect(s);
                         }
                     }
-                    work.extend(list.iter());
+                    Some(":spans") => {
+                        if let Some(items) = pair[1].as_list() {
+                            for item in items {
+                                if let Some(s) = item.as_str() {
+                                    collect(s);
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
                 }
-                Sexpr::Atom(_) => {}
             }
+            work.extend(list.iter());
         }
 
         nodes.push(ObligationNode {
@@ -835,6 +877,42 @@ mod tests {
         // also never elaborate, so fills stay inside the aggregate).
         assert_eq!(fill(&[(9, 3)]), BTreeSet::new());
         assert_eq!(fill(&[(9, 3), (5, 6)]), [5].into());
+    }
+
+    #[test]
+    fn span_shaped_string_constant_is_not_collected() {
+        // The fill-direction soundness rule: collection is by
+        // grammar position, not string shape. The artifact records
+        // user string constants verbatim — probed 2026-08-06 on
+        // Verus 0.2026.05.24.ecee80a: `let s = "src/engine.rs:100:1:
+        // 200:2 (#0)";` in a verified fn appears in the SST as
+        // `(Exp Const (Constant StrSlice "src/engine.rs:100:1:
+        // 200:2 (#0)"))`. Under shape-based collection that literal
+        // enters the span set, widens the fill with
+        // src/engine.rs:100, and can FALSELY DISCHARGE a pair on a
+        // line the prover never elaborated. Under the grammar rule
+        // it is at payload position — not index 1 of an @/@@ node,
+        // not a `:span`/`:spans` field value — and is not collected.
+        let src = r#"
+(@ "src/a.rs:10:1: 20:2 (#0)"
+ (FunctionSst :name (Fun :path crate::holds_literal) :body
+  (@@ "src/a.rs:12:5: 12:46 (#0)"
+   (Exp Const (Constant StrSlice "src/engine.rs:100:1: 200:2 (#0)")))))
+"#;
+        let nodes = parse_module(src).unwrap();
+        let node = &nodes[0];
+        // The genuine location contexts are collected...
+        let expected: BTreeSet<(u32, u32)> = [(10, 20), (12, 12)].into();
+        assert_eq!(node.span_ranges["src/a.rs"], expected);
+        // ...and the span-shaped constant contributes nothing: no
+        // src/engine.rs entry, so no fill line, no elaboration, no
+        // false discharge surface.
+        assert!(
+            !node.span_ranges.contains_key("src/engine.rs"),
+            "span-shaped string constant leaked into the span set"
+        );
+        assert!(node.fill_lines().get("src/engine.rs").is_none());
+        assert!(!node.elaborates("src/engine.rs", 100));
     }
 
     #[test]

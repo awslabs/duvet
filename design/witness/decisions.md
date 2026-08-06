@@ -285,7 +285,26 @@ F1  Artifact-structure fidelity: the parse of the prover artifact
     defines dom(du) (spec §5.3) and position→obligation
     attribution (spec §5.3), including that binds reports only
     genuine rooting obligations — DISCHARGEABLE.
-    Mitigation: golden-corpus producer tests (spec §4.3).
+    The two parse-defect directions are asymmetric:
+    - Spurious BIND (a position attributed to an obligation it
+      does not root): fail-SAFE. Decision 14's ∀-quantifier makes
+      a spurious bind that misses I a false FAILURE, never a
+      false pass.
+    - Spurious FILL (a non-location string entering a span set):
+      fail-UNSAFE. The fill widens, `target ∈ fill` can succeed
+      on a line the prover never elaborated, and the pair is
+      FALSELY DISCHARGED — a false pass. Live hazard, probed
+      2026-08-06 (Verus 0.2026.05.24.ecee80a): the SST records
+      user string constants verbatim, so a span-shaped string
+      literal in a verified fn is a collectable string; a
+      shape-based collector admits it.
+    Mitigation: golden-corpus producer tests (spec §4.3); for the
+    fill direction specifically, span collection is by grammar
+    position (the four location contexts: `@`/`@@` heads,
+    `:span`, `:spans`) — never by string shape — so a defect in
+    the rule under-fills (loud false FAIL, the safe direction),
+    and the pinned corpus aggregate (1990 lines) trips on any
+    collection delta.
     Target: verification candidate in duvet-coverage.
 ```
 
