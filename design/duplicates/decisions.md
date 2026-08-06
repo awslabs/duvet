@@ -27,6 +27,11 @@ spray door — and, once the space is stated formally, it turns out
 "duplicate" names more than one thing, and each gets its own
 answer.
 
+The merged query design reserved this slot: its future-work list
+names "acceptable duplicates" as a mechanism not yet designed
+([§7.4](../query/design.md#future-work)). This document is that
+design.
+
 ## The formal space {#formal-space}
 
 An annotation is a triple **(τ, q, t)**:
@@ -61,7 +66,11 @@ predicate over the two partitions the coincidence relations
 induce:
 
 - **Claim classes** (annotations sharing a requirement):
-  multiplicity caps, evidential distinctness, type coherence.
+  multiplicity caps, type coherence. Whether the *evidence* behind
+  two copies is distinguishable is the correlation check's own
+  territory ([query design
+  §2.4](../query/design.md#check-coverage)), not a predicate of
+  this document.
 - **Target classes** (annotations sharing a position): fan-in
   bounds, mixed-form targets.
 
@@ -155,6 +164,20 @@ size and member locations, so multiplicity is always surfaced,
 never silent. Cap semantics are monotone ([P-D4](#properties)):
 raising N never flips a passing project to failing.
 
+What a raised cap costs, and what recovers it: the static check
+cannot tell two evidence-backed copies from one claim written
+twice — that is not a static question, and it is not answered
+here. It does not need to be, because the correlation check bills
+every copy natively: each is an independent test annotation that
+must execute and discharge against its covering implementations
+([query design §2.4](../query/design.md#check-coverage); witness
+model in [§5.2](../query/design.md#annotation-execution) and
+`design/witness/spec.md`) — whether or not the duplicates check
+ever runs. How correlation treats copies whose evidence is
+identical is correlation's decision to make in its own design.
+The governing principle above states what this document needs
+from it; nothing here legislates how.
+
 ---
 
 ## Decision 2: Same claim, same target — always fails, for every type pair {#decision-2}
@@ -193,10 +216,14 @@ FAIL unconditionally, regardless of cap and regardless of type.
 target**, not same
 source line: stacked copies above one statement collapse to one
 target and die here; copies scattered through a function body
-resolve to different targets and are governed by the cap and by
-the evidential rule stated later — indistinguishability decidable
-only once evidence arrives. This decision is that rule's
-statically decidable fragment.
+resolve to different targets and are governed by the cap, with
+each copy's evidence billed by the correlation check
+([query design §2.4](../query/design.md#check-coverage)) —
+indistinguishability beyond position is decidable only once
+evidence arrives, and deciding it is coverage's job, not this
+check's. This decision is the statically decidable fragment: same
+target implies indistinguishable by construction, before any
+evidence exists.
 
 ---
 
@@ -365,9 +392,10 @@ The duplicates check enforces structure only (Decisions 1–4): run
 alone, a within-cap duplicate set **passes**, with its size and
 members surfaced in the report. The coverage check enforces
 evidence natively and unconditionally — whether or not the
-duplicates check ever runs (the next decision states the
-evidential rule). Run the full report and the composition just
-works; run one check and you get exactly that check's guarantee.
+duplicates check ever runs; its contract is its own design
+([query design §2.4](../query/design.md#check-coverage)). Run the
+full report and the composition just works; run one check and you
+get exactly that check's guarantee.
 
 ### Decision: Option B
 
@@ -376,8 +404,9 @@ its two scoping conditions stated so nobody over-reads it:
 
 1. For **test** duplicates, the full coverage check alone
    dominates: every copy is an independent T — unwitnessed → W6
-   fail; witnessed → per-pair ∀w billing; evidentially identical →
-   the distinctness failure defined next.
+   fail; witnessed → per-pair ∀w billing. Whether correlation
+   additionally compares copies *to each other* is its own design
+   question, owned there.
 2. For **implementation** duplicates, coverage dominates the
    *duplicate-specific* badness only. An implementation annotation
    on a quote no test covers is invisible to coverage — but so is
@@ -390,137 +419,13 @@ duplicates. The report wording points at running both checks.
 
 ---
 
-## Decision 6: Coverage fails evidentially indistinct duplicates (W8) {#decision-6}
-
-**Context:** A project raises `test = 2`, and a requirement now
-carries two test annotations in two places. What the coverage
-check does with them today: it binds each annotation to its
-witness set — the concrete units of evidence, an instrumented
-test run, a proved clause — and verifies each annotation
-independently: witnessed? discharged against every covering
-implementation? Both copies can answer both questions by pointing
-at the same evidence, and both pass, because nothing ever
-compares the copies *to each other*. Per-instance discharge (W6
-plus pair billing) is already enforced for every copy; what no
-existing machinery asks is whether the two copies are two claims
-or one claim written twice.
-
-One question decides it: **do the copies bind the same witness
-set?** Everything duvet can check about a test annotation — in
-this check or any future one — is a function of its witness set.
-If two copies bind exactly equal sets, no check can ever tell
-them apart; the second copy adds no information. The governing
-principle says duplicates are permissible exactly where coverage
-can disambiguate them, and equal witness sets is precisely where
-it cannot.
-
-### Option A: Report the groups, never change the verdict
-
-Surface "these copies are evidentially indistinguishable" as an
-informational grouping — candidates for collapsing, no failure.
-This option was briefly adopted during design, out of sympathy
-for contained multiplicity ("silly but not intrinsically wrong").
-
-- Con: it quietly guts the design's central claim. If
-  indistinguishable copies never fail, coverage resolves only
-  *rot* (unwitnessed, undischarged copies), not *redundancy* —
-  and "the duplicates check can relax because coverage
-  disambiguates the copies" stops being true. The grouping
-  becomes a caption on a pass.
-- Con: the governing principle decides this case directly.
-  Allowing indistinguishable copies is not tolerance; it is the
-  principle's own failure condition.
-
-### Option B: Fail the indistinguishable groups
-
-Within each claim class, group the same-type test members by
-their bound witness set. **Every group of size ≥ 2 fails** —
-those members are mutually indistinguishable. Singleton groups
-pass.
-
-### Decision: Option B
-
-Property **W8 (evidential distinctness):** coverage PASS requires
-that no two same-type mutually-covering test annotations bind the
-same witness set.
-
-**How you hit it in practice.** Three ways:
-
-- Copy-paste: N copies scattered through one test function all
-  bind that test's witnesses identically. Fails; collapse them.
-- One merged suite report: two *genuinely different* tests run as
-  a single instrumented invocation produce one fat witness, and
-  both annotations bind it. Fails — and this is the case that
-  feels like a false positive, because the tests really are
-  different. But the evidence handed to duvet cannot see the
-  difference, and duvet does not guess at distinctions its
-  evidence cannot support. Two exits, both improvements: collapse
-  the copies, or individuate the runs (per-test reports) so the
-  sets differ. Coarser evidence buys fewer allowed duplicates —
-  the monotonicity invariant surfacing as an incentive.
-- Two test annotations inside one Verus discharge unit bind the
-  same clause span. Fails. Copies on two *different* `ensures`
-  clauses of one function pass — the prover artifact records a
-  span per clause, so the sets were never equal. Two separately
-  recorded prover obligations are two units of evidence; edgy,
-  pinned by fixture, reopened if dogfooding says otherwise.
-
-The constructions this admits are the motivating ones: proof +
-PBT (`{w_verus}` vs `{w_jacoco}`), split tests with per-test
-reports.
-
-**There are no false positives in the strict sense.** Equal sets
-are computed from the delivered evidence, not estimated; when the
-rule fires, the indistinguishability is a fact. The unfair
-*feeling* is always the merged-report case — evidence coarser
-than reality — and the remediation message says so.
-
-The formulation carries two deliberate precisions, both
-arm-wrestled:
-
-- **Distinct means unequal, never disjoint.** An earlier
-  "pairwise distinct sets" phrasing invited misreading as
-  disjointness, and disjointness would fail legitimate structure:
-  `{extent, e₁} ≠ {extent, e₂}` passes despite the shared
-  witness.
-- **The verdict attaches to the indistinguishable group, not the
-  class.** If A and B bind identically but C binds differently, A
-  and B fail together and C is untouched. Coverage can prove the
-  group mutually vacuous but cannot pick the canonical member; a
-  human collapses it.
-
-**Consequences:**
-
-- [Decision 2](#decision-2)'s same-target rule is exactly this
-  rule's statically decidable shadow: same target implies
-  identical sets by construction, but not conversely — positions
-  that always execute together are positionally distinct and
-  evidentially identical, and only this rule sees them.
-- **Robust to report duplication:** binding is content-determined
-  (`executed_by` reads the coverage map), so delivering one
-  report twice binds both copies identically for *every*
-  annotation — `{w₁, w₂} = {w₁, w₂}`, still indistinct. Evidence
-  cannot be photocopied into distinctness.
-- Implementation surface is additive: the check already computes
-  `bound_witnesses` per test; the new work is grouping by witness
-  set, one new result bucket, one status conjunct — linear, no
-  pairwise walk. Per the engine-glue requirement, the W8 verdict
-  flows through a verified-layer predicate (set equality over the
-  existing `binds` cells) with an exactness proof: members
-  grouped ⟺ witness sets equal.
-- Implementation-side distinctness (comparing execution profiles
-  of implementation copies) is deferred to a follow-up; tests are
-  where the motivating case lives.
-
----
-
-## Decision 7: Evidence units come from the artifact, never from inference {#decision-7}
+## Decision 6: Evidence units come from the artifact, never from inference {#decision-6}
 
 **Context:** Under one merged runtime report, two genuinely
 different tests carrying the same claim bind identical witness
-sets and fail W8. Could duvet subdivide the report — e.g. by "the
-test function the annotation sits in," using the classifier's
-scope tree — to tell them apart?
+sets — the evidence cannot tell them apart. Could duvet subdivide
+the report — e.g. by "the test function the annotation sits in,"
+using the classifier's scope tree — to tell them apart?
 
 ### Option A: Scope-refined evidence units
 
@@ -552,7 +457,8 @@ artifacts: one instrumented run per test.
 
 ### Decision: Option B. Scope refinement is rejected, not deferred.
 
-**Consequences:** The fat-report W8 failure is designed incentive,
+**Consequences:** The fat-report indistinguishability is designed
+incentive,
 not accident: merged report → indistinguishable duplicates →
 collapse them or individuate your runs. Coarse evidence buys fewer
 allowed duplicates; finer evidence buys more. This is the
@@ -570,7 +476,7 @@ spans) ever subdivides a unit.
 
 ---
 
-## Decision 8: Executed-coverage mode carries no duplicate guarantees {#decision-8}
+## Decision 7: Executed-coverage mode carries no duplicate guarantees {#decision-7}
 
 **Context:** `executed-coverage` skips `NotExecuted` tests by
 design — it is the tight inner loop (run one test in seconds, not
@@ -579,8 +485,8 @@ this invocation are unbilled there.
 
 ### Option A: A narrow tightening for the mode
 
-When some members of a duplicate set executed and grouped
-vacuously, fail the set even in executed mode.
+When some members of a duplicate set executed and their evidence
+is identical, fail the set even in executed mode.
 
 - Con: it designs duplicate machinery into a debug loop. The
   mode's entire purpose is deliberate partiality — run one test in
@@ -601,7 +507,7 @@ positions that resolve to nothing has no refuge here either.
 
 ---
 
-## Decision 9: Duplicate targets — the fan-in axis {#decision-9}
+## Decision 8: Duplicate targets — the fan-in axis {#decision-8}
 
 **Context:** Everything above polices coincidence of **claims**.
 The formal space has a second coordinate, and it collides too:
@@ -612,7 +518,7 @@ LLM sessions. The full matrix:
 
 | | same target | different targets |
 |---|---|---|
-| same claim | dead — [Decision 2](#decision-2) | duplicate set — cap + W8 |
+| same claim | dead — [Decision 2](#decision-2) | duplicate set — cap + evidence billing |
 | different claims | **duplicate target (this decision)** | normal |
 
 This is duplication of the *other* coordinate — not a duplicated
@@ -639,7 +545,7 @@ lines, losing per-claim precision — on the prover side, the
 difference between binding the extent and binding the clause
 unit); rot amplification (a refactor re-homes twelve claims as one
 careless block); and annotation dumping — spray rotated ninety
-degrees. Per [Decision 7](#decision-7), no evidence-side analysis
+degrees. Per [Decision 6](#decision-6), no evidence-side analysis
 can distinguish a well-placed stack from a lazy one within a unit,
 so the tools here are static, and their bounds are policy rather
 than correctness.
@@ -678,7 +584,7 @@ biting default.
 Use the execution data to tell a lazily-stacked function head from
 a precisely-annotated dense function.
 
-- Con: impossible within a unit, per [Decision 7](#decision-7) —
+- Con: impossible within a unit, per [Decision 6](#decision-6) —
   no execution gradient exists. (A related evidence-side idea
   survives as a parked observation at the end of this document.)
 
@@ -734,11 +640,11 @@ is the next decision.
 
 ---
 
-## Decision 10: Policy lives in configuration, not on the command line {#decision-10}
+## Decision 9: Policy lives in configuration, not on the command line {#decision-9}
 
 **Context:** The decisions above accumulate policy values — caps
 (Decision 1), coherence cells (Decision 4), fan-in bounds and the
-mixed-form default (Decision 9). Where do they live?
+mixed-form default (Decision 8). Where do they live?
 
 ### Option A: CLI flags, possibly mirrored in config
 
@@ -782,7 +688,7 @@ controls verbosity — display, never verdict.
 
 ---
 
-## Decision 11: User-facing vocabulary — `implementation`, not `citation` {#decision-11}
+## Decision 10: User-facing vocabulary — `implementation`, not `citation` {#decision-10}
 
 **Context:** The code names the default annotation type
 `citation`. Every user-facing surface the preceding decisions add
@@ -821,9 +727,9 @@ own change.
 
 ---
 
-## Decision 12: One config namespace per coincidence axis {#decision-12}
+## Decision 11: One config namespace per coincidence axis {#decision-11}
 
-**Context:** [Decision 10](#decision-10) settled where policy
+**Context:** [Decision 9](#decision-9) settled where policy
 lives; its sketch wrote the keys flat. This settles the vocabulary
 the policy is written in.
 
@@ -857,7 +763,7 @@ implementation = 1
 # coherence-cell overrides (Decision 4)
 
 [duplicates.targets]       # predicates over target classes (D_T)
-count = 3                  # fan-in bound (Decision 9)
+count = 3                  # fan-in bound (Decision 8)
 sections = 2               # distinct sections per target
 # allowed type combinations: next decision
 ```
@@ -878,9 +784,9 @@ unaffected: those are not caps, and remain unique always
 
 ---
 
-## Decision 13: Target type combinations are an allowed-set family {#decision-13}
+## Decision 12: Target type combinations are an allowed-set family {#decision-12}
 
-**Context:** [Decision 9](#decision-9) named a `types` bound (max
+**Context:** [Decision 8](#decision-8) named a `types` bound (max
 distinct claim forms per target) and a mixed-form default
 (`test`+`implementation` on one target fails). Stated as a number,
 the bound is expressive only at 1.
@@ -945,11 +851,11 @@ one never flips failing to passing. Exactness is
 
 ---
 
-## Decision 14: Scoped policy overrides — designed, deferred {#decision-14}
+## Decision 13: Scoped policy overrides — designed, deferred {#decision-13}
 
 **Context:** Every policy value so far is global — one value per
 setting per project. The legitimate-density population from
-[Decision 9](#decision-9) invites finer grain: the packet-format
+[Decision 8](#decision-8) invites finer grain: the packet-format
 section genuinely hosts twelve MUSTs; the parser file genuinely
 hosts fan-in. Today the only relief is loosening the global bound,
 which surrenders the check everywhere to accommodate one place. Is
@@ -1043,19 +949,15 @@ inside its scope; nothing outside leaks).
 
 ---
 
-## Decision 15: Release posture {#decision-15}
+## Decision 14: Release posture {#decision-14}
 
-**Context:** Executed (runtime) coverage has shipped; proof
-coverage has not. Two behavior changes are on the table: W8
-([Decision 6](#decision-6)) changes the coverage verdict on inputs
-containing indistinct duplicate pairs, and type coherence
-([Decision 4](#decision-4)) makes the duplicates check fail
-cross-type coexistences that silently pass today.
+**Context:** One behavior change ships from this document: type
+coherence ([Decision 4](#decision-4)) makes the duplicates check
+fail cross-type coexistences that silently pass today.
 
 ### Option A: A compatibility flag
 
-Ship the new semantics behind `--no-distinctness` /
-`--legacy-coherence` switches.
+Ship the new semantics behind a `--legacy-coherence` switch.
 
 - Con: a waiver-by-declaration, rejected on the same grounds as
   every other waiver in this document — and a permanent escape
@@ -1066,29 +968,19 @@ Ship the new semantics behind `--no-distinctness` /
 - Pro: nobody gets ambushed; the warning release lists the exact
   collapse/split remediation.
 - Con: unnecessary given the facts. It was designed under the
-  assumption of a broad executed-coverage install base; the actual
-  base is effectively one user, and proof coverage has not shipped
-  at all.
+  assumption of a broad install base; the actual base is
+  effectively one user.
 
-### Option C: Ship strict with proof coverage; tightened defaults are pinnable
+### Option C: Ship the tightened default, pinnable
 
-W8 ships **in the same release as proof coverage** — the check
-simply always had these semantics; no lenient version ever
-existed to be compatible with. Type coherence ships as a
-tightened default with its cells pinnable per
-[Decision 10](#decision-10) — the release notes name the cell
-that restores prior behavior.
+Type coherence ships as a tightened default with its cells
+pinnable per [Decision 9](#decision-9) — the release notes name
+the cell that restores prior behavior.
 
 ### Decision: Option C
 
-**Consequences:** Enforcement invariance is stated honestly as
-**P-C1′**: the new coverage verdict equals the old on every input
-containing no indistinct duplicate pair; on inputs that do, new
-coverage fails where old passed — and that delta is precisely the
-defect class this feature defines. Both exits from the new failure
-are improvements: collapse the copies (the report lists them) or
-individuate the evidence. Legacy equivalence for the duplicates
-check ([P-D3](#properties)) is likewise scoped: caps at 1 *and*
+**Consequences:** Legacy equivalence for the duplicates check
+([P-D3](#properties)) is scoped honestly: caps at 1 *and*
 coherence cells at their pre-existing effective values reproduce
 the historical verdict; the shipped coherence defaults are a
 deliberate tightening.
@@ -1153,7 +1045,7 @@ fan-in view and pair billing.
 
 **Parked, not adopted:** the transpose cannot serve the placement
 question that motivated it — within one evidence unit there is no
-execution gradient ([Decision 7](#decision-7)), so a constant
+execution gradient ([Decision 6](#decision-6)), so a constant
 column cannot distinguish a lazily-placed annotation from a
 precisely-placed one on a genuinely hot path (a requirement really
 enforced on the universal request path legitimately executes under
@@ -1167,8 +1059,7 @@ coverage already computes.
 
 ## Properties {#properties}
 
-Pinned by fixture unless noted; W8's predicate and exactness proof
-live in the verified layer.
+Pinned by fixture unless noted.
 
 - **P-D1 (stacked-spam soundness).** duplicates PASS ⟹ no
   mutually-covering pair — any types — shares a resolved target.
@@ -1194,25 +1085,18 @@ live in the verified layer.
   set; single-type targets never fail it. Adding an allowed set
   never flips a passing project to failing; removing one never
   flips failing to passing (the family form of P-D4).
-- **P-C1′ (scoped enforcement invariance).** New coverage verdict
-  ≡ old on every input with no indistinct duplicate pair.
 - **P-C2 (per-instance billing).** coverage PASS ⟹ every in-scope
   test annotation, duplicate or not, is witnessed and discharges
   against every covering implementation. (Already true — W6 plus
   the per-test aggregation; stated so independence is visibly
   safe.)
-- **W8 (evidential distinctness).** coverage PASS ⟹ within every
-  claim class, no witness-set group of same-type test members has
-  size ≥ 2. Verified-layer predicate; exactness: grouped ⟺ sets
-  equal. Distinct means unequal, not disjoint.
 - **P-S0 (verdict determinism).** For a fixed set of checks and
   evidence inputs, the verdict is a function of the checked-in
   tree (source + config). Verbosity never changes a verdict.
 - **P-S1 (no pass without evidence).** duplicates PASS ∧ coverage
   PASS ⟹ every duplicate copy resolves to a distinct target, every
-  set is within cap, every claim class is type-coherent, every
-  copy is individually billed, and every pair is evidentially
-  distinct.
+  set is within cap, every claim class is type-coherent, and every
+  copy is individually billed.
 
 ## Follow-ups
 
@@ -1221,13 +1105,8 @@ live in the verified layer.
   and test checks), so P-D5's fixture set covers the real paths;
   and that exact/full mutual coverage is transitive, so claim
   classes are well-defined.
-- Integration fixtures: same-test-fn pair (fail W8); split-test
-  pair with per-test reports (pass); fat-report distinct-tests
-  pair (fail W8); duplicated-report pair (fail W8); Verus
-  same-ensures pair (fail) and cross-ensures pair (pass);
-  specificity-boundary binding (annotation on fn header vs inside
-  clause spans); cap fixtures at N=1 (legacy parity) and N=2;
-  coherence fixtures per row of the Decision 4 table; fan-in
+- Integration fixtures: cap fixtures at N=1 (legacy parity) and
+  N=2; coherence fixtures per row of the Decision 4 table; fan-in
   listing exactness; mixed-form target default.
 - Config schema (`[duplicates.claims]` / `[duplicates.targets]`):
   caps, fan-in bounds, the type-set family, coherence cells,
@@ -1235,15 +1114,13 @@ live in the verified layer.
   parse boundary, never emitted.
 - Survey the public duvet corpus (s2n-quic, s2n-tls, the AWS
   crypto tooling) for actual target fan-in frequency — settles
-  Decision 9's open `count` default (unlimited vs 1).
-- Scoped overrides (Decision 14), if demand arrives: glob keys for
+  Decision 8's open `count` default (unlimited vs 1).
+- Scoped overrides (Decision 13), if demand arrives: glob keys for
   target scope and their overlap-precedence rule; whether spec
   scope without section scope is worth having; fixtures for the
   three scoping properties.
 - `duplicate-targets` query, then snapshot inclusion once the
   format stabilizes.
-- Implementation-side distinctness (execution profiles) — own
-  follow-up.
 - Implication duplicates — rider on self-discharging implications.
 - Impl-dump diagnostic locality (pointing failures at the dumped
   annotation rather than the innocent tests) — revisit with the
