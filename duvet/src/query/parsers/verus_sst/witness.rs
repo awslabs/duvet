@@ -532,13 +532,23 @@ mod tests {
 
     #[test]
     fn report_text_is_the_normative_sentence() {
-        // Spec §5.2 quotes the report sentence; pin it verbatim so
-        // a wording drift between spec and producer is a test
-        // failure, not a silent divergence.
-        assert_eq!(
-            NOT_PROOF_TESTABLE,
-            "this position carries no dischargeable obligation; \
-             it can only be witnessed by an execution-style producer"
+        // Spec §5.2 quotes the report sentence verbatim, and `duvet
+        // extract` snapshots that quote into the requirement TOML.
+        // Pin the constant against that extracted artifact — not a
+        // copy of the literal in this file — so wording drift
+        // between the spec and this producer fails here instead of
+        // diverging silently. The TOML quote is hard-wrapped;
+        // normalize whitespace runs to single spaces before
+        // comparing.
+        let toml = include_str!(
+            "../../../../../.duvet/requirements/design/witness/spec/two-pass-construction.toml"
+        );
+        let normalized = toml.split_whitespace().collect::<Vec<_>>().join(" ");
+        let quoted = format!("(\"{NOT_PROOF_TESTABLE}\")");
+        assert!(
+            normalized.contains(&quoted),
+            "NOT_PROOF_TESTABLE is not the sentence quoted by spec §5.2's \
+             extracted requirement; update the constant or re-run `duvet extract`"
         );
     }
 

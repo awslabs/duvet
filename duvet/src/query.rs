@@ -190,6 +190,75 @@ fn parse_coverage_source(s: &str) -> Result<crate::query::producers::CoverageSou
     })
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use producers::CoverageProducer;
+
+    // `parse_coverage_source` is the CLI seam for `--coverage-source`:
+    // total over &str — every input either yields a recognized
+    // producer paired with a non-empty single-glob path, or a
+    // descriptive error. Three error paths, exercised below: missing
+    // '=', unknown producer, empty path.
+
+    #[test]
+    fn parse_coverage_source_jacoco_xml() {
+        let source = parse_coverage_source("jacoco-xml=target/site/jacoco.xml").unwrap();
+        assert_eq!(source.producer, CoverageProducer::JacocoXml);
+        assert_eq!(source.globs, ["target/site/jacoco.xml"]);
+    }
+
+    #[test]
+    fn parse_coverage_source_verus_sst() {
+        let source = parse_coverage_source("verus-sst=target/verus-logs").unwrap();
+        assert_eq!(source.producer, CoverageProducer::VerusSst);
+        assert_eq!(source.globs, ["target/verus-logs"]);
+    }
+
+    #[test]
+    fn parse_coverage_source_splits_on_first_equals() {
+        // `split_once` semantics: only the first '=' separates
+        // producer from path, so paths containing '=' stay intact.
+        let source = parse_coverage_source("jacoco-xml=reports/run=1/jacoco.xml").unwrap();
+        assert_eq!(source.producer, CoverageProducer::JacocoXml);
+        assert_eq!(source.globs, ["reports/run=1/jacoco.xml"]);
+    }
+
+    #[test]
+    fn parse_coverage_source_missing_equals() {
+        let err = parse_coverage_source("jacoco-xml").unwrap_err();
+        assert!(
+            err.contains("expected PRODUCER=PATH_OR_GLOB"),
+            "unexpected error: {err}"
+        );
+        assert!(err.contains("'jacoco-xml'"), "should echo the input: {err}");
+    }
+
+    #[test]
+    fn parse_coverage_source_unknown_producer() {
+        let err = parse_coverage_source("lcov=coverage.info").unwrap_err();
+        assert!(
+            err.contains("unknown coverage producer 'lcov'"),
+            "unexpected error: {err}"
+        );
+        // Empty producer (input starting with '=') lands here too.
+        let err = parse_coverage_source("=coverage.info").unwrap_err();
+        assert!(
+            err.contains("unknown coverage producer ''"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_coverage_source_empty_path() {
+        let err = parse_coverage_source("jacoco-xml=").unwrap_err();
+        assert!(
+            err.contains("path must not be empty"),
+            "unexpected error: {err}"
+        );
+    }
+}
+
 impl Query {
     pub async fn exec(&self) -> Result {
         let progress = progress!("Starting duvet in query mode...");

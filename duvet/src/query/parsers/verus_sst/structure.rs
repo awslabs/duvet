@@ -757,6 +757,21 @@ mod tests {
         assert_eq!(Span::parse("x.rs:1:1: 2:2"), None); // no (#N)
     }
 
+    // `Span::parse` sits on the same trust boundary as the
+    // S-expression parser: every string atom in an artifact is
+    // offered to it. Total over arbitrary input: never panics (the
+    // slice at `rfind(" (#")` and the rsplit arithmetic must hold
+    // for any string, including multi-byte UTF-8), and on `Some`
+    // the documented invariant holds — a non-empty file path.
+    #[test]
+    fn span_parse_total_over_arbitrary_input() {
+        bolero::check!().with_type::<String>().for_each(|s| {
+            if let Some(span) = Span::parse(s) {
+                assert!(!span.file.is_empty(), "parsed span with empty file: {s:?}");
+            }
+        });
+    }
+
     const MINI: &str = r#"
 ;; functions
 (@ "src/a.rs:10:1: 20:2 (#0)"

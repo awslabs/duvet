@@ -357,4 +357,53 @@ mod tests {
             assert_eq!(once, twice, "round-trip diverged for {input:?}");
         }
     }
+
+    // Property target for the trust boundary: `parse_all` consumes
+    // multi-megabyte Verus build artifacts, so it must be total over
+    // arbitrary input. Three properties in one pass:
+    //
+    // 1. Never panics (the target completing IS the property — any
+    //    slice-out-of-bounds, char-boundary, or overflow panic in the
+    //    byte-offset arithmetic fails the run).
+    // 2. On `Err`, the offset is in-bounds and a char boundary, so
+    //    callers can safely render context around it.
+    // 3. On `Ok`, print ∘ parse = identity on parsed forms — the
+    //    generalization of `display_parse_round_trip` above from
+    //    three fixed inputs to arbitrary ones.
+    //
+    // Runs under `cargo test` in RNG mode; under `cargo bolero test`
+    // with a fuzz engine for corpus-driven exploration.
+    #[test]
+    fn parse_all_total_over_arbitrary_input() {
+        bolero::check!()
+            .with_type::<String>()
+            .for_each(|input| match parse_all(input) {
+                Ok(exprs) => {
+                    let printed = exprs
+                        .iter()
+                        .map(|e| e.to_string())
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    let reparsed =
+                        parse_all(&printed).expect("printed form of a parse must reparse");
+                    assert_eq!(
+                        exprs, reparsed,
+                        "print ∘ parse not identity for input {input:?}"
+                    );
+                }
+                Err(err) => {
+                    assert!(
+                        err.offset <= input.len(),
+                        "error offset {} out of bounds for input of length {}",
+                        err.offset,
+                        input.len()
+                    );
+                    assert!(
+                        input.is_char_boundary(err.offset),
+                        "error offset {} is not a char boundary in {input:?}",
+                        err.offset
+                    );
+                }
+            });
+    }
 }
