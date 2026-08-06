@@ -21,10 +21,16 @@ pattern = "duvet-coverage/**/*.rs"
 pattern = "duvet/src/query/engine.rs"
 
 [[source]]
+pattern = "duvet/src/query/classify/kotlin.rs"
+
+[[source]]
 pattern = "duvet/src/report.rs"
 
 [[specification]]
 source = "design/query/coverage-model-spec.md"
+
+[[specification]]
+source = "design/classifiers/kotlin-spec.md"
 
 [report.html]
 enabled = true

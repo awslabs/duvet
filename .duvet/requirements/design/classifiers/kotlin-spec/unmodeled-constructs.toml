@@ -1,0 +1,20 @@
+target = "design/classifiers/kotlin-spec.md#unmodeled-constructs"
+
+# 9. Unmodeled constructs
+#
+# Any node kind this document does not name
+# contributes no property of its own;
+# its lines keep whatever enclosing nodes marked,
+# or remain `None` (unknown) per the generic contract's Decision 9.
+# Every arm of the classifier that marks a code or structural property
+# MUST record the marked node's start line as a code-start line
+# for the post-pass's `{code, Comment}` disambiguation.
+
+[[spec]]
+level = "MUST"
+quote = '''
+Every arm of the classifier that marks a code or structural property
+MUST record the marked node's start line as a code-start line
+for the post-pass's `{code, Comment}` disambiguation.
+'''
+

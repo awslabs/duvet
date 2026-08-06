@@ -1,0 +1,34 @@
+target = "design/classifiers/kotlin-spec.md#non-linear-control"
+
+# 7. Non-linear control
+#
+# A `label` node (a label declaration such as `outer@` or `lit@`)
+# MUST mark `NonLinearControl` on its line.
+# A `labeled_expression` (`break@label`, `continue@label`)
+# MUST mark `NonLinearControl` on its line.
+# A `return_expression` whose first token is `return@`
+# (a labeled return) MUST be marked `Statement`,
+# not `NonLinearControl`.
+
+[[spec]]
+level = "MUST"
+quote = '''
+A `label` node (a label declaration such as `outer@` or `lit@`)
+MUST mark `NonLinearControl` on its line.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A `labeled_expression` (`break@label`, `continue@label`)
+MUST mark `NonLinearControl` on its line.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A `return_expression` whose first token is `return@`
+(a labeled return) MUST be marked `Statement`,
+not `NonLinearControl`.
+'''
+

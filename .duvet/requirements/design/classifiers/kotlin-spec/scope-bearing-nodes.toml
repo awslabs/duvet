@@ -1,0 +1,41 @@
+target = "design/classifiers/kotlin-spec.md#scope-bearing-nodes"
+
+# 4. Scope-bearing nodes
+#
+# The scope-bearing node kinds are
+# `block`, `class_body`, `enum_class_body`, `lambda_literal`,
+# and `when_expression`.
+# For each scope-bearing node, the classifier MUST mark
+# `ScopeOpen` on the line of its opening brace token
+# and `ScopeClose` on the line of its closing brace token.
+# The scope-event stream MUST contain one open and one close event
+# per scope-bearing node, keyed at the byte offsets of its brace tokens,
+# in source order.
+# `when_expression` and `lambda_literal` carry their brace tokens
+# as direct children rather than in a child `block`;
+# their events MUST be keyed on those tokens.
+
+[[spec]]
+level = "MUST"
+quote = '''
+For each scope-bearing node, the classifier MUST mark
+`ScopeOpen` on the line of its opening brace token
+and `ScopeClose` on the line of its closing brace token.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The scope-event stream MUST contain one open and one close event
+per scope-bearing node, keyed at the byte offsets of its brace tokens,
+in source order.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+`when_expression` and `lambda_literal` carry their brace tokens
+as direct children rather than in a child `block`;
+their events MUST be keyed on those tokens.
+'''
+

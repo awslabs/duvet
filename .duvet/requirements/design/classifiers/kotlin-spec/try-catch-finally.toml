@@ -1,0 +1,16 @@
+target = "design/classifiers/kotlin-spec.md#try-catch-finally"
+
+# 6.5 Try/catch/finally headers
+#
+# `try_expression`, `catch_block`, and `finally_block`
+# MUST mark `Declaration` on their start lines;
+# their `block` children supply the scopes.
+
+[[spec]]
+level = "MUST"
+quote = '''
+`try_expression`, `catch_block`, and `finally_block`
+MUST mark `Declaration` on their start lines;
+their `block` children supply the scopes.
+'''
+

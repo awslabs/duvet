@@ -7,6 +7,7 @@
 //! that map source lines to `LineClass` values using tree-sitter parsing.
 
 pub mod java;
+pub mod kotlin;
 
 use duvet_coverage::types::{line_class, LineClass, LineProperty, ScopeEvent};
 use std::path::Path;
@@ -140,6 +141,7 @@ impl LineClassifier for DefaultClassifier {
 pub fn classifier_for_extension(ext: &str) -> Option<Box<dyn LineClassifier>> {
     match ext {
         "java" => Some(Box::new(java::JavaClassifier)),
+        "kt" => Some(Box::new(kotlin::KotlinClassifier)),
         _ => None,
     }
 }
@@ -195,10 +197,9 @@ mod tests {
 
     #[test]
     fn no_language_classifier_for_non_java() {
-        // Rust/Kotlin/etc. have no tree-sitter classifier: these route to the
+        // Rust/etc. have no tree-sitter classifier: these route to the
         // verified degraded path, not a refusal.
         assert!(classifier_for_path(Path::new("src/Other.rs")).is_none());
-        assert!(classifier_for_path(Path::new("Main.kt")).is_none());
         // An arbitrary, meaningless extension stands in for "any language duvet
         // has no classifier for" — including ones we will never add. `.xyzzy` (the
         // magic word from Colossal Cave Adventure: "nothing happens") is not a
@@ -210,5 +211,6 @@ mod tests {
         // `query/checks/coverage.rs`.
         assert!(classifier_for_path(Path::new("thing.xyzzy")).is_none());
         assert!(classifier_for_path(Path::new("Foo.java")).is_some());
+        assert!(classifier_for_path(Path::new("Main.kt")).is_some());
     }
 }

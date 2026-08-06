@@ -1,0 +1,16 @@
+target = "design/classifiers/kotlin-spec.md#expression-body-functions"
+
+# 6.1 Expression-body functions
+#
+# A `function_body` in `=` form (expression body)
+# MUST mark the expression's span `Statement`.
+# The declaration header keeps its `Declaration` marking;
+# a line shared by both is `{Declaration, Statement}`.
+
+[[spec]]
+level = "MUST"
+quote = '''
+A `function_body` in `=` form (expression body)
+MUST mark the expression's span `Statement`.
+'''
+

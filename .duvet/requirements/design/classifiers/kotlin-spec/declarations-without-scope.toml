@@ -1,0 +1,27 @@
+target = "design/classifiers/kotlin-spec.md#declarations-without-scope"
+
+# 5.2 Declarations without scope
+#
+# The node kinds
+# `package_header`, `import`, `type_alias`, and `annotation`
+# MUST mark their span `Declaration`.
+# A `function_declaration` with neither a brace-form body
+# nor an expression body (an abstract or interface member)
+# MUST mark its span `Declaration` only.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The node kinds
+`package_header`, `import`, `type_alias`, and `annotation`
+MUST mark their span `Declaration`.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A `function_declaration` with neither a brace-form body
+nor an expression body (an abstract or interface member)
+MUST mark its span `Declaration` only.
+'''
+

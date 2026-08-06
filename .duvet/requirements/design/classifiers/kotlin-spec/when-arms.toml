@@ -1,0 +1,12 @@
+target = "design/classifiers/kotlin-spec.md#when-arms"
+
+# 6.4 When arms
+#
+# A `when_entry` MUST mark `Statement` on its start line.
+
+[[spec]]
+level = "MUST"
+quote = '''
+A `when_entry` MUST mark `Statement` on its start line.
+'''
+

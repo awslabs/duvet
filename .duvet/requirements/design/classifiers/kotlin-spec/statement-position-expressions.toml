@@ -1,0 +1,18 @@
+target = "design/classifiers/kotlin-spec.md#statement-position-expressions"
+
+# 6.2 Statement-position expressions
+#
+# The node kinds
+# `call_expression`, `navigation_expression`, `assignment`,
+# `return_expression`, and `throw_expression`
+# MUST mark their span `Statement`.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The node kinds
+`call_expression`, `navigation_expression`, `assignment`,
+`return_expression`, and `throw_expression`
+MUST mark their span `Statement`.
+'''
+

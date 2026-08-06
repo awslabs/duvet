@@ -1,0 +1,27 @@
+target = "design/classifiers/kotlin-spec.md#properties"
+
+# 5.3 Properties
+#
+# A `property_declaration` MUST mark its span `Declaration`.
+# When it carries an initializer or a `property_delegate` child,
+# it MUST additionally mark `Statement`
+# from its start line through the end line
+# of the initializer or delegate,
+# and MUST NOT mark `Statement` on any accessor line after it.
+
+[[spec]]
+level = "MUST"
+quote = '''
+A `property_declaration` MUST mark its span `Declaration`.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+When it carries an initializer or a `property_delegate` child,
+it MUST additionally mark `Statement`
+from its start line through the end line
+of the initializer or delegate,
+and MUST NOT mark `Statement` on any accessor line after it.
+'''
+

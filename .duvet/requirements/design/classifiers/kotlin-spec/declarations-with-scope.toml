@@ -1,0 +1,52 @@
+target = "design/classifiers/kotlin-spec.md#declarations-with-scope"
+
+# 5.1 Declarations with scope
+#
+# The node kinds
+# `class_declaration`, `object_declaration`, `companion_object`,
+# `function_declaration`, `secondary_constructor`,
+# `anonymous_initializer`, `getter`, and `setter`
+# MUST be marked with the declaration-with-scope treatment:
+# every line from the node's start to the line before its body
+# is marked `Declaration`,
+# and the body child supplies the scope events.
+# When the node has no brace-form body,
+# the treatment falls back as specified per kind below.
+# 
+# A function header line MUST NOT be marked `Statement`,
+# including when its parameters carry default-value expressions.
+# 
+# Class-like headers (including `data`, `sealed`, `enum`, and
+# `annotation` classes, interfaces, objects, and companion objects)
+# carry JaCoCo's synthesized-member and primary-constructor probes;
+# they MUST be marked `Declaration` and MUST NOT be marked `Statement`.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The node kinds
+`class_declaration`, `object_declaration`, `companion_object`,
+`function_declaration`, `secondary_constructor`,
+`anonymous_initializer`, `getter`, and `setter`
+MUST be marked with the declaration-with-scope treatment:
+every line from the node's start to the line before its body
+is marked `Declaration`,
+and the body child supplies the scope events.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A function header line MUST NOT be marked `Statement`,
+including when its parameters carry default-value expressions.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Class-like headers (including `data`, `sealed`, `enum`, and
+`annotation` classes, interfaces, objects, and companion objects)
+carry JaCoCo's synthesized-member and primary-constructor probes;
+they MUST be marked `Declaration` and MUST NOT be marked `Statement`.
+'''
+

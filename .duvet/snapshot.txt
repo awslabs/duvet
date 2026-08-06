@@ -1,3 +1,122 @@
+SPECIFICATION: [Kotlin Line Classifier: Specification](design/classifiers/kotlin-spec.md)
+  SECTION: [1. Grammar](#grammar)
+    TEXT[!MUST,implementation,test]: The classifier MUST parse Kotlin source with the `tree-sitter-kotlin-ng`
+    TEXT[!MUST,implementation,test]: grammar.
+
+  SECTION: [2. Pre-pass and post-pass](#pre-and-post-pass)
+    TEXT[!MUST,implementation,test]: Before the CST walk, the classifier MUST mark
+    TEXT[!MUST,implementation,test]: blank lines as `Whitespace`
+    TEXT[!MUST,implementation,test]: and duvet annotation lines (`//=` or `//#` after leading whitespace)
+    TEXT[!MUST,implementation,test]: as `Annotation`.
+    TEXT[!MUST,implementation,test]: After the CST walk, the classifier MUST apply the verified
+    TEXT[!MUST,implementation,test]: mutual-exclusivity post-pass (`clean_classifications`)
+    TEXT[!MUST,implementation,test]: to every classification it returns.
+
+  SECTION: [3. Parse errors](#parse-errors)
+    TEXT[!MUST,implementation,test]: When the parse tree contains any `ERROR` or `MISSING` node,
+    TEXT[!MUST,implementation,test]: the classifier MUST return `Unclassifiable`
+    TEXT[!MUST,implementation,test]: and MUST report the line of every `ERROR` and `MISSING` node.
+
+  SECTION: [4. Scope-bearing nodes](#scope-bearing-nodes)
+    TEXT[implementation,test]: The scope-bearing node kinds are
+    TEXT[implementation,test]: `block`, `class_body`, `enum_class_body`, `lambda_literal`,
+    TEXT[implementation,test]: and `when_expression`.
+    TEXT[!MUST,implementation,test]: For each scope-bearing node, the classifier MUST mark
+    TEXT[!MUST,implementation,test]: `ScopeOpen` on the line of its opening brace token
+    TEXT[!MUST,implementation,test]: and `ScopeClose` on the line of its closing brace token.
+    TEXT[!MUST,implementation,test]: The scope-event stream MUST contain one open and one close event
+    TEXT[!MUST,implementation,test]: per scope-bearing node, keyed at the byte offsets of its brace tokens,
+    TEXT[!MUST,implementation,test]: in source order.
+    TEXT[!MUST,implementation,test]: `when_expression` and `lambda_literal` carry their brace tokens
+    TEXT[!MUST,implementation,test]: as direct children rather than in a child `block`;
+    TEXT[!MUST,implementation,test]: their events MUST be keyed on those tokens.
+
+  SECTION: [5.1 Declarations with scope](#declarations-with-scope)
+    TEXT[!MUST,implementation,test]: The node kinds
+    TEXT[!MUST,implementation,test]: `class_declaration`, `object_declaration`, `companion_object`,
+    TEXT[!MUST,implementation,test]: `function_declaration`, `secondary_constructor`,
+    TEXT[!MUST,implementation,test]: `anonymous_initializer`, `getter`, and `setter`
+    TEXT[!MUST,implementation,test]: MUST be marked with the declaration-with-scope treatment:
+    TEXT[!MUST,implementation,test]: every line from the node's start to the line before its body
+    TEXT[!MUST,implementation,test]: is marked `Declaration`,
+    TEXT[!MUST,implementation,test]: and the body child supplies the scope events.
+    TEXT[!MUST,implementation,test]: A function header line MUST NOT be marked `Statement`,
+    TEXT[!MUST,implementation,test]: including when its parameters carry default-value expressions.
+    TEXT[!MUST,implementation,test]: Class-like headers (including `data`, `sealed`, `enum`, and
+    TEXT[!MUST,implementation,test]: `annotation` classes, interfaces, objects, and companion objects)
+    TEXT[!MUST,implementation,test]: carry JaCoCo's synthesized-member and primary-constructor probes;
+    TEXT[!MUST,implementation,test]: they MUST be marked `Declaration` and MUST NOT be marked `Statement`.
+
+  SECTION: [5.2 Declarations without scope](#declarations-without-scope)
+    TEXT[!MUST,implementation,test]: The node kinds
+    TEXT[!MUST,implementation,test]: `package_header`, `import`, `type_alias`, and `annotation`
+    TEXT[!MUST,implementation,test]: MUST mark their span `Declaration`.
+    TEXT[!MUST,implementation,test]: A `function_declaration` with neither a brace-form body
+    TEXT[!MUST,implementation,test]: nor an expression body (an abstract or interface member)
+    TEXT[!MUST,implementation,test]: MUST mark its span `Declaration` only.
+
+  SECTION: [5.3 Properties](#properties)
+    TEXT[!MUST,implementation,test]: A `property_declaration` MUST mark its span `Declaration`.
+    TEXT[!MUST,implementation,test]: When it carries an initializer or a `property_delegate` child,
+    TEXT[!MUST,implementation,test]: it MUST additionally mark `Statement`
+    TEXT[!MUST,implementation,test]: from its start line through the end line
+    TEXT[!MUST,implementation,test]: of the initializer or delegate,
+    TEXT[!MUST,implementation,test]: and MUST NOT mark `Statement` on any accessor line after it.
+
+  SECTION: [5.4 Enum entries](#enum-entries)
+    TEXT[!MUST,implementation,test]: An `enum_entry` MUST mark its span
+    TEXT[!MUST,implementation,test]: with both `Declaration` and `Statement`,
+    TEXT[!MUST,implementation,test]: with or without constructor arguments.
+
+  SECTION: [6.1 Expression-body functions](#expression-body-functions)
+    TEXT[!MUST,implementation,test]: A `function_body` in `=` form (expression body)
+    TEXT[!MUST,implementation,test]: MUST mark the expression's span `Statement`.
+
+  SECTION: [6.2 Statement-position expressions](#statement-position-expressions)
+    TEXT[!MUST,implementation,test]: The node kinds
+    TEXT[!MUST,implementation,test]: `call_expression`, `navigation_expression`, `assignment`,
+    TEXT[!MUST,implementation,test]: `return_expression`, and `throw_expression`
+    TEXT[!MUST,implementation,test]: MUST mark their span `Statement`.
+
+  SECTION: [6.3 Control headers](#control-headers)
+    TEXT[!MUST,implementation,test]: The node kinds
+    TEXT[!MUST,implementation,test]: `if_expression`, `when_expression`,
+    TEXT[!MUST,implementation,test]: `for_statement`, and `while_statement`
+    TEXT[!MUST,implementation,test]: MUST mark `Statement` on their start line only.
+    TEXT[!MUST,implementation,test]: A `do_while_statement` MUST mark `Statement` on its end line
+    TEXT[!MUST,implementation,test]: (the `} while (condition)` line) and MUST NOT mark its start line.
+
+  SECTION: [6.4 When arms](#when-arms)
+    TEXT[!MUST,implementation,test]: A `when_entry` MUST mark `Statement` on its start line.
+
+  SECTION: [6.5 Try/catch/finally headers](#try-catch-finally)
+    TEXT[!MUST,implementation,test]: `try_expression`, `catch_block`, and `finally_block`
+    TEXT[!MUST,implementation,test]: MUST mark `Declaration` on their start lines;
+    TEXT[!MUST,implementation,test]: their `block` children supply the scopes.
+
+  SECTION: [7. Non-linear control](#non-linear-control)
+    TEXT[!MUST,implementation,test]: A `label` node (a label declaration such as `outer@` or `lit@`)
+    TEXT[!MUST,implementation,test]: MUST mark `NonLinearControl` on its line.
+    TEXT[!MUST,implementation,test]: A `labeled_expression` (`break@label`, `continue@label`)
+    TEXT[!MUST,implementation,test]: MUST mark `NonLinearControl` on its line.
+    TEXT[!MUST,implementation,test]: A `return_expression` whose first token is `return@`
+    TEXT[!MUST,implementation,test]: (a labeled return) MUST be marked `Statement`,
+    TEXT[!MUST,implementation,test]: not `NonLinearControl`.
+
+  SECTION: [8. Comments](#comments)
+    TEXT[!MUST,implementation,test]: `line_comment` and `block_comment` nodes
+    TEXT[!MUST,implementation,test]: MUST mark their span `Comment`,
+    TEXT[!MUST,implementation,test]: except lines already marked `Annotation` by the pre-pass.
+
+  SECTION: [9. Unmodeled constructs](#unmodeled-constructs)
+    TEXT[implementation,test]: Any node kind this document does not name
+    TEXT[implementation,test]: contributes no property of its own;
+    TEXT[implementation,test]: its lines keep whatever enclosing nodes marked,
+    TEXT[implementation,test]: or remain `None` (unknown) per the generic contract's Decision 9.
+    TEXT[!MUST,implementation,test]: Every arm of the classifier that marks a code or structural property
+    TEXT[!MUST,implementation,test]: MUST record the marked node's start line as a code-start line
+    TEXT[!MUST,implementation,test]: for the post-pass's `{code, Comment}` disambiguation.
+
 SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverage-model-spec.md)
   SECTION: [1.3 Classification Function and Unknown Lines](#classification-function)
     TEXT[!MUST,implementation,test]: A line classified as `{Annotation}` MUST NOT also have

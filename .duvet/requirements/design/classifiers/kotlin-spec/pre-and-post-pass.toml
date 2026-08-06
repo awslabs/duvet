@@ -1,0 +1,30 @@
+target = "design/classifiers/kotlin-spec.md#pre-and-post-pass"
+
+# 2. Pre-pass and post-pass
+#
+# Before the CST walk, the classifier MUST mark
+# blank lines as `Whitespace`
+# and duvet annotation lines (`//=` or `//#` after leading whitespace)
+# as `Annotation`.
+# 
+# After the CST walk, the classifier MUST apply the verified
+# mutual-exclusivity post-pass (`clean_classifications`)
+# to every classification it returns.
+
+[[spec]]
+level = "MUST"
+quote = '''
+Before the CST walk, the classifier MUST mark
+blank lines as `Whitespace`
+and duvet annotation lines (`//=` or `//#` after leading whitespace)
+as `Annotation`.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+After the CST walk, the classifier MUST apply the verified
+mutual-exclusivity post-pass (`clean_classifications`)
+to every classification it returns.
+'''
+

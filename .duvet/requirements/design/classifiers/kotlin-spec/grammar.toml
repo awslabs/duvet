@@ -1,0 +1,15 @@
+target = "design/classifiers/kotlin-spec.md#grammar"
+
+# 1. Grammar
+#
+# The classifier MUST parse Kotlin source with the `tree-sitter-kotlin-ng`
+# grammar.
+# Node-kind names in this document are that grammar's names.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The classifier MUST parse Kotlin source with the `tree-sitter-kotlin-ng`
+grammar.
+'''
+

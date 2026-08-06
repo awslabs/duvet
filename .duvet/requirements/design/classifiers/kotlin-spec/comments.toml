@@ -1,0 +1,16 @@
+target = "design/classifiers/kotlin-spec.md#comments"
+
+# 8. Comments
+#
+# `line_comment` and `block_comment` nodes
+# MUST mark their span `Comment`,
+# except lines already marked `Annotation` by the pre-pass.
+
+[[spec]]
+level = "MUST"
+quote = '''
+`line_comment` and `block_comment` nodes
+MUST mark their span `Comment`,
+except lines already marked `Annotation` by the pre-pass.
+'''
+

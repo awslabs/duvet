@@ -1,0 +1,20 @@
+target = "design/classifiers/kotlin-spec.md#parse-errors"
+
+# 3. Parse errors
+#
+# When the parse tree contains any `ERROR` or `MISSING` node,
+# the classifier MUST return `Unclassifiable`
+# and MUST report the line of every `ERROR` and `MISSING` node.
+# As defense in depth, a parser that yields no tree at all
+# is likewise treated as unclassifiable, reported at line 1;
+# tree-sitter does not produce this outcome for in-memory input,
+# so the path is untestable and carries no normative keyword.
+
+[[spec]]
+level = "MUST"
+quote = '''
+When the parse tree contains any `ERROR` or `MISSING` node,
+the classifier MUST return `Unclassifiable`
+and MUST report the line of every `ERROR` and `MISSING` node.
+'''
+

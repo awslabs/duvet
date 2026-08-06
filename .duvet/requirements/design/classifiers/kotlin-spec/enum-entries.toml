@@ -1,0 +1,16 @@
+target = "design/classifiers/kotlin-spec.md#enum-entries"
+
+# 5.4 Enum entries
+#
+# An `enum_entry` MUST mark its span
+# with both `Declaration` and `Statement`,
+# with or without constructor arguments.
+
+[[spec]]
+level = "MUST"
+quote = '''
+An `enum_entry` MUST mark its span
+with both `Declaration` and `Statement`,
+with or without constructor arguments.
+'''
+

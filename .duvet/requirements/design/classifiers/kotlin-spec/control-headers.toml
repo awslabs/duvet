@@ -1,0 +1,27 @@
+target = "design/classifiers/kotlin-spec.md#control-headers"
+
+# 6.3 Control headers
+#
+# The node kinds
+# `if_expression`, `when_expression`,
+# `for_statement`, and `while_statement`
+# MUST mark `Statement` on their start line only.
+# A `do_while_statement` MUST mark `Statement` on its end line
+# (the `} while (condition)` line) and MUST NOT mark its start line.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The node kinds
+`if_expression`, `when_expression`,
+`for_statement`, and `while_statement`
+MUST mark `Statement` on their start line only.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A `do_while_statement` MUST mark `Statement` on its end line
+(the `} while (condition)` line) and MUST NOT mark its start line.
+'''
+
