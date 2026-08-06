@@ -7,7 +7,7 @@
 //! Returns `None` for lines the tree-sitter walk does not visit and that are not
 //! blank or annotations (Decision 9).
 
-use crate::query::classify::{Classification, ClassifierFailure, LineClassifier};
+use crate::query::classify::{Classification, ClassifierFailure, LineClassifier, RawClassification};
 use duvet_coverage::types::{LineProperty, ScopeEvent};
 use std::collections::BTreeSet;
 
@@ -15,7 +15,7 @@ use std::collections::BTreeSet;
 pub struct JavaClassifier;
 
 impl LineClassifier for JavaClassifier {
-    fn classify(&self, source: &str) -> Classification {
+    fn classify_raw(&self, source: &str) -> RawClassification {
         let lines: Vec<&str> = source.lines().collect();
         let line_count = lines.len();
         // Track which properties apply to each line (1-indexed, index 0 unused)
@@ -43,7 +43,7 @@ impl LineClassifier for JavaClassifier {
             Some(tree) => tree,
             // tree-sitter could not produce a tree at all. We cannot localize
             // within the file, so report a single file-level parse issue (line 1).
-            None => return Classification::unclassifiable(ClassifierFailure::ParseError, vec![1]),
+            None => return RawClassification::unclassifiable(ClassifierFailure::ParseError, vec![1]),
         };
 
         // Defeated commitment (spec §1.5): `parse` returns `Some(tree)` even for
@@ -66,7 +66,7 @@ impl LineClassifier for JavaClassifier {
             if error_lines.is_empty() {
                 error_lines.push(1);
             }
-            return Classification::unclassifiable(ClassifierFailure::ParseError, error_lines);
+            return RawClassification::unclassifiable(ClassifierFailure::ParseError, error_lines);
         }
 
         // Walk the CST
@@ -78,20 +78,14 @@ impl LineClassifier for JavaClassifier {
             &mut code_start,
         );
 
-        // Post-processing: enforce the mutual-exclusivity contract (spec §1.3).
+        // The verified mutual-exclusivity post-pass (spec §1.3) is applied by
+        // the trait-provided `classify` at the dispatch boundary — see
+        // classify/mod.rs for the structural-preservation guarantees. This
+        // walk returns the raw sets plus the code-start record it needs.
         //
-        // The verified `clean_classifications` in duvet-coverage guarantees
-        // STRUCTURAL PRESERVATION: ScopeOpen and ScopeClose are never stripped.
-        // This closes the false-Executed bug (PR #227 review Finding: a
-        // `} // comment` line lost ScopeClose, letting backward propagation
-        // cross the brace and violating Property 2). The function strips only
-        // semantic properties (Statement/Declaration/NonLinearControl) from
-        // non-code-start lines; structural scope delimiters survive
-        // unconditionally.
-        //
-        // The input is 0-indexed (element i = line i+1); build from the
+        // The output is 0-indexed (element i = line i+1); build from the
         // 1-indexed line_props, skipping index 0.
-        let mut classifications_for_clean: Vec<Option<BTreeSet<LineProperty>>> = (1..=line_count)
+        let classifications: Vec<Option<BTreeSet<LineProperty>>> = (1..=line_count)
             .map(|i| {
                 if visited[i] {
                     Some(line_props[i].clone())
@@ -100,15 +94,12 @@ impl LineClassifier for JavaClassifier {
                 }
             })
             .collect();
-        // code_start is 1-indexed with index 0 unused; slice off the prefix.
-        let code_start_slice = &code_start[1..];
-        duvet_coverage::classify_postpass::clean_classifications(
-            &mut classifications_for_clean,
-            code_start_slice,
-        );
 
-        // Return the cleaned classifications directly (already 0-indexed).
-        Classification::Classified(classifications_for_clean)
+        RawClassification::Classified {
+            classifications,
+            // code_start is 1-indexed with index 0 unused; slice off the prefix.
+            code_start: code_start[1..].to_vec(),
+        }
     }
 
     fn scope_events(&self, source: &str) -> Vec<ScopeEvent> {

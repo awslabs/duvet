@@ -80,6 +80,40 @@ impl Classification {
     }
 }
 
+/// The pre-post-pass outcome of a classifier's CST walk: raw per-line
+/// property sets plus the code-start record the verified post-pass needs to
+/// disambiguate `{code, Comment}` lines. Produced by
+/// [`LineClassifier::classify_raw`]; consumed only by the provided
+/// [`LineClassifier::classify`], which applies the post-pass.
+pub enum RawClassification {
+    /// Raw classification: `classifications[i]` is line `i+1`;
+    /// `code_start[i]` is whether a code/structural node *starts* on line
+    /// `i+1`.
+    Classified {
+        classifications: Vec<Option<LineClass>>,
+        code_start: Vec<bool>,
+    },
+    /// Same shape and meaning as [`Classification::Unclassifiable`].
+    Unclassifiable {
+        first: ClassifierIssue,
+        rest: Vec<ClassifierIssue>,
+    },
+}
+
+impl RawClassification {
+    /// Build an `Unclassifiable` from a non-empty list of issue lines sharing
+    /// a reason — the raw twin of [`Classification::unclassifiable`], same
+    /// non-emptiness-by-construction contract.
+    pub fn unclassifiable(reason: ClassifierFailure, lines: Vec<u64>) -> Self {
+        match Classification::unclassifiable(reason, lines) {
+            Classification::Unclassifiable { first, rest } => {
+                RawClassification::Unclassifiable { first, rest }
+            }
+            Classification::Classified(_) => unreachable!(),
+        }
+    }
+}
+
 /// Classifies source lines into `Option<LineClass>` values (spec Section 1.3),
 /// or reports a non-empty set of located issues when it cannot (spec §1.5).
 ///
@@ -88,7 +122,44 @@ impl Classification {
 /// reports *facts* about its outcome — it never decides how the caller should
 /// react to a failure.
 pub trait LineClassifier {
-    fn classify(&self, source: &str) -> Classification;
+    /// The language-specific walk, *before* the mutual-exclusivity post-pass.
+    /// Implementations return raw property sets plus the code-start record;
+    /// they do not (and cannot usefully) call the post-pass themselves.
+    fn classify_raw(&self, source: &str) -> RawClassification;
+
+    /// The classification every caller consumes. Provided — not overridable
+    /// by convention — so the verified mutual-exclusivity post-pass is
+    /// applied at the dispatch boundary and a classifier cannot forget it:
+    /// the second classifier instance is exactly when that mistake becomes
+    /// possible, so the structure now rules it out.
+    ///
+    //= design/classifiers/kotlin-spec.md#pre-and-post-pass
+    //= type=implementation
+    //# After the CST walk, the classifier MUST apply the verified
+    //# mutual-exclusivity post-pass (`clean_classifications`)
+    //# to every classification it returns.
+    fn classify(&self, source: &str) -> Classification {
+        match self.classify_raw(source) {
+            RawClassification::Classified {
+                mut classifications,
+                code_start,
+            } => {
+                // The verified `clean_classifications` guarantees STRUCTURAL
+                // PRESERVATION: ScopeOpen/ScopeClose are never stripped (the
+                // false-Executed fix, PR #227); only semantic properties are
+                // removed from non-code-start Comment/Whitespace/Annotation
+                // lines.
+                duvet_coverage::classify_postpass::clean_classifications(
+                    &mut classifications,
+                    &code_start,
+                );
+                Classification::Classified(classifications)
+            }
+            RawClassification::Unclassifiable { first, rest } => {
+                Classification::Unclassifiable { first, rest }
+            }
+        }
+    }
 
     /// The ordered scope-delimiter stream for this file, in source order (spec
     /// §1.5). Feeds the verified `scope_imbalance_site` and (in future) the
@@ -119,21 +190,27 @@ pub trait LineClassifier {
 pub struct DefaultClassifier;
 
 impl LineClassifier for DefaultClassifier {
-    fn classify(&self, source: &str) -> Classification {
+    fn classify_raw(&self, source: &str) -> RawClassification {
         // The universal fallback cannot fail: blank-line detection is total, so
-        // it always yields a `Classified` result (never `Unclassifiable`).
-        Classification::Classified(
-            source
-                .lines()
-                .map(|line| {
-                    if line.trim().is_empty() {
-                        Some(line_class(&[LineProperty::Whitespace]))
-                    } else {
-                        None
-                    }
-                })
-                .collect(),
-        )
+        // it always yields a `Classified` result (never `Unclassifiable`). Its
+        // lines are already pure, so the post-pass applied by `classify` is a
+        // no-op — running it anyway keeps one uniform path for every
+        // classifier.
+        let classifications: Vec<Option<LineClass>> = source
+            .lines()
+            .map(|line| {
+                if line.trim().is_empty() {
+                    Some(line_class(&[LineProperty::Whitespace]))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let code_start = vec![false; classifications.len()];
+        RawClassification::Classified {
+            classifications,
+            code_start,
+        }
     }
 }
 

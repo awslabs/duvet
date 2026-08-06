@@ -24,6 +24,9 @@ pattern = "duvet/src/query/engine.rs"
 pattern = "duvet/src/query/classify/kotlin.rs"
 
 [[source]]
+pattern = "duvet/src/query/classify/mod.rs"
+
+[[source]]
 pattern = "duvet/src/report.rs"
 
 [[specification]]

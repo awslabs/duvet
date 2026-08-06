@@ -12,7 +12,7 @@
 //! stays free of string literals that duvet's annotation parser would read as
 //! citations — which lets this file be scanned as a duvet source.
 
-use crate::query::classify::{Classification, ClassifierFailure, LineClassifier};
+use crate::query::classify::{Classification, ClassifierFailure, LineClassifier, RawClassification};
 use duvet_coverage::types::{LineProperty, ScopeEvent};
 use std::collections::BTreeSet;
 
@@ -20,7 +20,7 @@ use std::collections::BTreeSet;
 pub struct KotlinClassifier;
 
 impl LineClassifier for KotlinClassifier {
-    fn classify(&self, source: &str) -> Classification {
+    fn classify_raw(&self, source: &str) -> RawClassification {
         let lines: Vec<&str> = source.lines().collect();
         let line_count = lines.len();
         let mut line_props: Vec<BTreeSet<LineProperty>> = vec![BTreeSet::new(); line_count + 1];
@@ -54,7 +54,7 @@ impl LineClassifier for KotlinClassifier {
         // untestable. The code path is kept for defense in depth.
         let tree = match parser.parse(source, None) {
             Some(tree) => tree,
-            None => return Classification::unclassifiable(ClassifierFailure::ParseError, vec![1]),
+            None => return RawClassification::unclassifiable(ClassifierFailure::ParseError, vec![1]),
         };
 
         //= design/classifiers/kotlin-spec.md#parse-errors
@@ -74,7 +74,7 @@ impl LineClassifier for KotlinClassifier {
             if error_lines.is_empty() {
                 error_lines.push(1);
             }
-            return Classification::unclassifiable(ClassifierFailure::ParseError, error_lines);
+            return RawClassification::unclassifiable(ClassifierFailure::ParseError, error_lines);
         }
 
         walk_node(
@@ -85,12 +85,10 @@ impl LineClassifier for KotlinClassifier {
             &mut code_start,
         );
 
-        //= design/classifiers/kotlin-spec.md#pre-and-post-pass
-        //= type=implementation
-        //# After the CST walk, the classifier MUST apply the verified
-        //# mutual-exclusivity post-pass (`clean_classifications`)
-        //# to every classification it returns.
-        let mut classifications_for_clean: Vec<Option<BTreeSet<LineProperty>>> = (1..=line_count)
+        // The verified mutual-exclusivity post-pass is applied by the
+        // trait-provided `classify` at the dispatch boundary; this walk
+        // returns the raw sets plus the code-start record it needs.
+        let classifications: Vec<Option<BTreeSet<LineProperty>>> = (1..=line_count)
             .map(|i| {
                 if visited[i] {
                     Some(line_props[i].clone())
@@ -99,13 +97,11 @@ impl LineClassifier for KotlinClassifier {
                 }
             })
             .collect();
-        let code_start_slice = &code_start[1..];
-        duvet_coverage::classify_postpass::clean_classifications(
-            &mut classifications_for_clean,
-            code_start_slice,
-        );
 
-        Classification::Classified(classifications_for_clean)
+        RawClassification::Classified {
+            classifications,
+            code_start: code_start[1..].to_vec(),
+        }
     }
 
     fn scope_events(&self, source: &str) -> Vec<ScopeEvent> {
