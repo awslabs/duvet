@@ -1,0 +1,19 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c coverage -r lcov.info -r missing/*.info -f lcov
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 2 sources 
+     Parsing annotations
+      Parsed 2 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 2 references 
+  × coverage report pattern 'missing/*.info' matched no files

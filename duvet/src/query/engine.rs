@@ -856,9 +856,25 @@ fn expand_coverage_globs(reports: &[String]) -> Result<Vec<String>> {
         // switch from `glob` to `duvet_core::glob` once the implementation
         // is compatible with the expected behavior.
         // Using glob here so that the pattern matching is predictable and the same as the current process.
+        let mut matched = false;
         for entry in glob(pattern).into_diagnostic()? {
             let path = entry.into_diagnostic()?;
             expanded_paths.push(path.to_string_lossy().to_string());
+            matched = true;
+        }
+
+        // Each pattern must individually match at least one file. A pattern
+        // matching zero files (typo'd path, wrong working directory) would
+        // otherwise be silently dropped: with no other patterns the coverage
+        // check passes vacuously ("reports checked: 0"), and alongside
+        // matching patterns the dead pattern vanishes while the check may
+        // still pass — the user believes reports were checked that never
+        // existed. A union-level check would miss the second shape, so the
+        // error is per-pattern.
+        if !matched {
+            return Err(duvet_core::error!(
+                "coverage report pattern '{pattern}' matched no files"
+            ));
         }
     }
 
@@ -988,5 +1004,65 @@ mod tests {
                 .collect::<Vec<_>>(),
             [11]
         );
+    }
+
+    /// Creates a scratch directory containing one coverage report file and
+    /// returns (dir, report_path). Std-only; no tempfile dependency.
+    fn scratch_report_dir(tag: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let dir =
+            std::env::temp_dir().join(format!("duvet-expand-globs-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let report = dir.join("lcov.info");
+        std::fs::write(&report, "SF:src/lib.rs\nDA:1,1\nend_of_record\n").unwrap();
+        (dir, report)
+    }
+
+    /// A single `--coverage-report` pattern matching zero files MUST be a
+    /// hard error naming the pattern verbatim — not a vacuous pass with
+    /// zero reports checked.
+    #[test]
+    fn zero_match_coverage_pattern_is_hard_error() {
+        let (dir, _) = scratch_report_dir("all-zero");
+        let pattern = dir.join("nonexistent/*.info").display().to_string();
+
+        let err = expand_coverage_globs(std::slice::from_ref(&pattern)).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains(&format!("'{pattern}' matched no files")),
+            "error must name the dead pattern verbatim, got: {msg}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Each pattern must individually match at least one file: a dead
+    /// pattern alongside matching ones MUST still error — a non-empty
+    /// union does not excuse it.
+    #[test]
+    fn partial_zero_match_coverage_pattern_is_hard_error() {
+        let (dir, report) = scratch_report_dir("partial-zero");
+        let live = report.display().to_string();
+        let dead = dir.join("typo/*.info").display().to_string();
+
+        let err = expand_coverage_globs(&[live, dead.clone()]).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains(&format!("'{dead}' matched no files")),
+            "error must name the dead pattern, got: {msg}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Patterns that each match at least one file expand successfully —
+    /// the guard rejects only dead patterns.
+    #[test]
+    fn matching_coverage_patterns_expand() {
+        let (dir, report) = scratch_report_dir("happy");
+        let literal = report.display().to_string();
+        let globbed = dir.join("*.info").display().to_string();
+
+        let paths = expand_coverage_globs(&[literal.clone(), globbed]).unwrap();
+        assert_eq!(paths, [literal.clone(), literal]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
