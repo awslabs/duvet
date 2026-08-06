@@ -260,11 +260,16 @@ async fn jacoco_witness(artifact: &str) -> Result<Witness> {
 /// (spec §1.7: the annotations argument is a semantically inert
 /// optimization).
 ///
-/// Witnesses are deduplicated by discharge-unit label: two positions
-/// rooting the same discharge unit yield one witness — well-defined
-/// per §1.7's witness-identity requirement (cited on
-/// [`RequestedPosition`]). Output order is ascending by label within
-/// one artifact — deterministic regardless of position order.
+/// Witnesses are deduplicated by the discharge unit's structural
+/// identity — (obligation path, unit kind, unit span) — so two
+/// positions rooting the *same* unit yield one witness, while two
+/// *distinct* units always yield two witnesses even when their
+/// display labels collide (user-authored `proof_note` text is not
+/// unique). Well-defined per §1.7's witness-identity requirement
+/// (cited on [`RequestedPosition`]); the label is presentation
+/// only. Output order is ascending by (obligation path, unit kind,
+/// unit span) within one artifact — deterministic regardless of
+/// position order.
 ///
 //= design/witness/spec.md#two-pass-construction
 //# Prover witnesses are constructed, not found:
@@ -307,7 +312,24 @@ fn verus_witnesses_from_graph(
             .push(f);
     }
 
-    let mut by_label: BTreeMap<String, Witness> = BTreeMap::new();
+    // Keyed on the unit's structural identity. Keying on the label
+    // would silently merge distinct units whose user-authored
+    // `proof_note` texts happen to coincide, dropping a witness and
+    // turning the losing position falsely UNWITNESSED (Property W6):
+    //= design/witness/spec.md#producer
+    //= type=implementation
+    //# A witness's **identity** is the (artifact, obligation, unit)
+    //# triple; the `label` ([§1.2](#witness)) is presentation only.
+    //# Two distinct units MAY carry identical labels —
+    //# user-authored label text is not unique ([§5.5](#verus-producer)) —
+    //# so a producer MUST NOT key witness deduplication, or any other
+    //# identity-bearing decision, on the label.
+    type UnitIdentity = (
+        String,
+        verus_sst::structure::UnitKind,
+        verus_sst::structure::Span,
+    );
+    let mut by_unit: BTreeMap<UnitIdentity, Witness> = BTreeMap::new();
     let mut not_proof_testable: Vec<RequestedPosition> = Vec::new();
     // Closures are pure per root (spec §5.4 fixpoint), so one memo
     // is shared across every position of this (graph, project) run.
@@ -374,20 +396,25 @@ fn verus_witnesses_from_graph(
             verus_sst::witness::PositionKind::Unelaborated => continue,
         };
         for unit in &units {
-            // A witness is a pure function of (artifact, unit) and the
-            // label identifies it (spec §1.7), so a label already in
-            // the map means the identical witness was materialized by
-            // an earlier position: skip before paying for the closure.
-            if by_label.contains_key(&unit.label) {
+            // A witness is a pure function of (artifact, unit), and
+            // the unit's structural identity — (obligation path, unit
+            // kind, unit span) — identifies it (spec §1.7): a key
+            // already in the map means the identical witness was
+            // materialized by an earlier position, so skip before
+            // paying for the closure. The display label is NOT part
+            // of the key: distinct units may carry identical
+            // user-authored `proof_note` text.
+            let identity = (unit.node.name.clone(), unit.kind, unit.span.clone());
+            if by_unit.contains_key(&identity) {
                 continue;
             }
             let w =
                 verus_sst::witness::witness_for_unit(graph, unit, artifact, &project, &mut memo);
-            by_label.insert(w.label.clone(), w);
+            by_unit.insert(identity, w);
         }
     }
     Ok(Produced {
-        witnesses: by_label.into_values().collect(),
+        witnesses: by_unit.into_values().collect(),
         not_proof_testable,
     })
 }
@@ -731,6 +758,81 @@ mod tests {
             iters,
             total,
             total / iters
+        );
+    }
+
+    /// Regression (witness identity, spec §1.7): two DIFFERENT proof
+    /// asserts in two DIFFERENT functions carrying the IDENTICAL
+    /// user-authored `proof_note` text. When dedup keyed on the label,
+    /// the second unit's witness was silently dropped and its
+    /// annotation went falsely unwitnessed (Property W6 false failure).
+    //= design/witness/spec.md#producer
+    //= type=test
+    //# A witness's **identity** is the (artifact, obligation, unit)
+    //# triple; the `label` ([§1.2](#witness)) is presentation only.
+    //# Two distinct units MAY carry identical labels —
+    //# user-authored label text is not unique ([§5.5](#verus-producer)) —
+    //# so a producer MUST NOT key witness deduplication, or any other
+    //# identity-bearing decision, on the label.
+    #[test]
+    fn duplicate_proof_note_text_yields_one_witness_per_unit() {
+        const DUP_NOTES: &str = r#"
+(@ "src/a.rs:10:1: 20:2 (#0)"
+  (FunctionSst :name (Fun :path c::f)
+    :exec_proof_check (FuncCheckSst :reqs ()
+      :body (@ "src/a.rs:11:1: 19:2 (#0)" (Stm Block (
+        (@ "src/a.rs:15:5: 15:20 (#0)"
+          (Stm Assert (0) None
+            (@@ "src/a.rs:15:5: 15:20 (#0)"
+              (Exp UnaryOpr
+                (UnaryOpr ProofNote (ProofNoteLabel :text "bounds hold" :is_custom_err false))
+                (Exp Const (Constant Bool true))))))))))))
+(@ "src/b.rs:30:1: 40:2 (#0)"
+  (FunctionSst :name (Fun :path c::g)
+    :exec_proof_check (FuncCheckSst :reqs ()
+      :body (@ "src/b.rs:31:1: 39:2 (#0)" (Stm Block (
+        (@ "src/b.rs:35:5: 35:20 (#0)"
+          (Stm Assert (0) None
+            (@@ "src/b.rs:35:5: 35:20 (#0)"
+              (Exp UnaryOpr
+                (UnaryOpr ProofNote (ProofNoteLabel :text "bounds hold" :is_custom_err false))
+                (Exp Const (Constant Bool true))))))))))))
+"#;
+        let g = ObligationGraph::merge([parse_module(DUP_NOTES).unwrap()]).unwrap();
+        // Both assert positions are rooted, in different files/functions.
+        let produced = verus_witnesses_from_graph(
+            &g,
+            "logs/",
+            &[
+                position("/proj/src/a.rs", 15),
+                position("/proj/src/b.rs", 35),
+            ],
+            suffix_matches,
+            |_| true,
+        )
+        .unwrap();
+        let mut labels: Vec<(&str, &str)> = produced
+            .witnesses
+            .iter()
+            .map(|w| {
+                (
+                    w.label.as_str(),
+                    w.provenance.discharge_unit.as_deref().unwrap_or(""),
+                )
+            })
+            .collect();
+        labels.sort_unstable();
+        assert_eq!(
+            produced.witnesses.len(),
+            2,
+            "two distinct obligations' units must yield two witnesses; got {labels:?}"
+        );
+        // Both witnesses carry the same display label but distinct
+        // structural provenance — one per obligation.
+        assert_eq!(
+            labels,
+            vec![("bounds hold", "c::f"), ("bounds hold", "c::g")],
+            "each rooting obligation must contribute its own witness"
         );
     }
 }

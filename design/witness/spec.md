@@ -240,6 +240,13 @@ for the verified half) — influences that.
 [W3](#property-w3-global-execution) quantifies over delivered
 witnesses by definition.)
 
+A witness's **identity** is the (artifact, obligation, unit)
+triple; the `label` ([§1.2](#witness)) is presentation only.
+Two distinct units MAY carry identical labels —
+user-authored label text is not unique ([§5.5](#verus-producer)) —
+so a producer MUST NOT key witness deduplication, or any other
+identity-bearing decision, on the label.
+
 ---
 
 ## 2. Engine properties {#engine-properties}

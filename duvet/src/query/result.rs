@@ -597,7 +597,7 @@ impl fmt::Display for CoverageResult {
                         help_lines.push(format!(
                             "{} {} ({}): {}",
                             if result.executed { "✓" } else { "✗" },
-                            result.witness.label,
+                            result.witness.display_name(),
                             result.witness.strength,
                             if result.executed {
                                 "executed the implementation"
@@ -653,7 +653,7 @@ impl fmt::Display for CoverageResult {
                 let discharged_by = correlation
                     .bound_witnesses
                     .iter()
-                    .map(|w| format!("discharged by {} ({})", w.label, w.strength))
+                    .map(|w| format!("discharged by {} ({})", w.display_name(), w.strength))
                     .collect::<Vec<_>>()
                     .join("\n");
                 info = info.with_help(discharged_by);
@@ -894,6 +894,7 @@ mod tests {
         WitnessRef {
             label: label.to_string(),
             strength,
+            discharge_unit: None,
         }
     }
 
@@ -978,6 +979,54 @@ mod tests {
         assert!(
             out.contains("ALL bound witnesses executed the implementation"),
             "missing the discharge rule statement: {out}"
+        );
+    }
+
+    /// Witness identity is structural and the label is presentation
+    /// (spec §1.7): two distinct discharge units may carry identical
+    /// user-authored `proof_note` text. The failure listing must
+    /// disambiguate them — by the obligation in `discharge_unit` —
+    /// so two same-label witnesses never render as one repeated,
+    /// unattributable line.
+    #[test]
+    fn failing_pair_output_disambiguates_same_label_witnesses() {
+        let same_label_ref = |unit: &str| WitnessRef {
+            label: "bounds hold".to_string(),
+            strength: Strength::Consulted,
+            discharge_unit: Some(unit.to_string()),
+        };
+        let mut result = coverage_result();
+        result.status = QueryStatus::Fail;
+        result.failed = vec![CoveredTestAnnotation {
+            test: annotation("t.rs", AnnotationType::Test),
+            test_execution_status: ExecutionStatus::Executed,
+            bound_witnesses: vec![same_label_ref("c::f"), same_label_ref("c::g")],
+            executed_implementations: vec![],
+            not_executed_implementations: vec![NotExecutedAnnotation {
+                annotation: annotation("i.rs", AnnotationType::Citation),
+                status: ExecutionStatus::NotExecuted,
+                per_witness: vec![
+                    PairWitnessResult {
+                        witness: same_label_ref("c::f"),
+                        executed: true,
+                        status: ExecutionStatus::Executed,
+                    },
+                    PairWitnessResult {
+                        witness: same_label_ref("c::g"),
+                        executed: false,
+                        status: ExecutionStatus::NotExecuted,
+                    },
+                ],
+            }],
+        }];
+        let out = squash(&format!("{result}"));
+        assert!(
+            out.contains("✓ bounds hold [c::f] (consulted): executed the implementation"),
+            "executing witness not attributed to its obligation: {out}"
+        );
+        assert!(
+            out.contains("✗ bounds hold [c::g] (consulted): did not execute the implementation"),
+            "failing witness not attributed to its obligation: {out}"
         );
     }
 
@@ -1129,6 +1178,7 @@ mod tests {
         let witness_ref = || WitnessRef {
             label: clause_label.to_string(),
             strength: Strength::Consulted,
+            discharge_unit: None,
         };
 
         // Success path (verbose): "discharged by <label> (<strength>)".

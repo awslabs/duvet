@@ -640,8 +640,8 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
     // full-universe production:
     //
     //   1. every witness materialized for the position is
-    //      byte-identical to the universe member with its label
-    //      (production never invents or perturbs a witness), and
+    //      byte-identical to the universe member with its structural
+    //      identity (production never invents or perturbs a witness), and
     //   2. the materialized set equals the most-specific level of
     //      the position's ByRootSpan binding set over the whole
     //      universe: clause-kind binders of minimal span if any
@@ -659,9 +659,37 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
     //# checking.
     assert_eq!(universe.len(), units.len(), "one witness per unit");
     assert_eq!(universe.len(), 775, "330 extents + 445 clause units");
-    let by_label: std::collections::BTreeMap<&str, &Witness> =
-        universe.iter().map(|w| (w.label.as_str(), w)).collect();
-    assert_eq!(by_label.len(), universe.len(), "labels are unique");
+    // Witness identity is structural — (obligation, unit) — and the
+    // label is presentation only (spec §1.7): user-authored
+    // `proof_note` text may repeat across units, so labels are NOT
+    // an invariant key (this corpus happens to have unique labels;
+    // that is an empirical fact, not a property). The identity index
+    // is keyed on the structural fields a witness carries: obligation
+    // + root span + label.
+    let identity = |w: &Witness| {
+        let ClaimRule::ByRootSpan {
+            file,
+            start_line,
+            end_line,
+        } = &w.claim
+        else {
+            panic!("prover witnesses claim ByRootSpan");
+        };
+        (
+            w.provenance.discharge_unit.clone(),
+            file.clone(),
+            *start_line,
+            *end_line,
+            w.label.clone(),
+        )
+    };
+    let by_identity: std::collections::BTreeMap<_, &Witness> =
+        universe.iter().map(|w| (identity(w), w)).collect();
+    assert_eq!(
+        by_identity.len(),
+        universe.len(),
+        "structural identities are unique"
+    );
 
     // (kind, size, label) of every universe member whose root span
     // contains the position (spec §1.5 ByRootSpan binding for a
@@ -691,7 +719,7 @@ fn filter_soundness_annotations_only_select_from_the_universe() {
                 //# annotations.
                 assert_eq!(
                     Some(w),
-                    by_label.get(w.label.as_str()).copied(),
+                    by_identity.get(&identity(w)).copied(),
                     "{file}:{line}: materialized witness diverges from universe member"
                 );
             }

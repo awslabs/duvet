@@ -141,6 +141,12 @@ pub struct Provenance {
 pub struct WitnessRef {
     pub label: String,
     pub strength: Strength,
+    /// Prover producers only (spec §1.3): the obligation the witness
+    /// was constructed from. Carried so verdict output can
+    /// disambiguate witnesses whose display labels coincide —
+    /// user-authored `proof_note` text is not unique, and witness
+    /// identity is structural, not the label (spec §1.7).
+    pub discharge_unit: Option<String>,
 }
 
 impl From<&Witness> for WitnessRef {
@@ -148,6 +154,21 @@ impl From<&Witness> for WitnessRef {
         WitnessRef {
             label: w.label.clone(),
             strength: w.provenance.strength,
+            discharge_unit: w.provenance.discharge_unit.clone(),
+        }
+    }
+}
+
+impl WitnessRef {
+    /// The display name for verdict output: the label, qualified by
+    /// the discharge unit's obligation when that adds information
+    /// (two distinct units may share a display label; the obligation
+    /// is what tells them apart). Extent-unit labels already ARE the
+    /// obligation path, so the qualifier is skipped when redundant.
+    pub fn display_name(&self) -> String {
+        match &self.discharge_unit {
+            Some(unit) if unit != &self.label => format!("{} [{}]", self.label, unit),
+            _ => self.label.clone(),
         }
     }
 }

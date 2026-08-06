@@ -314,6 +314,12 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: for every requested annotation, binding and discharge verdicts
     TEXT[!MUST,implementation,test]: over the materialized set MUST equal the verdicts over the full
     TEXT[!MUST,implementation,test]: universe.
+    TEXT[implementation,test]: A witness's **identity** is the (artifact, obligation, unit)
+    TEXT[implementation,test]: triple; the `label` ([§1.2](#witness)) is presentation only.
+    TEXT[!MUST,implementation,test]: Two distinct units MAY carry identical labels —
+    TEXT[!MUST,implementation,test]: user-authored label text is not unique ([§5.5](#verus-producer)) —
+    TEXT[!MUST,implementation,test]: so a producer MUST NOT key witness deduplication, or any other
+    TEXT[!MUST,implementation,test]: identity-bearing decision, on the label.
 
   SECTION: [2. Engine properties](#engine-properties)
     TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus,
