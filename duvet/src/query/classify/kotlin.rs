@@ -36,18 +36,7 @@ impl LineClassifier for KotlinClassifier {
         //# blank lines as `Whitespace`
         //# and duvet annotation lines (`//=` or `//#` after leading whitespace)
         //# as `Annotation`.
-        for (i, line) in lines.iter().enumerate() {
-            let line_num = i + 1;
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                line_props[line_num].insert(LineProperty::Whitespace);
-                visited[line_num] = true;
-            } else if trimmed.starts_with(ANNOTATION_META) || trimmed.starts_with(ANNOTATION_CONTENT)
-            {
-                line_props[line_num].insert(LineProperty::Annotation);
-                visited[line_num] = true;
-            }
-        }
+        super::mark_blank_and_annotation_lines(&lines, &mut line_props, &mut visited);
 
         //= design/classifiers/kotlin-spec.md#grammar
         //= type=implementation
@@ -81,7 +70,7 @@ impl LineClassifier for KotlinClassifier {
         // located error. The dispatcher owns the response (spec §8).
         if tree.root_node().has_error() {
             let mut error_lines = Vec::new();
-            collect_parse_error_lines(&tree.root_node(), &mut error_lines);
+            super::collect_parse_error_lines(&tree.root_node(), &mut error_lines);
             if error_lines.is_empty() {
                 error_lines.push(1);
             }
@@ -144,11 +133,10 @@ impl LineClassifier for KotlinClassifier {
     }
 }
 
-// Assembled at compile time so this source file never contains the literal
-// annotation prefixes — duvet's annotation parser reads string literals, and
-// this file is a scanned duvet source (see the module note).
-const ANNOTATION_META: &str = concat!("//", "=");
-const ANNOTATION_CONTENT: &str = concat!("//", "#");
+/// Local re-export of the shared annotation-meta prefix for tests that need
+/// to synthesize an annotation line without embedding the literal shape.
+#[cfg(test)]
+use super::ANNOTATION_META;
 
 //= design/classifiers/kotlin-spec.md#scope-bearing-nodes
 //= type=implementation
@@ -215,20 +203,6 @@ fn collect_scope_events(node: &tree_sitter::Node, out: &mut Vec<(usize, ScopeEve
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         collect_scope_events(&child, out);
-    }
-}
-
-/// Collect the 1-based start line of every `ERROR`/`MISSING` node in the parse
-/// tree — the located facts for the defeated-commitment diagnostic
-/// (coverage-model spec §1.5). Identical to the java.rs helper; a shared-code
-/// hoist is tracked as follow-up refactoring.
-fn collect_parse_error_lines(node: &tree_sitter::Node, out: &mut Vec<u64>) {
-    if node.is_error() || node.is_missing() {
-        out.push(node.start_position().row as u64 + 1);
-    }
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        collect_parse_error_lines(&child, out);
     }
 }
 

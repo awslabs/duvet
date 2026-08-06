@@ -153,6 +153,58 @@ pub fn classifier_for_path(path: &Path) -> Option<Box<dyn LineClassifier>> {
         .and_then(classifier_for_extension)
 }
 
+// Assembled at compile time so this source file never contains the literal
+// annotation prefixes: duvet's annotation parser also reads string literals,
+// and files under duvet/src that are scanned as duvet sources must stay free
+// of anything shaped like an annotation.
+const ANNOTATION_META: &str = concat!("//", "=");
+const ANNOTATION_CONTENT: &str = concat!("//", "#");
+
+/// Language-agnostic pre-pass, shared by every tree-sitter classifier: mark
+/// blank lines `Whitespace` and duvet annotation lines (meta or content
+/// comments, after leading whitespace) `Annotation`, before the CST walk.
+/// `line_props`/`visited` are the classifier's 1-indexed working arrays
+/// (index 0 unused).
+///
+/// Kotlin spec §2 and the Java classifier state the same obligation; both
+/// classifiers call this one implementation so the two languages cannot
+/// drift. Note the annotation-comment syntax itself is language-specific in
+/// general; today both supported languages use `//`-style comments, so one
+/// implementation serves. A language with different comment syntax gets its
+/// own pre-pass and does not call this one.
+pub(crate) fn mark_blank_and_annotation_lines(
+    lines: &[&str],
+    line_props: &mut [std::collections::BTreeSet<LineProperty>],
+    visited: &mut [bool],
+) {
+    for (i, line) in lines.iter().enumerate() {
+        let line_num = i + 1;
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            line_props[line_num].insert(LineProperty::Whitespace);
+            visited[line_num] = true;
+        } else if trimmed.starts_with(ANNOTATION_META) || trimmed.starts_with(ANNOTATION_CONTENT) {
+            line_props[line_num].insert(LineProperty::Annotation);
+            visited[line_num] = true;
+        }
+    }
+}
+
+/// Collect the 1-based start line of every `ERROR`/`MISSING` node in a
+/// tree-sitter parse tree — the located facts for the defeated-commitment
+/// diagnostic (coverage-model spec §1.5). Reporting *all* of them, not just
+/// the first, lets the user see the whole set in one `query` run. Shared by
+/// every tree-sitter classifier.
+pub(crate) fn collect_parse_error_lines(node: &tree_sitter::Node, out: &mut Vec<u64>) {
+    if node.is_error() || node.is_missing() {
+        out.push(node.start_position().row as u64 + 1);
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        collect_parse_error_lines(&child, out);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

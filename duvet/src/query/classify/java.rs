@@ -30,18 +30,8 @@ impl LineClassifier for JavaClassifier {
         // latter direction is load-bearing.
         let mut code_start: Vec<bool> = vec![false; line_count + 1];
 
-        // Mark blank lines and annotation lines first
-        for (i, line) in lines.iter().enumerate() {
-            let line_num = i + 1;
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                line_props[line_num].insert(LineProperty::Whitespace);
-                visited[line_num] = true;
-            } else if trimmed.starts_with("//=") || trimmed.starts_with("//#") {
-                line_props[line_num].insert(LineProperty::Annotation);
-                visited[line_num] = true;
-            }
-        }
+        // Mark blank lines and annotation lines first (shared pre-pass).
+        super::mark_blank_and_annotation_lines(&lines, &mut line_props, &mut visited);
 
         // Parse with tree-sitter
         let mut parser = tree_sitter::Parser::new();
@@ -70,7 +60,7 @@ impl LineClassifier for JavaClassifier {
         // undecidable here, so we report facts (where), never a cause (why).
         if tree.root_node().has_error() {
             let mut error_lines = Vec::new();
-            collect_parse_error_lines(&tree.root_node(), &mut error_lines);
+            super::collect_parse_error_lines(&tree.root_node(), &mut error_lines);
             // has_error() implies at least one ERROR/MISSING node; the fallback
             // is purely defensive so `unclassifiable`'s non-empty contract holds.
             if error_lines.is_empty() {
@@ -182,20 +172,6 @@ fn collect_scope_events(node: &tree_sitter::Node, out: &mut Vec<(usize, ScopeEve
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         collect_scope_events(&child, out);
-    }
-}
-
-/// Collect the 1-based start line of every `ERROR`/`MISSING` node in the parse
-/// tree. These locate the syntax errors for the defeated-commitment diagnostic
-/// (spec §1.5). Reporting *all* of them — not just the first — lets the user see
-/// the whole set in one `query` run.
-fn collect_parse_error_lines(node: &tree_sitter::Node, out: &mut Vec<u64>) {
-    if node.is_error() || node.is_missing() {
-        out.push(node.start_position().row as u64 + 1);
-    }
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        collect_parse_error_lines(&child, out);
     }
 }
 
