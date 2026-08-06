@@ -911,15 +911,14 @@ public class Two {
         // One tracefile, two SF blocks for the same file — the shape
         // `lcov -a` produces when merging an absolute-path tracefile with a
         // relative-path one.
-        let tracefile = format!(
-            "SF:{absolute}\nDA:4,1\nend_of_record\nSF:{relative}\nDA:4,0\nend_of_record\n"
-        );
+        let tracefile =
+            format!("SF:{absolute}\nDA:4,1\nend_of_record\nSF:{relative}\nDA:4,0\nend_of_record\n");
 
         // Decision 6 precondition: both spellings survive parsing as distinct
         // keys. If a future change made the parser normalize them together,
         // this test's subject would vanish — fail loudly instead.
-        let generic = parse_lcov_report(std::io::Cursor::new(tracefile))
-            .expect("tracefile is well-formed");
+        let generic =
+            parse_lcov_report(std::io::Cursor::new(tracefile)).expect("tracefile is well-formed");
         assert_eq!(
             generic.files.len(),
             2,
