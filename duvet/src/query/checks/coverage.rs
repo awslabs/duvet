@@ -15,17 +15,18 @@ use crate::{
     Result,
 };
 use duvet_coverage::{
-    annotation_execution::is_annotation_executed,
+    annotation_execution::is_annotation_executed_with_exec_set,
     degraded::degraded_execution_status,
+    execution_propagation::execution_set,
     scopes::{build_scope_tree, scope_imbalance_site},
     types::{
         AnnotationSpan, CoverageReport as CoverageReportMap, ExecutionStatus, LineClass,
         LineProperty, Scope,
     },
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
-    collections::HashSet,
+    collections::{BTreeMap, BTreeSet, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -39,11 +40,34 @@ pub enum CoverageFormat {
 /// Coverage model data for a file with a tree-sitter classifier.
 /// Contains the classified line properties, scope tree, and coverage data
 /// in the format expected by the verified `duvet-coverage` algorithms.
+///
+/// The report-independent parts (`classifications`, `scopes`) are shared via
+/// `Arc` across every coverage report — they are a function of the source file
+/// and its annotations only. The per-report parts are the `coverage` map, the
+/// precomputed `exec_set`, and the `coverage_keys_in_bounds` witness.
 #[derive(Debug, Clone)]
 pub struct ClassifiedFileData {
-    pub classifications: Vec<Option<LineClass>>,
-    pub scopes: Vec<Scope>,
+    pub classifications: Arc<Vec<Option<LineClass>>>,
+    pub scopes: Arc<Vec<Scope>>,
     pub coverage: CoverageReportMap,
+    /// The verified execution set for exactly (`classifications`, `scopes`,
+    /// `coverage`), computed ONCE per (file, report) by
+    /// [`duvet_coverage::execution_propagation::execution_set`].
+    ///
+    /// TRUSTED-BASE ASSUMPTION (unverified glue, same shape as the `scopes`
+    /// note in `build_file_base`): `is_annotation_executed_with_exec_set`
+    /// `requires` that this set be the execution set of the sibling fields, and
+    /// that holds *because* the sole producer
+    /// ([`file_execution_data_for_report`]) computes it from those very fields
+    /// with the verified function. Nothing at the type level enforces the
+    /// pairing; do not mutate these fields independently.
+    pub exec_set: BTreeSet<u64>,
+    /// Whether every coverage key maps to a valid classification index —
+    /// `is_annotation_executed_with_exec_set`'s runtime-checkable coverage
+    /// precondition, evaluated once per (file, report) instead of once per
+    /// annotation. When false, the file's annotations are reported `Unknown`
+    /// (the conservative status) without ever calling the verified model.
+    pub coverage_keys_in_bounds: bool,
     pub file_length: u64,
 }
 
@@ -52,9 +76,10 @@ pub struct ClassifiedFileData {
 /// → `None`, annotation lines stamped by the caller) plus coverage and length.
 /// Fed to the verified degraded path, which needs no scope tree because it does
 /// not propagate — it reads coverage directly on the resolved target line.
+/// `classifications` is shared via `Arc` across reports.
 #[derive(Debug, Clone)]
 pub struct DegradedFileData {
-    pub classifications: Vec<Option<LineClass>>,
+    pub classifications: Arc<Vec<Option<LineClass>>>,
     pub coverage: CoverageReportMap,
     pub file_length: u64,
 }
@@ -90,18 +115,77 @@ pub enum FileExecutionData {
 /// Map from file path to execution data.
 pub type ExecutionDataMap = FxHashMap<PathBuf, FileExecutionData>;
 
-/// Build execution data for all source files that have coverage. Each covered
-/// file is routed to the verified two-phase model when a tree-sitter classifier
-/// exists for its language ([`FileExecutionData::Classified`]), or to the
-/// verified degraded path otherwise ([`FileExecutionData::Degraded`]). Both are
-/// verified; neither is the old unverified forward-walk.
+/// Everything `execute_coverage_check` needs about execution, for ALL coverage
+/// reports at once: one [`ExecutionDataMap`] per report, plus the per-file
+/// model-routing summary (which files were scored by which verified model, and
+/// which files' classifications were defeated) aggregated across reports.
+///
+/// Built by [`build_execution_data`]. The summary fields are derived from the
+/// per-file bases (computed once per file), NOT by re-scanning the per-report
+/// maps — the maps only carry entries for files that actually hold annotations,
+/// while the summary covers every file matched by any report.
+#[derive(Debug)]
+pub struct ExecutionData {
+    /// One map per coverage report, in the same order as the input reports.
+    /// Contains entries only for files that carry at least one annotation:
+    /// [`executed_status_for`] is only ever asked about an annotation's source
+    /// file, so execution data for annotation-free files would never be read.
+    pub maps: Vec<ExecutionDataMap>,
+    /// Covered files scored by the language-aware two-phase model (verified).
+    pub classified_files: BTreeSet<PathBuf>,
+    /// Covered files scored by the degraded path — no classifier (verified).
+    pub degraded_files: BTreeSet<PathBuf>,
+    /// Files whose classification was defeated (spec §1.5), each with its
+    /// located issues — once per file, regardless of how many reports cover it.
+    pub defeated: BTreeMap<PathBuf, Vec<ClassifierIssue>>,
+}
+
+/// Report-independent classification base for one source file, computed ONCE
+/// and shared across every coverage report via `Arc`. Everything here is a
+/// function of the file's content and duvet's parsed annotations only —
+/// tree-sitter classification, the scope tree, and annotation stamping are
+/// exactly the expensive work that must not be repeated per report.
+#[derive(Debug)]
+enum FileBase {
+    /// A tree-sitter classifier exists: pristine-then-stamped classifications
+    /// plus the CST-derived scope tree (see `build_file_base` for the ordering
+    /// contract between the two).
+    Classified {
+        classifications: Arc<Vec<Option<LineClass>>>,
+        scopes: Arc<Vec<Scope>>,
+        file_length: u64,
+    },
+    /// No classifier: the minimal universal classification, stamped.
+    Degraded {
+        classifications: Arc<Vec<Option<LineClass>>>,
+        file_length: u64,
+    },
+    /// Defeated commitment (spec §1.5): parse errors or an unbalanced scope
+    /// stream. No trustworthy classification exists; see
+    /// [`FileExecutionData::DefeatedClassification`].
+    Defeated { issues: Vec<ClassifierIssue> },
+}
+
+/// Build execution data for all source files that have coverage, across ALL
+/// coverage reports. Each covered file is routed to the verified two-phase
+/// model when a tree-sitter classifier exists for its language
+/// ([`FileExecutionData::Classified`]), or to the verified degraded path
+/// otherwise ([`FileExecutionData::Degraded`]). Both are verified; neither is
+/// the old unverified forward-walk.
+///
+/// Cost model (why this takes all reports at once): a JaCoCo-style corpus is
+/// often one report per test method — hundreds of ~identical file sets. The
+/// report-independent work (absolutizing source paths, suffix-matching report
+/// entries, tree-sitter classification, scope trees, annotation stamping) is
+/// therefore hoisted and done once per file / once per distinct report path,
+/// and only the genuinely per-report work (the coverage map and its execution
+/// set) is done per (file, report) — in parallel on the blocking pool, since
+/// duvet's runtime is single-threaded and this is pure CPU.
 pub async fn build_execution_data(
     annotations: &AnnotationSet,
-    coverage_data: &CoverageData,
+    coverage_data: &[CoverageData],
     project_sources: &HashSet<SourceFile>,
-) -> Result<ExecutionDataMap> {
-    let generic = coverage_data.as_generic();
-
+) -> Result<ExecutionData> {
     // Resolve each duvet source file to its absolute path once. The absolute
     // path carries the file's full on-disk directory context, which is exactly
     // what lets a report's file path be matched regardless of where duvet was
@@ -123,7 +207,7 @@ pub async fn build_execution_data(
         duvet_sources.push((duvet_path, absolute.to_string_lossy().into_owned()));
     }
 
-    // Match every duvet source against every report entry by the suffix rule,
+    // Match every report entry against every duvet source by the suffix rule,
     // collecting ALL matches in both directions so a genuine ambiguity is caught
     // rather than silently resolved to whichever entry iterated first (the old
     // `.find()` did the latter — verified-looking, but potentially wrong).
@@ -133,99 +217,273 @@ pub async fn build_execution_data(
     // and `moduleB/…/com/example/Foo.java` against a report that only says
     // `com/example/Foo.java`), are both unresolvable from the paths alone. We
     // refuse rather than guess.
-    let mut matches_for_file: Vec<(&Path, &FileCoverage)> = Vec::new();
-    let mut files_for_coverage: FxHashMap<&str, Vec<&Path>> = FxHashMap::default();
+    //
+    // The match itself depends only on (report path, source set), never on
+    // which report the path came from — so it is memoized across reports.
+    let mut match_memo: FxHashMap<String, Vec<usize>> = FxHashMap::default();
+    // Per report: the matched (source index, file coverage) pairs.
+    let mut per_report_matches: Vec<Vec<(usize, &FileCoverage)>> =
+        Vec::with_capacity(coverage_data.len());
 
-    for (duvet_path, absolute) in &duvet_sources {
-        let mut matched: Vec<(&str, &FileCoverage)> = Vec::new();
+    for cover in coverage_data {
+        let generic = cover.as_generic();
+        let mut matches: Vec<(usize, &FileCoverage)> = Vec::new();
+        let mut entries_for_source: FxHashMap<usize, Vec<&str>> = FxHashMap::default();
+
         for (coverage_path, file_coverage) in &generic.files {
-            if coverage_path_matches(absolute, coverage_path) {
-                matched.push((coverage_path.as_str(), file_coverage));
-                files_for_coverage
-                    .entry(coverage_path.as_str())
+            let indices = match_memo
+                .entry(coverage_path.clone())
+                .or_insert_with(|| {
+                    duvet_sources
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, (_, absolute))| {
+                            coverage_path_matches(absolute, coverage_path)
+                        })
+                        .map(|(idx, _)| idx)
+                        .collect()
+                });
+
+            // The mirror ambiguity: one report entry claimed by more than one
+            // source file.
+            if indices.len() > 1 {
+                // `project_sources` is a `HashSet`, so iteration order is not
+                // stable; sort the reported names for a deterministic message.
+                let mut names = indices
+                    .iter()
+                    .map(|&idx| duvet_sources[idx].0.display().to_string())
+                    .collect::<Vec<_>>();
+                names.sort();
+                let names = names.join(", ");
+                return Err(duvet_core::error!(
+                    "coverage report entry '{}' is ambiguous: it matches multiple \
+                     source files ({}). duvet cannot tell which file the report \
+                     refers to.",
+                    coverage_path,
+                    names
+                ));
+            }
+
+            if let Some(&idx) = indices.first() {
+                entries_for_source
+                    .entry(idx)
                     .or_default()
-                    .push(duvet_path);
+                    .push(coverage_path.as_str());
+                matches.push((idx, file_coverage));
             }
         }
 
-        if matched.len() > 1 {
-            // `generic.files` is a hash map, so match order is not stable; sort
-            // the reported entries for a deterministic message.
-            let mut entries = matched.iter().map(|(path, _)| *path).collect::<Vec<_>>();
-            entries.sort_unstable();
-            let entries = entries.join(", ");
-            return Err(duvet_core::error!(
-                "coverage is ambiguous for {}: its path matches multiple report \
-                 entries ({}). duvet cannot tell which entry refers to this file.",
-                duvet_path.display(),
-                entries
-            ));
+        // A single duvet file matching two entries within one report.
+        for (idx, entries) in &entries_for_source {
+            if entries.len() > 1 {
+                // `generic.files` is a hash map, so match order is not stable;
+                // sort the reported entries for a deterministic message.
+                let mut entries = entries.to_vec();
+                entries.sort_unstable();
+                let entries = entries.join(", ");
+                return Err(duvet_core::error!(
+                    "coverage is ambiguous for {}: its path matches multiple report \
+                     entries ({}). duvet cannot tell which entry refers to this file.",
+                    duvet_sources[*idx].0.display(),
+                    entries
+                ));
+            }
         }
 
-        if let Some((_, file_coverage)) = matched.first() {
-            matches_for_file.push((*duvet_path, *file_coverage));
-        }
+        per_report_matches.push(matches);
     }
 
-    // The mirror ambiguity: one report entry claimed by more than one source file.
-    for (coverage_path, files) in &files_for_coverage {
-        if files.len() > 1 {
-            // `project_sources` is a `HashSet`, so iteration order is not stable;
-            // sort the reported names for a deterministic message.
-            let mut names = files
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect::<Vec<_>>();
-            names.sort();
-            let names = names.join(", ");
-            return Err(duvet_core::error!(
-                "coverage report entry '{}' is ambiguous: it matches multiple \
-                 source files ({}). duvet cannot tell which file the report \
-                 refers to.",
-                coverage_path,
-                names
-            ));
-        }
-    }
+    // Classify each matched file ONCE (union across reports), in parallel on
+    // the blocking pool — tree-sitter parsing is pure CPU and duvet's runtime
+    // is single-threaded, so plain async concurrency would serialize it. A
+    // covered file without a language classifier is not refused: it is routed
+    // to the verified degraded path (forward-nearest governance over the
+    // minimal universal classification). Both paths are verified.
+    let matched_indices: BTreeSet<usize> = per_report_matches
+        .iter()
+        .flatten()
+        .map(|(idx, _)| *idx)
+        .collect();
 
-    let mut file_futures = Vec::new();
-    for (duvet_path, file_coverage) in matches_for_file {
-        // A covered file without a language classifier is no longer refused: it
-        // is routed to the verified degraded path in `build_file_execution_data`
-        // (forward-nearest governance over the minimal universal classification).
-        // Both the classified and degraded paths are verified in duvet-coverage.
-        let duvet_path = duvet_path.to_path_buf();
+    let mut base_futures = Vec::with_capacity(matched_indices.len());
+    for &idx in &matched_indices {
+        let duvet_path = duvet_sources[idx].0.to_path_buf();
         let annotations = annotations.clone();
-        let file_coverage = file_coverage.clone();
+        base_futures.push(async move {
+            let base = build_file_base(&duvet_path, &annotations).await?;
+            Result::<_, crate::Error>::Ok((idx, Arc::new(base)))
+        });
+    }
+    let bases: FxHashMap<usize, Arc<FileBase>> = futures::future::try_join_all(base_futures)
+        .await?
+        .into_iter()
+        .collect();
 
-        let future = async move {
-            let data = build_file_execution_data(&duvet_path, &annotations, &file_coverage).await?;
-            Result::<_, crate::Error>::Ok((duvet_path.clone(), data))
-        };
-
-        file_futures.push(future);
+    // Model-routing summary, from the bases: once per file, however many
+    // reports cover it.
+    let mut classified_files = BTreeSet::new();
+    let mut degraded_files = BTreeSet::new();
+    let mut defeated = BTreeMap::new();
+    for (&idx, base) in &bases {
+        let path = duvet_sources[idx].0.to_path_buf();
+        match &**base {
+            FileBase::Classified { .. } => {
+                classified_files.insert(path);
+            }
+            FileBase::Degraded { .. } => {
+                degraded_files.insert(path);
+            }
+            FileBase::Defeated { issues } => {
+                defeated.insert(path, issues.clone());
+            }
+        }
     }
 
-    let results = futures::future::try_join_all(file_futures).await?;
-    Ok(results.into_iter().collect())
+    // Only files that hold at least one annotation can ever be queried
+    // (`executed_status_for` looks up the annotation's own source file), so
+    // per-report execution data is built for exactly those.
+    let annotated_files: FxHashSet<PathBuf> = annotations
+        .iter()
+        .map(|annotation| annotation.source.to_path_buf())
+        .collect();
+
+    // Per (report, file): the coverage map and its verified execution set.
+    // This is the only per-report work left, parallelized per report on the
+    // blocking pool.
+    let mut map_futures = Vec::with_capacity(per_report_matches.len());
+    for matches in per_report_matches {
+        // Move owned copies of the (cheap) per-report inputs into the task:
+        // Arc'd bases and the per-file coverage maps.
+        let inputs: Vec<(PathBuf, Arc<FileBase>, FileCoverage)> = matches
+            .into_iter()
+            .filter_map(|(idx, file_coverage)| {
+                let path = duvet_sources[idx].0.to_path_buf();
+                if !annotated_files.contains(&path) {
+                    return None;
+                }
+                let base = bases.get(&idx)?.clone();
+                Some((path, base, file_coverage.clone()))
+            })
+            .collect();
+
+        map_futures.push(async move {
+            tokio::task::spawn_blocking(move || {
+                let mut map = ExecutionDataMap::default();
+                for (path, base, file_coverage) in inputs {
+                    map.insert(path, file_execution_data_for_report(&base, &file_coverage));
+                }
+                map
+            })
+            .await
+            .map_err(|e| duvet_core::error!("Task join error: {}", e))
+        });
+    }
+
+    let maps: Vec<ExecutionDataMap> = futures::future::try_join_all(map_futures).await?;
+
+    Ok(ExecutionData {
+        maps,
+        classified_files,
+        degraded_files,
+        defeated,
+    })
 }
 
-/// Build execution data for a single covered file. Uses the verified two-phase
-/// model when a tree-sitter classifier exists for the language, otherwise the
-/// verified degraded path over the minimal universal classification.
+/// Project a file's report-independent base onto one coverage report: build the
+/// verified-model coverage map, check the coverage-key precondition once, and
+/// precompute the verified execution set (see the trust note on
+/// [`ClassifiedFileData::exec_set`]). This is the only work that is genuinely
+/// per (file, report).
+fn file_execution_data_for_report(
+    base: &FileBase,
+    file_coverage: &FileCoverage,
+) -> FileExecutionData {
+    match base {
+        FileBase::Classified {
+            classifications,
+            scopes,
+            file_length,
+        } => {
+            let coverage = file_coverage.to_coverage_report();
+            // `execution_set`'s (and the per-annotation checker's) coverage
+            // precondition, checked once per (file, report): every JaCoCo
+            // `<line nr=...>` key must map to a valid classification index.
+            // Source/coverage drift or an `nr` past EOF violates it; then no
+            // verified verdict is trustworthy for this file+report, so the
+            // execution set is left empty and `executed_status_for` reports
+            // `Unknown` without consulting it.
+            let coverage_keys_in_bounds =
+                coverage_keys_in_bounds(&coverage, classifications.len());
+            let exec_set = if coverage_keys_in_bounds {
+                execution_set(classifications, scopes, &coverage)
+            } else {
+                BTreeSet::new()
+            };
+            FileExecutionData::Classified(ClassifiedFileData {
+                classifications: classifications.clone(),
+                scopes: scopes.clone(),
+                coverage,
+                exec_set,
+                coverage_keys_in_bounds,
+                file_length: *file_length,
+            })
+        }
+        FileBase::Degraded {
+            classifications,
+            file_length,
+        } => FileExecutionData::Degraded(DegradedFileData {
+            classifications: classifications.clone(),
+            coverage: file_coverage.to_coverage_report(),
+            file_length: *file_length,
+        }),
+        FileBase::Defeated { issues } => FileExecutionData::DefeatedClassification {
+            issues: issues.clone(),
+        },
+    }
+}
+
+/// Build execution data for a single covered file against a single report.
+/// Composition of [`build_file_base`] (the once-per-file work) and
+/// [`file_execution_data_for_report`] (the per-report projection); kept as the
+/// single-file entry point for tests.
+#[cfg(test)]
 async fn build_file_execution_data(
     duvet_path: &Path,
     annotations: &AnnotationSet,
     file_coverage: &FileCoverage,
 ) -> Result<FileExecutionData> {
+    let base = build_file_base(duvet_path, annotations).await?;
+    Ok(file_execution_data_for_report(&base, file_coverage))
+}
+
+/// Build the report-independent base for a single file: read it, classify it
+/// (verified two-phase model when a tree-sitter classifier exists for the
+/// language, otherwise the minimal universal classification for the verified
+/// degraded path), build the scope tree, and stamp annotation lines. The
+/// CPU-bound part runs on the blocking pool.
+async fn build_file_base(duvet_path: &Path, annotations: &AnnotationSet) -> Result<FileBase> {
     let source_file = duvet_core::vfs::read_string(duvet_path).await?;
     let file_content = source_file.to_string();
+    let duvet_path = duvet_path.to_path_buf();
+    let annotations = annotations.clone();
+
+    // Tree-sitter classification is pure CPU; run it off the (single-threaded)
+    // async runtime so files classify in parallel.
+    tokio::task::spawn_blocking(move || build_file_base_sync(&duvet_path, &file_content, &annotations))
+        .await
+        .map_err(|e| duvet_core::error!("Task join error: {}", e))
+}
+
+fn build_file_base_sync(
+    duvet_path: &Path,
+    file_content: &str,
+    annotations: &AnnotationSet,
+) -> FileBase {
     let line_count = file_content.lines().count() as u64;
-    let coverage = file_coverage.to_coverage_report();
 
     if let Some(classifier) = classifier_for_path(duvet_path) {
         // Classified path: tree-sitter classification + verified two-phase model.
-        let mut classifications = match classifier.classify(&file_content) {
+        let mut classifications = match classifier.classify(file_content) {
             Classification::Classified(c) => c,
             // Defeated commitment (spec §1.5): the classifier could not parse the
             // file and reported located parse errors. Escalate rather than build
@@ -235,7 +493,7 @@ async fn build_file_execution_data(
                 let mut issues = Vec::with_capacity(rest.len() + 1);
                 issues.push(first);
                 issues.extend(rest);
-                return Ok(FileExecutionData::DefeatedClassification { issues });
+                return FileBase::Defeated { issues };
             }
         };
 
@@ -270,14 +528,14 @@ async fn build_file_execution_data(
         // brace-balanced file now passes the gate. On a genuine imbalance we
         // still refuse to score against `build_scope_tree`'s collapsed whole-file
         // scope (spec §1.5) and escalate to a located `Unknown`.
-        let scope_events = classifier.scope_events(&file_content);
+        let scope_events = classifier.scope_events(file_content);
         if let Some(witness_line) = scope_imbalance_site(&scope_events) {
-            return Ok(FileExecutionData::DefeatedClassification {
+            return FileBase::Defeated {
                 issues: vec![ClassifierIssue {
                     reason: ClassifierFailure::UnbalancedScopes,
                     line: witness_line,
                 }],
-            });
+            };
         }
 
         // Discharge `build_scope_tree`'s event-stream preconditions at this
@@ -297,29 +555,28 @@ async fn build_file_execution_data(
         apply_annotation_override(&mut classifications, annotations, duvet_path);
 
         // TRUSTED-BASE ASSUMPTION (unverified glue): the `scopes` stored here
-        // satisfy `is_annotation_executed`'s scope-bound preconditions
+        // satisfy the verified checkers' scope-bound preconditions
         // (open_line >= 1, close_line < u64::MAX) *because* they came from
         // `build_scope_tree`, whose contract now states those bounds. Nothing at
         // the type level enforces that this field only ever holds a
-        // `build_scope_tree` result — `scopes: Vec<Scope>` is a plain public
+        // `build_scope_tree` result — `scopes` is a plain public
         // field. Today this is the sole producer, so the assumption holds by
         // construction. TODO(VerifiedScopeTree): replace `Vec<Scope>` with an
         // opaque newtype whose only constructor is `build_scope_tree` and whose
         // Verus type invariant carries the bounds, so the query-side consumer
         // discharges those `requires` from the type instead of this comment.
-        Ok(FileExecutionData::Classified(ClassifiedFileData {
-            classifications,
-            scopes,
-            coverage,
+        FileBase::Classified {
+            classifications: Arc::new(classifications),
+            scopes: Arc::new(scopes),
             file_length: line_count,
-        }))
+        }
     } else {
         // Degraded path: no language classifier for this file. Build the minimal
         // universal classification (blank → Whitespace, else None), stamp
         // annotation lines, and let the verified `degraded_execution_status`
         // resolve the target and read coverage directly. No scope tree is built:
         // the degraded model does not propagate, so none is needed.
-        let mut classifications = match DefaultClassifier.classify(&file_content) {
+        let mut classifications = match DefaultClassifier.classify(file_content) {
             Classification::Classified(c) => c,
             // DefaultClassifier is total (blank-line detection cannot fail), so
             // it never reports Unclassifiable. This arm is unreachable.
@@ -328,11 +585,10 @@ async fn build_file_execution_data(
             }
         };
         apply_annotation_override(&mut classifications, annotations, duvet_path);
-        Ok(FileExecutionData::Degraded(DegradedFileData {
-            classifications,
-            coverage,
+        FileBase::Degraded {
+            classifications: Arc::new(classifications),
             file_length: line_count,
-        }))
+        }
     }
 }
 
@@ -462,7 +718,7 @@ pub fn executed_status_for(
                 end_line,
             };
 
-            // Enforce `is_annotation_executed`'s `requires` at this trust
+            // Enforce the verified checker's `requires` at this trust
             // boundary. Verus checks those clauses statically against the
             // *proof*, but they compile away in release builds, so nothing stops
             // ill-formed runtime inputs from reaching the verified algorithm and
@@ -475,22 +731,28 @@ pub fn executed_status_for(
             // fall back to `Unknown` (the conservative status) instead of calling
             // the verified fn on inputs it never reasoned about.
             //
-            // requires: annotation.end_line < u64::MAX
+            // requires: annotation.end_line < u64::MAX  (checked here, per annotation)
             // requires: every coverage key K has (K - 1) < classifications.len()
-            let precondition_holds =
-                classified_preconditions_hold(end_line, &data.coverage, data.classifications.len());
+            //           (annotation-independent — checked once per (file, report)
+            //           when the execution data was built; see
+            //           `ClassifiedFileData::coverage_keys_in_bounds`)
+            // requires: exec_set == execution_set(classifications, scopes, coverage)
+            //           (by construction — see the trust note on
+            //           `ClassifiedFileData::exec_set`)
+            let precondition_holds = end_line < u64::MAX && data.coverage_keys_in_bounds;
 
             if !precondition_holds {
                 ExecutionStatus::Unknown {
                     line_number: start_line,
                 }
             } else {
-                is_annotation_executed(
+                is_annotation_executed_with_exec_set(
                     &ann_span,
                     &data.classifications,
                     &data.scopes,
                     &data.coverage,
                     data.file_length,
+                    &data.exec_set,
                 )
             }
         }
@@ -531,18 +793,31 @@ pub fn executed_status_for(
     }
 }
 
-/// Whether the classified inputs satisfy `is_annotation_executed`'s `requires`
+/// Whether every coverage key `K` maps to a valid 0-based classification
+/// index: `1 <= K` and `K - 1 < classifications_len`. This is the
+/// annotation-independent half of the verified checker's runtime-checkable
+/// preconditions, evaluated once per (file, report) when execution data is
+/// built (see [`ClassifiedFileData::coverage_keys_in_bounds`]).
+fn coverage_keys_in_bounds(coverage: &CoverageReportMap, classifications_len: usize) -> bool {
+    coverage
+        .keys()
+        .all(|&k| k >= 1 && (k as usize - 1) < classifications_len)
+}
+
+/// Whether the classified inputs satisfy the verified checker's `requires`
 /// clauses. Pure so it can be tested without constructing a full `Annotation`.
 /// Mirrors, exactly, the two runtime-checkable preconditions:
 ///   - `annotation.end_line < u64::MAX`
 ///   - every coverage key `K` maps to a valid 0-based index: `1 <= K` and
-///     `K - 1 < classifications_len`
+///     `K - 1 < classifications_len` (see [`coverage_keys_in_bounds`], which
+///     the production path evaluates once per (file, report) rather than per
+///     annotation)
 ///
 /// (The scope-bounds invariants in the third/fourth `requires` are guaranteed
 /// by `build_scope_tree`'s postcondition and need no runtime check here.
 ///
 /// Property 2's `scopes_match_classifications` hypothesis is *not* a
-/// `requires` of `is_annotation_executed` and is likewise not checked here —
+/// `requires` of the verified checker and is likewise not checked here —
 /// but not because of `build_scope_tree`: that postcondition governs the
 /// scope *tree*, while propagation reads the per-line classification *set*,
 /// and their silent disagreement was a real bug (a `} // comment` line lost
@@ -551,15 +826,13 @@ pub fn executed_status_for(
 /// the verified post-pass (`classify_postpass::clean_classifications`) proves
 /// `ScopeOpen`/`ScopeClose` are never stripped, and the classifier property
 /// test proves boundary lines carry them in the first place.)
+#[cfg(test)]
 fn classified_preconditions_hold(
     end_line: u64,
     coverage: &CoverageReportMap,
     classifications_len: usize,
 ) -> bool {
-    end_line < u64::MAX
-        && coverage
-            .keys()
-            .all(|&k| k >= 1 && (k as usize - 1) < classifications_len)
+    end_line < u64::MAX && coverage_keys_in_bounds(coverage, classifications_len)
 }
 
 #[cfg(test)]

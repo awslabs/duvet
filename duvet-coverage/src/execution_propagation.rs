@@ -62,7 +62,16 @@ fn collect_hit_lines(coverage: &CoverageReport) -> (result: BTreeSet<u64>)
     s
 }
 
-pub(crate) fn execution_set(
+// Public (not just crate-visible) so an unverified caller can compute the
+// execution set ONCE per (file, coverage-report) pair and share it across every
+// annotation in that file via `is_annotation_executed_with_exec_set`. The set
+// depends only on (classifications, scopes, coverage) — never on the
+// annotation — so recomputing it per annotation (as the self-contained
+// `is_annotation_executed` does) is pure waste: O(annotations × file) instead
+// of O(file). The `ensures` here are exactly the `requires` of
+// `is_annotation_executed_with_exec_set`, so a caller that pipes this result
+// into that function preserves the verified contract by construction.
+pub fn execution_set(
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
     coverage: &CoverageReport,
