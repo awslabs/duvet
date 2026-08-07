@@ -20,6 +20,7 @@ EXIT: Some(1)
 Duplicates: ✗ FAIL
 
 Targets bearing more than one annotation (count descending):
+  (opt-in bounds: [duplicates.targets] count / sections / types in .duvet/config.toml — design/duplicates/spec.md §3)
   src/lib.rs:7 count=2 sections=2 forms=test:1,implementation:1
 
   × Target src/lib.rs:7 mixes claim forms test+implementation — the

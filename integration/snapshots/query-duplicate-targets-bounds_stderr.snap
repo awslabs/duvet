@@ -20,6 +20,14 @@ EXIT: Some(1)
 
 Duplicates: ✗ FAIL
 
+Effective policy ([duplicates] in .duvet/config.toml; semantics: design/duplicates/spec.md §4):
+  claims.test = 1 (default)
+  claims.implementation = 1 (default)
+  claims.types = no free form shares a claim (default)
+  targets.count = 2
+  targets.sections = 1
+  targets.types = any combination except test+implementation (default)
+
 Targets bearing more than one annotation (count descending):
   src/lib.rs:9 count=3 sections=2 forms=implementation:3
   ☞ Annotations resolving to src/lib.rs:9

@@ -82,6 +82,24 @@ impl Init {
             )?;
             writeln!(out, "[report.snapshot]")?;
             writeln!(out, "enabled = true")?;
+            writeln!(out)?;
+
+            writeln!(
+                out,
+                "# Duplicate policy for `duvet query --check duplicates`"
+            )?;
+            writeln!(
+                out,
+                "# (defaults shown; semantics: design/duplicates/spec.md)"
+            )?;
+            writeln!(out, "# [duplicates.claims]")?;
+            writeln!(out, "# test = 1           # copies of one claim, per type")?;
+            writeln!(out, "# implementation = 1")?;
+            writeln!(out, "# [duplicates.targets]")?;
+            writeln!(
+                out,
+                "# count = 1           # annotations per resolved target (unlimited if unset)"
+            )?;
 
             Ok(())
         });

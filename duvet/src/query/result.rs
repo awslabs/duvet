@@ -78,6 +78,9 @@ pub struct CoverageResult {
 pub struct DuplicatesResult {
     pub status: QueryStatus,
     pub analysis: crate::query::checks::duplicates::DuplicatesAnalysis,
+    /// The effective policy, rendered for discoverability (Decision 9's
+    /// discovery loop): verbose prints every value, defaults labeled.
+    pub policy: crate::config::DuplicatesPolicy,
     pub verbose: bool,
 }
 
@@ -526,6 +529,16 @@ impl fmt::Display for DuplicatesResult {
         writeln!(f, "Duplicates: {}", self.status)?;
         writeln!(f)?;
 
+        if self.verbose {
+            writeln!(
+                f,
+                "Effective policy ([duplicates] in .duvet/config.toml; \
+                 semantics: design/duplicates/spec.md §4):"
+            )?;
+            write!(f, "{}", self.policy.describe())?;
+            writeln!(f)?;
+        }
+
         let analysis = &self.analysis;
 
         // §2.1 — same claim, same resolved target.
@@ -607,6 +620,15 @@ impl fmt::Display for DuplicatesResult {
                 f,
                 "Targets bearing more than one annotation (count descending):"
             )?;
+            // Discoverability (decisions.md Decision 9): the moment a reader
+            // is looking at fan-in with no gate configured, name the knob.
+            if !self.policy.targets_gates_configured() {
+                writeln!(
+                    f,
+                    "  (opt-in bounds: [duplicates.targets] count / sections / types \
+                     in .duvet/config.toml — design/duplicates/spec.md §3)"
+                )?;
+            }
             for class in &targets.listing {
                 let forms = class
                     .forms

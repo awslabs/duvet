@@ -19,6 +19,7 @@ $ duvet query --check duplicates
 Duplicates: ✓ PASS
 
 Targets bearing more than one annotation (count descending):
+  (opt-in bounds: [duplicates.targets] count / sections / types in .duvet/config.toml — design/duplicates/spec.md §3)
   src/lib.rs:9 count=3 sections=2 forms=implementation:3
   src/lib.rs:16 count=2 sections=1 forms=implementation:2
 

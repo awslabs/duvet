@@ -50,13 +50,80 @@ pub fn form_set_name_of(forms: &FormSet) -> String {
         .join("+")
 }
 
-/// Policy for the duplicates check and the duplicate-targets query
+/// Policy for the duplicates check
 /// (design/duplicates/spec.md §4). All policy is checked-in configuration;
 /// the command line never changes a verdict.
 #[derive(Clone, Debug, Default)]
 pub struct DuplicatesPolicy {
     pub claims: ClaimsPolicy,
     pub targets: TargetsPolicy,
+}
+
+impl DuplicatesPolicy {
+    /// Whether any target-axis gate is configured (fan-in bounds or an
+    /// explicit form family). When false, the target axis gates only on the
+    /// shipped form-family default.
+    pub fn targets_gates_configured(&self) -> bool {
+        self.targets.count.is_some()
+            || self.targets.sections.is_some()
+            || self.targets.types.is_some()
+    }
+
+    /// The effective policy, one line per setting, with values equal to the
+    /// shipped default labeled `(default)`. This is the discovery loop of
+    /// design/duplicates/decisions.md Decision 9: see every value, write the
+    /// numbers you want into config, and the run goes silent about everything
+    /// you have accepted.
+    pub fn describe(&self) -> String {
+        fn family(types: &FormFamily, default_meaning: &str) -> (String, &'static str) {
+            match types {
+                None => (default_meaning.to_string(), " (default)"),
+                Some(sets) => {
+                    let sets = sets
+                        .iter()
+                        .map(|set| format!("{:?}", form_set_name_of(set)))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    (format!("[{sets}]"), "")
+                }
+            }
+        }
+        fn bound(value: Option<u64>) -> (String, &'static str) {
+            match value {
+                None => ("unlimited".to_string(), " (default)"),
+                Some(value) => (value.to_string(), ""),
+            }
+        }
+
+        let mut out = String::new();
+        let mut line = |key: &str, value: String, label: &str| {
+            out.push_str(&format!("  {key} = {value}{label}\n"));
+        };
+
+        let default_mark = |cap: u32| if cap == 1 { " (default)" } else { "" };
+        line(
+            "claims.test",
+            self.claims.test.to_string(),
+            default_mark(self.claims.test),
+        );
+        line(
+            "claims.implementation",
+            self.claims.implementation.to_string(),
+            default_mark(self.claims.implementation),
+        );
+        let (value, label) = family(&self.claims.types, "no free form shares a claim");
+        line("claims.types", value, label);
+        let (value, label) = bound(self.targets.count);
+        line("targets.count", value, label);
+        let (value, label) = bound(self.targets.sections);
+        line("targets.sections", value, label);
+        let (value, label) = family(
+            &self.targets.types,
+            "any combination except test+implementation",
+        );
+        line("targets.types", value, label);
+        out
+    }
 }
 
 /// Predicates over claim classes (spec §4.2.1).

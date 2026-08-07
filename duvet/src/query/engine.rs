@@ -691,6 +691,7 @@ async fn execute_duplicates(
     Ok(CheckResult::Duplicates(DuplicatesResult {
         status,
         analysis,
+        policy: project_data.duplicates_policy.clone(),
         verbose,
     }))
 }
