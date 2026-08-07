@@ -1,0 +1,26 @@
+---
+source: xtask/src/tests.rs
+expression: stdout
+---
+$ duvet query --check duplicate-targets
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 6 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 2 sections 
+    Matching references
+     Matched 6 references 
+  
+Duplicate targets: ✓ PASS
+
+Targets bearing more than one annotation (count descending):
+  src/lib.rs:9 count=3 sections=2 forms=implementation:3
+  src/lib.rs:16 count=2 sections=1 forms=implementation:2
+
+
+Overall: ✓ PASS

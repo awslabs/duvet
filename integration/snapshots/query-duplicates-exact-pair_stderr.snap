@@ -20,18 +20,7 @@ EXIT: Some(1)
 
 Duplicates: ✗ FAIL
 
-  × Duplicate test annotations
-   ╭─[src/lib.rs:1:5]
- 1 │ ╭─▶ //= spec.md#section-1
- 2 │ │   //= type=test
- 3 │ ├─▶ //# aaa
-   · ╰──── Duplicate
- 4 │     
-   ╰────
-
-Advice: 
-  ☞ Related context for:
-  │  Duplicate test annotations
+  × Duplicate test annotations: 2 copies exceed the cap of 1
    ╭─[src/lib.rs:5:5]
  4 │     
  5 │ ╭─▶ //= spec.md#section-1
@@ -43,7 +32,7 @@ Advice:
 
 Advice: 
   ☞ Related context for:
-  │  Duplicate test annotations
+  │  Duplicate test annotations: 2 copies exceed the cap of 1
     ╭─[src/lib.rs:9:5]
   8 │     
   9 │ ╭─▶ //= spec.md#section-1
@@ -52,68 +41,54 @@ Advice:
     · ╰──── Duplicate
     ╰────
 
-  × Duplicate test annotations
+  × Subsumed annotation: its claim is fully covered by other annotations
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa
+   · ╰──── Subsumed
+ 4 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Subsumed annotation: its claim is fully covered by other annotations
    ╭─[src/lib.rs:5:5]
  4 │     
  5 │ ╭─▶ //= spec.md#section-1
  6 │ │   //= type=test
  7 │ ├─▶ //# aaa bbb ccc
-   · ╰──── Duplicate
+   · ╰──── Covered by
  8 │     
    ╰────
 
 Advice: 
   ☞ Related context for:
-  │  Duplicate test annotations
-   ╭─[src/lib.rs:1:5]
- 1 │ ╭─▶ //= spec.md#section-1
- 2 │ │   //= type=test
- 3 │ ├─▶ //# aaa
-   · ╰──── Duplicate
- 4 │     
-   ╰────
-
-Advice: 
-  ☞ Related context for:
-  │  Duplicate test annotations
+  │  Subsumed annotation: its claim is fully covered by other annotations
     ╭─[src/lib.rs:9:5]
   8 │     
   9 │ ╭─▶ //= spec.md#section-1
  10 │ │   //= type=test
  11 │ ├─▶ //# aaa bbb ccc
-    · ╰──── Duplicate
+    · ╰──── Covered by
     ╰────
 
-  × Duplicate test annotations
-    ╭─[src/lib.rs:9:5]
-  8 │     
-  9 │ ╭─▶ //= spec.md#section-1
- 10 │ │   //= type=test
- 11 │ ├─▶ //# aaa bbb ccc
-    · ╰──── Duplicate
-    ╰────
-
-Advice: 
-  ☞ Related context for:
-  │  Duplicate test annotations
+  ☞ Annotations with some overlap
    ╭─[src/lib.rs:1:5]
  1 │ ╭─▶ //= spec.md#section-1
  2 │ │   //= type=test
  3 │ ├─▶ //# aaa
-   · ╰──── Duplicate
+   · ╰──── Some overlap
  4 │     
    ╰────
 
-Advice: 
-  ☞ Related context for:
-  │  Duplicate test annotations
-   ╭─[src/lib.rs:5:5]
+  ☞ Annotations with some overlap
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa
+   · ╰──── Some overlap
  4 │     
- 5 │ ╭─▶ //= spec.md#section-1
- 6 │ │   //= type=test
- 7 │ ├─▶ //# aaa bbb ccc
-   · ╰──── Duplicate
- 8 │     
    ╰────
 
 

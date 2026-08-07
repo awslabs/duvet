@@ -1,0 +1,72 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates --verbose"]
+report_output = false
+
+# Pins spec §2.2 (multiplicity caps) both ways under a raised cap:
+#
+# - section-1: two equal test claims at distinct targets — within `test = 2`,
+#   PASSES, and the allowed duplicate set is surfaced with its members
+#   (multiplicity is never silent).
+# - section-2: three equal test claims — exceeds the cap, FAILS.
+#
+# Together with query-duplicates-exact-pair (which pins the default cap of 1
+# on the same shape), this pins P-D4 bound monotonicity at the fixture level:
+# raising the cap flipped section-1's pair from failing to passing and left
+# section-2's triple failing.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+
+[duplicates.claims]
+test = 2
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# aaa bbb ccc
+pub fn proof_evidence() {}
+
+//= spec.md#section-1
+//= type=test
+//# aaa bbb ccc
+pub fn pbt_evidence() {}
+
+//= spec.md#section-2
+//= type=test
+//# ddd eee fff
+pub fn copy_one() {}
+
+//= spec.md#section-2
+//= type=test
+//# ddd eee fff
+pub fn copy_two() {}
+
+//= spec.md#section-2
+//= type=test
+//# ddd eee fff
+pub fn copy_three() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+
+## Section 2
+
+ddd eee fff
+"""

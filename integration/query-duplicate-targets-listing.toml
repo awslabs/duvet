@@ -1,0 +1,67 @@
+source = { local = true }
+cmd = ["duvet query --check duplicate-targets"]
+report_output = false
+
+# Pins spec §3.1 / P-T1: the duplicate-targets listing contains a target iff
+# two or more annotations resolve to it, with exact counts, per-form
+# breakdown, and distinct-section counts, sorted by count descending.
+#
+# - `dense()` bears three implementation claims from two sections
+#   (count=3 sections=2)
+# - `pair()` bears two from one section (count=2 sections=1)
+# - `single()` bears one — it MUST NOT appear.
+#
+# No bounds are configured and all forms are `implementation`, so the query
+# PASSES: a listing is not a gate.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//# aaa
+
+//= spec.md#section-1
+//# bbb
+
+//= spec.md#section-2
+//# ccc
+pub fn dense() {}
+
+//= spec.md#section-1
+//# aaa
+
+//= spec.md#section-1
+//# bbb
+pub fn pair() {}
+
+//= spec.md#section-2
+//# ccc
+pub fn single() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa
+
+bbb
+
+## Section 2
+
+ccc
+"""

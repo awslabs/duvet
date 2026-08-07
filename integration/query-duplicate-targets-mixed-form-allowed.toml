@@ -1,0 +1,48 @@
+source = { local = true }
+cmd = ["duvet query --check duplicate-targets"]
+report_output = false
+
+# The Appendix-A relaxation of spec §3.3 (Decision 8's meta-requirement case):
+# the same input as query-duplicate-targets-mixed-form, with the combination
+# added to the target-form family in one reviewed configuration line. PASSES,
+# and per P-T2 adding the allowed set never flips anything else to failing.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+
+[duplicates.targets]
+types = ["test+implementation"]
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# aaa
+
+//= spec.md#section-2
+//# bbb
+pub fn both_roles() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa
+
+## Section 2
+
+bbb
+"""

@@ -67,6 +67,12 @@ impl Schema {
             Schema::V1_0_0(schema) => schema.report(config, root),
         }
     }
+
+    pub fn duplicates(&self) -> Result<config::DuplicatesPolicy> {
+        match self {
+            Schema::V1_0_0(schema) => schema.duplicates(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

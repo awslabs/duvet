@@ -12,6 +12,7 @@ use crate::{
 use std::{collections::HashMap, sync::Arc};
 
 pub mod coverage;
+pub mod duplicates;
 
 /// Check if a target annotation is covered by a collection annotations
 /// A target annotation is covered,

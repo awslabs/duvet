@@ -371,7 +371,7 @@ fn apply_annotation_override(
 }
 
 /// Stamp `{Annotation}` over an inclusive 1-based `(start, end)` line range.
-fn stamp_annotation_range(classifications: &mut [Option<LineClass>], range: (u64, u64)) {
+pub(super) fn stamp_annotation_range(classifications: &mut [Option<LineClass>], range: (u64, u64)) {
     let (start_line, end_line) = range;
     for line_num in start_line..=end_line {
         let idx = (line_num - 1) as usize;

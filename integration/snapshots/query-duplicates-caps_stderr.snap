@@ -1,0 +1,144 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query --check duplicates --verbose
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 5 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 2 sections 
+    Matching references
+     Matched 5 references 
+
+Duplicates: ✗ FAIL
+
+  × Duplicate test annotations: 3 copies exceed the cap of 2
+    ╭─[src/lib.rs:11:5]
+ 10 │     
+ 11 │ ╭─▶ //= spec.md#section-2
+ 12 │ │   //= type=test
+ 13 │ ├─▶ //# ddd eee fff
+    · ╰──── Duplicate
+ 14 │     pub fn copy_one() {}
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Duplicate test annotations: 3 copies exceed the cap of 2
+    ╭─[src/lib.rs:16:5]
+ 15 │     
+ 16 │ ╭─▶ //= spec.md#section-2
+ 17 │ │   //= type=test
+ 18 │ ├─▶ //# ddd eee fff
+    · ╰──── Duplicate
+ 19 │     pub fn copy_two() {}
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Duplicate test annotations: 3 copies exceed the cap of 2
+    ╭─[src/lib.rs:21:5]
+ 20 │     
+ 21 │ ╭─▶ //= spec.md#section-2
+ 22 │ │   //= type=test
+ 23 │ ├─▶ //# ddd eee fff
+    · ╰──── Duplicate
+ 24 │     pub fn copy_three() {}
+    ╰────
+
+  ☞ Allowed duplicate set: 2 test annotations (cap 2)
+
+Advice: 
+  ☞ Related context for:
+  │  Allowed duplicate set: 2 test annotations (cap 2)
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Allowed duplicate
+ 4 │     pub fn proof_evidence() {}
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Allowed duplicate set: 2 test annotations (cap 2)
+   ╭─[src/lib.rs:6:5]
+ 5 │     
+ 6 │ ╭─▶ //= spec.md#section-1
+ 7 │ │   //= type=test
+ 8 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Allowed duplicate
+ 9 │     pub fn pbt_evidence() {}
+   ╰────
+
+  ☞ Unique test annotations
+
+Advice: 
+  ☞ Related context for:
+  │  Unique test annotations
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Unique
+ 4 │     pub fn proof_evidence() {}
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique test annotations
+   ╭─[src/lib.rs:6:5]
+ 5 │     
+ 6 │ ╭─▶ //= spec.md#section-1
+ 7 │ │   //= type=test
+ 8 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Unique
+ 9 │     pub fn pbt_evidence() {}
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique test annotations
+    ╭─[src/lib.rs:11:5]
+ 10 │     
+ 11 │ ╭─▶ //= spec.md#section-2
+ 12 │ │   //= type=test
+ 13 │ ├─▶ //# ddd eee fff
+    · ╰──── Unique
+ 14 │     pub fn copy_one() {}
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique test annotations
+    ╭─[src/lib.rs:16:5]
+ 15 │     
+ 16 │ ╭─▶ //= spec.md#section-2
+ 17 │ │   //= type=test
+ 18 │ ├─▶ //# ddd eee fff
+    · ╰──── Unique
+ 19 │     pub fn copy_two() {}
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique test annotations
+    ╭─[src/lib.rs:21:5]
+ 20 │     
+ 21 │ ╭─▶ //= spec.md#section-2
+ 22 │ │   //= type=test
+ 23 │ ├─▶ //# ddd eee fff
+    · ╰──── Unique
+ 24 │     pub fn copy_three() {}
+    ╰────
+
+
+Overall: ✗ FAIL

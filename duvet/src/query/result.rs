@@ -23,6 +23,7 @@ pub enum CheckResult {
     Tests(TestResult),
     Coverage(CoverageResult),
     Duplicates(DuplicatesResult),
+    DuplicateTargets(DuplicateTargetsResult),
 }
 
 impl CheckResult {
@@ -32,6 +33,7 @@ impl CheckResult {
             CheckResult::Tests(r) => &r.status,
             CheckResult::Coverage(r) => &r.status,
             CheckResult::Duplicates(r) => &r.status,
+            CheckResult::DuplicateTargets(r) => &r.status,
         }
     }
 }
@@ -73,18 +75,20 @@ pub struct CoverageResult {
     pub verbose: bool,
 }
 
+/// The duplicates check's result (design/duplicates/spec.md §2).
 #[derive(Debug)]
 pub struct DuplicatesResult {
     pub status: QueryStatus,
-    pub categories: Vec<(&'static str, Duplicates)>,
+    pub analysis: crate::query::checks::duplicates::DuplicatesAnalysis,
     pub verbose: bool,
 }
 
+/// The duplicate-targets query's result (design/duplicates/spec.md §3).
 #[derive(Debug)]
-pub struct Duplicates {
-    pub duplicates: Vec<AnnotationCoverage>,
-    pub some_overlap: Vec<AnnotationCoverage>,
-    pub unique: Vec<Arc<Annotation>>,
+pub struct DuplicateTargetsResult {
+    pub status: QueryStatus,
+    pub analysis: crate::query::checks::duplicates::DuplicateTargetsAnalysis,
+    pub verbose: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -174,6 +178,7 @@ impl fmt::Display for CheckResult {
             CheckResult::Tests(test_result) => write!(f, "{test_result}"),
             CheckResult::Coverage(coverage_result) => write!(f, "{coverage_result}"),
             CheckResult::Duplicates(duplicates_result) => write!(f, "{duplicates_result}"),
+            CheckResult::DuplicateTargets(result) => write!(f, "{result}"),
         }
     }
 }
@@ -526,55 +531,196 @@ impl fmt::Display for CoverageResult {
 
 impl fmt::Display for DuplicatesResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use crate::config::{form_name, form_set_name_of};
+
         writeln!(f)?;
         writeln!(f, "Duplicates: {}", self.status)?;
         writeln!(f)?;
 
-        for (category_name, duplicates) in &self.categories {
-            if !duplicates.duplicates.is_empty() {
-                for coverage in &duplicates.duplicates {
-                    let duplicate_error = coverage2error(
-                        coverage,
-                        format!("Duplicate {} annotations", category_name.to_lowercase()),
-                        "Duplicate".to_string(),
-                        "Duplicate".to_string(),
-                    );
-                    writeln!(f, "{duplicate_error:?}")?;
+        let analysis = &self.analysis;
+
+        // §2.1 — same claim, same resolved target.
+        for stacked in &analysis.stacked {
+            let (first, rest) = stacked
+                .members
+                .split_first()
+                .expect("stacked class has >= 2 members");
+            let mut error = error!(
+                "Same claim stacked on one target ({}:{})",
+                stacked.target.file.display(),
+                stacked.target.line
+            );
+            error = with_annotation(error, first, "Stacked");
+            error = with_related_annotations(error, rest, "Stacked");
+            writeln!(f, "{error:?}")?;
+        }
+
+        // §2.2 — duplicate sets over cap.
+        for set in &analysis.over_cap {
+            let (first, rest) = set
+                .members
+                .split_first()
+                .expect("over-cap set has >= 1 member");
+            let mut error = error!(
+                "Duplicate {} annotations: {} copies exceed the cap of {}",
+                form_name(set.form),
+                set.members.len(),
+                set.cap
+            );
+            error = with_annotation(error, first, "Duplicate");
+            error = with_related_annotations(error, rest, "Duplicate");
+            writeln!(f, "{error:?}")?;
+        }
+
+        // §2.3 — subsumption.
+        for coverage in &analysis.subsumed {
+            let duplicate_error = coverage2error(
+                coverage,
+                "Subsumed annotation: its claim is fully covered by other annotations".to_string(),
+                "Subsumed".to_string(),
+                "Covered by".to_string(),
+            );
+            writeln!(f, "{duplicate_error:?}")?;
+        }
+
+        // §2.4 — free-form exclusivity.
+        for violation in &analysis.exclusivity {
+            let (first, rest) = violation
+                .members
+                .split_first()
+                .expect("exclusivity violation has >= 2 members");
+            let mut error = error!(
+                "Free claim forms are exclusive: {} share one claim",
+                form_set_name_of(&violation.forms)
+            );
+            error = with_annotation(error, first, "Shared claim");
+            error = with_related_annotations(error, rest, "Shared claim");
+            writeln!(f, "{error:?}")?;
+        }
+
+        // §2.2 — within-cap multiplicity is always surfaced, never silent.
+        for set in &analysis.allowed_sets {
+            let mut set_info = info!(
+                "Allowed duplicate set: {} {} annotations (cap {})",
+                set.members.len(),
+                form_name(set.form),
+                set.cap
+            );
+            set_info = with_related_annotations(set_info, &set.members, "Allowed duplicate");
+            writeln!(f, "{set_info:?}")?;
+        }
+
+        if self.verbose {
+            // §2.5 — partial overlap: reported, never failed.
+            for coverage in &analysis.some_overlap {
+                let mut overlap_info = info!("Annotations with some overlap");
+                match coverage.covering_annotations.split_first() {
+                    Some((first, rest)) => {
+                        overlap_info = with_annotation(overlap_info, first, "Some overlap");
+                        overlap_info = with_related_annotations(overlap_info, rest, "Some overlap");
+                    }
+                    None => {
+                        overlap_info =
+                            with_annotation(overlap_info, &coverage.target, "Some overlap");
+                    }
+                }
+                writeln!(f, "{overlap_info:?}")?;
+            }
+
+            for (form, annotations) in &analysis.unique {
+                if !annotations.is_empty() {
+                    let mut unique_info = info!("Unique {} annotations", form_name(*form));
+                    unique_info = with_related_annotations(unique_info, annotations, "Unique");
+                    writeln!(f, "{unique_info:?}")?;
                 }
             }
         }
 
-        if self.verbose {
-            for (category_name, duplicates) in &self.categories {
-                if !duplicates.some_overlap.is_empty() {
-                    for coverage in &duplicates.some_overlap {
-                        let mut overlap_info =
-                            info!("{} annotations with some overlap", category_name);
-                        match coverage.covering_annotations.split_first() {
-                            Some((first, rest)) => {
-                                overlap_info = with_annotation(overlap_info, first, "Some overlap");
-                                overlap_info =
-                                    with_related_annotations(overlap_info, rest, "Some overlap");
-                            }
-                            // Whitespace-only quote: trivially covered, no coverers. Render
-                            // the target rather than panicking on an empty slice.
-                            None => {
-                                overlap_info =
-                                    with_annotation(overlap_info, &coverage.target, "Some overlap");
-                            }
-                        }
-                        writeln!(f, "{overlap_info:?}")?;
-                    }
-                }
+        Ok(())
+    }
+}
 
-                if !duplicates.unique.is_empty() {
-                    let mut unique_info =
-                        info!("Unique {} annotations", category_name.to_lowercase());
-                    unique_info =
-                        with_related_annotations(unique_info, &duplicates.unique, "Unique");
-                    writeln!(f, "{unique_info:?}")?;
+impl fmt::Display for DuplicateTargetsResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use crate::config::{form_name, form_set_name_of};
+
+        writeln!(f)?;
+        writeln!(f, "Duplicate targets: {}", self.status)?;
+        writeln!(f)?;
+
+        let analysis = &self.analysis;
+
+        if analysis.listing.is_empty() {
+            writeln!(f, "No target bears more than one annotation.")?;
+        } else {
+            writeln!(
+                f,
+                "Targets bearing more than one annotation (count descending):"
+            )?;
+            for class in &analysis.listing {
+                let forms = class
+                    .forms
+                    .iter()
+                    .map(|(form, count)| format!("{}:{}", form_name(*form), count))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                writeln!(
+                    f,
+                    "  {}:{} count={} sections={} forms={}",
+                    class.target.file.display(),
+                    class.target.line,
+                    class.count(),
+                    class.sections,
+                    forms
+                )?;
+                if self.verbose {
+                    let members_info = info!(
+                        "Annotations resolving to {}:{}",
+                        class.target.file.display(),
+                        class.target.line
+                    );
+                    let members_info =
+                        with_related_annotations(members_info, &class.members, "Resolves here");
+                    writeln!(f, "{members_info:?}")?;
                 }
             }
+            writeln!(f)?;
+        }
+
+        for &index in &analysis.count_violations {
+            let class = &analysis.listing[index];
+            let error = error!(
+                "Target {}:{} bears {} annotations, exceeding the configured count bound",
+                class.target.file.display(),
+                class.target.line,
+                class.count()
+            );
+            let error = with_related_annotations(error, &class.members, "Fan-in");
+            writeln!(f, "{error:?}")?;
+        }
+
+        for &index in &analysis.sections_violations {
+            let class = &analysis.listing[index];
+            let error = error!(
+                "Target {}:{} bears annotations from {} distinct sections, exceeding the configured sections bound",
+                class.target.file.display(),
+                class.target.line,
+                class.sections
+            );
+            let error = with_related_annotations(error, &class.members, "Fan-in");
+            writeln!(f, "{error:?}")?;
+        }
+
+        for &index in &analysis.type_violations {
+            let class = &analysis.listing[index];
+            let error = error!(
+                "Target {}:{} mixes claim forms {} — the combination is inside no allowed set",
+                class.target.file.display(),
+                class.target.line,
+                form_set_name_of(&class.form_set())
+            );
+            let error = with_related_annotations(error, &class.members, "Mixed forms");
+            writeln!(f, "{error:?}")?;
         }
 
         Ok(())

@@ -1,0 +1,48 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates"]
+report_output = false
+
+# Pins spec §2.1 / P-D1: two annotations sharing a claim and sharing a
+# resolved target FAIL regardless of claim form and regardless of any cap.
+#
+# A `test` and an `implementation` annotation carry the same quote on the same
+# section, stacked above one function — both resolve to the function line.
+# The raised `test` cap is deliberate noise: it must not rescue the stack
+# (§2.1 is cap-independent), and no same-form cap is exceeded (one member per
+# form), so the only rule that can fire is the stacked-claim rule.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+
+[duplicates.claims]
+test = 2
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# aaa bbb ccc
+
+//= spec.md#section-1
+//# aaa bbb ccc
+pub fn stacked() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""
