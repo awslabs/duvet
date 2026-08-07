@@ -15,9 +15,7 @@ use crate::{
     Result,
 };
 use duvet_coverage::{
-    annotation_execution::is_annotation_executed_with_exec_set,
     degraded::degraded_execution_status,
-    execution_propagation::execution_set,
     scopes::{build_scope_tree, scope_imbalance_site},
     types::{
         AnnotationSpan, CoverageReport as CoverageReportMap, ExecutionStatus, LineClass,
@@ -37,39 +35,136 @@ pub enum CoverageFormat {
     // Future: Lcov, Clover
 }
 
-/// Coverage model data for a file with a tree-sitter classifier.
-/// Contains the classified line properties, scope tree, and coverage data
-/// in the format expected by the verified `duvet-coverage` algorithms.
-///
-/// The report-independent parts (`classifications`, `scopes`) are shared via
-/// `Arc` across every coverage report — they are a function of the source file
-/// and its annotations only. The per-report parts are the `coverage` map, the
-/// precomputed `exec_set`, and the `coverage_keys_in_bounds` witness.
-#[derive(Debug, Clone)]
-pub struct ClassifiedFileData {
-    pub classifications: Arc<Vec<Option<LineClass>>>,
-    pub scopes: Arc<Vec<Scope>>,
-    pub coverage: CoverageReportMap,
-    /// The verified execution set for exactly (`classifications`, `scopes`,
-    /// `coverage`), computed ONCE per (file, report) by
-    /// [`duvet_coverage::execution_propagation::execution_set`].
+/// Sealed home of [`ClassifiedFileData`]. The module boundary is what makes
+/// the exec-set pairing a compiler-enforced fact rather than a discipline:
+/// every field is private to this module, so the constructor below is the
+/// only code in the crate that can produce (or recombine) a value. Code
+/// outside this module — including the rest of this file — can only obtain a
+/// `ClassifiedFileData` whose `exec_set` and `coverage_keys_in_bounds` were
+/// computed from its own sibling fields.
+mod sealed {
+    use super::{coverage_keys_in_bounds, CoverageReportMap};
+    use duvet_coverage::{
+        annotation_execution::is_annotation_executed_with_exec_set,
+        execution_propagation::execution_set,
+        types::{AnnotationSpan, ExecutionStatus, LineClass, Scope},
+    };
+    use std::{collections::BTreeSet, sync::Arc};
+
+    /// Coverage model data for a file with a tree-sitter classifier.
+    /// Contains the classified line properties, scope tree, and coverage data
+    /// in the format expected by the verified `duvet-coverage` algorithms.
+    ///
+    /// The report-independent parts (`classifications`, `scopes`) are shared
+    /// via `Arc` across every coverage report — they are a function of the
+    /// source file and its annotations only. The per-report parts are the
+    /// `coverage` map, the precomputed `exec_set`, and the
+    /// `coverage_keys_in_bounds` witness.
     ///
     /// TRUSTED-BASE ASSUMPTION (unverified glue, same shape as the `scopes`
-    /// note in `build_file_base`): `is_annotation_executed_with_exec_set`
-    /// `requires` that this set be the execution set of the sibling fields, and
-    /// that holds *because* the sole producer
-    /// ([`file_execution_data_for_report`]) computes it from those very fields
-    /// with the verified function. Nothing at the type level enforces the
-    /// pairing; do not mutate these fields independently.
-    pub exec_set: BTreeSet<u64>,
-    /// Whether every coverage key maps to a valid classification index —
-    /// `is_annotation_executed_with_exec_set`'s runtime-checkable coverage
-    /// precondition, evaluated once per (file, report) instead of once per
-    /// annotation. When false, the file's annotations are reported `Unknown`
-    /// (the conservative status) without ever calling the verified model.
-    pub coverage_keys_in_bounds: bool,
-    pub file_length: u64,
+    /// note in `build_file_base`, but narrowed by sealing):
+    /// `is_annotation_executed_with_exec_set` `requires` that `exec_set` be
+    /// the execution set of the sibling fields. That pairing holds because
+    /// [`ClassifiedFileData::new`] — the only constructor, and the only code
+    /// with field access — computes `exec_set` and `coverage_keys_in_bounds`
+    /// from the very fields it stores, with the verified functions. The
+    /// residual assumption is only that values are not mutated after
+    /// construction: privacy plus the absence of `&mut` accessors and of
+    /// interior mutability enforces that. `Clone` is pairing-preserving (it
+    /// copies all fields together).
+    #[derive(Debug, Clone)]
+    pub struct ClassifiedFileData {
+        classifications: Arc<Vec<Option<LineClass>>>,
+        scopes: Arc<Vec<Scope>>,
+        coverage: CoverageReportMap,
+        /// The verified execution set for exactly (`classifications`,
+        /// `scopes`, `coverage`), computed ONCE per (file, report) by
+        /// [`duvet_coverage::execution_propagation::execution_set`].
+        exec_set: BTreeSet<u64>,
+        /// Whether every coverage key maps to a valid classification index —
+        /// `is_annotation_executed_with_exec_set`'s runtime-checkable coverage
+        /// precondition, evaluated once per (file, report) instead of once per
+        /// annotation. When false, the file's annotations are reported
+        /// `Unknown` (the conservative status) without ever calling the
+        /// verified model.
+        coverage_keys_in_bounds: bool,
+        file_length: u64,
+    }
+
+    impl ClassifiedFileData {
+        /// Sole producer. Checks `execution_set`'s (and the per-annotation
+        /// checker's) coverage precondition once per (file, report) — every
+        /// JaCoCo `<line nr=...>` key must map to a valid classification
+        /// index. Source/coverage drift or an `nr` past EOF violates it; then
+        /// no verified verdict is trustworthy for this file+report, so the
+        /// execution set is left empty and [`Self::annotation_status`] reports
+        /// `Unknown` without consulting it.
+        pub(super) fn new(
+            classifications: Arc<Vec<Option<LineClass>>>,
+            scopes: Arc<Vec<Scope>>,
+            coverage: CoverageReportMap,
+            file_length: u64,
+        ) -> Self {
+            let coverage_keys_in_bounds = coverage_keys_in_bounds(&coverage, classifications.len());
+            let exec_set = if coverage_keys_in_bounds {
+                execution_set(&classifications, &scopes, &coverage)
+            } else {
+                BTreeSet::new()
+            };
+            Self {
+                classifications,
+                scopes,
+                coverage,
+                exec_set,
+                coverage_keys_in_bounds,
+                file_length,
+            }
+        }
+
+        /// The verified verdict for one annotation span, with the verified
+        /// checker's `requires` enforced at this trust boundary. Verus checks
+        /// those clauses statically against the *proof*, but they compile away
+        /// in release builds, so nothing stops ill-formed runtime inputs from
+        /// reaching the verified algorithm and making its guarantees vacuous.
+        /// The inputs here are not proof-clean: `file_length`/
+        /// `classifications` come from the tree-sitter classifier while
+        /// `coverage` keys are JaCoCo `<line nr=...>` values from a
+        /// separately-produced XML. When a precondition fails we cannot
+        /// soundly trust the model's verdict, so fall back to `Unknown` (the
+        /// conservative status) instead of calling the verified fn on inputs
+        /// it never reasoned about.
+        ///
+        /// requires: annotation.end_line < u64::MAX  (checked here, per annotation)
+        /// requires: every coverage key K has (K - 1) < classifications.len()
+        ///           (annotation-independent — checked once per (file, report)
+        ///           by [`Self::new`]; see `coverage_keys_in_bounds`)
+        /// requires: exec_set == execution_set(classifications, scopes, coverage)
+        ///           (by construction — see the trust note on this type)
+        pub(super) fn annotation_status(&self, start_line: u64, end_line: u64) -> ExecutionStatus {
+            let precondition_holds = end_line < u64::MAX && self.coverage_keys_in_bounds;
+
+            if !precondition_holds {
+                ExecutionStatus::Unknown {
+                    line_number: start_line,
+                }
+            } else {
+                is_annotation_executed_with_exec_set(
+                    &AnnotationSpan {
+                        start_line,
+                        end_line,
+                    },
+                    &self.classifications,
+                    &self.scopes,
+                    &self.coverage,
+                    self.file_length,
+                    &self.exec_set,
+                )
+            }
+        }
+    }
 }
+
+pub use sealed::ClassifiedFileData;
 
 /// Coverage model data for a file with **no** tree-sitter classifier: the
 /// minimal universal classification (blank lines → `Whitespace`, everything else
@@ -231,18 +326,14 @@ pub async fn build_execution_data(
         let mut entries_for_source: FxHashMap<usize, Vec<&str>> = FxHashMap::default();
 
         for (coverage_path, file_coverage) in &generic.files {
-            let indices = match_memo
-                .entry(coverage_path.clone())
-                .or_insert_with(|| {
-                    duvet_sources
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, (_, absolute))| {
-                            coverage_path_matches(absolute, coverage_path)
-                        })
-                        .map(|(idx, _)| idx)
-                        .collect()
-                });
+            let indices = match_memo.entry(coverage_path.clone()).or_insert_with(|| {
+                duvet_sources
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (_, absolute))| coverage_path_matches(absolute, coverage_path))
+                    .map(|(idx, _)| idx)
+                    .collect()
+            });
 
             // The mirror ambiguity: one report entry claimed by more than one
             // source file.
@@ -405,28 +496,16 @@ fn file_execution_data_for_report(
             file_length,
         } => {
             let coverage = file_coverage.to_coverage_report();
-            // `execution_set`'s (and the per-annotation checker's) coverage
-            // precondition, checked once per (file, report): every JaCoCo
-            // `<line nr=...>` key must map to a valid classification index.
-            // Source/coverage drift or an `nr` past EOF violates it; then no
-            // verified verdict is trustworthy for this file+report, so the
-            // execution set is left empty and `executed_status_for` reports
-            // `Unknown` without consulting it.
-            let coverage_keys_in_bounds =
-                coverage_keys_in_bounds(&coverage, classifications.len());
-            let exec_set = if coverage_keys_in_bounds {
-                execution_set(classifications, scopes, &coverage)
-            } else {
-                BTreeSet::new()
-            };
-            FileExecutionData::Classified(ClassifiedFileData {
-                classifications: classifications.clone(),
-                scopes: scopes.clone(),
+            // The coverage-keys precondition check and the verified
+            // `execution_set` computation both live inside the sealed
+            // constructor — the only code that can pair those values with the
+            // fields they were computed from.
+            FileExecutionData::Classified(ClassifiedFileData::new(
+                classifications.clone(),
+                scopes.clone(),
                 coverage,
-                exec_set,
-                coverage_keys_in_bounds,
-                file_length: *file_length,
-            })
+                *file_length,
+            ))
         }
         FileBase::Degraded {
             classifications,
@@ -469,9 +548,11 @@ async fn build_file_base(duvet_path: &Path, annotations: &AnnotationSet) -> Resu
 
     // Tree-sitter classification is pure CPU; run it off the (single-threaded)
     // async runtime so files classify in parallel.
-    tokio::task::spawn_blocking(move || build_file_base_sync(&duvet_path, &file_content, &annotations))
-        .await
-        .map_err(|e| duvet_core::error!("Task join error: {}", e))
+    tokio::task::spawn_blocking(move || {
+        build_file_base_sync(&duvet_path, &file_content, &annotations)
+    })
+    .await
+    .map_err(|e| duvet_core::error!("Task join error: {}", e))
 }
 
 fn build_file_base_sync(
@@ -713,48 +794,10 @@ pub fn executed_status_for(
     match execution_data_map.get(&file_path) {
         Some(FileExecutionData::Classified(data)) => {
             let (start_line, end_line) = annotation.line_range();
-            let ann_span = AnnotationSpan {
-                start_line,
-                end_line,
-            };
-
-            // Enforce the verified checker's `requires` at this trust
-            // boundary. Verus checks those clauses statically against the
-            // *proof*, but they compile away in release builds, so nothing stops
-            // ill-formed runtime inputs from reaching the verified algorithm and
-            // making its guarantees vacuous. The inputs here are not proof-clean:
-            // `file_length`/`classifications` come from the tree-sitter
-            // classifier while `coverage` keys are JaCoCo `<line nr=...>` values
-            // from a separately-produced XML, so source/coverage drift, a
-            // trailing newline, or `nr` past EOF can violate the preconditions.
-            // When that happens we cannot soundly trust the model's verdict, so
-            // fall back to `Unknown` (the conservative status) instead of calling
-            // the verified fn on inputs it never reasoned about.
-            //
-            // requires: annotation.end_line < u64::MAX  (checked here, per annotation)
-            // requires: every coverage key K has (K - 1) < classifications.len()
-            //           (annotation-independent — checked once per (file, report)
-            //           when the execution data was built; see
-            //           `ClassifiedFileData::coverage_keys_in_bounds`)
-            // requires: exec_set == execution_set(classifications, scopes, coverage)
-            //           (by construction — see the trust note on
-            //           `ClassifiedFileData::exec_set`)
-            let precondition_holds = end_line < u64::MAX && data.coverage_keys_in_bounds;
-
-            if !precondition_holds {
-                ExecutionStatus::Unknown {
-                    line_number: start_line,
-                }
-            } else {
-                is_annotation_executed_with_exec_set(
-                    &ann_span,
-                    &data.classifications,
-                    &data.scopes,
-                    &data.coverage,
-                    data.file_length,
-                    &data.exec_set,
-                )
-            }
+            // The verified checker's `requires` are enforced inside the sealed
+            // [`ClassifiedFileData::annotation_status`], next to the fields
+            // they constrain — see the trust note on that type.
+            data.annotation_status(start_line, end_line)
         }
         Some(FileExecutionData::Degraded(data)) => {
             let (start_line, end_line) = annotation.line_range();
