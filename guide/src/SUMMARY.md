@@ -10,3 +10,4 @@
   - [init](./command/init.md)
   - [extract](./command/extract.md)
   - [report](./command/report.md)
+  - [query](./command/query.md)

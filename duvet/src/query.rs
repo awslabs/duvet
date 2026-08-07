@@ -171,9 +171,25 @@ The check FAILS when:
 The report always includes the fan-in listing: every target bearing more than
 one annotation, count descending, with per-type breakdown and section count.
 
-Policy lives in checked-in configuration ([duplicates.claims] and
-[duplicates.targets] in .duvet/config.toml); the command line never changes a
-verdict. Semantics: design/duplicates/spec.md"
+Policy lives in checked-in configuration in .duvet/config.toml; the command
+line never changes a verdict. All keys, with their defaults:
+
+    [duplicates.claims]
+    test = 1            # max copies of one claim as test annotations
+    implementation = 1  # max copies as implementation annotations
+                        # (spec/todo/exception/implication: always unique)
+    types = [...]       # type combinations that may share one claim, each a
+                        # `+`-joined set, e.g. ['exception+test']. Unset:
+                        # test+implementation may mix; free forms never share
+
+    [duplicates.targets]
+    count = N           # max annotations per resolved target (unset: unlimited)
+    sections = N        # max distinct sections per target (unset: unlimited)
+    types = [...]       # type combinations that may share one target. Unset:
+                        # every combination except test+implementation
+
+Run with --verbose to print the effective policy of the current project.
+Semantics: design/duplicates/spec.md"
     )]
     Duplicates,
 }

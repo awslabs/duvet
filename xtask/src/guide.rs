@@ -47,7 +47,7 @@ impl Guide {
 
         let command_dir = dir.join("src/command");
         sh.create_dir(&command_dir)?;
-        for command in ["init", "extract", "report"] {
+        for command in ["init", "extract", "report", "query"] {
             let output = cmd!(sh, "duvet {command} --help")
                 .ignore_status()
                 .output()?;
