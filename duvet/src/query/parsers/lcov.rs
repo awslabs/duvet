@@ -71,18 +71,18 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
     // closes (explicitly or at end-of-input).
     let mut open_block: Option<(String, Vec<DaRecord>)> = None;
 
+    // Discharged by the stdlib: `BufRead::lines` recognizes both `\n` and
+    // `\r\n` as terminators and strips them from the yielded lines.
     //= design/lcov-parser/spec.md#report-structure
     //= type=implementation
     //# The parser MUST accept both LF and CRLF line endings.
-    // Discharged by the stdlib: `BufRead::lines` recognizes both `\n` and
-    // `\r\n` as terminators and strips them from the yielded lines.
     for (idx, line) in reader.lines().enumerate() {
         let line_no = idx + 1;
+        // `BufRead::lines` decodes each line as UTF-8 and yields an
+        // `InvalidData` io error for non-UTF-8 bytes; `?` propagates it.
         //= design/lcov-parser/spec.md#report-structure
         //= type=implementation
         //# The parser MUST reject input that is not valid UTF-8.
-        // `BufRead::lines` decodes each line as UTF-8 and yields an
-        // `InvalidData` io error for non-UTF-8 bytes; `?` propagates it.
         let line = line?;
 
         //= design/lcov-parser/spec.md#report-structure
@@ -159,27 +159,27 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
             // Flush the block: explicit close.
             flush_block(&mut records_by_file, file, records);
         } else if line.starts_with("DA") {
-            //= design/lcov-parser/spec.md#record-consumption
-            //= type=implementation
-            //# The parser MUST reject a record that begins with `DA`
-            //# but is not a `DA` record.
             // Recognition is exact (spec §1): the `DA:` branch above did not
             // match, so this is a near-miss (`DA1,2`, `DA 4,1`) — producer
             // error or corruption, not a future record type. Ignoring it
             // would silently drop coverage (decisions.md, Decision 9).
+            //= design/lcov-parser/spec.md#record-consumption
+            //= type=implementation
+            //# The parser MUST reject a record that begins with `DA`
+            //# but is not a `DA` record.
             return Err(CoverageError::InvalidData(format!(
                 "line {line_no}: malformed record {line:?}: a record starting \
                  with 'DA' must be 'DA:<line>,<count>[,<checksum>]'"
             )));
         } else if line.starts_with("end_of_record") {
-            //= design/lcov-parser/spec.md#record-consumption
-            //= type=implementation
-            //# The parser MUST reject a record that begins with
-            //# `end_of_record` but is not an `end_of_record` record.
             // The exact-match branch above did not match, so this line has
             // trailing content (e.g. `end_of_record `). Ignoring it would
             // leave the block open and fold the next block's DA records into
             // the wrong file (decisions.md, Decision 9).
+            //= design/lcov-parser/spec.md#record-consumption
+            //= type=implementation
+            //# The parser MUST reject a record that begins with
+            //# `end_of_record` but is not an `end_of_record` record.
             return Err(CoverageError::InvalidData(format!(
                 "line {line_no}: malformed record {line:?}: a record starting \
                  with 'end_of_record' must be exactly 'end_of_record'"
@@ -211,13 +211,13 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
         }
     }
 
+    // A real code path, not a fallthrough: the implicit close at EOF is the
+    // same flush as an explicit `end_of_record`, and this annotation lives
+    // here so the requirement traces to the EOF path specifically.
     //= design/lcov-parser/spec.md#report-structure
     //= type=implementation
     //# The parser MUST accept end-of-input while a source-file
     //# block is open, treating it as an implicit `end_of_record`.
-    // A real code path, not a fallthrough: the implicit close at EOF is the
-    // same flush as an explicit `end_of_record`, and this annotation lives
-    // here so the requirement traces to the EOF path specifically.
     if let Some((file, records)) = open_block.take() {
         flush_block(&mut records_by_file, file, records);
     }
@@ -275,12 +275,12 @@ fn parse_da_payload(payload: &str) -> std::result::Result<DaRecord, String> {
         return Err("too many fields".to_string());
     }
 
+    // Stricter than the `str::parse` calls below, which would also accept a
+    // leading `+`. Emptiness is caught here too (`all` is true for "").
     //= design/lcov-parser/spec.md#da-record-syntax
     //= type=implementation
     //# The `<line>` and `<count>` fields MUST consist solely of
     //# ASCII digits `0`-`9`.
-    // Stricter than the `str::parse` calls below, which would also accept a
-    // leading `+`. Emptiness is caught here too (`all` is true for "").
     if line_field.is_empty() || !line_field.bytes().all(|b| b.is_ascii_digit()) {
         return Err(format!("invalid line number '{line_field}'"));
     }
