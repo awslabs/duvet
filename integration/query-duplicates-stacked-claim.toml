@@ -9,7 +9,8 @@ report_output = false
 # section, stacked above one function — both resolve to the function line.
 # The raised `test` cap is deliberate noise: it must not rescue the stack
 # (§2.1 is cap-independent), and no same-form cap is exceeded (one member per
-# form), so the only rule that can fire is the stacked-claim rule.
+# form). The target axis independently flags the same stack as a mixed
+# test+implementation target (§3.3) — both firings appear in the snapshot.
 [[file]]
 path = ".duvet/config.toml"
 contents = """

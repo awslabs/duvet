@@ -2,7 +2,7 @@
 source: xtask/src/tests.rs
 expression: stderr
 ---
-$ duvet query --check duplicate-targets
+$ duvet query --check duplicates
 EXIT: Some(1)
     Starting duvet in query mode...
   Extracting requirements
@@ -16,8 +16,8 @@ EXIT: Some(1)
       Mapped 2 sections 
     Matching references
      Matched 2 references 
-  
-Duplicate targets: ✗ FAIL
+
+Duplicates: ✗ FAIL
 
 Targets bearing more than one annotation (count descending):
   src/lib.rs:7 count=2 sections=2 forms=test:1,implementation:1

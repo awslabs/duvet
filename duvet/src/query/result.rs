@@ -23,7 +23,6 @@ pub enum CheckResult {
     Tests(TestResult),
     Coverage(CoverageResult),
     Duplicates(DuplicatesResult),
-    DuplicateTargets(DuplicateTargetsResult),
 }
 
 impl CheckResult {
@@ -33,7 +32,6 @@ impl CheckResult {
             CheckResult::Tests(r) => &r.status,
             CheckResult::Coverage(r) => &r.status,
             CheckResult::Duplicates(r) => &r.status,
-            CheckResult::DuplicateTargets(r) => &r.status,
         }
     }
 }
@@ -75,19 +73,11 @@ pub struct CoverageResult {
     pub verbose: bool,
 }
 
-/// The duplicates check's result (design/duplicates/spec.md §2).
+/// The duplicates check's result (design/duplicates/spec.md §2–§3).
 #[derive(Debug)]
 pub struct DuplicatesResult {
     pub status: QueryStatus,
     pub analysis: crate::query::checks::duplicates::DuplicatesAnalysis,
-    pub verbose: bool,
-}
-
-/// The duplicate-targets query's result (design/duplicates/spec.md §3).
-#[derive(Debug)]
-pub struct DuplicateTargetsResult {
-    pub status: QueryStatus,
-    pub analysis: crate::query::checks::duplicates::DuplicateTargetsAnalysis,
     pub verbose: bool,
 }
 
@@ -178,7 +168,6 @@ impl fmt::Display for CheckResult {
             CheckResult::Tests(test_result) => write!(f, "{test_result}"),
             CheckResult::Coverage(coverage_result) => write!(f, "{coverage_result}"),
             CheckResult::Duplicates(duplicates_result) => write!(f, "{duplicates_result}"),
-            CheckResult::DuplicateTargets(result) => write!(f, "{result}"),
         }
     }
 }
@@ -610,54 +599,15 @@ impl fmt::Display for DuplicatesResult {
             writeln!(f, "{set_info:?}")?;
         }
 
-        if self.verbose {
-            // §2.5 — partial overlap: reported, never failed.
-            for coverage in &analysis.some_overlap {
-                let mut overlap_info = info!("Annotations with some overlap");
-                match coverage.covering_annotations.split_first() {
-                    Some((first, rest)) => {
-                        overlap_info = with_annotation(overlap_info, first, "Some overlap");
-                        overlap_info = with_related_annotations(overlap_info, rest, "Some overlap");
-                    }
-                    None => {
-                        overlap_info =
-                            with_annotation(overlap_info, &coverage.target, "Some overlap");
-                    }
-                }
-                writeln!(f, "{overlap_info:?}")?;
-            }
-
-            for (form, annotations) in &analysis.unique {
-                if !annotations.is_empty() {
-                    let mut unique_info = info!("Unique {} annotations", form_name(*form));
-                    unique_info = with_related_annotations(unique_info, annotations, "Unique");
-                    writeln!(f, "{unique_info:?}")?;
-                }
-            }
-        }
-
-        Ok(())
-    }
-}
-
-impl fmt::Display for DuplicateTargetsResult {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use crate::config::{form_name, form_set_name_of};
-
-        writeln!(f)?;
-        writeln!(f, "Duplicate targets: {}", self.status)?;
-        writeln!(f)?;
-
-        let analysis = &self.analysis;
-
-        if analysis.listing.is_empty() {
-            writeln!(f, "No target bears more than one annotation.")?;
-        } else {
+        // The target axis (spec §3): the fan-in listing is part of this
+        // check's report; bounds and form-combination violations as errors.
+        let targets = &analysis.targets;
+        if !targets.listing.is_empty() {
             writeln!(
                 f,
                 "Targets bearing more than one annotation (count descending):"
             )?;
-            for class in &analysis.listing {
+            for class in &targets.listing {
                 let forms = class
                     .forms
                     .iter()
@@ -687,8 +637,8 @@ impl fmt::Display for DuplicateTargetsResult {
             writeln!(f)?;
         }
 
-        for &index in &analysis.count_violations {
-            let class = &analysis.listing[index];
+        for &index in &targets.count_violations {
+            let class = &targets.listing[index];
             let error = error!(
                 "Target {}:{} bears {} annotations, exceeding the configured count bound",
                 class.target.file.display(),
@@ -699,8 +649,8 @@ impl fmt::Display for DuplicateTargetsResult {
             writeln!(f, "{error:?}")?;
         }
 
-        for &index in &analysis.sections_violations {
-            let class = &analysis.listing[index];
+        for &index in &targets.sections_violations {
+            let class = &targets.listing[index];
             let error = error!(
                 "Target {}:{} bears annotations from {} distinct sections, exceeding the configured sections bound",
                 class.target.file.display(),
@@ -711,8 +661,8 @@ impl fmt::Display for DuplicateTargetsResult {
             writeln!(f, "{error:?}")?;
         }
 
-        for &index in &analysis.type_violations {
-            let class = &analysis.listing[index];
+        for &index in &targets.type_violations {
+            let class = &targets.listing[index];
             let error = error!(
                 "Target {}:{} mixes claim forms {} — the combination is inside no allowed set",
                 class.target.file.display(),
@@ -721,6 +671,32 @@ impl fmt::Display for DuplicateTargetsResult {
             );
             let error = with_related_annotations(error, &class.members, "Mixed forms");
             writeln!(f, "{error:?}")?;
+        }
+
+        if self.verbose {
+            // §2.5 — partial overlap: reported, never failed.
+            for coverage in &analysis.some_overlap {
+                let mut overlap_info = info!("Annotations with some overlap");
+                match coverage.covering_annotations.split_first() {
+                    Some((first, rest)) => {
+                        overlap_info = with_annotation(overlap_info, first, "Some overlap");
+                        overlap_info = with_related_annotations(overlap_info, rest, "Some overlap");
+                    }
+                    None => {
+                        overlap_info =
+                            with_annotation(overlap_info, &coverage.target, "Some overlap");
+                    }
+                }
+                writeln!(f, "{overlap_info:?}")?;
+            }
+
+            for (form, annotations) in &analysis.unique {
+                if !annotations.is_empty() {
+                    let mut unique_info = info!("Unique {} annotations", form_name(*form));
+                    unique_info = with_related_annotations(unique_info, annotations, "Unique");
+                    writeln!(f, "{unique_info:?}")?;
+                }
+            }
         }
 
         Ok(())

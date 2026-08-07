@@ -2,7 +2,7 @@
 source: xtask/src/tests.rs
 expression: stderr
 ---
-$ duvet query --check duplicate-targets --verbose
+$ duvet query --check duplicates --verbose
 EXIT: Some(1)
     Starting duvet in query mode...
   Extracting requirements
@@ -17,8 +17,8 @@ EXIT: Some(1)
       Mapped 2 sections 
     Matching references
      Matched 5 references 
-  
-Duplicate targets: ✗ FAIL
+
+Duplicates: ✗ FAIL
 
 Targets bearing more than one annotation (count descending):
   src/lib.rs:9 count=3 sections=2 forms=implementation:3
@@ -65,7 +65,7 @@ Advice:
     ╭─[src/lib.rs:11:5]
  10 │     
  11 │ ╭─▶ //= spec.md#section-1
- 12 │ ├─▶ //# aaa
+ 12 │ ├─▶ //# ddd
     · ╰──── Resolves here
  13 │     
     ╰────
@@ -76,7 +76,7 @@ Advice:
     ╭─[src/lib.rs:14:5]
  13 │     
  14 │ ╭─▶ //= spec.md#section-1
- 15 │ ├─▶ //# bbb
+ 15 │ ├─▶ //# eee
     · ╰──── Resolves here
  16 │     pub fn fine() {}
     ╰────
@@ -157,6 +157,62 @@ Advice:
    · ╰──── Fan-in
  9 │     pub fn dumped() {}
    ╰────
+
+  ☞ Unique implementation annotations
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ ├─▶ //# aaa
+   · ╰──── Unique
+ 3 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+   ╭─[src/lib.rs:4:5]
+ 3 │     
+ 4 │ ╭─▶ //= spec.md#section-1
+ 5 │ ├─▶ //# bbb
+   · ╰──── Unique
+ 6 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+   ╭─[src/lib.rs:7:5]
+ 6 │     
+ 7 │ ╭─▶ //= spec.md#section-2
+ 8 │ ├─▶ //# ccc
+   · ╰──── Unique
+ 9 │     pub fn dumped() {}
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+    ╭─[src/lib.rs:11:5]
+ 10 │     
+ 11 │ ╭─▶ //= spec.md#section-1
+ 12 │ ├─▶ //# ddd
+    · ╰──── Unique
+ 13 │     
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+    ╭─[src/lib.rs:14:5]
+ 13 │     
+ 14 │ ╭─▶ //= spec.md#section-1
+ 15 │ ├─▶ //# eee
+    · ╰──── Unique
+ 16 │     pub fn fine() {}
+    ╰────
 
 
 Overall: ✗ FAIL

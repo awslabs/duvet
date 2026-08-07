@@ -4,11 +4,13 @@
 **Date:** 2026-08-07
 **Status:** Draft
 
-This specification defines the semantics of duvet's duplicate
-policing: the `duplicates` check (predicates over annotations that
-share a **claim**) and the `duplicate-targets` query (predicates
-over annotations that share a **resolved target**), together with
-the checked-in configuration that carries their policy.
+This specification defines the semantics of duvet's `duplicates`
+check: predicates over the two partitions annotations induce —
+**claim classes** (annotations sharing a claim) and **target
+classes** (annotations sharing a resolved target) — together with
+the checked-in configuration that carries their policy. One check
+evaluates both axes; the two axes are two namespaces of one
+configuration, never two invocations.
 
 Design rationale lives in [decisions.md](decisions.md).
 This document uses the normative keyword conventions of
@@ -121,10 +123,10 @@ priced nor free; it is unique always ([§2.2](#caps)).
 
 ---
 
-## 2. The duplicates check {#duplicates-check}
+## 2. The duplicates check: claim axis {#duplicates-check}
 
-The `duplicates` check evaluates the rules of this section over
-the in-scope annotation set. Scope selection (spec-slice
+The `duplicates` check evaluates the rules of this section and of
+[§3](#duplicate-targets) over the in-scope annotation set. Scope selection (spec-slice
 filtering) selects the input set; it does not change the rules.
 
 ### 2.1 Same claim, same target {#same-claim-same-target}
@@ -217,7 +219,9 @@ fail on them, matching the historical check.
 ### 2.6 Verdict {#duplicates-verdict}
 
 The duplicates check MUST fail if and only if at least one rule of
-[§2.1](#same-claim-same-target)–[§2.4](#exclusivity) fires.
+[§2.1](#same-claim-same-target)–[§2.4](#exclusivity) or of the
+target axis ([§3.2](#fan-in-bounds)–[§3.3](#type-combinations))
+fires.
 
 Run alone, a passing verdict claims structure only. Evidence
 billing of every copy is the coverage check's contract, enforced
@@ -228,17 +232,20 @@ that partiality ([Decision 7](decisions.md#decision-7)).
 
 ---
 
-## 3. The duplicate-targets query {#duplicate-targets}
+## 3. The duplicates check: target axis {#duplicate-targets}
 
-The `duplicate-targets` query evaluates the target axis: fan-in of
-annotations onto resolved targets. It is a listing first and a
-gate only where configuration opts in
-([Decision 8](decisions.md#decision-8)).
+The target axis polices fan-in of annotations onto resolved
+targets. It is a listing first and a gate only where configuration
+opts in or a shipped family default bites
+([Decision 8](decisions.md#decision-8)). It is not a separate
+check: one invocation evaluates both axes, mirroring the one
+`[duplicates]` configuration table.
 
 ### 3.1 Listing {#fan-in-listing}
 
-The listing MUST contain a target if and only if two or more
-annotations resolve to it.
+The duplicates check's report MUST include the fan-in listing: it
+MUST contain a target if and only if two or more annotations
+resolve to it.
 ([P-T1](#property-p-t1))
 
 Each listed target MUST report its exact annotation count, its
@@ -259,8 +266,8 @@ Two opt-in bounds, both unlimited by default
   one target class.
 
 When a bound is configured, a target class exceeding it MUST fail
-the query. When a bound is not configured, no target class fails
-it.
+the duplicates check. When a bound is not configured, no target
+class fails it.
 
 These are the only rules in this specification that fail code for
 a smell rather than a violated evidence property; teams opt into
@@ -272,9 +279,9 @@ Configuration declares a **family of allowed form sets** for
 target classes ([§4.2](#schema-targets)).
 
 A target class bearing two or more distinct claim forms MUST fail
-the query unless its form set is a subset of some member of the
-family. A target class bearing a single claim form MUST NOT fail
-this rule.
+the duplicates check unless its form set is a subset of some
+member of the family. A target class bearing a single claim form
+MUST NOT fail this rule.
 ([Decision 12](decisions.md#decision-12);
 [P-T2](#property-p-t2))
 
@@ -378,7 +385,30 @@ types = ["exception+test"]      # allow this combination on one target
 | `targets.sections` | unlimited | listing only |
 | `targets.types` | all form sets not containing both `test` and `implementation` | mixed test/implementation targets fail |
 
-### 4.4 Scoped overrides {#scoped-overrides}
+### 4.4 Restoring the historical verdict {#restoring-legacy}
+
+Non-normative recipe. The historical check is reachable by
+configuration, up to [P-D3](#property-p-d3)'s two residuals:
+
+```toml
+[duplicates.claims]
+# caps default to 1 — that is the historical behavior
+types = ["spec+test+implementation+exception+todo+implication"]
+
+[duplicates.targets]
+# count/sections default unlimited
+types = ["spec+test+implementation+exception+todo+implication"]
+```
+
+A family containing the all-forms set admits every combination
+(subset closure), turning [§2.4](#exclusivity) and
+[§3.3](#type-combinations) off. Subsumption ([§2.3](#subsumption))
+needs no knob: it is historical behavior. What no configuration
+restores: cross-form same-claim-same-target stacks
+([§2.1](#same-claim-same-target) is deliberately knobless) and the
+empty-quote accident ([§1.2](#claims)).
+
+### 4.5 Scoped overrides {#scoped-overrides}
 
 Designed and deferred ([Decision 13](decisions.md#decision-13)).
 All values in this version are global. If scoped overrides ship,
@@ -406,11 +436,19 @@ If the duplicates check passes, every duplicate set of form
 
 ### P-D3 — scoped legacy equivalence {#property-p-d3}
 
-With every cap at 1 and the claim-form family admitting every
-form set, the duplicates verdict is identical to the historical
-check's verdict on all inputs, except inputs containing an
-empty-quote annotation ([§1.2](#claims)). The existing regression
-fixtures are this property's test suite, unchanged.
+With every cap at 1, both form families admitting every form set,
+and both fan-in bounds unset, the duplicates verdict is identical
+to the historical check's verdict on all inputs, except:
+
+- inputs containing an empty-quote annotation ([§1.2](#claims)) —
+  the historical check failed them by accident of an early return;
+- inputs containing a cross-form same-claim-same-target stack —
+  [§2.1](#same-claim-same-target) is deliberately unconditional
+  ([Decision 2](decisions.md#decision-2)) and has no knob.
+
+Everything that was a decision is pinnable; the residuals are one
+deliberate unconditional rule and one accident. The existing
+regression fixtures are this property's test suite, unchanged.
 
 ### P-D4 — bound monotonicity {#property-p-d4}
 
@@ -428,9 +466,9 @@ non-`spec` member.
 
 ### P-T1 — fan-in exactness {#property-p-t1}
 
-The duplicate-targets listing contains a target if and only if two
-or more annotations resolve to it; counts, form breakdowns, and
-section counts are exact.
+The fan-in listing in the duplicates report contains a target if
+and only if two or more annotations resolve to it; counts, form
+breakdowns, and section counts are exact.
 ([§3.1](#fan-in-listing))
 
 ### P-T2 — form-family exactness {#property-p-t2}

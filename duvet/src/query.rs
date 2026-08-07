@@ -155,32 +155,27 @@ This is helpful for quick on-off checking of a single test.
     )]
     ExecutedCoverage,
     #[value(
-        help = "Checks annotations that share a claim (same section, same quoted requirement).
+        help = "Checks duplicate annotations on both coincidence axes: shared claims
+(same section, same quoted requirement) and shared targets (fan-in: several
+annotations resolving to one source position).
 
 The check FAILS when:
 - Two annotations with the same claim resolve to the same source position (any types)
 - A duplicate set (same-type copies of one claim) exceeds its configured cap
 - An annotation's claim is fully covered by other same-type annotations' claims
 - A free claim form (exception, implication, todo) shares a claim with any other annotation
-
-Policy lives in checked-in configuration ([duplicates.claims] in .duvet/config.toml);
-the command line never changes a verdict. Semantics: design/duplicates/spec.md"
-    )]
-    Duplicates,
-    #[value(
-        help = "Lists every source position that more than one annotation resolves to (fan-in),
-sorted by annotation count descending, with per-type breakdown and distinct-section count.
-
-The query FAILS when:
-- A target bears more annotations than the configured [duplicates.targets] count bound
-- A target bears annotations from more distinct sections than the sections bound
+- A target exceeds a configured [duplicates.targets] count/sections bound (opt-in)
 - A target mixes claim forms outside the allowed combinations (by default,
   test+implementation on one target fails)
 
-Bounds are opt-in (unlimited by default); the listing itself carries no verdict.
-Semantics: design/duplicates/spec.md"
+The report always includes the fan-in listing: every target bearing more than
+one annotation, count descending, with per-type breakdown and section count.
+
+Policy lives in checked-in configuration ([duplicates.claims] and
+[duplicates.targets] in .duvet/config.toml); the command line never changes a
+verdict. Semantics: design/duplicates/spec.md"
     )]
-    DuplicateTargets,
+    Duplicates,
 }
 
 impl Query {

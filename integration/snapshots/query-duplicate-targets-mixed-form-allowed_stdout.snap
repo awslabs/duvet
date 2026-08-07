@@ -2,7 +2,7 @@
 source: xtask/src/tests.rs
 expression: stdout
 ---
-$ duvet query --check duplicate-targets
+$ duvet query --check duplicates
     Starting duvet in query mode...
   Extracting requirements
     Scanning sources
@@ -15,8 +15,8 @@ $ duvet query --check duplicate-targets
       Mapped 2 sections 
     Matching references
      Matched 2 references 
-  
-Duplicate targets: ✓ PASS
+
+Duplicates: ✓ PASS
 
 Targets bearing more than one annotation (count descending):
   src/lib.rs:7 count=2 sections=2 forms=test:1,implementation:1

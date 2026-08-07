@@ -136,7 +136,7 @@ jobs:
       # xtask build above.
       - name: Self-check duplicates
         run: |
-          ./target/release-debug/duvet query --check duplicates --check duplicate-targets
+          ./target/release-debug/duvet query --check duplicates
 
   verify: # verify the duvet-coverage Verus proofs
     name: Verify duvet-coverage proofs

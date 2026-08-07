@@ -39,5 +39,35 @@ Advice:
  7 │     pub fn stacked() {}
    ╰────
 
+Targets bearing more than one annotation (count descending):
+  src/lib.rs:7 count=2 sections=1 forms=test:1,implementation:1
+
+  × Target src/lib.rs:7 mixes claim forms test+implementation — the
+  │ combination is inside no allowed set
+
+Advice: 
+  ☞ Related context for:
+  │  Target src/lib.rs:7 mixes claim forms test+implementation — the
+  │ combination is inside no allowed set
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Mixed forms
+ 4 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Target src/lib.rs:7 mixes claim forms test+implementation — the
+  │ combination is inside no allowed set
+   ╭─[src/lib.rs:5:5]
+ 4 │     
+ 5 │ ╭─▶ //= spec.md#section-1
+ 6 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Mixed forms
+ 7 │     pub fn stacked() {}
+   ╰────
+
 
 Overall: ✗ FAIL

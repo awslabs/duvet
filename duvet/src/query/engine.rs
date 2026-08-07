@@ -13,9 +13,8 @@ use super::{
     coverage::ExecutionStatus,
     requirements::RequirementMode,
     result::{
-        CheckResult, CoverageResult, CoveredTestAnnotation, DuplicateTargetsResult,
-        DuplicatesResult, ImplementationResult, NotExecutedAnnotation, QueryResult, QueryStatus,
-        TestResult,
+        CheckResult, CoverageResult, CoveredTestAnnotation, DuplicatesResult, ImplementationResult,
+        NotExecutedAnnotation, QueryResult, QueryStatus, TestResult,
     },
     CheckType,
 };
@@ -58,10 +57,6 @@ pub async fn execute_checks(
             }
             CheckType::Duplicates => {
                 let result = execute_duplicates(&project_data, mode, verbose).await?;
-                results.push(result);
-            }
-            CheckType::DuplicateTargets => {
-                let result = execute_duplicate_targets(&project_data, mode, verbose).await?;
                 results.push(result);
             }
             CheckType::Coverage | CheckType::ExecutedCoverage => {
@@ -664,9 +659,10 @@ async fn execute_coverage_check(
     }))
 }
 
-/// The duplicates check (design/duplicates/spec.md §2): predicates over claim
-/// classes — same-target stacking, multiplicity caps, subsumption, and
-/// free-form exclusivity. Structure only: evidence billing of duplicate
+/// The duplicates check (design/duplicates/spec.md §2–§3): predicates over
+/// both coincidence axes — claim classes (same-target stacking, multiplicity
+/// caps, subsumption, free-form exclusivity) and target classes (fan-in
+/// listing, opt-in bounds, form combinations). Structure only: evidence billing of duplicate
 /// copies is the coverage check's own contract, enforced whether or not this
 /// check runs (decisions.md Decision 5).
 async fn execute_duplicates(
@@ -693,31 +689,6 @@ async fn execute_duplicates(
     };
 
     Ok(CheckResult::Duplicates(DuplicatesResult {
-        status,
-        analysis,
-        verbose,
-    }))
-}
-
-/// The duplicate-targets query (design/duplicates/spec.md §3): the fan-in
-/// axis. A listing first — every target bearing more than one annotation,
-/// count descending — and a gate only where configuration opts in (`count`,
-/// `sections`) or the target-form family's default bites
-/// (`test`+`implementation` on one target).
-async fn execute_duplicate_targets(
-    project_data: &ProjectData,
-    mode: &RequirementMode,
-    verbose: bool,
-) -> Result<CheckResult> {
-    let analysis = super::checks::duplicates::analyze_duplicate_targets(project_data, mode).await?;
-
-    let status = if analysis.passes() {
-        QueryStatus::Pass
-    } else {
-        QueryStatus::Fail
-    };
-
-    Ok(CheckResult::DuplicateTargets(DuplicateTargetsResult {
         status,
         analysis,
         verbose,

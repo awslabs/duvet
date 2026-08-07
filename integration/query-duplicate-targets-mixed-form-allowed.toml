@@ -1,5 +1,5 @@
 source = { local = true }
-cmd = ["duvet query --check duplicate-targets"]
+cmd = ["duvet query --check duplicates"]
 report_output = false
 
 # The Appendix-A relaxation of spec §3.3 (Decision 8's meta-requirement case):

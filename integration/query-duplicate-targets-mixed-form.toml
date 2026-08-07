@@ -1,12 +1,12 @@
 source = { local = true }
-cmd = ["duvet query --check duplicate-targets"]
+cmd = ["duvet query --check duplicates"]
 report_output = false
 
 # Pins spec §3.3 / P-T2 (Decisions 8 and 12): a target claimed as test code
 # and implementation code simultaneously FAILS under the default target-form
 # family — disjoint populations in every codebase we care about. The claims
 # differ (no duplicate-claim question); the collision is purely on the target
-# axis.
+# axis of the one duplicates check.
 [[file]]
 path = ".duvet/config.toml"
 contents = """

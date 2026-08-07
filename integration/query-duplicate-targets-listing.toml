@@ -1,5 +1,5 @@
 source = { local = true }
-cmd = ["duvet query --check duplicate-targets"]
+cmd = ["duvet query --check duplicates"]
 report_output = false
 
 # Pins spec §3.1 / P-T1: the duplicate-targets listing contains a target iff
@@ -11,8 +11,9 @@ report_output = false
 # - `pair()` bears two from one section (count=2 sections=1)
 # - `single()` bears one — it MUST NOT appear.
 #
-# No bounds are configured and all forms are `implementation`, so the query
-# PASSES: a listing is not a gate.
+# Every quote is unique (the claim axis is deliberately clean), no bounds are
+# configured, and all forms are `implementation`, so the check PASSES: a
+# listing is not a gate.
 [[file]]
 path = ".duvet/config.toml"
 contents = """
@@ -39,14 +40,14 @@ contents = """
 pub fn dense() {}
 
 //= spec.md#section-1
-//# aaa
+//# ddd
 
 //= spec.md#section-1
-//# bbb
+//# eee
 pub fn pair() {}
 
 //= spec.md#section-2
-//# ccc
+//# fff
 pub fn single() {}
 """
 
@@ -61,7 +62,13 @@ aaa
 
 bbb
 
+ddd
+
+eee
+
 ## Section 2
 
 ccc
+
+fff
 """

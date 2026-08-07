@@ -10,7 +10,7 @@
 
 use crate::{
     annotation::{Annotation, AnnotationType},
-    config::{is_free_form, FormSet},
+    config::{is_free_form, DuplicatesPolicy, FormSet},
     query::{
         checks::{coverage::stamp_annotation_range, is_annotation_covered},
         classify::{classifier_for_path, Classification, DefaultClassifier, LineClassifier},
@@ -114,17 +114,23 @@ pub struct DuplicatesAnalysis {
     pub some_overlap: Vec<AnnotationCoverage>,
     /// Annotations with no duplicate relationship at all (verbose display).
     pub unique: Vec<(AnnotationType, Vec<Arc<Annotation>>)>,
+    /// The target axis (spec §3): fan-in listing and its bounds. One check
+    /// evaluates both axes, mirroring the one `[duplicates]` config table.
+    pub targets: DuplicateTargetsAnalysis,
 }
 
 impl DuplicatesAnalysis {
     /// //= design/duplicates/spec.md#duplicates-verdict
     /// //# The duplicates check MUST fail if and only if at least one rule of
-    /// //# [§2.1](#same-claim-same-target)–[§2.4](#exclusivity) fires.
+    /// //# [§2.1](#same-claim-same-target)–[§2.4](#exclusivity) or of the
+    /// //# target axis ([§3.2](#fan-in-bounds)–[§3.3](#type-combinations))
+    /// //# fires.
     pub fn passes(&self) -> bool {
         self.stacked.is_empty()
             && self.over_cap.is_empty()
             && self.subsumed.is_empty()
             && self.exclusivity.is_empty()
+            && self.targets.passes()
     }
 }
 
@@ -280,7 +286,10 @@ pub async fn analyze_duplicates(
     let classes = claim_classes(&annotations);
     let targets = resolve_targets(&annotations).await?;
 
-    let mut analysis = DuplicatesAnalysis::default();
+    let mut analysis = DuplicatesAnalysis {
+        targets: analyze_target_axis(&annotations, &targets, policy),
+        ..Default::default()
+    };
 
     for (_key, members) in classes.iter() {
         // §2.1 — same claim, same resolved target: always fails, every form
@@ -417,23 +426,15 @@ pub async fn analyze_duplicates(
     Ok((analysis, errors))
 }
 
-/// Run the duplicate-targets query (spec §3) over the in-scope annotations.
-pub async fn analyze_duplicate_targets(
-    project_data: &ProjectData,
-    mode: &RequirementMode,
-) -> Result<DuplicateTargetsAnalysis> {
-    let annotations: Vec<Arc<Annotation>> = project_data
-        .annotations
-        .iter()
-        .filter(|annotation| mode.in_scope(annotation))
-        .cloned()
-        .collect();
-
-    let policy = &project_data.duplicates_policy;
-    let targets = resolve_targets(&annotations).await?;
-
+/// The target axis (spec §3) over the in-scope annotations and their
+/// precomputed resolution.
+fn analyze_target_axis(
+    annotations: &[Arc<Annotation>],
+    targets: &HashMap<Arc<Annotation>, ResolvedTarget>,
+    policy: &DuplicatesPolicy,
+) -> DuplicateTargetsAnalysis {
     let mut by_target: BTreeMap<ResolvedTarget, Vec<Arc<Annotation>>> = BTreeMap::new();
-    for annotation in &annotations {
+    for annotation in annotations {
         if let Some(target) = targets.get(annotation) {
             by_target
                 .entry(target.clone())
@@ -443,7 +444,8 @@ pub async fn analyze_duplicate_targets(
     }
 
     //= design/duplicates/spec.md#fan-in-listing
-    //# The listing MUST contain a target if and only if two or more
+    //# it
+    //# MUST contain a target if and only if two or more
     //# annotations resolve to it.
     let mut listing: Vec<TargetClass> = by_target
         .into_iter()
@@ -481,7 +483,7 @@ pub async fn analyze_duplicate_targets(
     for (index, class) in analysis.listing.iter().enumerate() {
         //= design/duplicates/spec.md#fan-in-bounds
         //# When a bound is configured, a target class exceeding it MUST fail
-        //# the query.
+        //# the duplicates check.
         if let Some(count) = policy.targets.count {
             if class.count() as u64 > count {
                 analysis.count_violations.push(index);
@@ -495,13 +497,13 @@ pub async fn analyze_duplicate_targets(
 
         //= design/duplicates/spec.md#type-combinations
         //# A target class bearing two or more distinct claim forms MUST fail
-        //# the query unless its form set is a subset of some member of the
-        //# family.
+        //# the duplicates check unless its form set is a subset of some
+        //# member of the family.
         let form_set = class.form_set();
         if form_set.len() >= 2 && !policy.targets.admits(&form_set) {
             analysis.type_violations.push(index);
         }
     }
 
-    Ok(analysis)
+    analysis
 }

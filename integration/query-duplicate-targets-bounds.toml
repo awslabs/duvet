@@ -1,5 +1,5 @@
 source = { local = true }
-cmd = ["duvet query --check duplicate-targets --verbose"]
+cmd = ["duvet query --check duplicates --verbose"]
 report_output = false
 
 # Pins spec §3.2: opt-in fan-in bounds. With `count = 2` and `sections = 1`
@@ -38,10 +38,10 @@ contents = """
 pub fn dumped() {}
 
 //= spec.md#section-1
-//# aaa
+//# ddd
 
 //= spec.md#section-1
-//# bbb
+//# eee
 pub fn fine() {}
 """
 
@@ -55,6 +55,10 @@ contents = """
 aaa
 
 bbb
+
+ddd
+
+eee
 
 ## Section 2
 
