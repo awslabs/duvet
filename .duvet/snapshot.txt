@@ -22,7 +22,7 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MUST]: (see [Classifier Selection and Dispatch](#dispatch)).
 
   SECTION: [5. Correctness Properties](#correctness-properties)
-    TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus.
+    TEXT[!MUST,implementation]: These properties MUST be proven with Verus.
     TEXT[!MUST,implication]: The Verus proof files MUST carry duvet annotations
     TEXT[!MUST,implication]: linking each `proof fn` back to the corresponding property section
     TEXT[!MUST,implication]: in this document.
@@ -46,26 +46,26 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[implication]:   is unknown (`None`)
 
   SECTION: [Property 2: No Cross-Scope Leakage](#property-2-no-cross-scope-leakage)
-    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that
-    TEXT[!MUST,implementation,implication,test]: for any two lines A and B
-    TEXT[!MUST,implementation,implication,test]: where A is in scope S1 and B is in scope S2
-    TEXT[!MUST,implementation,implication,test]: and S1 ≠ S2
-    TEXT[!MUST,implementation,implication,test]: and S1 is not a parent of S2
-    TEXT[!MUST,implementation,implication,test]: and S2 is not a parent of S1:
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that
+    TEXT[!MUST,implementation,test]: for any two lines A and B
+    TEXT[!MUST,implementation,test]: where A is in scope S1 and B is in scope S2
+    TEXT[!MUST,implementation,test]: and S1 ≠ S2
+    TEXT[!MUST,implementation,test]: and S1 is not a parent of S2
+    TEXT[!MUST,implementation,test]: and S2 is not a parent of S1:
 
   SECTION: [Property 3: Conservative Fallback](#property-3-conservative-fallback)
-    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that
-    TEXT[!MUST,implementation,implication,test]: no backward propagation occurs WITHIN a scope
-    TEXT[!MUST,implementation,implication,test]: that contains a `NonLinearControl` line.
-    TEXT[!MAY,implication,test]: If an ancestor scope S contains `NonLinearControl`
-    TEXT[!MAY,implication,test]: but a child scope S' does not,
-    TEXT[!MAY,implication,test]: propagation MAY occur through S'.
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that
+    TEXT[!MUST,implementation,test]: no backward propagation occurs WITHIN a scope
+    TEXT[!MUST,implementation,test]: that contains a `NonLinearControl` line.
+    TEXT[!MAY,implementation,test]: If an ancestor scope S contains `NonLinearControl`
+    TEXT[!MAY,implementation,test]: but a child scope S' does not,
+    TEXT[!MAY,implementation,test]: propagation MAY occur through S'.
 
   SECTION: [Property 4: Monotonicity](#property-4-monotonicity)
-    TEXT[!MUST,implementation,implication,test]: The implementation MUST prove that
-    TEXT[!MUST,implementation,implication,test]: given two coverage reports E1 and E2
-    TEXT[!MUST,implementation,implication,test]: where E1 ⊆ E2
-    TEXT[!MUST,implementation,implication,test]: (E2 reports all the same hits as E1, plus possibly more):
+    TEXT[!MUST,implementation,test]: The implementation MUST prove that
+    TEXT[!MUST,implementation,test]: given two coverage reports E1 and E2
+    TEXT[!MUST,implementation,test]: where E1 ⊆ E2
+    TEXT[!MUST,implementation,test]: (E2 reports all the same hits as E1, plus possibly more):
 
   SECTION: [Property 5: Annotation Stacking Transitivity](#property-5-stacking-transitivity)
     TEXT[!MUST,implementation,test]: The implementation MUST prove that

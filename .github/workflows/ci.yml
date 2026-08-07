@@ -130,6 +130,14 @@ jobs:
         run: |
           cargo xtask test
 
+      # Dogfood: this tree holds itself to its own duplicates policy
+      # (.duvet/config.toml [duplicates.*]; semantics in
+      # design/duplicates/spec.md). Uses the branch-built binary from the
+      # xtask build above.
+      - name: Self-check duplicates
+        run: |
+          ./target/release-debug/duvet query --check duplicates --check duplicate-targets
+
   verify: # verify the duvet-coverage Verus proofs
     name: Verify duvet-coverage proofs
     runs-on: ubuntu-latest
@@ -188,6 +196,8 @@ jobs:
       - name: Verify duvet-coverage proofs
         # `--features verify` pulls in vstd, which is verification-only and
         # optional so it stays out of the published dependency graph.
+        #= design/query/coverage-model-spec.md#correctness-properties
+        #% These properties MUST be proven with Verus.
         run: cargo verus build -p duvet-coverage --features verify
 
   action: # make sure the action works on a clean machine without building

@@ -11,6 +11,30 @@
 [[source]]
 pattern = "duvet-coverage/**/*.rs"
 
+# The CI verify step is the artifact that enforces "These properties MUST be
+# proven with Verus" — the annotation lives on the step, not on a file header
+# (position must discriminate; design/duplicates/spec.md §3). The #=/#% style
+# keeps ordinary yaml comments from ever being ingested as quote lines.
+[[source]]
+pattern = ".github/workflows/ci.yml"
+comment-style = { meta = "#=", content = "#%" }
+
+# Duplicates policy (design/duplicates/spec.md §4). Every value here was
+# settled by running the check on this tree and challenging each collision:
+#
+# - implementation = 2: each proven property carries exactly two
+#   machine-checked artifacts — the core lemma and the composed end-to-end
+#   lemma over the public API. Two evidence artifacts structurally force two
+#   annotations; three would be spray.
+# - targets.count = 1: every fan-in site on this tree dissolved under more
+#   targeted placement (D1/D2 onto their enforcing lines, the Verus-proving
+#   claim onto the CI step that runs the prover). One target, one annotation.
+[duplicates.claims]
+implementation = 2
+
+[duplicates.targets]
+count = 1
+
 [[specification]]
 source = "design/query/coverage-model-spec.md"
 

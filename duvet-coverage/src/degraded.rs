@@ -114,16 +114,6 @@ fn coverage_status_at(coverage: &CoverageReport, line: u64) -> (result: Option<C
 ///   Missing coverage never yields a verdict (it yields `Unknown`).
 /// - **P3 (target below annotation):** any decided target lies strictly below
 ///   `annotation.end_line`.
-//= design/query/coverage-model-spec.md#property-d1-direct-observation
-//= type=implication
-//# The implementation MUST prove that the degraded status is a direct
-//# observation of the target line's own coverage, never an inference propagated
-//# from another line.
-//= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
-//= type=implication
-//# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
-//# status resolves a target strictly below the annotation
-//# (`target > annotation.end_line`).
 pub fn degraded_execution_status(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -155,6 +145,11 @@ pub fn degraded_execution_status(
             &&& coverage@[t.unwrap()] == CoverageStatus::Miss
         },
 {
+    //= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
+    //= type=implication
+    //# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
+    //# status resolves a target strictly below the annotation
+    //# (`target > annotation.end_line`).
     let target = annotation_target(annotation, classifications, file_length);
     match target {
         None => {
@@ -172,6 +167,11 @@ pub fn degraded_execution_status(
                 assert(annotation_target_spec(annotation, classifications, file_length)
                     == Some(t.line_number));
             }
+            //= design/query/coverage-model-spec.md#property-d1-direct-observation
+            //= type=implication
+            //# The implementation MUST prove that the degraded status is a direct
+            //# observation of the target line's own coverage, never an inference propagated
+            //# from another line.
             match coverage_status_at(coverage, t.line_number) {
                 Some(CoverageStatus::Hit) => ExecutionStatus::Executed,
                 Some(CoverageStatus::Miss) => ExecutionStatus::NotExecuted,

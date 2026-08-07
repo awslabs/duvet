@@ -4,9 +4,6 @@
 //! Correctness properties for the coverage model (spec Section 5).
 
 //= design/query/coverage-model-spec.md#correctness-properties
-//# These properties MUST be proven with Verus.
-
-//= design/query/coverage-model-spec.md#correctness-properties
 //= type=implication
 //# The Verus proof files MUST carry
 //# duvet annotations linking each `proof fn` back to the corresponding property
@@ -169,7 +166,6 @@ proof fn lemma_no_cross_scope_leakage(
 }
 
 //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-//= type=implication
 //# The implementation MUST prove that for any two lines A and B where A is in
 //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
 //# S2 is not a parent of S1:
@@ -298,7 +294,6 @@ proof fn lemma_conservative_fallback(
 }
 
 //= design/query/coverage-model-spec.md#property-3-conservative-fallback
-//= type=implication
 //# The implementation MUST prove that no backward propagation occurs WITHIN a
 //# scope that contains a `NonLinearControl` line.
 /// Property 3, composed end-to-end over the *public* `is_annotation_executed`.
@@ -480,7 +475,6 @@ proof fn lemma_validly_in_exec_set_monotone(
 }
 
 //= design/query/coverage-model-spec.md#property-4-monotonicity
-//= type=implication
 //# The implementation MUST prove that given two coverage reports E1 and E2 where
 //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 /// Property 4, composed end-to-end over the *public* `is_annotation_executed`.
@@ -733,9 +727,6 @@ mod tests {
         lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
     }
 
-    //= design/query/coverage-model-spec.md#correctness-properties
-    //= type=test
-    //# These properties MUST be proven with Verus.
     //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
     //= type=test
     //# The implementation MUST prove that for any two lines A and B where A is in
