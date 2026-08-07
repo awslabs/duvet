@@ -1,0 +1,74 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r witness.info -f lcov"]
+report_output = false
+
+# Positive baseline for LCOV test↔implementation correlation, and the anchor
+# that makes the negative twins interpretable
+# (query-coverage-lcov-failed-correlation.toml,
+# query-coverage-lcov-cross-report-pair.toml).
+#
+# One test annotation and one implementation annotation quote the same spec
+# text. A single lcov tracefile — one witness — records both annotations'
+# target lines as Hit. Rust has no tree-sitter classifier, so both files are
+# scored by the verified degraded path: each annotation's target resolves
+# forward to the `fn` line directly below its `//#` block (line 4), and
+# coverage is read there. The witness saw the test AND the implementation
+# execute, so the pair is discharged (design 5.2, Decision 13):
+# "Successful correlations: 1" and the check passes.
+#
+# This was the disclosed gap in query-coverage-lcov.toml, whose fixture has
+# zero test annotations ("Executed tests: 0 / Successful correlations: 0"):
+# the headline user journey — a test correlated to an implementation via an
+# LCOV report — had no end-to-end instance.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/impl.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST do the thing
+fn work() {}
+"""
+
+[[file]]
+path = "src/impl_test.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# This MUST do the thing
+fn check_work() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+"""
+
+# One witness: test target line (impl_test.rs:4) Hit AND implementation
+# target line (impl.rs:4) Hit.
+[[file]]
+path = "witness.info"
+contents = """
+SF:src/impl_test.rs
+DA:4,1
+end_of_record
+SF:src/impl.rs
+DA:4,1
+end_of_record
+"""

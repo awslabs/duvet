@@ -1,0 +1,67 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r witness.info -f lcov"]
+report_output = false
+
+# Negative twin of query-coverage-lcov-correlation.toml: the check's refusal
+# behavior for LCOV. Same fixture shape — one test + one implementation
+# annotating the same spec text — but the witness tracefile records the
+# implementation's target line as a Miss (`DA:4,0`). The test executed, its
+# only witness did NOT see the implementation execute, so the correlation
+# fails: the diagnostic must name the executed test and the not-executed
+# implementation, and the query must exit non-zero.
+#
+# A healthy repository can never produce this shape (dogfooding only ever
+# demonstrates the passing path), so the refusal is pinned here with a
+# constructed fixture.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/impl.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST do the thing
+fn work() {}
+"""
+
+[[file]]
+path = "src/impl_test.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# This MUST do the thing
+fn check_work() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+"""
+
+# The witness saw the test execute (impl_test.rs:4 Hit) but the
+# implementation's target line is an explicit Miss (impl.rs:4, count 0).
+[[file]]
+path = "witness.info"
+contents = """
+SF:src/impl_test.rs
+DA:4,1
+end_of_record
+SF:src/impl.rs
+DA:4,0
+end_of_record
+"""
