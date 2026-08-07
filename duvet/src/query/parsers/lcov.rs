@@ -185,16 +185,16 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
                  with 'end_of_record' must be exactly 'end_of_record'"
             )));
         } else if line.starts_with("SF") {
-            //= design/lcov-parser/spec.md#record-consumption
-            //= type=implementation
-            //# The parser MUST reject a record that begins with `SF`
-            //# but is not an `SF` record.
             // The `SF:` branch above did not match, so this is a near-miss
             // (`SF src/lib.rs`, bare `SF`) — producer error or corruption,
             // not a future record type. Ignoring it would parse the report
             // as silently empty coverage (no DA before end-of-input) or fold
             // the next block's DA records into the previous file (inside an
             // open block) — decisions.md, Decision 11.
+            //= design/lcov-parser/spec.md#record-consumption
+            //= type=implementation
+            //# The parser MUST reject a record that begins with `SF`
+            //# but is not an `SF` record.
             return Err(CoverageError::InvalidData(format!(
                 "line {line_no}: malformed record {line:?}: a record starting \
                  with 'SF' must be 'SF:<path>'"
