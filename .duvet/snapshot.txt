@@ -21,6 +21,17 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MUST,implementation,test]: it MUST surface the file as a defeated classification and escalate
     TEXT[!MUST,implementation,test]: (see [Classifier Selection and Dispatch](#dispatch)).
 
+  SECTION: [2.4 Properties](#annotation-target-resolution-properties)
+    TEXT[!MUST,implication]: - **Single-line target:**
+    TEXT[!MUST,implication]:   Resolution MUST yield at most one target line per annotation:
+    TEXT[!MUST,implication]:   a successful resolution is exactly one `TargetLine` —
+    TEXT[!MUST,implication]:   the single source line the annotation targets —
+    TEXT[!MUST,implication]:   never a range and never a set.
+    TEXT[!MUST,implication]:   A resolution model that yields multi-line targets
+    TEXT[!MUST,implication]:   MUST change this specification
+    TEXT[!MUST,implication]:   and its stated consumers explicitly;
+    TEXT[!MUST,implication]:   it cannot be adopted implicitly.
+
   SECTION: [5. Correctness Properties](#correctness-properties)
     TEXT[!MUST,implementation,test]: These properties MUST be proven with Verus.
     TEXT[!MUST,implication]: The Verus proof files MUST carry duvet annotations
@@ -261,6 +272,8 @@ SPECIFICATION: [Duvet Witness: Formal Specification](design/witness/spec.md)
     TEXT[!MUST,implementation,test]: a Structural
     TEXT[!MUST,implementation,test]: annotation) binds no ByRootSpan witness —
     TEXT[!MUST,implementation,test]: empty-target containment MUST NOT bind vacuously.
+    TEXT[!MUST,implication]: A resolution model that yields multi-line targets MUST change
+    TEXT[!MUST,implication]: that specification and this binding rule explicitly.
     TEXT[implementation,test]: `ByExecution` is the runtime rule:
     TEXT[implementation,test]: the report cannot record which test produced it,
     TEXT[implementation,test]: so the test claims the witness by evidence —

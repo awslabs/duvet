@@ -266,6 +266,10 @@ pub open spec fn binds(
         //= type=implementation
         //# The implementation MUST prove that binding under `ByRootSpan` does
         //# not depend on the witness's coverage maps:
+        //= design/witness/spec.md#claim-rules
+        //= type=implication
+        //# A resolution model that yields multi-line targets MUST change
+        //# that specification and this binding rule explicitly.
         ClaimRule::ByRootSpan { file: span_file, start_line, end_line } => {
             let target = annotation_target_spec(annotation, classifications, file_length);
             &&& !(mode is Unscorable)

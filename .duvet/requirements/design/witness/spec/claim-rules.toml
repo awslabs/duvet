@@ -18,8 +18,12 @@ target = "design/witness/spec.md#claim-rules"
 # An annotation with no resolved target (e.g. a Structural
 # annotation) binds no ByRootSpan witness —
 # empty-target containment MUST NOT bind vacuously.
-# (Resolution yields at most one target line in the current model,
-# so containment is membership of that single line.)
+# When resolution succeeds it yields exactly one target line —
+# a requirement owned by the resolution phase
+# ([coverage-model-spec §2.4](../query/coverage-model-spec.md#annotation-target-resolution-properties)) —
+# so containment is membership of that single line.
+# A resolution model that yields multi-line targets MUST change
+# that specification and this binding rule explicitly.
 # 
 # `ByExecution` is the runtime rule:
 # the report cannot record which test produced it,
@@ -62,6 +66,13 @@ quote = '''
 a Structural
 annotation) binds no ByRootSpan witness —
 empty-target containment MUST NOT bind vacuously.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A resolution model that yields multi-line targets MUST change
+that specification and this binding rule explicitly.
 '''
 
 [[spec]]

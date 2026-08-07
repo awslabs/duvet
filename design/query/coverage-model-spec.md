@@ -350,6 +350,23 @@ ensures `Statement` and `Declaration` are stripped.
   An unknown line becomes the target (with `properties: None`)
   rather than being skipped.
   This ensures unknown lines cannot be silently bypassed.
+- **Single-line target:**
+  Resolution MUST yield at most one target line per annotation:
+  a successful resolution is exactly one `TargetLine` —
+  the single source line the annotation targets —
+  never a range and never a set.
+  This holds for every resolution model
+  (the degraded model resolves to the first
+  non-annotation, non-blank line below the annotation;
+  a richer classifier still yields one line).
+  `ByRootSpan` binding in the witness specification
+  ([spec.md §1.5](../witness/spec.md#claim-rules))
+  consumes this property:
+  containment is membership of the single resolved line.
+  A resolution model that yields multi-line targets
+  MUST change this specification
+  and its stated consumers explicitly;
+  it cannot be adopted implicitly.
 
 ## 3. Phase 2: Execution Propagation {#execution-propagation}
 

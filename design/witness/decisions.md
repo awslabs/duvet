@@ -1117,23 +1117,22 @@ adds cleverness ahead of need. Revisitable with evidence.
 ([Decision 2](#decision-2)), materialized from the consulted
 closure ([Decision 5](#decision-5), [Decision 7](#decision-7)).
 Something must decide which lines those maps claim — the
-**fill**. The question went unasked at first: the shipped fill
-was an extent-range sweep (every reached function contributing
-every line of every recorded span, expanded first line to last),
-an implementation default rather than a decision — and the
-dogfood surfaced its defect. A function's extent span swept its
-interior comment lines, annotation blocks, and blanks into the
-fill, and the witness marked them Hit: lines the verifier never
-looked at, claimed as consulted. Annotations whose targets had
-been displaced onto such lines looked witnessable when they were
-placement defects.
+**fill**. Absent a decision, the implementation default is an
+extent-range sweep (every reached function contributing every
+line of every recorded span, expanded first line to last), and
+the dogfood demonstrates that default's defect: a function's
+extent span sweeps its interior comment lines, annotation
+blocks, and blanks into the fill, and the witness marks them
+Hit — lines the verifier never looked at, claimed as consulted.
+Annotations whose targets have been displaced onto such lines
+look witnessable when they are placement defects.
 
-Empirical (SST corpus investigation, 2026-08-04, pinned Verus):
-spans anchor AST nodes, and ordinary comments and blanks are not
-nodes — no span in the golden corpus or the dogfood run *begins*
-on a comment or blank line — so the artifact itself already
-separates code from non-code, with no lexical classification
-required.
+Empirical grounding (SST corpus investigation; provenance:
+2026-08-04, pinned Verus): spans anchor AST nodes, and ordinary
+comments and blanks are not nodes — no span in the golden corpus
+or the dogfood run *begins* on a comment or blank line — so the
+artifact itself already separates code from non-code, with no
+lexical classification required.
 
 The fill is read as **transitive-checked**: a witness claims what
 was checked to establish everything its obligation rests on.
@@ -1143,7 +1142,21 @@ evaluation; transparency is a traceability property of what
 reasoning by contract; this decision is about what the fill
 claims was checked, not about what the solver saw).
 
-### Option A: Extent-range fills (the shipped default)
+**The measuring stick.** The fill a witness should claim is
+exactly the set of lines carrying code the verifier consulted —
+the ideal set. A candidate rule is judged by which lines it gets
+wrong relative to that ideal, and by the **failure direction** of
+each error class. A rule that **under-approximates** (omits
+consulted code lines) produces false "uncovered" verdicts: a
+failed correlation, a non-zero exit, a human summoned — loud. A
+rule that **over-approximates** (claims lines the verifier never
+consulted) produces false "covered" verdicts: a pair passes on a
+displaced target and a green result never prompts a look —
+silent. The directions are not symmetric costs: the silent
+direction breaks the very promise the fill exists to keep, that a
+PASS means the act of checking reached the target.
+
+### Option A: Extent-range fills (the implementation default)
 
 - Pro: Trivially closed — the sweep over-approximates everything
   the elaboration consulted.
@@ -1171,7 +1184,9 @@ unwitnessed bucket.
   interleaved doc-prose. Driving the dogfood placement burndown
   with exactly this test found them all; the placement fixes it
   drove are kept.
-- Con: **Shipped, then reverted.** Classifying what is and is not
+- Con: **Tried in practice and rejected** (evidence: implemented,
+  then removed once the layering error was recognized).
+  Classifying what is and is not
   code from lexical patterns is a language classifier's job, not
   the coverage engine's — executors and provers are the ground
   truth for what executes. A per-language regex inside the engine
@@ -1206,15 +1221,15 @@ a span containing no other span of the same function's span set);
 containers — body blocks, fn extents — contribute nothing.
 
 - Pro: Kills the comment sweep for every single-line leaf.
-- Con: Implemented and measured (2026-08-04): it made
-  wrapped-signature declaration lines — the most natural
-  annotation target in the system — unaddressable syntax residue.
-  A multi-line `fn` signature's only covering span is the
-  declaration span, which contains the parameter spans and is
-  therefore a container: the header line drops from every fill,
-  and 9 of the dogfood's 32 passing correlations flipped to
-  failed (4 inside the CI slice), every one an implementation
-  annotation on a wrapped `spec fn`/`fn` header.
+- Con: Makes wrapped-signature declaration lines — the most
+  natural annotation target in the system — unaddressable syntax
+  residue. A multi-line `fn` signature's only covering span is
+  the declaration span, which contains the parameter spans and is
+  therefore a container: the header line drops from every fill.
+  Measured (dogfood run; provenance: 2026-08-04): 9 of the
+  dogfood's 32 passing correlations flip to failed (4 inside the
+  CI slice), every one an implementation annotation on a wrapped
+  `spec fn`/`fn` header.
 - Con: Needed three clauses (leaf definition, container
   prohibition, no-lexical-classification consequence) plus an
   interior-comment sweep exception, where the chosen rule needs
@@ -1228,10 +1243,10 @@ spans included. Applied uniformly to the root's body and to every
 consulted callee's body; no special case at the function barrier,
 and no container/leaf distinction at all.
 
-- Pro: Declaration lines are addressable again: the wrapped
-  signature's span begins on its header line, so all 9 pairs
-  Option D broke discharge with no placement moves (verified,
-  2026-08-04).
+- Pro: Declaration lines are addressable: the wrapped signature's
+  span begins on its header line, so every pair Option D breaks
+  discharges with no placement moves (measured: the 9 flipped
+  correlations under Option D all pass; provenance: 2026-08-04).
 - Pro: The comment guarantee becomes a **theorem** rather than a
   rule: spans anchor AST nodes; ordinary comments and blanks are
   not nodes; therefore no span begins on one. Pinned by a
@@ -1240,27 +1255,126 @@ and no container/leaf distinction at all.
   the runtime never lexes — guarding against macro-expansion span
   placement drift forever.
 - Pro: One clause where Option D needed three plus an exception.
-- Con: Continuation lines of multi-line expressions are not
-  filled (only the start line is). Accepted — measured against
-  variant V2 below, no target in the dogfood or corpus sits on a
-  continuation line.
+- Pro: Errs in **one direction only**: relative to the ideal set
+  it under-approximates and never over-approximates, so every
+  fill error it can commit is the loud kind (a false failed
+  correlation), never the silent kind (a false PASS). Its only
+  comment-shaped admission is doc-comment lines — doc comments
+  are attribute AST nodes, so a derive-stamped declaration span
+  can begin on one — which the theorem deliberately scopes to
+  *ordinary* comments and blanks.
+- Con: A line on which no span begins is not fillable, and an
+  implementation annotation resolving there cannot be covered by
+  any witness. Measured, this residue is small and is exclusively
+  syntactic scaffolding — keyword and punctuation lines of nodes,
+  not expression or statement lines (evidence below, and no
+  target in the dogfood or corpus resolves to such a line). The
+  failure is loud, and the fix is moving the annotation one line
+  to the expression that carries the semantic content.
 
-### Decision: Option E, strict variant
+### Option F: Span-start lines plus leaf-span interiors
 
-Two variants were measured on the full unsliced dogfood run and
-the golden corpus (2026-08-04): **V1 (strict)** — span start
-lines only — and **V2** — start lines plus the full ranges of
-leaf spans (continuation lines of multi-line leaves stay filled).
-Both restored the complete pre-change baseline: all 32
-correlations successful, 0 failed, and the 17-section CI slice
-green. The ratified tiebreaker is comment exposure, and V1 wins
-it: V2 admits ordinary comment lines in multi-line leaf
-interiors; V1 admits none. V1's only comment-shaped exposure is
-doc-comment lines — doc comments are attribute AST nodes, so a
-derive-stamped declaration span can begin on one — which the
-theorem deliberately scopes to *ordinary* comments and blanks.
-The strict variant ships; no interior-comment sweep exception
-exists.
+Option E's fill, plus the **full line ranges of leaf spans** (a
+leaf as in Option D): continuation lines of multi-line leaves
+stay filled. The candidate motivation: an annotation target on
+line 2+ of a multi-line leaf expression is fillable under F and
+not under E, closing a place where a target could sit outside
+every fill.
+
+- Pro: Verdict-equivalent to Option E on all recorded evidence —
+  the full dogfood run and CI slice produce identical results
+  under both (evidence below), so nothing breaks by choosing it.
+- Con: Buys nothing measurable. The unfillable-code-line residue
+  is **identical** under E and F: every residue line is a
+  *container* interior (keyword/scaffold lines), and F adds only
+  *leaf* interiors. Measured over the dogfood graph (procedure:
+  parse the SST logs; per project file, union each option's fill;
+  classify every fill line and every in-hull non-fill line
+  against the tree's sources; provenance: 2026-08-06, tree at
+  58e33cd, fresh SST logs, pinned Verus):
+
+  ```
+  Option E fill: 2473 lines   comment-shaped exposure: 1 (doc comment)
+      witness.rs:91   "/// How a test annotation claims a witness (spec §1.5)."
+  Option F fill: 2482 lines   comment-shaped exposure: 7 (1 doc + 6 ordinary)
+      witness.rs:1135–1137, 1187–1189   (proof-fn interior comments)
+  F − E delta: 9 lines = 6 ordinary comment lines + 3 closing braces
+  unfillable in-hull code lines: 51 under E, 51 under F (same lines:
+      25 `invariant` keywords, 12 `} else {`, quantifier binders,
+      lone operators, enum variant declaration lines)
+  ```
+
+  The entire measurable difference between the options is the
+  hazard itself: F's delta contains zero annotation-addressable
+  code lines.
+- Con: Errs in **both directions**. The 6 ordinary comment lines
+  F admits sit inside comment-only proof-fn bodies (a body block
+  with no interior nodes is itself a leaf) — directly beneath
+  `ensures` clauses, exactly where this codebase's annotation
+  stacks cluster ([Decision 22](#decision-22)). The dogfood's
+  documented displacement mode (prose interleaved into a stack,
+  or an attribute between stack and header) resolves a target
+  onto such a comment line; under F the displaced pair is
+  witnessed and **passes silently**, where under E it fails
+  loudly. F converts placement defects from loud to silent.
+- Con: Weakens the comment guarantee from a theorem about the
+  whole fill to a theorem about start lines only, and falsifies
+  the acceptance test "an interior comment line inside a verified
+  function MUST NOT be in any witness's fill."
+
+### Decision: Option E
+
+Both surviving candidates restore the complete Option A baseline
+and are verdict-identical on all recorded evidence (unsliced
+dogfood and the CI slice; provenance: 2026-08-04 measurement at
+the extent-fill tree, re-established 2026-08-06 at 58e33cd with
+fresh SST logs, Option F obtained by patching
+`ObligationNode::fill_lines` to add leaf interiors):
+
+```console
+$ duvet query -c coverage --coverage-source verus-sst=verus-sst-logs
+  Successful correlations: 32
+  Failed correlations: 0
+  Unwitnessed tests: 86        # identical under Option E and Option F
+
+$ duvet query -c coverage --coverage-source verus-sst=verus-sst-logs -s "<the 17 CI-slice sections>"
+  Successful correlations: 16
+  Failed correlations: 0
+  Unwitnessed tests: 0         # exit 0, identical under both
+```
+
+With verdicts tied, the decision reduces to the error analysis
+against the ideal set, and there Option E dominates: **E's error
+set is a subset of F's miss set, and F adds an over-claim set on
+top.** Every line E wrongly omits, F also wrongly omits (the
+identical 51-line scaffold residue); F's sole addition is prose
+and punctuation inside leaf interiors, which is precisely the
+surface a displaced annotation target lands on. Choosing E is
+choosing under-approximation-only: every fill error the shipped
+rule can commit is loud (false failed correlation, human
+summoned, placement fixed), and no fill error can silently
+manufacture a PASS. Option F is discarded because it is not "E
+with better addressability" — it is E with an unchanged miss set
+plus a silent failure direction.
+
+The residue is also **stable against comment drift** — a comment
+cannot move a line into or out of any fill, under either option,
+because comments are not AST nodes and therefore cannot change
+the span structure; they only widen the ranges that enclose them.
+Demonstrated by direct experiment (procedure: insert an ordinary
+comment line directly above each of 10 seeded-random residue
+lines; re-run the full Verus verification with SST logging;
+re-derive; provenance: 2026-08-06, tree at 58e33cd):
+
+```
+verification: 88 verified, 0 errors        (probes do not perturb proofs)
+project spans: 3128 → 3128                 (no span splits or disappears)
+obligation nodes: 389 → 389
+spans starting on an ordinary comment line: 0 → 0
+residue: the same 51 lines, each at its insertion-shifted position
+enclosing span widens by exactly the inserted line, e.g.
+    degraded.rs 76:13:84:14 → 76:13:85:14
+```
 
 This extends [Decision 17](#decision-17)'s demonstrated-maximum
 rule from rooting to fills: the artifact demonstrably records
