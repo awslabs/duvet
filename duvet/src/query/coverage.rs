@@ -3,7 +3,7 @@
 
 use crate::Result;
 use rustc_hash::FxHashMap;
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, path::Path, sync::Arc};
 
 /// Coverage data abstraction
 #[derive(Clone, Debug)]
@@ -20,9 +20,13 @@ impl CoverageData {
 }
 
 /// Generic (aggregate) coverage data
+///
+/// Per-file coverage is held behind `Arc` so consumers that need an owned
+/// handle (e.g. to move into `spawn_blocking`) get one with a refcount bump
+/// instead of a deep copy of the line/branch maps.
 #[derive(Clone, Debug)]
 pub struct GenericCoverageData {
-    pub files: FxHashMap<String, FileCoverage>,
+    pub files: FxHashMap<String, Arc<FileCoverage>>,
 }
 
 impl GenericCoverageData {

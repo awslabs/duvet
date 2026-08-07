@@ -957,10 +957,10 @@ mod tests {
                 lines.insert(1u32, 1u64);
                 generic.files.insert(
                     name.to_string(),
-                    FileCoverage {
+                    Arc::new(FileCoverage {
                         lines,
                         branches: std::collections::BTreeMap::new(),
-                    },
+                    }),
                 );
             }
             CoverageData::Generic(generic)

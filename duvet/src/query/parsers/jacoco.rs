@@ -10,6 +10,7 @@ use std::{
     collections::BTreeMap,
     io::{BufRead, Cursor},
     path::Path,
+    sync::Arc,
 };
 
 use super::super::coverage::{
@@ -58,7 +59,9 @@ pub fn parse_jacoco_xml_report<T: BufRead>(
 
                 // Merge package results into coverage data
                 for (file_path, file_coverage) in package_results {
-                    coverage_data.files.insert(file_path, file_coverage);
+                    coverage_data
+                        .files
+                        .insert(file_path, Arc::new(file_coverage));
                 }
             }
             Ok(Event::Eof) => break,

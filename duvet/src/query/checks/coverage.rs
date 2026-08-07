@@ -220,18 +220,20 @@ pub async fn build_execution_data(
     //
     // The match itself depends only on (report path, source set), never on
     // which report the path came from — so it is memoized across reports.
-    let mut match_memo: FxHashMap<String, Vec<usize>> = FxHashMap::default();
+    // Keyed by paths borrowed from `coverage_data`, so no hit or miss ever
+    // allocates a key.
+    let mut match_memo: FxHashMap<&str, Vec<usize>> = FxHashMap::default();
     // Per report: the matched (source index, file coverage) pairs.
-    let mut per_report_matches: Vec<Vec<(usize, &FileCoverage)>> =
+    let mut per_report_matches: Vec<Vec<(usize, Arc<FileCoverage>)>> =
         Vec::with_capacity(coverage_data.len());
 
     for cover in coverage_data {
         let generic = cover.as_generic();
-        let mut matches: Vec<(usize, &FileCoverage)> = Vec::new();
+        let mut matches: Vec<(usize, Arc<FileCoverage>)> = Vec::new();
         let mut entries_for_source: FxHashMap<usize, Vec<&str>> = FxHashMap::default();
 
         for (coverage_path, file_coverage) in &generic.files {
-            let indices = match_memo.entry(coverage_path.clone()).or_insert_with(|| {
+            let indices = match_memo.entry(coverage_path.as_str()).or_insert_with(|| {
                 duvet_sources
                     .iter()
                     .enumerate()
@@ -265,7 +267,7 @@ pub async fn build_execution_data(
                     .entry(idx)
                     .or_default()
                     .push(coverage_path.as_str());
-                matches.push((idx, file_coverage));
+                matches.push((idx, file_coverage.clone()));
             }
         }
 
@@ -349,8 +351,8 @@ pub async fn build_execution_data(
     let mut map_futures = Vec::with_capacity(per_report_matches.len());
     for matches in per_report_matches {
         // Move owned copies of the (cheap) per-report inputs into the task:
-        // Arc'd bases and the per-file coverage maps.
-        let inputs: Vec<(PathBuf, Arc<FileBase>, FileCoverage)> = matches
+        // Arc'd bases and Arc'd per-file coverage maps.
+        let inputs: Vec<(PathBuf, Arc<FileBase>, Arc<FileCoverage>)> = matches
             .into_iter()
             .filter_map(|(idx, file_coverage)| {
                 let path = duvet_sources[idx].0.to_path_buf();
@@ -358,7 +360,7 @@ pub async fn build_execution_data(
                     return None;
                 }
                 let base = bases.get(&idx)?.clone();
-                Some((path, base, file_coverage.clone()))
+                Some((path, base, file_coverage))
             })
             .collect();
 
