@@ -448,3 +448,102 @@ design record's standing disposition is loud-over-silent. The rejection is
 normative in [spec.md §2](spec.md#record-consumption); genuinely different
 keywords (`sf:`, whitespace-indented `  SF:`) remain ignored under
 Decision 4, mirroring Decision 9's treatment of `da:` and `  DA:`.
+## Decision 12: Per-test isolation is delivered by per-test execution and per-test tracefiles {#decision-12}
+
+**Context:** The coverage check discharges a (test, implementation)
+annotation pair only when a *single* coverage report shows both executed —
+same-witness discharge
+([design/query/decisions.md Decision 13](../query/decisions.md#decision-13);
+[design/witness/spec.md](../witness/spec.md) Property W1). The guarantee is
+therefore exactly as strong as the report partition: one aggregate
+tracefile over the whole suite makes every pair discharge vacuously
+("both are covered by the suite, somewhere, by something"). Something must
+say how the strong partition — one witness per test — is actually
+produced and kept intact on its way to the parser.
+
+Two facts anchor the answer:
+
+1. **Isolation is created at run time, or never.** Attribution ("test T
+   executed line L") exists only if T ran in its own measurement — one
+   process per test, one counter capture per test. If the suite runs in
+   one process and is captured once, per-test attribution never existed,
+   and no post-hoc label, split, or parse can create it.
+
+2. **Duvet's parser destroys in-file attribution, by proof.** The parser
+   is TN-blind (Decision 1) and sums `DA` counts across *all* `SF` blocks
+   naming a file. [spec.md §7 Property 4](spec.md#property-4-block-structure-invariance)
+   is the machine-checked statement that this aggregation forgets block
+   structure: `sum(a ++ b, L) = sum(a, L) + sum(b, L)` — only the multiset
+   of records survives, never which block (which test) contributed. So
+   isolation created at run time is *preserved* to duvet only by one
+   tracefile per test. Concatenating or `lcov -a`-merging witness files
+   before handing them to duvet collapses the partition back to
+   co-coverage.
+
+For completeness: LCOV itself has an in-file attribution channel. The `TN:`
+record (geninfo `-t`/`--test-name`; see the geninfo man page, TRACEFILE
+FORMAT section) labels the section that follows with a test name precisely
+so that concatenated tracefiles can be told apart — TN-labeled
+concatenation is *not* destructive. But the Rust toolchain does not use it:
+llvm-cov and cargo-llvm-cov emit no `TN` records at all (verifiable
+locally: no file under `duvet/tests/lcov-corpora/` — pinned real llvm-cov
+output — contains a `TN` line). For duvet's own pipeline the channel is
+empty, so the file partition is the only carrier.
+
+### Option A: One process per test, one tracefile per test, files never merged
+
+- Pro: Creates isolation at the only point it can be created (the run) and
+  preserves it through the only channel the parser respects (the file
+  partition). Works with the toolchain we have today.
+- Con: N tests → N processes and N tracefiles; wall clock and artifact
+  count scale with the suite. Mitigated by sharding — the runs are
+  independent processes, trivially parallelizable.
+
+### Option B: Aggregate run, TN-aware parser recovers the partition
+
+- Pro: One capture, one file; the parser splits by `TN` label into
+  per-test witnesses.
+- Con: Requires producers that emit `TN`, and ours emit none — for
+  llvm-cov input the labels do not exist, and (fact 1) cannot be
+  retrofitted. Also requires the parser to grow a second output mode
+  (partitioned by TN) with no consumer to test it against.
+
+**Chosen: Option A**, implemented by `cargo xtask witnesses`: every
+`#[test]` in the workspace runs in its own process
+(`RUSTFLAGS="-C instrument-coverage"`, unique `LLVM_PROFILE_FILE`), and
+each run exports its own tracefile (`witnesses/<sanitized_test>.info`) via
+`llvm-profdata merge` + `llvm-cov export --format=lcov`. CI uploads the
+tracefiles as artifacts (the durable witnesses) and gates on
+`duvet query -c coverage -s design/lcov-parser/spec.md
+-r 'witnesses/*.info' -f lcov`.
+
+**Gate scope (deliberate):** the gate covers the lcov-parser spec, whose
+requirements are all discharged by runtime code and runtime tests — every
+(test, implementation) pair is dischargeable by a tracefile witness. The
+coverage-model spec is excluded for now: its annotations deliberately
+anchor on Verus `proof fn`s and `ensures` clauses, which are ghost code —
+erased at compile time and absent from every tracefile *by construction*.
+Their witness is the prover (CI's `verify` job re-checks those
+obligations on every push), not a tracefile; forcing them through a
+tracefile gate would either fail spuriously or push the annotations off
+the proof artifacts they honestly describe. They join the gate when
+prover-obligation witnesses land
+([design/witness/spec.md](../witness/spec.md) names proofs as a witness
+kind). The first run of this gate also caught six real placement bugs in
+`duvet/src/query/parsers/lcov.rs` — implementation annotations separated
+from their executable line by prose comments, resolving to targets no
+tracefile can report — which are fixed in the same change: the gate
+tripped before it ever passed.
+
+**Named follow-ups:**
+
+- *TN-aware parsing* (partition one tracefile by `TN` label, hand each
+  partition to the engine as a separate witness) is deferred, not
+  rejected. Trigger: a consumer arrives with TN-labeled tracefiles —
+  e.g. a geninfo/C toolchain user who runs tests separately with `-t`
+  and concatenates. Until then it would be untested surface (Decision 1's
+  criterion).
+- *Prover-obligation witnesses for the coverage-model spec*: widen the
+  gate beyond `-s design/lcov-parser/spec.md` once proof obligations can
+  discharge (test, implementation) pairs. Trigger: the witness model in
+  design/witness/spec.md is implemented.

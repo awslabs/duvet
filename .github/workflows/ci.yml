@@ -246,7 +246,7 @@ jobs:
 
   witnesses: # produce the per-test coverage witnesses: every #[test] in the
     # workspace runs in its own process and exports its own LCOV
-    # tracefile (design/lcov-parser/decisions.md Decision 11). The
+    # tracefile (design/lcov-parser/decisions.md Decision 12). The
     # tracefiles are uploaded as artifacts — they ARE the per-test
     # witnesses, durable evidence of what each test executed. The
     # coverage gate itself runs in witness-gate below, over the union

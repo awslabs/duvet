@@ -14,7 +14,7 @@
 //! in the workspace in its own process and exports one LCOV tracefile per
 //! test (`witnesses/<sanitized_name>.info`). Per-test isolation is
 //! *created* by the per-process run and *preserved* by the per-test file —
-//! see design/lcov-parser/decisions.md Decision 11. The files feed the CI
+//! see design/lcov-parser/decisions.md Decision 12. The files feed the CI
 //! gate:
 //!
 //! ```console
