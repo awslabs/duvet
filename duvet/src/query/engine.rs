@@ -905,11 +905,14 @@ mod tests {
     /// reaches it exactly once per file.
     #[tokio::test]
     async fn escalation_reports_each_located_issue() {
-        use crate::query::checks::coverage::build_execution_data;
-        use crate::query::coverage::{CoverageData, FileCoverage, GenericCoverageData};
-        use crate::source::SourceFile;
-        use std::collections::HashSet;
-        use std::io::Write;
+        use crate::{
+            query::{
+                checks::coverage::build_execution_data,
+                coverage::{CoverageData, FileCoverage, GenericCoverageData},
+            },
+            source::SourceFile,
+        };
+        use std::{collections::HashSet, io::Write};
 
         // Two Java files whose scope streams cannot be trusted: a bare
         // close-brace and a bare open-brace. Whether the classifier reports

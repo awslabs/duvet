@@ -231,18 +231,14 @@ pub async fn build_execution_data(
         let mut entries_for_source: FxHashMap<usize, Vec<&str>> = FxHashMap::default();
 
         for (coverage_path, file_coverage) in &generic.files {
-            let indices = match_memo
-                .entry(coverage_path.clone())
-                .or_insert_with(|| {
-                    duvet_sources
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, (_, absolute))| {
-                            coverage_path_matches(absolute, coverage_path)
-                        })
-                        .map(|(idx, _)| idx)
-                        .collect()
-                });
+            let indices = match_memo.entry(coverage_path.clone()).or_insert_with(|| {
+                duvet_sources
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, (_, absolute))| coverage_path_matches(absolute, coverage_path))
+                    .map(|(idx, _)| idx)
+                    .collect()
+            });
 
             // The mirror ambiguity: one report entry claimed by more than one
             // source file.
@@ -412,8 +408,7 @@ fn file_execution_data_for_report(
             // verified verdict is trustworthy for this file+report, so the
             // execution set is left empty and `executed_status_for` reports
             // `Unknown` without consulting it.
-            let coverage_keys_in_bounds =
-                coverage_keys_in_bounds(&coverage, classifications.len());
+            let coverage_keys_in_bounds = coverage_keys_in_bounds(&coverage, classifications.len());
             let exec_set = if coverage_keys_in_bounds {
                 execution_set(classifications, scopes, &coverage)
             } else {
@@ -469,9 +464,11 @@ async fn build_file_base(duvet_path: &Path, annotations: &AnnotationSet) -> Resu
 
     // Tree-sitter classification is pure CPU; run it off the (single-threaded)
     // async runtime so files classify in parallel.
-    tokio::task::spawn_blocking(move || build_file_base_sync(&duvet_path, &file_content, &annotations))
-        .await
-        .map_err(|e| duvet_core::error!("Task join error: {}", e))
+    tokio::task::spawn_blocking(move || {
+        build_file_base_sync(&duvet_path, &file_content, &annotations)
+    })
+    .await
+    .map_err(|e| duvet_core::error!("Task join error: {}", e))
 }
 
 fn build_file_base_sync(
