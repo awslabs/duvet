@@ -380,3 +380,71 @@ guess. Pinned by
 (`duvet/src/query/checks/coverage.rs`), which builds the two-spelling
 tracefile against the process's real absolute path and asserts the error's
 shape, so the behavior can no longer drift silently.
+
+## Decision 11: Near-misses of `SF` are hard errors, closing the Decision 9 asymmetry {#decision-11}
+
+**Context:** [Decision 9](#decision-9) hard-errors on near-misses of `DA`
+and `end_of_record` but left `SF` — the third structural keyword — in the
+Decision 4 ignore bucket, even though Decision 9's own criterion ("record
+types the parser's output and block structure depend on") applies to `SF`
+verbatim. The asymmetry was emergent, not decided. Most near-missed-`SF`
+shapes fail loudly downstream ("DA record outside a source-file block",
+"end_of_record outside a source-file block"), but empirical tests against
+the lexer confirmed four *silent* shapes: a near-missed `SF` whose block
+contains no `DA` records before end-of-input parses as empty coverage
+(`Ok`, exit 0); a tracefile consisting only of near-missed `SF` lines
+likewise parses as empty coverage; a bare `SF` line is silently skipped;
+and — worst — a near-missed `SF` *inside* an open block is ignored, so the
+next file's `DA` records fold into the previous file (the same
+wrong-file-fold corruption Decision 9 documented for `end_of_record `).
+Empty coverage folds every annotation to NotExecuted with no hint that the
+report was malformed; the wrong-file fold is a confidently wrong answer.
+
+A survey extending Decision 9's, from the readers' current sources: lcov
+2.x's reader (`lcovutil.pm`, `TraceFile::_read_info`) matches each line
+against `/^[SK]F:(...)/` and the other record patterns, and any line
+matching none of them — including `SF src/lib.rs` and `  SF:src/lib.rs` —
+falls to the default arm, a `format` error, fatal by default. The Rust
+`lcov` crate parses every line as a `Record` and returns
+`ParseRecordError::UnknownRecord` for anything unrecognized — a hard error
+for every `SF` near-miss. JS `lcov-parse` ignores the line (it switches on
+the text before the first `:`), but a tracefile that produces zero
+sections fails with "Failed to parse string", so the all-near-missed file
+errors even there. On the producer side, geninfo (`write_info`), llvm-cov
+(`CoverageExporterLcov`), and grcov all emit the literal `SF:` spelling; a
+near-missed `SF` can only come from corruption or hand-editing. And no
+known LCOV record keyword extends `SF` (`TN`, `SF`, `FN`, `FNDA`, `FNF`,
+`FNH`, `FNL`, `FNA`, `DA`, `BRDA`, `BRF`, `BRH`, `LF`, `LH`, `VER`) —
+unlike `FN`, which genuinely prefixes five other keywords, so the same
+rule could never be applied to it.
+
+### Option A: Hard-error on records that begin with `SF` but are not
+`SF` records, exactly as Decision 9 treats `DA` and `end_of_record`
+
+- Pro: Closes the silent-empty-coverage and wrong-file-fold shapes with a
+  diagnostic naming the offending line; makes the near-miss rule uniform
+  across all three structural keywords, so §1's recognition definition has
+  no undocumented exception; matches or is stricter than every surveyed
+  reader, and breaks no known producer.
+- Con: A future LCOV record keyword extending `SF` would be rejected. No
+  such keyword exists in any known producer; if one appears, extend by
+  decision (same posture as Decision 9).
+
+### Option B: Document the asymmetry as deliberate — the downstream-error
+net suffices
+
+- Pro: No new rejection surface; zero code change.
+- Con: The net has holes, confirmed empirically: the no-`DA`-before-EOF,
+  only-near-missed-`SF`, and in-open-block shapes all pass it silently,
+  and the last one corrupts data rather than merely dropping it. Every
+  argument Decision 9 made against silent structural corruption applies
+  unchanged; writing down "we protect two of the three structural
+  keywords" would document an inconsistency, not a rationale.
+
+**Chosen: Option A.** The survey result is Decision 9's verbatim — no
+producer emits the near-miss, reference readers hard-error, and the silent
+failure modes are exactly the class Decision 9 exists to prevent. This
+design record's standing disposition is loud-over-silent. The rejection is
+normative in [spec.md §2](spec.md#record-consumption); genuinely different
+keywords (`sf:`, whitespace-indented `  SF:`) remain ignored under
+Decision 4, mirroring Decision 9's treatment of `da:` and `  DA:`.

@@ -8,6 +8,8 @@ SPECIFICATION: [Duvet LCOV Coverage Parser: Specification](design/lcov-parser/sp
     TEXT[!MUST,implementation,test]: but is not a `DA` record.
     TEXT[!MUST,implementation,test]: The parser MUST reject a record that begins with
     TEXT[!MUST,implementation,test]: `end_of_record` but is not an `end_of_record` record.
+    TEXT[!MUST,implementation,test]: The parser MUST reject a record that begins with `SF`
+    TEXT[!MUST,implementation,test]: but is not an `SF` record.
 
   SECTION: [3. DA Record Syntax](#da-record-syntax)
     TEXT[!MUST,implementation,test]: The parser MUST parse `<line>` as a decimal integer

@@ -12,9 +12,10 @@
 //!   only record carrying the per-line counts the coverage model consumes,
 //!   and unknown types are skipped for forward compatibility with newer
 //!   producers. Recognition is exact and case-sensitive (spec §1); a
-//!   *near-miss* of a structural keyword (`DA1,2`, `end_of_record `) is a
-//!   hard error, not an unknown type — ignoring it would silently corrupt
-//!   coverage or block structure (spec §2, decisions.md Decision 9).
+//!   *near-miss* of a structural keyword (`DA1,2`, `end_of_record `,
+//!   `SF src/lib.rs`) is a hard error, not an unknown type — ignoring it
+//!   would silently corrupt coverage or block structure (spec §2,
+//!   decisions.md Decisions 9 and 11).
 //! - A line absent from the report is *no opinion* — never a Miss
 //!   (coverage-model-spec §1.4). Only lines with a `DA` record appear in the
 //!   output; `count > 0` becomes Hit and `count == 0` becomes Miss downstream
@@ -182,6 +183,21 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
             return Err(CoverageError::InvalidData(format!(
                 "line {line_no}: malformed record {line:?}: a record starting \
                  with 'end_of_record' must be exactly 'end_of_record'"
+            )));
+        } else if line.starts_with("SF") {
+            //= design/lcov-parser/spec.md#record-consumption
+            //= type=implementation
+            //# The parser MUST reject a record that begins with `SF`
+            //# but is not an `SF` record.
+            // The `SF:` branch above did not match, so this is a near-miss
+            // (`SF src/lib.rs`, bare `SF`) — producer error or corruption,
+            // not a future record type. Ignoring it would parse the report
+            // as silently empty coverage (no DA before end-of-input) or fold
+            // the next block's DA records into the previous file (inside an
+            // open block) — decisions.md, Decision 11.
+            return Err(CoverageError::InvalidData(format!(
+                "line {line_no}: malformed record {line:?}: a record starting \
+                 with 'SF' must be 'SF:<path>'"
             )));
         } else {
             //= design/lcov-parser/spec.md#record-consumption
@@ -438,11 +454,11 @@ mod tests {
     }
 
     /// Non-DA record types are ignored, including unknown ones. Recognition
-    /// is exact and case-sensitive (spec §1), so a lowercase `da:`, a
-    /// whitespace-indented `DA:`, and a geninfo `--comment` line (`#...`)
-    /// all fall into the unrecognized bucket — ignored, because none of them
-    /// *begins with* the `DA` or `end_of_record` keywords (decisions.md,
-    /// Decision 9).
+    /// is exact and case-sensitive (spec §1), so a lowercase `da:` or `sf:`,
+    /// a whitespace-indented `DA:` or `SF:`, and a geninfo `--comment` line
+    /// (`#...`) all fall into the unrecognized bucket — ignored, because
+    /// none of them *begins with* the `SF`, `DA`, or `end_of_record`
+    /// keywords (decisions.md, Decisions 9 and 11).
     #[test]
     //= design/lcov-parser/spec.md#record-consumption
     //= type=test
@@ -458,13 +474,16 @@ mod tests {
         let data = parse(
             "#comment line from geninfo --comment\n\
              TN:my_test\nSF:a.rs\nVER:some-future-record\nFN:3,foo\nFNDA:1,foo\nFNF:1\nFNH:1\n\
-             BRDA:3,0,0,1\nBRF:1\nBRH:1\nda:3,9\n  DA:3,9\nDA:3,1\nLF:1\nLH:1\nend_of_record\n",
+             BRDA:3,0,0,1\nBRF:1\nBRH:1\nda:3,9\n  DA:3,9\nsf:b.rs\n  SF:b.rs\nDA:3,1\nLF:1\nLH:1\nend_of_record\n",
         );
         let fc = data.files.get("a.rs").unwrap();
         assert_eq!(fc.lines.len(), 1);
         // 1, not 10: the case-variant and indented records did not count.
         assert_eq!(fc.lines.get(&3), Some(&1));
         assert!(fc.branches.is_empty());
+        // The case-variant and indented SF records did not open a block or
+        // register a file — a.rs is the only file.
+        assert_eq!(data.files.len(), 1);
     }
 
     /// CRLF line endings, blank lines, and whitespace-only lines are
@@ -586,6 +605,37 @@ mod tests {
         // Trailing non-whitespace content.
         let err = parse_err("SF:a.rs\nend_of_recordX\n");
         assert!(err.contains("exactly 'end_of_record'"), "{err}");
+    }
+
+    /// A record starting with `SF` that is not an exact `SF:` record is a
+    /// hard error. Previously it fell into the ignore bucket, where four
+    /// shapes were confirmed SILENT (decisions.md, Decision 11): a
+    /// near-missed SF with no DA before EOF, a tracefile of only
+    /// near-missed SF lines, a bare `SF`, and — worst — a near-missed SF
+    /// inside an open block, which folded the next file's DA records into
+    /// the previous file.
+    #[test]
+    //= design/lcov-parser/spec.md#record-consumption
+    //= type=test
+    //# The parser MUST reject a record that begins with `SF`
+    //# but is not an `SF` record.
+    fn near_miss_sf_errors() {
+        // Missing colon, no DA before EOF — previously Ok(empty coverage).
+        let err = parse_err("SF src/lib.rs\n");
+        assert!(err.contains("starting with 'SF'"), "{err}");
+        // A tracefile of only near-missed SF lines — previously Ok(empty).
+        let err = parse_err("SF a.rs\nSF b.rs\nSF c.rs\n");
+        assert!(err.contains("starting with 'SF'"), "{err}");
+        assert!(err.contains("line 1"), "{err}");
+        // Bare `SF` — previously Ok(empty).
+        let err = parse_err("SF\n");
+        assert!(err.contains("starting with 'SF'"), "{err}");
+        // Near-miss INSIDE an open block — the silent-corruption shape:
+        // previously parsed Ok with b.rs's DA:2,1 folded into a.rs. Assert
+        // the near-miss diagnostic names the offending line specifically.
+        let err = parse_err("SF:a.rs\nDA:1,1\nSF b.rs\nDA:2,1\nend_of_record\n");
+        assert!(err.contains("starting with 'SF'"), "{err}");
+        assert!(err.contains("line 3"), "{err}");
     }
 
     #[test]

@@ -15,6 +15,9 @@ target = "design/lcov-parser/spec.md#record-consumption"
 # The parser MUST reject a record that begins with
 # `end_of_record` but is not an `end_of_record` record.
 # 
+# The parser MUST reject a record that begins with `SF`
+# but is not an `SF` record.
+# 
 # Rationale: `DA` is the only record type that carries per-line execution
 # counts, which is the only granularity the coverage model consumes. Function
 # (`FN*`) and branch (`BRDA`, `BR*`) records carry granularities the model does
@@ -25,17 +28,21 @@ target = "design/lcov-parser/spec.md#record-consumption"
 # exists to absorb (see
 # [decisions.md, Decision 4](decisions.md#decision-4)).
 # 
-# Rationale for the near-miss rejections: `DA` and `end_of_record` are the two
-# record types the parser's output and block structure depend on, so a
-# near-miss of one of them is producer error or corruption, not a future
-# record type — no known LCOV record keyword extends `DA` or `end_of_record`,
-# and every surveyed producer emits the exact spelling (see
-# [decisions.md, Decision 9](decisions.md#decision-9)). Ignoring such a line
+# Rationale for the near-miss rejections: `SF`, `DA`, and `end_of_record`
+# are the three record types the parser's output and block structure depend
+# on, so a near-miss of one of them is producer error or corruption, not a
+# future record type — no known LCOV record keyword extends `SF`, `DA`, or
+# `end_of_record`, and every surveyed producer emits the exact spelling (see
+# [decisions.md, Decision 9](decisions.md#decision-9) and
+# [Decision 11](decisions.md#decision-11)). Ignoring such a line
 # is not forward compatibility but silent structural corruption: an
 # `end_of_record` followed by a trailing space would leave its block open,
 # folding the next block's `DA` records into the wrong file; a `DA` record
 # missing its `:` would silently drop coverage that Section 3 promises to
-# either consume or reject.
+# either consume or reject; and an `SF` record missing its `:` would either
+# fold the next block's records into the previous file (when it appears
+# inside an open block) or parse the report as silently empty coverage (when
+# its block contains no `DA` records before end-of-input).
 
 [[spec]]
 level = "MUST"
@@ -68,5 +75,12 @@ level = "MUST"
 quote = '''
 The parser MUST reject a record that begins with
 `end_of_record` but is not an `end_of_record` record.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject a record that begins with `SF`
+but is not an `SF` record.
 '''
 
