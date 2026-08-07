@@ -243,3 +243,99 @@ jobs:
         # implementation annotation carries a test annotation, and no
         # (type, quote) pair has more than one owner.
         run: ./target/debug/duvet query -c implementation,test,duplicates
+
+  witnesses: # produce the per-test coverage witnesses: every #[test] in the
+    # workspace runs in its own process and exports its own LCOV
+    # tracefile (design/lcov-parser/decisions.md Decision 11). The
+    # tracefiles are uploaded as artifacts — they ARE the per-test
+    # witnesses, durable evidence of what each test executed. The
+    # coverage gate itself runs in witness-gate below, over the union
+    # of all shards.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        worker: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: true
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component llvm-tools
+          rustup override set stable
+
+      - uses: camshaft/rust-cache@v1
+        with:
+          key: witnesses
+
+      - name: Cache node_modules
+        uses: actions/cache@v6
+        continue-on-error: true
+        with:
+          path: duvet/www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
+
+      - name: Produce per-test witnesses
+        run: |
+          cargo xtask witnesses --total-workers 4 --worker-number ${{ matrix.worker }}
+
+      - name: Upload witnesses
+        uses: actions/upload-artifact@v4
+        with:
+          name: witnesses-${{ matrix.worker }}
+          path: witnesses/*.info
+          if-no-files-found: error
+
+  witness-gate: # the coverage dogfood gate: duvet's own test annotations must
+    # correlate with their claimed implementations inside a single
+    # per-test witness (same-witness discharge, design/query/
+    # decisions.md Decision 13). Runs over the union of all witness
+    # shards; fails if any test annotation's implementation was not
+    # executed by that test's own process.
+    runs-on: ubuntu-latest
+    needs: witnesses
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install toolchain
+        run: |
+          rustup toolchain install stable
+          rustup override set stable
+
+      - uses: camshaft/rust-cache@v1
+
+      - name: Cache node_modules
+        uses: actions/cache@v6
+        continue-on-error: true
+        with:
+          path: duvet/www/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
+
+      - name: Build duvet
+        run: |
+          cargo xtask build
+
+      - name: Download witnesses
+        uses: actions/download-artifact@v4
+        with:
+          pattern: witnesses-*
+          path: witnesses
+          merge-multiple: true
+
+      - name: Coverage gate
+        # Never merge the witness files: duvet's LCOV parser sums across
+        # blocks (spec.md §7 Property 4 proves the aggregation forgets
+        # block structure), so a merged file collapses the per-test
+        # partition back to co-coverage. The glob feeds each file as its
+        # own witness.
+        #
+        # Scoped to the lcov-parser spec: its requirements are all
+        # discharged by runtime code and runtime tests, so every pair is
+        # dischargeable by a tracefile witness. The coverage-model spec's
+        # annotations anchor on Verus proof fns and `ensures` clauses —
+        # ghost code, erased at compile time, absent from every tracefile
+        # by construction. Their witness is the prover (CI's verify job),
+        # not a tracefile; they join this gate when prover-obligation
+        # witnesses exist (design/witness/spec.md).
+        run: ./target/debug/duvet query -c coverage -s design/lcov-parser/spec.md -r 'witnesses/*.info' -f lcov
