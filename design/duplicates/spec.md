@@ -374,7 +374,7 @@ types = ["exception+test"]      # allow this combination on one target
 | `claims.test` | 1 | test duplicate sets are singletons |
 | `claims.implementation` | 1 | implementation duplicate sets are singletons |
 | `claims.types` | all form sets containing no free form | free forms exclusive; `test`/`implementation` may share a claim |
-| `targets.count` | unlimited | listing only (provisional pending the corpus fan-in survey) |
+| `targets.count` | unlimited | listing only. Confirmed by the corpus fan-in survey: the legitimately dense population is large (s2n-quic alone bears 149 multi-annotation targets, 113 of them at count 2), so a biting default fails real dense code on day one |
 | `targets.sections` | unlimited | listing only |
 | `targets.types` | all form sets not containing both `test` and `implementation` | mixed test/implementation targets fail |
 
