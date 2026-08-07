@@ -927,6 +927,14 @@ mod tests {
                 .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
+        // Remove the temp dir even when an expect/assert below panics first.
+        struct DirGuard(std::path::PathBuf);
+        impl Drop for DirGuard {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _guard = DirGuard(dir.clone());
         let write = |name: &str, contents: &str| {
             let path = dir.join(name);
             std::fs::File::create(&path)
