@@ -125,9 +125,11 @@ pub fn is_annotation_executed(
 /// annotations in one file computes the set once and pays O(target walk +
 /// set lookup) per annotation instead of O(whole-file propagation) per
 /// annotation. Verified callers discharge the clauses from `execution_set`'s
-/// postconditions; the unverified query engine discharges them by construction
-/// (it stores the set beside the very inputs it was computed from — see the
-/// trust-boundary note in duvet's `executed_status_for`).
+/// postconditions. Unverified callers should not call this directly — a
+/// `requires` compiles away for them, leaving the pairing as an unchecked
+/// axiom; use [`crate::file_execution::FileExecution`] instead, which carries
+/// the pairing as a machine-checked type invariant and discharges these
+/// clauses itself.
 pub fn is_annotation_executed_with_exec_set(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
