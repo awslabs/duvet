@@ -120,7 +120,7 @@ pub struct ProjectData {
     >,
     pub project_sources: Arc<HashSet<SourceFile>>,
     pub annotations: AnnotationSet,
-    /// Checked-in policy for the duplicates check and duplicate-targets query
+    /// Checked-in policy for the duplicates check — both coincidence axes
     /// (design/duplicates/spec.md §4). Defaults apply when no config exists.
     pub duplicates_policy: crate::config::DuplicatesPolicy,
 }

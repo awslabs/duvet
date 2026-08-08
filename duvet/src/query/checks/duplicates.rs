@@ -1,12 +1,14 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-//! The duplicates check and the duplicate-targets query.
+//! The duplicates check.
 //!
 //! Normative semantics: design/duplicates/spec.md. Rationale:
 //! design/duplicates/decisions.md. Every rule here is a predicate over one of
 //! the two partitions the spec defines — claim classes (annotations sharing a
 //! requirement) and target classes (annotations sharing a resolved position).
+//! One check evaluates both axes, mirroring the one `[duplicates]` config
+//! table.
 
 use crate::{
     annotation::{Annotation, AnnotationType},
@@ -134,7 +136,7 @@ impl DuplicatesAnalysis {
     }
 }
 
-/// One entry of the duplicate-targets listing: a target class of size ≥ 2.
+/// One entry of the fan-in listing: a target class of size ≥ 2.
 #[derive(Debug)]
 pub struct TargetClass {
     pub target: ResolvedTarget,
@@ -155,7 +157,7 @@ impl TargetClass {
     }
 }
 
-/// The duplicate-targets query's analysis (spec §3).
+/// The target-axis analysis of the duplicates check (spec §3).
 #[derive(Debug, Default)]
 pub struct DuplicateTargetsAnalysis {
     /// §3.1: every target class of size ≥ 2, sorted by count descending.

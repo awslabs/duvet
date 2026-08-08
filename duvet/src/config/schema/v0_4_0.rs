@@ -28,7 +28,7 @@ pub struct Schema {
     #[serde(default, rename = "specification")]
     pub specifications: Arc<[Specification]>,
 
-    /// Policy for the duplicates check and the duplicate-targets query
+    /// Policy for the duplicates check — both coincidence axes
     /// (design/duplicates/spec.md §4).
     #[serde(default)]
     pub duplicates: Option<DuplicatesSchema>,

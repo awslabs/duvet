@@ -2,7 +2,7 @@ source = { local = true }
 cmd = ["duvet query --check duplicates"]
 report_output = false
 
-# Pins spec §3.1 / P-T1: the duplicate-targets listing contains a target iff
+# Pins spec §3.1 / P-T1: the fan-in listing contains a target iff
 # two or more annotations resolve to it, with exact counts, per-form
 # breakdown, and distinct-section counts, sorted by count descending.
 #

@@ -590,10 +590,14 @@ a precisely-annotated dense function.
 
 ### Option C: Query first, snapshot ratchet, opt-in bounds
 
-1. **A query, not (by default) a gate.** A `duplicate-targets`
-   query lists every target bearing more than one annotation,
-   sorted by count descending, with per-target type breakdown and
-   distinct-section count. No verdict — a sorted list needs no
+1. **A listing, not (by default) a gate.** The duplicates check's
+   report carries a fan-in listing: every target bearing more than
+   one annotation, sorted by count descending, with per-target type
+   breakdown and distinct-section count. Not a separate check — the
+   target axis and the claim axis are the two partitions of one
+   model, and one invocation evaluates both, mirroring the one
+   `[duplicates]` configuration table. The listing itself carries no
+   verdict — a sorted list needs no
    threshold and no false-positive story; the human reads the top.
    Even inspection output owes an exactness obligation: a target
    appears iff ≥ 2 annotations resolve to it, with exact counts
@@ -1076,9 +1080,9 @@ Pinned by fixture unless noted.
 - **P-D5 (free-form exclusivity).** duplicates PASS ⟹ every claim
   class containing an exception, implication, or todo annotation
   is a singleton.
-- **P-T1 (fan-in exactness).** The duplicate-targets listing
-  contains a target iff ≥ 2 annotations resolve to it; counts,
-  type breakdowns, and section counts are exact.
+- **P-T1 (fan-in exactness).** The fan-in listing in the
+  duplicates report contains a target iff ≥ 2 annotations resolve
+  to it; counts, type breakdowns, and section counts are exact.
 - **P-T2 (type-family exactness).** With a configured family, a
   target class bearing two or more distinct types fails the
   type-combination rule iff its type set is a subset of no allowed
@@ -1119,8 +1123,7 @@ Pinned by fixture unless noted.
   target scope and their overlap-precedence rule; whether spec
   scope without section scope is worth having; fixtures for the
   three scoping properties.
-- `duplicate-targets` query, then snapshot inclusion once the
-  format stabilizes.
+- Fan-in listing snapshot inclusion, once the format stabilizes.
 - Implication duplicates — rider on self-discharging implications.
 - Impl-dump diagnostic locality (pointing failures at the dumped
   annotation rather than the innocent tests) — revisit with the
