@@ -23,6 +23,7 @@ use duvet_coverage::{
         LineProperty, Scope,
     },
 };
+use futures::{StreamExt as _, TryStreamExt as _};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -276,6 +277,14 @@ pub async fn build_execution_data(
         .map(|(idx, _)| *idx)
         .collect();
 
+    // Bound the in-flight `spawn_blocking` fan-out to the machine's
+    // parallelism. The work is pure CPU, so tasks beyond core count cannot
+    // run concurrently anyway — unbounded submission would only queue
+    // hundreds of CPU-bound tasks onto tokio's blocking pool (sized, and
+    // capped at 512 threads, for blocking *I/O*), oversubscribing cores and
+    // paying a thread stack per task on large corpora.
+    let concurrency = std::thread::available_parallelism().map_or(4, |n| n.get());
+
     let mut base_futures = Vec::with_capacity(matched_indices.len());
     for &idx in &matched_indices {
         let duvet_path = duvet_sources[idx].0.to_path_buf();
@@ -285,7 +294,11 @@ pub async fn build_execution_data(
             Result::<_, crate::Error>::Ok((idx, Arc::new(base)))
         });
     }
-    let bases: FxHashMap<usize, Arc<FileBase>> = futures::future::try_join_all(base_futures)
+    // Completion order is irrelevant here: results land in a map keyed by
+    // source index.
+    let bases: FxHashMap<usize, Arc<FileBase>> = futures::stream::iter(base_futures)
+        .buffer_unordered(concurrency)
+        .try_collect::<Vec<_>>()
         .await?
         .into_iter()
         .collect();
@@ -350,7 +363,13 @@ pub async fn build_execution_data(
         });
     }
 
-    let maps: Vec<ExecutionDataMap> = futures::future::try_join_all(map_futures).await?;
+    // `buffered`, not `buffer_unordered`: [`ExecutionData::maps`] promises
+    // one map per report *in input order*, and `buffered` yields results in
+    // stream order while still running up to `concurrency` tasks at once.
+    let maps: Vec<ExecutionDataMap> = futures::stream::iter(map_futures)
+        .buffered(concurrency)
+        .try_collect()
+        .await?;
 
     Ok(ExecutionData {
         maps,
