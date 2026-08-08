@@ -68,6 +68,7 @@ pub mod annotation_execution;
 pub mod classify_postpass;
 pub mod degraded;
 pub mod execution_propagation;
+pub mod file_execution;
 pub mod predicates;
 pub mod proofs;
 pub mod scopes;
