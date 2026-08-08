@@ -361,15 +361,13 @@ mod tests {
         assert!(file_execution_with_keys(&[1, 6], 5).is_none());
     }
 
-    //= design/query/coverage-model-spec.md#trust-taxonomy
-    //= type=test
-    //# **Drift** — coverage refers to a line outside the classified source (a coverage
-    //# key past end of file). Every model reads coverage, so no model can be trusted;
-    //# duvet reports `Unknown`.
     #[test]
     fn zero_coverage_key_refuses_construction() {
         // Line numbers are 1-based; key 0 has no valid 0-based index — outside
         // the classified source on the low end, the mirror of past-EOF drift.
+        // Same Drift requirement as `coverage_key_past_eof_refuses_construction`,
+        // which carries the `type=test` citation (duvet's duplicates check
+        // rejects two tests quoting identical requirement text).
         assert!(file_execution_with_keys(&[0, 1], 5).is_none());
     }
 
