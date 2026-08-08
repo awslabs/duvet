@@ -425,15 +425,16 @@ pub fn scope_imbalance_site(events: &[ScopeEvent]) -> (result: Option<u64>)
     // The `ensures` below IS the verification of Property 11 (the iff with the
     // depth-counter spec), machine-checked by CI's verify job — so the test
     // annotation anchors on the clause that verifies, not on the fn header.
-    //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
-    //= type=test
-    //# The implementation MUST prove that the balance detector returns balanced if and
-    //# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
-    //# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
-    //# end of file.
+    // Deactivated pending prover-obligation witnesses (design/witness/spec.md). The ensures clause is prover-witnessed; revives as type=test.
+    // //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+    // //= type=test
+    // //# The implementation MUST prove that the balance detector returns balanced if and
+    // //# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+    // //# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+    // //# end of file.
     ensures
         //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
-        //= type=implementation
+        //= type=implication
         //# The implementation MUST prove that the balance detector returns balanced if and
         //# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
         //# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
@@ -492,10 +493,11 @@ mod tests {
         ScopeEvent { line, opens }
     }
 
-    //= design/query/coverage-model-spec.md#scopes
-    //= type=test
-    //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
-    //# `ScopeClose` properties. Scopes nest.
+    // Deactivated pending prover-obligation witnesses (design/witness/spec.md). Runtime witness of scope-range semantics; revives as type=test.
+    // //= design/query/coverage-model-spec.md#scopes
+    // //= type=test
+    // //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
+    // //# `ScopeClose` properties. Scopes nest.
     #[test]
     fn simple_method_in_class() {
         // class `{` L1, method `{` L2, `}` L4, `}` L5.
@@ -695,10 +697,11 @@ mod tests {
     #[test]
     fn no_delimiters_is_not_flagged() {
         // No scope events at all. Depth stays 0, never underflows: balanced.
-        //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
-        //= type=test
-        //# A stream with no scope delimiters is balanced, and its whole-file scope is
-        //# legitimate.
+        // Deactivated pending prover-obligation witnesses (design/witness/spec.md). Runtime witness of the proven no-delimiters case; revives as type=test.
+        // //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+        // //= type=test
+        // //# A stream with no scope delimiters is balanced, and its whole-file scope is
+        // //# legitimate.
         assert_eq!(scope_imbalance_site(&[]), None);
     }
 
