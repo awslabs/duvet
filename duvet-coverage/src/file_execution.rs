@@ -151,6 +151,16 @@ impl FileExecution {
     ///
     /// `file_length` participates in target resolution only; no verified
     /// precondition constrains it, so it is stored as given.
+    //
+    // The refusal path is the implementation of the spec's Drift response:
+    // a coverage key outside the classified source means no model's verdict
+    // can be trusted, and the `None` this returns is what the caller turns
+    // into the conservative `Unknown` (`executed_status_for` in duvet).
+    //= design/query/coverage-model-spec.md#trust-taxonomy
+    //= type=implementation
+    //# **Drift** — coverage refers to a line outside the classified source (a coverage
+    //# key past end of file). Every model reads coverage, so no model can be trusted;
+    //# duvet reports `Unknown`.
     pub fn new(
         classifications: Arc<Vec<Option<LineClass>>>,
         scopes: Arc<Vec<Scope>>,
@@ -306,3 +316,81 @@ impl FileExecution {
 }
 
 } // verus!
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{CoverageStatus, Scope};
+
+    // --- FileExecution::new precondition boundary ---
+    //
+    // The verified constructor runtime-checks the model's coverage-keys and
+    // scope-bounds preconditions and refuses (returns `None`) rather than
+    // compute against inputs the proofs never reasoned about. These live here,
+    // beside the constructor, so they can carry Duvet citations — the glue
+    // crate (`duvet/src/query/checks/coverage.rs`) is excluded from annotation
+    // scanning as a fixture carrier (see `.duvet/config.toml` / issue #226).
+
+    /// Build a FileExecution over `len` unclassified lines with the given
+    /// coverage keys (all Hit) and no scopes.
+    fn file_execution_with_keys(keys: &[u64], len: usize) -> Option<FileExecution> {
+        let classifications: Arc<Vec<Option<LineClass>>> = Arc::new(vec![None; len]);
+        let scopes: Arc<Vec<Scope>> = Arc::new(vec![]);
+        let pairs: Vec<(u64, CoverageStatus)> =
+            keys.iter().map(|&k| (k, CoverageStatus::Hit)).collect();
+        FileExecution::new(classifications, scopes, &pairs, len as u64)
+    }
+
+    #[test]
+    fn in_bounds_coverage_constructs() {
+        // 5 classified lines; coverage keys 1..=5 all map to valid indices.
+        assert!(file_execution_with_keys(&[1, 3, 5], 5).is_some());
+    }
+
+    //= design/query/coverage-model-spec.md#trust-taxonomy
+    //= type=test
+    //# **Drift** — coverage refers to a line outside the classified source (a coverage
+    //# key past end of file). Every model reads coverage, so no model can be trusted;
+    //# duvet reports `Unknown`.
+    #[test]
+    fn coverage_key_past_eof_refuses_construction() {
+        // Key 6 -> index 5, out of range for 5 classified lines. This is the
+        // JaCoCo-nr-past-EOF / source-coverage-drift case that would otherwise
+        // reach the verified fn with an input it never reasoned about. The
+        // `None` is what the caller reports as `Unknown`.
+        assert!(file_execution_with_keys(&[1, 6], 5).is_none());
+    }
+
+    //= design/query/coverage-model-spec.md#trust-taxonomy
+    //= type=test
+    //# **Drift** — coverage refers to a line outside the classified source (a coverage
+    //# key past end of file). Every model reads coverage, so no model can be trusted;
+    //# duvet reports `Unknown`.
+    #[test]
+    fn zero_coverage_key_refuses_construction() {
+        // Line numbers are 1-based; key 0 has no valid 0-based index — outside
+        // the classified source on the low end, the mirror of past-EOF drift.
+        assert!(file_execution_with_keys(&[0, 1], 5).is_none());
+    }
+
+    #[test]
+    fn empty_coverage_constructs() {
+        // No keys -> the bounds condition is vacuously satisfied.
+        assert!(file_execution_with_keys(&[], 5).is_some());
+    }
+
+    #[test]
+    fn out_of_bounds_scope_refuses_construction() {
+        // A scope with open_line 0 violates the checkers' scope-bounds
+        // precondition. `build_scope_tree` never produces one; the constructor
+        // checks anyway instead of trusting that provenance.
+        let classifications: Arc<Vec<Option<LineClass>>> = Arc::new(vec![None; 5]);
+        let scopes = Arc::new(vec![Scope {
+            open_line: 0,
+            close_line: 5,
+            parent: None,
+            children: vec![],
+        }]);
+        assert!(FileExecution::new(classifications, scopes, &[], 5).is_none());
+    }
+}

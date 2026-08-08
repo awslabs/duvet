@@ -770,7 +770,7 @@ pub fn executed_status_for(
 mod tests {
     use super::*;
     use crate::query::classify::{java::JavaClassifier, Classification, LineClassifier};
-    use duvet_coverage::types::{CoverageStatus, LineProperty};
+    use duvet_coverage::types::LineProperty;
 
     fn count_scope_opens(classifications: &[Option<LineClass>]) -> usize {
         classifications
@@ -839,63 +839,11 @@ public class Two {
         );
     }
 
-    // --- FileExecution::new precondition boundary ---
-    //
-    // The verified constructor runtime-checks the model's coverage-keys and
-    // scope-bounds preconditions and refuses (returns `None`) rather than
-    // compute against inputs the proofs never reasoned about. These pin the
-    // accept/reject line exactly where the old glue-side checks pinned it.
-
-    /// Build a FileExecution over `len` unclassified lines with the given
-    /// coverage keys (all Hit) and no scopes.
-    fn file_execution_with_keys(keys: &[u64], len: usize) -> Option<FileExecution> {
-        let classifications: Arc<Vec<Option<LineClass>>> = Arc::new(vec![None; len]);
-        let scopes: Arc<Vec<duvet_coverage::types::Scope>> = Arc::new(vec![]);
-        let pairs: Vec<(u64, CoverageStatus)> =
-            keys.iter().map(|&k| (k, CoverageStatus::Hit)).collect();
-        FileExecution::new(classifications, scopes, &pairs, len as u64)
-    }
-
-    #[test]
-    fn in_bounds_coverage_constructs() {
-        // 5 classified lines; coverage keys 1..=5 all map to valid indices.
-        assert!(file_execution_with_keys(&[1, 3, 5], 5).is_some());
-    }
-
-    #[test]
-    fn coverage_key_past_eof_refuses_construction() {
-        // Key 6 -> index 5, out of range for 5 classified lines. This is the
-        // JaCoCo-nr-past-EOF / source-coverage-drift case that would otherwise
-        // reach the verified fn with an input it never reasoned about.
-        assert!(file_execution_with_keys(&[1, 6], 5).is_none());
-    }
-
-    #[test]
-    fn zero_coverage_key_refuses_construction() {
-        // Line numbers are 1-based; key 0 has no valid 0-based index.
-        assert!(file_execution_with_keys(&[0, 1], 5).is_none());
-    }
-
-    #[test]
-    fn empty_coverage_constructs() {
-        // No keys -> the bounds condition is vacuously satisfied.
-        assert!(file_execution_with_keys(&[], 5).is_some());
-    }
-
-    #[test]
-    fn out_of_bounds_scope_refuses_construction() {
-        // A scope with open_line 0 violates the checkers' scope-bounds
-        // precondition. `build_scope_tree` never produces one; the constructor
-        // checks anyway instead of trusting that provenance.
-        let classifications: Arc<Vec<Option<LineClass>>> = Arc::new(vec![None; 5]);
-        let scopes = Arc::new(vec![duvet_coverage::types::Scope {
-            open_line: 0,
-            close_line: 5,
-            parent: None,
-            children: vec![],
-        }]);
-        assert!(FileExecution::new(classifications, scopes, &[], 5).is_none());
-    }
+    // (The `FileExecution::new` precondition-boundary tests moved to
+    // `duvet-coverage/src/file_execution.rs`, beside the constructor, where
+    // they carry Duvet `type=test` citations to the spec's Drift requirement —
+    // this file is excluded from annotation scanning as a fixture carrier;
+    // see `.duvet/config.toml` and issue #226.)
 
     // --- coverage_path_matches ---
     //
