@@ -330,12 +330,11 @@ jobs:
         # partition back to co-coverage. The glob feeds each file as its
         # own witness.
         #
-        # Scoped to the lcov-parser spec: its requirements are all
-        # discharged by runtime code and runtime tests, so every pair is
-        # dischargeable by a tracefile witness. The coverage-model spec's
-        # annotations anchor on Verus proof fns and `ensures` clauses —
-        # ghost code, erased at compile time, absent from every tracefile
-        # by construction. Their witness is the prover (CI's verify job),
-        # not a tracefile; they join this gate when prover-obligation
-        # witnesses exist (design/witness/spec.md).
-        run: ./target/debug/duvet query -c coverage -s design/lcov-parser/spec.md -r 'witnesses/*.info' -f lcov
+        # Unscoped: every active test annotation in the tree must
+        # correlate inside a tracefile witness. Annotations whose
+        # evidence is the prover (Verus proof fns and `ensures` clauses —
+        # ghost code, absent from every tracefile by construction) are
+        # deactivated in source with a marker; they rejoin this gate as
+        # type=test when prover-obligation witnesses exist
+        # (design/witness/spec.md).
+        run: ./target/debug/duvet query -c coverage -r 'witnesses/*.info' -f lcov

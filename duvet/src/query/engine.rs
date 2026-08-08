@@ -384,45 +384,7 @@ async fn execute_coverage_check(
     // (annotations are `Unknown`, the run continues); the hard-error gate belongs
     // to `report` once it consumes coverage. We report *that* and *where*, never
     // a *cause* (mislabeled vs. classifier gap is undecidable here).
-    //= design/query/coverage-model-spec.md#scopes
-    //= type=implementation
-    //# When the stream is unbalanced,
-    //# the coverage model MUST NOT score annotations against the collapsed scope tree;
-    //# it MUST surface the file as a defeated classification and escalate
-    //# (see [Classifier Selection and Dispatch](#dispatch)).
-    {
-        use crate::query::classify::{ClassifierFailure, ClassifierIssue};
-        let defeated = collect_defeated_issues(&execution_data_maps);
-        for (path, issues) in &defeated {
-            let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
-                .iter()
-                .partition(|i| matches!(i.reason, ClassifierFailure::ParseError));
-            let mut detail = Vec::new();
-            if !parse.is_empty() {
-                let lines: Vec<String> = parse.iter().map(|i| i.line.to_string()).collect();
-                detail.push(format!("parse error(s) at line(s) {}", lines.join(", ")));
-            }
-            if !unbalanced.is_empty() {
-                let lines: Vec<String> = unbalanced.iter().map(|i| i.line.to_string()).collect();
-                detail.push(format!(
-                    "unbalanced scope stream near line(s) {}",
-                    lines.join(", ")
-                ));
-            }
-            //= design/query/coverage-model-spec.md#trust-taxonomy
-            //= type=implementation
-            //# duvet MUST NOT silently substitute the coarse model or score against
-            //# the collapsed scope tree; it MUST escalate, reporting each located issue.
-            progress!(
-                "Coverage model: {} — the selected classifier could not produce a \
-                 trustworthy classification ({}). The file may not be this \
-                 language, or the classifier has a gap. Its annotations are \
-                 reported Unknown; report the file or the classifier gap.",
-                path.display(),
-                detail.join("; ")
-            );
-        }
-    }
+    escalate_defeated_classifications(&execution_data_maps);
 
     if verbose {
         // Tell the user which coverage path each covered file uses: the
@@ -802,6 +764,51 @@ fn fold_execution_status<'a>(
 /// pin that each located issue reaches the escalation surface (none dropped,
 /// none merged away); the loud per-file report in `execute_coverage_check`
 /// iterates exactly this.
+/// The escalation surface for defeated classifications (spec §1.5): report
+/// every located issue for every file whose classifier could not produce a
+/// trustworthy classification. Extracted so the tests that claim this
+/// requirement execute this exact code — the coverage correlation check
+/// demands the annotated lines run inside the claiming test's witness.
+//= design/query/coverage-model-spec.md#scopes
+//= type=implementation
+//# When the stream is unbalanced,
+//# the coverage model MUST NOT score annotations against the collapsed scope tree;
+//# it MUST surface the file as a defeated classification and escalate
+//# (see [Classifier Selection and Dispatch](#dispatch)).
+fn escalate_defeated_classifications(execution_data_maps: &[ExecutionDataMap]) {
+    use crate::query::classify::{ClassifierFailure, ClassifierIssue};
+    let defeated = collect_defeated_issues(execution_data_maps);
+    for (path, issues) in &defeated {
+        let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
+            .iter()
+            .partition(|i| matches!(i.reason, ClassifierFailure::ParseError));
+        let mut detail = Vec::new();
+        if !parse.is_empty() {
+            let lines: Vec<String> = parse.iter().map(|i| i.line.to_string()).collect();
+            detail.push(format!("parse error(s) at line(s) {}", lines.join(", ")));
+        }
+        if !unbalanced.is_empty() {
+            let lines: Vec<String> = unbalanced.iter().map(|i| i.line.to_string()).collect();
+            detail.push(format!(
+                "unbalanced scope stream near line(s) {}",
+                lines.join(", ")
+            ));
+        }
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=implementation
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
+        progress!(
+            "Coverage model: {} — the selected classifier could not produce a \
+             trustworthy classification ({}). The file may not be this \
+             language, or the classifier has a gap. Its annotations are \
+             reported Unknown; report the file or the classifier gap.",
+            path.display(),
+            detail.join("; ")
+        );
+    }
+}
+
 fn collect_defeated_issues(
     execution_data_maps: &[ExecutionDataMap],
 ) -> std::collections::BTreeMap<std::path::PathBuf, Vec<crate::query::classify::ClassifierIssue>> {
@@ -946,12 +953,16 @@ mod tests {
         //# duvet MUST NOT silently substitute the coarse model or score against
         //# the collapsed scope tree;
         assert!(matches!(status, ExecutionStatus::Unknown { .. }));
+        // Drive the real escalation surface with the same defeated map: the
+        // requirement claims surfacing AND escalation, so the test must
+        // execute the escalation code it cites, not a reimplementation.
         //= design/query/coverage-model-spec.md#scopes
         //= type=test
         //# When the stream is unbalanced,
         //# the coverage model MUST NOT score annotations against the collapsed scope tree;
         //# it MUST surface the file as a defeated classification and escalate
         //# (see [Classifier Selection and Dispatch](#dispatch)).
+        escalate_defeated_classifications(std::slice::from_ref(&map));
         assert!(matches!(status, ExecutionStatus::Unknown { line_number: 7 }));
     }
 
@@ -984,7 +995,11 @@ mod tests {
                 issues: vec![unbalanced(11)],
             },
         );
-        let defeated = collect_defeated_issues(&[map_a, map_b]);
+        let maps = [map_a, map_b];
+        // Drive the actual escalation surface (the annotated progress! report),
+        // then pin the aggregation contents it was fed.
+        escalate_defeated_classifications(&maps);
+        let defeated = collect_defeated_issues(&maps);
         //= design/query/coverage-model-spec.md#trust-taxonomy
         //= type=test
         //# it MUST escalate, reporting each located issue.
