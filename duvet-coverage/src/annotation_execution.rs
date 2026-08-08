@@ -336,6 +336,65 @@ fn scope_contains_statement(classifications: &[Option<LineClass>], lo: u64, hi: 
     found
 }
 
+// Spec twin of `fold_execution_status_step`: the exact preference order the
+// exec fn implements. `Executed` absorbs; otherwise a later `Unknown`
+// overwrites anything non-executed (it carries diagnostic line information,
+// and the latest witness wins, matching the historical fold); `Structural`
+// and `NotExecuted` are taken only over `NotExecuted` (the base case).
+pub open spec fn fold_step_spec(folded: ExecutionStatus, status: ExecutionStatus) -> ExecutionStatus {
+    if folded == ExecutionStatus::Executed {
+        folded
+    } else {
+        match status {
+            ExecutionStatus::Executed => status,
+            ExecutionStatus::Unknown { .. } => status,
+            _ => if folded == ExecutionStatus::NotExecuted { status } else { folded },
+        }
+    }
+}
+
+/// One step of folding an annotation's execution status across coverage
+/// reports (design/query/design.md §5.2): OR semantics on `Executed`, with
+/// `Unknown` preferred over `Structural` over `NotExecuted` among the rest.
+///
+/// The `ensures` carry the fold's correctness contract so the (unverified)
+/// per-report loop in duvet's query engine only supplies iteration:
+/// - **OR / absorption:** the result is `Executed` iff either input is —
+///   folding over a report set yields `Executed` iff SOME report proved
+///   execution, and once absorbed no later report can retract it.
+/// - **No invention:** the result is always one of the two inputs; the fold
+///   can never synthesize a status (and in particular never a line number)
+///   that no report produced.
+/// - **Definitional twin:** the result is exactly [`fold_step_spec`], pinning
+///   the full preference order, not just the executed bit.
+///
+/// There are no `requires`, so nothing compiles away for unverified callers.
+pub fn fold_execution_status_step(
+    folded: ExecutionStatus,
+    status: ExecutionStatus,
+) -> (result: ExecutionStatus)
+    ensures
+        result == fold_step_spec(folded, status),
+        result == ExecutionStatus::Executed
+            <==> (folded == ExecutionStatus::Executed || status == ExecutionStatus::Executed),
+        result == folded || result == status,
+{
+    if matches!(folded, ExecutionStatus::Executed) {
+        return folded;
+    }
+    match status {
+        ExecutionStatus::Executed => status,
+        ExecutionStatus::Unknown { .. } => status,
+        _ => {
+            if matches!(folded, ExecutionStatus::NotExecuted) {
+                status
+            } else {
+                folded
+            }
+        }
+    }
+}
+
 } // verus!
 
 #[cfg(test)]
