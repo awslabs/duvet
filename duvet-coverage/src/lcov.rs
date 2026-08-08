@@ -284,22 +284,6 @@ proof fn lemma_insert_reestablishes_invariants(
     }
 }
 
-//= design/lcov-parser/spec.md#property-1-domain-exactness
-//= type=implication
-//# A line number appears in the aggregated output
-//# if and only if
-//# at least one `DA` record for that line
-//# appears in the input record sequence.
-//= design/lcov-parser/spec.md#property-2-count-correctness
-//= type=implication
-//# The count aggregated for a line
-//# equals the sum of the counts of every input record
-//# for that line,
-//# saturated at the maximum unsigned 64-bit value.
-//= design/lcov-parser/spec.md#property-3-ordered-uniqueness
-//= type=implication
-//# The aggregated output is strictly sorted by line number,
-//# so each line appears exactly once.
 /// Aggregate a file's lexed `DA` records into per-line saturating-summed
 /// counts (spec §6), returning `(line, count)` pairs strictly sorted by line.
 ///
@@ -312,8 +296,24 @@ proof fn lemma_insert_reestablishes_invariants(
 ///   ordered-map conversion cannot silently merge or reorder.
 pub fn aggregate_da_records(records: &[DaRecord]) -> (out: Vec<(u64, u64)>)
     ensures
+        //= design/lcov-parser/spec.md#property-3-ordered-uniqueness
+        //= type=implication
+        //# The aggregated output is strictly sorted by line number,
+        //# so each line appears exactly once.
         lines_sorted(out@),
+        //= design/lcov-parser/spec.md#property-1-domain-exactness
+        //= type=implication
+        //# A line number appears in the aggregated output
+        //# if and only if
+        //# at least one `DA` record for that line
+        //# appears in the input record sequence.
         forall|i: int| 0 <= i < out@.len() ==> has_line(records@, (#[trigger] out@[i]).0),
+        //= design/lcov-parser/spec.md#property-2-count-correctness
+        //= type=implication
+        //# The count aggregated for a line
+        //# equals the sum of the counts of every input record
+        //# for that line,
+        //# saturated at the maximum unsigned 64-bit value.
         forall|i: int|
             0 <= i < out@.len() ==> (#[trigger] out@[i]).1 == saturate_u64(
                 sum_counts(records@, out@[i].0),

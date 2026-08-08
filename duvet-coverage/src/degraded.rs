@@ -122,16 +122,6 @@ fn coverage_status_at(coverage: &CoverageReport, line: u64) -> (result: Option<C
 //= type=implementation
 //# These properties MUST be proven with Verus for the degraded path,
 //# alongside the Section 5 properties for the classified path.
-//= design/query/coverage-model-spec.md#property-d1-direct-observation
-//= type=implication
-//# The implementation MUST prove that the degraded status is a direct
-//# observation of the target line's own coverage, never an inference propagated
-//# from another line.
-//= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
-//= type=implication
-//# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
-//# status resolves a target strictly below the annotation
-//# (`target > annotation.end_line`).
 pub fn degraded_execution_status(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -147,6 +137,11 @@ pub fn degraded_execution_status(
             coverage,
         ),
         // P5 + P3: a `Executed` verdict is a direct hit on a target below the annotation.
+        //= design/query/coverage-model-spec.md#property-d1-direct-observation
+        //= type=implication
+        //# The implementation MUST prove that the degraded status is a direct
+        //# observation of the target line's own coverage, never an inference propagated
+        //# from another line.
         status == ExecutionStatus::Executed ==> {
             let t = annotation_target_spec(annotation, classifications, file_length);
             &&& t.is_some()
@@ -155,6 +150,11 @@ pub fn degraded_execution_status(
             &&& coverage@[t.unwrap()] == CoverageStatus::Hit
         },
         // P5 + P3: a `NotExecuted` verdict is a direct miss on a target below the annotation.
+        //= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
+        //= type=implication
+        //# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
+        //# status resolves a target strictly below the annotation
+        //# (`target > annotation.end_line`).
         status == ExecutionStatus::NotExecuted ==> {
             let t = annotation_target_spec(annotation, classifications, file_length);
             &&& t.is_some()

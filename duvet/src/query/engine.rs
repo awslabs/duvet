@@ -390,10 +390,6 @@ async fn execute_coverage_check(
     //# the coverage model MUST NOT score annotations against the collapsed scope tree;
     //# it MUST surface the file as a defeated classification and escalate
     //# (see [Classifier Selection and Dispatch](#dispatch)).
-    //= design/query/coverage-model-spec.md#trust-taxonomy
-    //= type=implementation
-    //# duvet MUST NOT silently substitute the coarse model or score against
-    //# the collapsed scope tree; it MUST escalate, reporting each located issue.
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
         let defeated = collect_defeated_issues(&execution_data_maps);
@@ -413,6 +409,10 @@ async fn execute_coverage_check(
                     lines.join(", ")
                 ));
             }
+            //= design/query/coverage-model-spec.md#trust-taxonomy
+            //= type=implementation
+            //# duvet MUST NOT silently substitute the coarse model or score against
+            //# the collapsed scope tree; it MUST escalate, reporting each located issue.
             progress!(
                 "Coverage model: {} — the selected classifier could not produce a \
                  trustworthy classification ({}). The file may not be this \
@@ -940,20 +940,19 @@ mod tests {
                 }],
             },
         );
+        let status = executed_status_for(&ann, &map);
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=test
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree;
+        assert!(matches!(status, ExecutionStatus::Unknown { .. }));
         //= design/query/coverage-model-spec.md#scopes
         //= type=test
         //# When the stream is unbalanced,
         //# the coverage model MUST NOT score annotations against the collapsed scope tree;
         //# it MUST surface the file as a defeated classification and escalate
         //# (see [Classifier Selection and Dispatch](#dispatch)).
-        //= design/query/coverage-model-spec.md#trust-taxonomy
-        //= type=test
-        //# duvet MUST NOT silently substitute the coarse model or score against
-        //# the collapsed scope tree;
-        assert!(matches!(
-            executed_status_for(&ann, &map),
-            ExecutionStatus::Unknown { line_number: 7 }
-        ));
+        assert!(matches!(status, ExecutionStatus::Unknown { line_number: 7 }));
     }
 
     /// Escalation carries every located issue: the aggregation feeding the

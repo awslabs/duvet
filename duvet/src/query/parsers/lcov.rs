@@ -60,7 +60,20 @@ impl CoverageParser for LcovParser {
     }
 }
 
+/// The record types spec §2 enumerates as known-and-ignored. Recognition is
+/// exact (spec §1): the prefix includes the `:` delimiter, so a near-miss
+/// (`TNx`, indented `  TN:`) falls through to the unrecognized bucket — which
+/// is ignored identically, so the discriminator provably cannot change what
+/// the parser accepts; it exists to give the two ignore requirements (known
+/// types vs. unrecognized types) distinct implementing sites.
+const KNOWN_IGNORED_RECORDS: [&str; 10] = [
+    "TN:", "FN:", "FNDA:", "FNF:", "FNH:", "BRDA:", "BRF:", "BRH:", "LF:", "LH:",
+];
+
 /// Parse an LCOV tracefile from a buffered reader.
+// The identical known-ignored / unrecognized `continue` arms are deliberate:
+// they implement two distinct spec requirements (see their annotations).
+#[allow(clippy::if_same_then_else)]
 pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, CoverageError> {
     // Lexed DA records per file key. Records for the same file accumulate
     // across SF blocks; the verified core then sums per line, so block
@@ -126,9 +139,6 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
             records_by_file.entry(path.to_string()).or_default();
             open_block = Some((path.to_string(), Vec::new()));
         } else if let Some(payload) = line.strip_prefix("DA:") {
-            //= design/lcov-parser/spec.md#record-consumption
-            //= type=implementation
-            //# The parser MUST consume `DA` records.
             //= design/lcov-parser/spec.md#report-structure
             //= type=implementation
             //# The parser MUST reject a `DA` record that appears outside
@@ -145,6 +155,9 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
                 ))
             })?;
 
+            //= design/lcov-parser/spec.md#record-consumption
+            //= type=implementation
+            //# The parser MUST consume `DA` records.
             records.push(record);
         } else if line == "end_of_record" {
             //= design/lcov-parser/spec.md#report-structure
@@ -199,11 +212,16 @@ pub fn parse_lcov_report<T: BufRead>(reader: T) -> Result<GenericCoverageData, C
                 "line {line_no}: malformed record {line:?}: a record starting \
                  with 'SF' must be 'SF:<path>'"
             )));
-        } else {
+        } else if KNOWN_IGNORED_RECORDS
+            .iter()
+            .any(|prefix| line.starts_with(prefix))
+        {
             //= design/lcov-parser/spec.md#record-consumption
             //= type=implementation
             //# The parser MUST ignore records of the following types:
             //# `TN`, `FN`, `FNDA`, `FNF`, `FNH`, `BRDA`, `BRF`, `BRH`, `LF`, `LH`.
+            continue;
+        } else {
             //= design/lcov-parser/spec.md#record-consumption
             //= type=implementation
             //# The parser MUST ignore records of types it does not recognize.
@@ -331,16 +349,16 @@ mod tests {
     //= design/lcov-parser/spec.md#record-consumption
     //= type=test
     //# The parser MUST consume `DA` records.
-    //= design/lcov-parser/spec.md#aggregation
-    //= type=test
-    //# A line with no `DA` record MUST be absent from the parsed
-    //# coverage for its file.
     fn basic_da_records() {
         let data = parse("SF:src/lib.rs\nDA:1,5\nDA:3,0\nend_of_record\n");
         let fc = data.files.get("src/lib.rs").unwrap();
         assert_eq!(fc.lines.get(&1), Some(&5));
         assert_eq!(fc.lines.get(&3), Some(&0));
         // Absent line: no opinion, not Miss.
+        //= design/lcov-parser/spec.md#aggregation
+        //= type=test
+        //# A line with no `DA` record MUST be absent from the parsed
+        //# coverage for its file.
         assert_eq!(fc.lines.get(&2), None);
         assert!(fc.branches.is_empty());
     }
@@ -464,12 +482,6 @@ mod tests {
     //= type=test
     //# The parser MUST ignore records of the following types:
     //# `TN`, `FN`, `FNDA`, `FNF`, `FNH`, `BRDA`, `BRF`, `BRH`, `LF`, `LH`.
-    //= design/lcov-parser/spec.md#record-consumption
-    //= type=test
-    //# The parser MUST ignore records of types it does not recognize.
-    //= design/lcov-parser/spec.md#aggregation
-    //= type=test
-    //# The parsed coverage MUST contain no branch data.
     fn non_da_records_ignored() {
         let data = parse(
             "#comment line from geninfo --comment\n\
@@ -479,7 +491,13 @@ mod tests {
         let fc = data.files.get("a.rs").unwrap();
         assert_eq!(fc.lines.len(), 1);
         // 1, not 10: the case-variant and indented records did not count.
+        //= design/lcov-parser/spec.md#record-consumption
+        //= type=test
+        //# The parser MUST ignore records of types it does not recognize.
         assert_eq!(fc.lines.get(&3), Some(&1));
+        //= design/lcov-parser/spec.md#aggregation
+        //= type=test
+        //# The parsed coverage MUST contain no branch data.
         assert!(fc.branches.is_empty());
         // The case-variant and indented SF records did not open a block or
         // register a file — a.rs is the only file.
@@ -493,15 +511,15 @@ mod tests {
     #[test]
     //= design/lcov-parser/spec.md#report-structure
     //= type=test
-    //# The parser MUST ignore blank lines and lines consisting
-    //# solely of whitespace.
-    //= design/lcov-parser/spec.md#report-structure
-    //= type=test
     //# The parser MUST accept both LF and CRLF line endings.
     fn crlf_blank_and_whitespace_only_lines() {
         let data = parse("SF:a.rs\r\n\r\nDA:1,1\r\n\nend_of_record\r\n");
         assert_eq!(data.files.get("a.rs").unwrap().lines.get(&1), Some(&1));
         // Whitespace-only lines (spaces and tabs) are ignored too.
+        //= design/lcov-parser/spec.md#report-structure
+        //= type=test
+        //# The parser MUST ignore blank lines and lines consisting
+        //# solely of whitespace.
         let data = parse("SF:a.rs\n \t \nDA:1,1\n   \nend_of_record\n");
         assert_eq!(data.files.get("a.rs").unwrap().lines.get(&1), Some(&1));
     }
@@ -643,22 +661,22 @@ mod tests {
     //= type=test
     //# The parser MUST reject a `DA` record whose payload does
     //# not conform to this syntax.
-    //= design/lcov-parser/spec.md#da-record-syntax
-    //= type=test
-    //# The parser MUST parse `<line>` as a decimal integer
-    //# greater than or equal to 1
-    //# and representable in an unsigned 64-bit integer.
-    //= design/lcov-parser/spec.md#da-record-syntax
-    //= type=test
-    //# The parser MUST parse `<count>` as a decimal integer
-    //# representable in an unsigned 64-bit integer.
     fn malformed_da_payloads_error() {
         // Missing count.
         assert!(parse_err("SF:a.rs\nDA:1\n").contains("missing count"));
         // Too many fields.
         assert!(parse_err("SF:a.rs\nDA:1,2,3,4\n").contains("too many fields"));
         // Non-numeric line / count.
+        //= design/lcov-parser/spec.md#da-record-syntax
+        //= type=test
+        //# The parser MUST parse `<line>` as a decimal integer
+        //# greater than or equal to 1
+        //# and representable in an unsigned 64-bit integer.
         assert!(parse_err("SF:a.rs\nDA:x,1\n").contains("invalid line number"));
+        //= design/lcov-parser/spec.md#da-record-syntax
+        //= type=test
+        //# The parser MUST parse `<count>` as a decimal integer
+        //# representable in an unsigned 64-bit integer.
         assert!(parse_err("SF:a.rs\nDA:1,x\n").contains("invalid count"));
         // Negative values are non-numeric for unsigned parses.
         assert!(parse_err("SF:a.rs\nDA:-1,1\n").contains("invalid line number"));

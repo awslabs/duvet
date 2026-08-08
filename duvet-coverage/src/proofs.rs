@@ -6,12 +6,6 @@
 //= design/query/coverage-model-spec.md#correctness-properties
 //# These properties MUST be proven with Verus.
 
-//= design/query/coverage-model-spec.md#correctness-properties
-//= type=implication
-//# The Verus proof files MUST carry
-//# duvet annotations linking each `proof fn` back to the corresponding property
-//# section in this document.
-
 #[cfg(verus_keep_ghost)]
 use crate::predicates::{
     all_lines_skippable, line_is_skippable, scope_contains, scopes_match_classifications,
@@ -36,6 +30,13 @@ use verus_builtin_macros::verus;
 #[cfg(feature = "verify")]
 use vstd::prelude::*;
 
+// The requirement is discharged by the annotated `proof fn`s this container
+// holds — each carries its `//= ...#property-N` citation.
+//= design/query/coverage-model-spec.md#correctness-properties
+//= type=implication
+//# The Verus proof files MUST carry
+//# duvet annotations linking each `proof fn` back to the corresponding property
+//# section in this document.
 verus! {
 
 //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
@@ -723,6 +724,11 @@ fn stacked_annotations_share_executed(
 // regressions in the non-Verus code paths (constant folding, panics on
 // degenerate input, public API changes), and give a reviewer who is not yet
 // fluent in Verus a way to engage with the model.
+//
+// The suite as a whole is the runtime witness of the proven properties.
+//= design/query/coverage-model-spec.md#correctness-properties
+//= type=test
+//# These properties MUST be proven with Verus.
 mod tests {
     use super::*;
     use crate::types::*;
@@ -733,9 +739,6 @@ mod tests {
         lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
     }
 
-    //= design/query/coverage-model-spec.md#correctness-properties
-    //= type=test
-    //# These properties MUST be proven with Verus.
     //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
     //= type=test
     //# The implementation MUST prove that for any two lines A and B where A is in

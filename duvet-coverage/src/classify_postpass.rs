@@ -57,10 +57,6 @@ verus! {
 //# after AST classification:
 //# for any line that has `Annotation`, `Comment`, or `Whitespace`,
 //# remove `Statement` and `Declaration` from its property set.
-//= design/query/coverage-model-spec.md#classification-function
-//= type=implementation
-//# A line classified as `{Annotation}` MUST NOT also have
-//# `Statement` or `Declaration` in its property set.
 pub fn clean_classifications(
     classifications: &mut [Option<BTreeSet<LineProperty>>],
     code_start: &[bool],
@@ -117,6 +113,10 @@ pub fn clean_classifications(
             if has_annotation || has_whitespace || (has_comment && !is_code_start) {
                 // Non-code line: strip semantic properties only.
                 // ScopeOpen and ScopeClose are NEVER removed.
+                //= design/query/coverage-model-spec.md#classification-function
+                //= type=implementation
+                //# A line classified as `{Annotation}` MUST NOT also have
+                //# `Statement` or `Declaration` in its property set.
                 props.remove(&LineProperty::Statement);
                 props.remove(&LineProperty::Declaration);
                 props.remove(&LineProperty::NonLinearControl);
