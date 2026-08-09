@@ -132,6 +132,14 @@ pub struct AnnotationSpan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+// A single-`line_number` type: the construct a multi-line resolution
+// model would have to change, so the evolution constraint lives here.
+//= design/query/coverage-model-spec.md#annotation-target-resolution-properties
+//= type=implication
+//# A resolution model that yields multi-line targets
+//# MUST change this specification
+//# and its stated consumers explicitly;
+//# it cannot be adopted implicitly.
 pub struct TargetLine {
     pub line_number: u64,
     pub properties: Option<LineClass>,

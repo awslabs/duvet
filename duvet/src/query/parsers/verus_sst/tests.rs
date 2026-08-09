@@ -36,19 +36,9 @@
 // This module IS the golden-artifact test bed §4.3 demands, and the
 // checked-in corpus with its pinned counts IS the consumed
 // investigation §5 demands (cross-checked independently, see above):
-//= design/witness/spec.md#obligation-testing
-//= type=implementation
-//# Each producer MUST be unit-tested against golden artifacts
-//# (a real report file; a real prover log),
-//# since producers are unverified glue at the trust boundary.
-//= design/witness/spec.md#prover-producers
-//= type=implementation
-//# Every prover producer owes its artifact an investigation before
-//# it ships: the discharge-unit and closure granularity the artifact
-//# demonstrably records — demonstrated by inspection of real
-//# artifacts, not assumed — MUST be established and consumed as that
-//# producer's shipped floor
-//# (decisions.md, [Decision 17](decisions.md#decision-17)).
+// the annotations live on the corpus fixtures below — `corpus()`
+// loads the golden artifact; `corpus_dir()` points at the checked-in
+// investigated vintage.
 
 use super::{
     closure::{aggregate_map, closure, total_lines, Closure, FileLines},
@@ -86,6 +76,14 @@ fn hit_files(files: &FileLines) -> std::collections::BTreeMap<String, Arc<Covera
 const LEMMA: &str = "duvet_coverage::proofs::lemma_no_cross_scope_leakage";
 const EXECUTED: &str = "duvet_coverage::proofs::executed_annotation_has_no_cross_scope_leakage";
 
+//= design/witness/spec.md#prover-producers
+//= type=implementation
+//# Every prover producer owes its artifact an investigation before
+//# it ships: the discharge-unit and closure granularity the artifact
+//# demonstrably records — demonstrated by inspection of real
+//# artifacts, not assumed — MUST be established and consumed as that
+//# producer's shipped floor
+//# (decisions.md, [Decision 17](decisions.md#decision-17)).
 fn corpus_dir() -> PathBuf {
     // Override for validating against freshly generated logs
     // (e.g. after a Verus version bump):
@@ -101,6 +99,11 @@ fn corpus_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("src/query/parsers/verus_sst/testdata/corpus")
 }
 
+//= design/witness/spec.md#obligation-testing
+//= type=implementation
+//# Each producer MUST be unit-tested against golden artifacts
+//# (a real report file; a real prover log),
+//# since producers are unverified glue at the trust boundary.
 fn corpus() -> &'static ObligationGraph {
     static GRAPH: OnceLock<ObligationGraph> = OnceLock::new();
     GRAPH.get_or_init(|| load_dir(&corpus_dir()).expect("corpus must load"))
@@ -411,9 +414,10 @@ fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
     let file = "duvet-coverage/src/types.rs";
     let ws = construct_witnesses(graph, file, 160, "sst-poc", is_project);
     let labels: Vec<&str> = ws.iter().map(|w| w.label.as_str()).collect();
-    // Two quotes, one assertion: the two labels are both the ambiguity
-    // (one position roots several obligations) and the delivery
-    // (one witness per rooting obligation, none selected among).
+    // The labels assertion evidences the ambiguity (one position
+    // roots several obligations); the loop below evidences the
+    // delivery (one witness per rooting obligation, none selected
+    // among).
     //= design/witness/spec.md#discharge-unit
     //= type=test
     //# Attribution MAY be ambiguous *within one specificity level*:
@@ -421,11 +425,6 @@ fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
     //# declaration they were generated from,
     //# so one proof-testable position can root several obligations at
     //# the same level.
-    //= design/witness/spec.md#discharge-unit
-    //= type=test
-    //# When N obligations root a position at the chosen level, the
-    //# producer MUST deliver one witness per rooting obligation and
-    //# MUST NOT select among them (decisions.md, Decision 12).
     assert_eq!(
         labels,
         [
@@ -434,6 +433,11 @@ fn equal_extent_tie_yields_one_witness_per_rooting_obligation() {
         ],
         "all rooting obligations, deterministic order"
     );
+    //= design/witness/spec.md#discharge-unit
+    //= type=test
+    //# When N obligations root a position at the chosen level, the
+    //# producer MUST deliver one witness per rooting obligation and
+    //# MUST NOT select among them (decisions.md, Decision 12).
     for w in &ws {
         assert_eq!(
             w.provenance.discharge_unit.as_deref(),
@@ -548,8 +552,8 @@ fn du_map_domain_split_over_the_aggregate() {
     //# fn/lemma headers (obligation extents), ensures clauses,
     //# loop invariants, and proof asserts.
     assert_eq!((rooted, npt), (752, 1238));
-    // Two quotes, one assertion: the per-kind breakdown is both the
-    // four-unit-kind support and the demonstrated (investigated,
+    // The kinds assertion evidences the four-unit-kind support; the
+    // counts assertion pins the demonstrated (investigated,
     // cross-checked) granularity floor the producer ships.
     //= design/witness/spec.md#verus-producer
     //= type=test
@@ -558,6 +562,15 @@ fn du_map_domain_split_over_the_aggregate() {
     //# discharge units of all four kinds: obligation extents,
     //# `:enss` clause spans, `LoopInv` spans, and proof-assert spans
     //# (decisions.md, Decision 18).
+    assert_eq!(
+        by_kind.keys().copied().collect::<Vec<_>>(),
+        [
+            UnitKind::Extent,
+            UnitKind::Ensures,
+            UnitKind::LoopInvariant,
+            UnitKind::ProofAssert,
+        ]
+    );
     //= design/witness/spec.md#prover-producers
     //= type=test
     //# Every prover producer owes its artifact an investigation before
@@ -968,6 +981,9 @@ fn labels_proof_note_when_recorded_span_identity_otherwise() {
 // ---------------------------------------------------------------
 
 #[test]
+//= design/witness/spec.md#closure
+//# Producers MUST carry a unit test asserting reflexivity for every
+//# constructed witness.
 fn every_constructed_witness_contains_its_roots_span_start_lines() {
     // This is that test, over the full universe of both artifact
     // sets, at clause grain (every unit kind, not just extents):
@@ -977,16 +993,6 @@ fn every_constructed_witness_contains_its_roots_span_start_lines() {
     // deliberately NOT asserted: continuation, comment, and blank
     // lines are out of the fill now (spec §5.4), which is
     // exactly the golden that flipped when span-start fills landed.
-    //= design/witness/spec.md#closure
-    //= type=test
-    //# The closure MUST be **reflexive**: it includes the discharge
-    //# unit's own root node (`root ∈ closure(root)`), so the root
-    //# function's own span-start lines — its declaration line
-    //# included — are in every one of its witnesses' fills.
-
-    //= design/witness/spec.md#closure
-    //# Producers MUST carry a unit test asserting reflexivity for every
-    //# constructed witness.
     //= design/witness/spec.md#closure
     //= type=test
     //# Producers MUST carry a unit test asserting reflexivity for every
@@ -1008,6 +1014,12 @@ fn every_constructed_witness_contains_its_roots_span_start_lines() {
                     panic!("{}: root file {file} missing from witness map", w.label)
                 });
                 for line in lines {
+                    //= design/witness/spec.md#closure
+                    //= type=test
+                    //# The closure MUST be **reflexive**: it includes the discharge
+                    //# unit's own root node (`root ∈ closure(root)`), so the root
+                    //# function's own span-start lines — its declaration line
+                    //# included — are in every one of its witnesses' fills.
                     assert!(
                         witnessed.contains_key(&u64::from(line)),
                         "{}: own leaf-span line {file}:{line} not in own closure",
@@ -1073,18 +1085,15 @@ fn interior_comment_line_is_in_no_fill() {
 /// theorem against macro-expansion span placement (`(#n)` contexts)
 /// drifting onto non-code lines in some future Verus.
 #[test]
+#[test]
+//= design/witness/spec.md#closure
+//= type=test
+//# Producers MUST NOT
+//# lexically classify lines at runtime, and MUST pin the theorem
+//# with a test that lexes checked-in fixture sources against the
+//# golden artifacts (guarding against macro-expansion span
+//# placement).
 fn no_span_starts_on_a_comment_or_blank_line() {
-    //= design/witness/spec.md#closure
-    //= type=test
-    //# Producers MUST NOT
-    //# lexically classify lines at runtime, and MUST pin the theorem
-    //# with a test that lexes checked-in fixture sources against the
-    //# golden artifacts (guarding against macro-expansion span
-    //# placement).
-    //= design/witness/spec.md#closure
-    //= type=test
-    //# A doc-comment line MAY begin a span — doc comments
-    //# are attribute nodes — and the fill records it honestly.
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/query/parsers/verus_sst/testdata");
     let source_for = |graph_file: &str| -> Option<PathBuf> {
         if graph_file == "vacuity.rs" {
@@ -1095,6 +1104,10 @@ fn no_span_starts_on_a_comment_or_blank_line() {
         let name = graph_file.strip_prefix("duvet-coverage/src/")?;
         Some(root.join("corpus/sources").join(name))
     };
+    //= design/witness/spec.md#closure
+    //= type=test
+    //# A doc-comment line MAY begin a span — doc comments
+    //# are attribute nodes — and the fill records it honestly.
     let is_violation = |line_text: &str| -> bool {
         let t = line_text.trim_start();
         t.is_empty() || (t.starts_with("//") && !t.starts_with("///") && !t.starts_with("//!"))

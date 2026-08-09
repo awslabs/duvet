@@ -25,19 +25,9 @@
 //! trust boundary, exactly as the engine adapter establishes the
 //! witness layer's `requires` before calling it.
 
-// Meta-requirements about this proof file itself. "MUST be proven
-// with Verus" is implemented HERE (this module IS the verified-model
-// phase) and tested by CI's verify job, which fails unless the
-// properties prove (the type=test annotation lives on that step in
-// .github/workflows/ci.yml). "MUST carry duvet annotations" is owned
-// by the .duvet/config.toml [[source]] entry that subjects this file
-// to the scan, tested by the report --ci snapshot gate.
-//= design/witness/producer-core-spec.md#producer-core-verified-model-properties
-//# [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
-//# define what the Verus producer must do; this document states the
-//# properties that MUST be proven with Verus, as a new phase of the
-//# verified coverage model, over a verified model of the parsed
-//# obligation graph.
+// This module IS the verified-model phase producer-core-spec.md
+// describes; the dogfood requirement (witness spec §2, cited on the
+// CI verify step) gates its proofs and its citations in CI.
 
 use verus_builtin_macros::verus;
 // vstd is ghost-only here (see lib.rs): gated so it stays out of the
@@ -83,10 +73,14 @@ pub open spec fn reachable_within(g: Seq<Vec<u64>>, root: u64, t: u64, k: nat) -
 /// Spec: the downward-reachable set — some hop count suffices.
 /// This is the definitional right-hand side of Property P1.
 //= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
-//= type=implementation
+//= type=test
 //# where `reachable` is the reflexive-transitive reach along reference
 //# edges.
 pub open spec fn reachable(g: Seq<Vec<u64>>, root: u64, t: u64) -> bool {
+    //= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
+    //= type=implementation
+    //# where `reachable` is the reflexive-transitive reach along reference
+    //# edges.
     exists|k: nat| reachable_within(g, root, t, k)
 }
 
@@ -214,36 +208,10 @@ proof fn lemma_closed_set_contains_reachable(
 /// closed-set principle delivers completeness (the "no less" /
 /// fixpoint direction).
 //
-// Placement: the annotation blocks are the LAST comment blocks before
-// the fn header so their resolved target is the header (this file has
-// no language classifier; see spec §1.1's placement note — an
-// intervening ordinary comment would become the target, so the prose
-// between quotes lives ABOVE the stack).
-//
-// The same iff-ensures is the witness spec's transitive-fixpoint
-// closure claim, in the model's vocabulary (reachable = any number
-// of edge hops; the fixpoint is proven, not depth-bounded). And the
-// closedness split's part (b) — the closure computation over the
-// verifier's record — is exactly what this proof verifies.
-//= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
-//= type=test
-//# The implementation MUST prove that the computed closure of a
-//# discharge unit's root is exactly the downward-reachable set of the
-//# obligation graph — the least fixpoint of the edge relation
-//# containing the root:
-//= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
-//= type=test
-//# where `reachable` is the reflexive-transitive reach along reference
-//# edges.
-//= design/witness/spec.md#closure
-//= type=test
-//# Reachability is transitive: the closure follows the obligation
-//# graph's reference edges through any number of call or reference
-//# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
-//# them enter — until a fixpoint.
-//= design/witness/spec.md#closure
-//= type=test
-//# the closure MUST be a fixpoint (no truncation at a depth bound),
+// Placement: each annotation sits on the unit that discharges it —
+// the P1 statement on the iff ensures clause, transitivity on the
+// frontier invariant, the no-truncation claim on the completeness
+// assert, and the whole-computation closedness claim on the header.
 //= design/witness/spec.md#obligation-closedness
 //= type=test
 //# (b) the closure computation over that record is correct —
@@ -255,6 +223,12 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
         (root as int) < g@.len(),
     ensures
         reached@.len() == g@.len(),
+        //= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
+        //= type=test
+        //# The implementation MUST prove that the computed closure of a
+        //# discharge unit's root is exactly the downward-reachable set of the
+        //# obligation graph — the least fixpoint of the edge relation
+        //# containing the root:
         forall|t: u64|
             (t as int) < g@.len() ==> (#[trigger] reached@[t as int] <==> reachable(
                 g@,
@@ -262,32 +236,11 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
                 t,
             )),
 {
-    //= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
-    //= type=implementation
-    //# The implementation MUST prove that the computed closure of a
-    //# discharge unit's root is exactly the downward-reachable set of the
-    //# obligation graph — the least fixpoint of the edge relation
-    //# containing the root:
-    //= design/witness/spec.md#closure
-    //= type=implementation
-    //# Reachability is transitive: the closure follows the obligation
-    //# graph's reference edges through any number of call or reference
-    //# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
-    //# them enter — until a fixpoint.
-    //= design/witness/spec.md#closure
-    //= type=implementation
-    //# the closure MUST be a fixpoint (no truncation at a depth bound),
     //= design/witness/spec.md#obligation-closedness
     //= type=implementation
     //# (b) the closure computation over that record is correct —
     //# our code, which SHOULD be verified in `duvet-coverage`
     //# (it is a pure graph fixpoint).
-    //= design/witness/spec.md#closure
-    //= type=implementation
-    //# The closure MUST be **reflexive**: it includes the discharge
-    //# unit's own root node (`root ∈ closure(root)`), so the root
-    //# function's own span-start lines — its declaration line
-    //# included — are in every one of its witnesses' fills.
     let n = g.len();
     let mut reached: Vec<bool> = Vec::new();
     let mut i: usize = 0;
@@ -303,13 +256,28 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
     }
 
     let mut work: Vec<u64> = Vec::new();
+    //= design/witness/producer-core-spec.md#property-p1-closure-fixpoint
+    //= type=implementation
+    //# The implementation MUST prove that the computed closure of a
+    //# discharge unit's root is exactly the downward-reachable set of the
+    //# obligation graph — the least fixpoint of the edge relation
+    //# containing the root:
     work.push(root);
     proof {
+        //= design/witness/spec.md#closure
+        //= type=implementation
+        //# The closure MUST be **reflexive**: it includes the discharge
+        //# unit's own root node (`root ∈ closure(root)`), so the root
+        //# function's own span-start lines — its declaration line
+        //# included — are in every one of its witnesses' fills.
         assert(reachable_within(g@, root, root, 0));
         assert(work@[0] == root);
         assert(work@.contains(root));
     }
 
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# the closure MUST be a fixpoint (no truncation at a depth bound),
     while work.len() > 0
         invariant
             graph_wf(g@),
@@ -329,6 +297,12 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
             // The root is marked or pending.
             reached@[root as int] || work@.contains(root),
             // Frontier: every marked node's successors are marked or pending.
+            //= design/witness/spec.md#closure
+            //= type=test
+            //# Reachability is transitive: the closure follows the obligation
+            //# graph's reference edges through any number of call or reference
+            //# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
+            //# them enter — until a fixpoint.
             forall|m: u64, j: int|
                 (m as int) < g@.len() && reached@[m as int] && 0 <= j < g@[m as int]@.len()
                     ==> reached@[(#[trigger] g@[m as int]@[j]) as int] || work@.contains(
@@ -355,6 +329,12 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
                 lemma_count_true_update(before, xi as int);
             }
             let mut j: usize = 0;
+            //= design/witness/spec.md#closure
+            //= type=implementation
+            //# Reachability is transitive: the closure follows the obligation
+            //# graph's reference edges through any number of call or reference
+            //# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
+            //# them enter — until a fixpoint.
             while j < g[xi].len()
                 invariant
                     graph_wf(g@),
@@ -413,6 +393,9 @@ pub fn closure_reached(g: &Vec<Vec<u64>>, root: u64) -> (reached: Vec<bool>)
     proof {
         // The worklist is empty: the marking is closed and contains
         // the root, so it contains every reachable node.
+        //= design/witness/spec.md#closure
+        //= type=test
+        //# the closure MUST be a fixpoint (no truncation at a depth bound),
         assert forall|t: u64| (t as int) < g@.len() && reachable(g@, root, t) implies reached@[t
             as int] by {
             let k = choose|k: nat| reachable_within(g@, root, t, k);
@@ -500,56 +483,34 @@ pub open spec fn selected(units: Seq<UnitSpan>, file_id: u64, line: u32, i: int)
 /// coincides with minimality-against-all because pass 2's minimum
 /// is both achieved and a lower bound.
 //
-// Placement: the annotation blocks are the LAST comment blocks before
-// the fn header so their resolved target is the header. The proven
-// selection is the witness spec's rooting rule — no hoisting is
-// possible because extent units are selectable only when no
-// clause-kind unit contains the position.
+// Placement: each annotation sits on the unit that discharges it —
+// the P2 statement on the iff ensures clause, the rooting rule on
+// pass 1's clause-detection invariant, the all-ties consequence on
+// pass 3's marking invariant. No hoisting is possible because
+// extent units are selectable only when no clause-kind unit
+// contains the position.
 //= design/witness/producer-core-spec.md#property-p2-most-specific-wins
-//= type=test
+//= type=implementation
 //# The implementation MUST prove that the units selected for a
 //# position are exactly the minimal-extent containing units at the
 //# finest populated specificity level
 //# ([spec §5.3](spec.md#discharge-unit),
 //# decisions.md [Decision 20](decisions.md#decision-20)):
-//= design/witness/producer-core-spec.md#property-p2-most-specific-wins
-//= type=test
-//# Consequences the proof MUST deliver: every selected unit contains
-//# the position; no containing unit at a strictly finer specificity
-//# level exists when an extent-level unit is selected; and ties at the
-//# winning level and minimal extent are all selected — never chosen
-//# among (decisions.md, [Decision 12](decisions.md#decision-12)).
-//= design/witness/spec.md#discharge-unit
-//= type=test
-//# **Rooting is most-specific-wins** (decisions.md, Decision 20):
-//# an annotation roots the finest unit whose span contains its
-//# resolved position; the enclosing extent is the fallback for
-//# positions inside no finer unit. A producer MUST NOT hoist an
-//# annotation placed on a clause, invariant, or assert to the
-//# enclosing function's unit.
 pub fn select_units(units: &Vec<UnitSpan>, file_id: u64, line: u32) -> (sel: Vec<bool>)
     requires
         units_wf(units@),
     ensures
         sel@.len() == units@.len(),
+        //= design/witness/producer-core-spec.md#property-p2-most-specific-wins
+        //= type=test
+        //# The implementation MUST prove that the units selected for a
+        //# position are exactly the minimal-extent containing units at the
+        //# finest populated specificity level
+        //# ([spec §5.3](spec.md#discharge-unit),
+        //# decisions.md [Decision 20](decisions.md#decision-20)):
         forall|i: int|
             0 <= i < units@.len() ==> (#[trigger] sel@[i] <==> selected(units@, file_id, line, i)),
 {
-    //= design/witness/producer-core-spec.md#property-p2-most-specific-wins
-    //= type=implementation
-    //# The implementation MUST prove that the units selected for a
-    //# position are exactly the minimal-extent containing units at the
-    //# finest populated specificity level
-    //# ([spec §5.3](spec.md#discharge-unit),
-    //# decisions.md [Decision 20](decisions.md#decision-20)):
-    //= design/witness/spec.md#discharge-unit
-    //= type=implementation
-    //# **Rooting is most-specific-wins** (decisions.md, Decision 20):
-    //# an annotation roots the finest unit whose span contains its
-    //# resolved position; the enclosing extent is the fallback for
-    //# positions inside no finer unit. A producer MUST NOT hoist an
-    //# annotation placed on a clause, invariant, or assert to the
-    //# enclosing function's unit.
     let n = units.len();
 
     // Pass 1: the winning specificity level.
@@ -560,6 +521,14 @@ pub fn select_units(units: &Vec<UnitSpan>, file_id: u64, line: u32) -> (sel: Vec
             i <= n,
             n == units@.len(),
             units_wf(units@),
+            //= design/witness/spec.md#discharge-unit
+            //= type=test
+            //# **Rooting is most-specific-wins** (decisions.md, Decision 20):
+            //# an annotation roots the finest unit whose span contains its
+            //# resolved position; the enclosing extent is the fallback for
+            //# positions inside no finer unit. A producer MUST NOT hoist an
+            //# annotation placed on a clause, invariant, or assert to the
+            //# enclosing function's unit.
             clause_present <==> exists|j: int|
                 0 <= j < i && (#[trigger] units@[j]).is_clause && unit_contains(
                     units@[j],
@@ -569,6 +538,14 @@ pub fn select_units(units: &Vec<UnitSpan>, file_id: u64, line: u32) -> (sel: Vec
         decreases n - i,
     {
         let u = &units[i];
+        //= design/witness/spec.md#discharge-unit
+        //= type=implementation
+        //# **Rooting is most-specific-wins** (decisions.md, Decision 20):
+        //# an annotation roots the finest unit whose span contains its
+        //# resolved position; the enclosing extent is the fallback for
+        //# positions inside no finer unit. A producer MUST NOT hoist an
+        //# annotation placed on a clause, invariant, or assert to the
+        //# enclosing function's unit.
         if u.is_clause && u.file_id == file_id && u.start_line <= line && line <= u.end_line {
             clause_present = true;
         }
@@ -635,6 +612,13 @@ pub fn select_units(units: &Vec<UnitSpan>, file_id: u64, line: u32) -> (sel: Vec
                     && units@[j].is_clause == clause_present ==> min_count <= unit_line_count(
                     units@[j],
                 ),
+            //= design/witness/producer-core-spec.md#property-p2-most-specific-wins
+            //= type=test
+            //# Consequences the proof MUST deliver: every selected unit contains
+            //# the position; no containing unit at a strictly finer specificity
+            //# level exists when an extent-level unit is selected; and ties at the
+            //# winning level and minimal extent are all selected — never chosen
+            //# among (decisions.md, [Decision 12](decisions.md#decision-12)).
             forall|k: int|
                 0 <= k < i ==> (#[trigger] sel@[k] <==> selected(units@, file_id, line, k)),
         decreases n - i,
@@ -714,10 +698,6 @@ pub open spec fn consulted_line(
 /// right-hand side of Property P3, and the subject P4's view/truncation
 /// claim quantifies over (placement: implementation on the
 /// definition, test on the proof lemma).
-//= design/witness/producer-core-spec.md#property-p3-witness-assembly
-//= type=implementation
-//# The implementation MUST prove that a witness's line set equals the
-//# union of the closure's per-file spans restricted to project files:
 //= design/witness/producer-core-spec.md#property-p4-filter-soundness
 //= type=implementation
 //# The implementation MUST prove that project filtering is a view,
@@ -732,6 +712,10 @@ pub open spec fn assembled_line(
     f: u64,
     l: u32,
 ) -> bool {
+    //= design/witness/producer-core-spec.md#property-p3-witness-assembly
+    //= type=implementation
+    //# The implementation MUST prove that a witness's line set equals the
+    //# union of the closure's per-file spans restricted to project files:
     project_file(project, f) && consulted_line(g, spans, root, f, l)
 }
 
@@ -766,33 +750,16 @@ proof fn lemma_push_contains<T>(s: Seq<T>, x: T)
 /// emitted was consulted-and-project, and every consulted project
 /// line of a visited node was emitted.
 //
-// Placement: the annotation blocks are the LAST comment blocks before
-// the fn header so their resolved target is the header. The proven
-// assembly is the witness spec's construction claim — the delivered
-// line set IS the downward-reachable set's spans (projected), so
-// every delivered map is closed under reachability by this ensures,
-// and the iff's ⟸ direction is exactly the reachable-set-only claim.
-//= design/witness/producer-core-spec.md#property-p3-witness-assembly
-//= type=test
-//# The implementation MUST prove that a witness's line set equals the
-//# union of the closure's per-file spans restricted to project files:
+// Placement: each annotation sits on the unit that discharges it —
+// the P3 equality on the iff ensures clause, the Decision 19
+// span-start fill claim on the header, and the two closedness
+// claims on the loops' membership-iff invariants.
 //= design/witness/spec.md#closure
 //= type=test
 //# A constructed witness's `files` maps MUST equal the set of
 //# **span-start lines** over the downward reachable set of the
 //# prover's obligation graph, starting from the discharge unit
 //# (decisions.md, [Decision 19](decisions.md#decision-19)):
-//= design/witness/spec.md#obligation-closedness
-//= type=test
-//# Every delivered `files` map MUST be closed under the producer's
-//# reachability relation ([§1.2](#witness)).
-//= design/witness/spec.md#witness
-//= type=test
-//# A witness's `files` maps MUST be **closed**:
-//# they contain every line the act touched,
-//# under the producer's reachability relation
-//# (execution for runtime producers,
-//# obligation-graph closure for prover producers).
 pub fn assemble_witness_lines(
     g: &Vec<Vec<u64>>,
     spans: &Vec<Vec<(u64, u32)>>,
@@ -804,6 +771,10 @@ pub fn assemble_witness_lines(
         (root as int) < g@.len(),
         spans@.len() == g@.len(),
     ensures
+        //= design/witness/producer-core-spec.md#property-p3-witness-assembly
+        //= type=test
+        //# The implementation MUST prove that a witness's line set equals the
+        //# union of the closure's per-file spans restricted to project files:
         forall|f: u64, l: u32|
             #[trigger] out@.contains((f, l)) <==> assembled_line(g@, spans@, root, project@, f, l),
 {
@@ -813,25 +784,14 @@ pub fn assemble_witness_lines(
     //# **span-start lines** over the downward reachable set of the
     //# prover's obligation graph, starting from the discharge unit
     //# (decisions.md, [Decision 19](decisions.md#decision-19)):
-    //= design/witness/spec.md#closure
-    //= type=implementation
-    //# Only reachable nodes contribute;
-    //# nothing outside the reachable set may be included.
-    //= design/witness/spec.md#obligation-closedness
-    //= type=implementation
-    //# Every delivered `files` map MUST be closed under the producer's
-    //# reachability relation ([§1.2](#witness)).
-    //= design/witness/spec.md#witness
-    //= type=implementation
-    //# A witness's `files` maps MUST be **closed**:
-    //# they contain every line the act touched,
-    //# under the producer's reachability relation
-    //# (execution for runtime producers,
-    //# obligation-graph closure for prover producers).
     let reached = closure_reached(g, root);
     let n = spans.len();
     let mut out: Vec<(u64, u32)> = Vec::new();
     let mut t: usize = 0;
+    //= design/witness/spec.md#obligation-closedness
+    //= type=implementation
+    //# Every delivered `files` map MUST be closed under the producer's
+    //# reachability relation ([§1.2](#witness)).
     while t < n
         invariant
             t <= n,
@@ -846,14 +806,29 @@ pub fn assemble_witness_lines(
                     root,
                     u,
                 )),
+            //= design/witness/spec.md#obligation-closedness
+            //= type=test
+            //# Every delivered `files` map MUST be closed under the producer's
+            //# reachability relation ([§1.2](#witness)).
             forall|f: u64, l: u32|
                 #[trigger] out@.contains((f, l)) <==> (project_file(project@, f) && exists|u: int|
                     0 <= u < t && reached@[u] && #[trigger] spans@[u]@.contains((f, l))),
         decreases n - t,
     {
+        //= design/witness/spec.md#closure
+        //= type=implementation
+        //# Only reachable nodes contribute;
+        //# nothing outside the reachable set may be included.
         if reached[t] {
             let row = &spans[t];
             let mut j: usize = 0;
+            //= design/witness/spec.md#witness
+            //= type=implementation
+            //# A witness's `files` maps MUST be **closed**:
+            //# they contain every line the act touched,
+            //# under the producer's reachability relation
+            //# (execution for runtime producers,
+            //# obligation-graph closure for prover producers).
             while j < row.len()
                 invariant
                     t < n,
@@ -871,6 +846,13 @@ pub fn assemble_witness_lines(
                             root,
                             u,
                         )),
+                    //= design/witness/spec.md#witness
+                    //= type=test
+                    //# A witness's `files` maps MUST be **closed**:
+                    //# they contain every line the act touched,
+                    //# under the producer's reachability relation
+                    //# (execution for runtime producers,
+                    //# obligation-graph closure for prover producers).
                     forall|f: u64, l: u32|
                         #[trigger] out@.contains((f, l)) <==> (project_file(project@, f) && ((
                         exists|u: int|
@@ -1056,14 +1038,9 @@ pub open spec fn spans_files_in_range(spans: Seq<Vec<(u64, u32)>>, nfiles: int) 
 /// (the all-true view over the file table) intersected with the
 /// project files. Filtering removes only non-project lines.
 //
-// Placement: the annotation block is the LAST comment block before
-// the fn header so its resolved target is the header.
-//= design/witness/producer-core-spec.md#property-p4-filter-soundness
-//= type=test
-//# The implementation MUST prove that project filtering is a view,
-//# not a truncation (decisions.md,
-//# [Decision 7](decisions.md#decision-7)'s consulted semantics;
-//# [spec §5.4](spec.md#closure)'s unfiltered traversal):
+// Placement: the P4 statement sits on the iff ensures clause; the
+// edge-traversal claim on the header (the lemma's very signature —
+// one `g`, no view on the closure side — is that claim).
 //= design/witness/producer-core-spec.md#property-p4-filter-soundness
 //= type=test
 //# Edge traversal MUST NOT be filtered — `closure_reached` takes no
@@ -1081,6 +1058,12 @@ pub proof fn filter_soundness(
         spans_files_in_range(spans, top.len() as int),
         forall|i: int| 0 <= i < top.len() ==> #[trigger] top[i],
     ensures
+        //= design/witness/producer-core-spec.md#property-p4-filter-soundness
+        //= type=test
+        //# The implementation MUST prove that project filtering is a view,
+        //# not a truncation (decisions.md,
+        //# [Decision 7](decisions.md#decision-7)'s consulted semantics;
+        //# [spec §5.4](spec.md#closure)'s unfiltered traversal):
         forall|f: u64, l: u32|
             #[trigger] assembled_line(g, spans, root, project, f, l) <==> (assembled_line(
                 g,

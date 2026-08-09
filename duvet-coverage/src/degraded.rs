@@ -35,15 +35,10 @@
 //! not propagate, so its blindness to `NonLinearControl` cannot cause an unsound
 //! inference. It reports only what coverage directly says about the target line.
 
-// Meta-requirement about this proof file itself: "MUST be proven with
-// Verus" is implemented HERE (the D-properties below are the Verus
-// proofs) and tested by CI's verify job, which fails unless they prove
-// (the type=test annotation lives on that step in
-// .github/workflows/ci.yml).
+// The D-properties below are the Verus proofs the spec describes; the
+// dogfood requirement (witness spec §2, cited on the CI verify step)
+// gates them in CI.
 #[cfg(verus_keep_ghost)]
-//= design/query/coverage-model-spec.md#degraded-properties
-//# These properties MUST be proven with Verus for the degraded path,
-//# alongside the Section 5 properties for the classified path.
 use crate::{
     annotation_execution::execution_status_of, predicates::validly_in_exec_set,
     target_resolution::annotation_target_spec,
@@ -127,11 +122,6 @@ fn coverage_status_at(coverage: &CoverageReport, line: u64) -> (result: Option<C
 //# The implementation MUST prove that the degraded status is a direct
 //# observation of the target line's own coverage, never an inference propagated
 //# from another line.
-//= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
-//= type=implication
-//# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
-//# status resolves a target strictly below the annotation
-//# (`target > annotation.end_line`).
 pub fn degraded_execution_status(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -147,6 +137,11 @@ pub fn degraded_execution_status(
             coverage,
         ),
         // P5 + P3: a `Executed` verdict is a direct hit on a target below the annotation.
+        //= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
+        //= type=implication
+        //# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
+        //# status resolves a target strictly below the annotation
+        //# (`target > annotation.end_line`).
         status == ExecutionStatus::Executed ==> {
             let t = annotation_target_spec(annotation, classifications, file_length);
             &&& t.is_some()

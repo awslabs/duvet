@@ -271,8 +271,6 @@ async fn jacoco_witness(artifact: &str) -> Result<Witness> {
 /// unit span) within one artifact — deterministic regardless of
 /// position order.
 ///
-//= design/witness/spec.md#two-pass-construction
-//# Prover witnesses are constructed, not found:
 //= design/witness/spec.md#producer
 //= type=implementation
 //# — and the filtering MUST be sound:
@@ -408,6 +406,8 @@ fn verus_witnesses_from_graph(
             if by_unit.contains_key(&identity) {
                 continue;
             }
+            //= design/witness/spec.md#two-pass-construction
+            //# Prover witnesses are constructed, not found:
             let w =
                 verus_sst::witness::witness_for_unit(graph, unit, artifact, &project, &mut memo);
             by_unit.insert(identity, w);
@@ -477,9 +477,6 @@ mod tests {
             .unwrap();
 
         let artifact = path.to_string_lossy().to_string();
-        // Two quotes, one call: producing from the artifact alone is both
-        // the produce-signature shape and the runtime producer ignoring
-        // the `annotations` argument (the call takes none).
         //= design/witness/spec.md#producer
         //= type=test
         //# A producer maps declared artifacts to witnesses:
@@ -487,13 +484,15 @@ mod tests {
         //# ```
         //# produce : (artifacts, annotations) → Vec<Witness>
         //# ```
+        let w = jacoco_witness(&artifact).await.unwrap();
+        let _ = std::fs::remove_file(&path);
+
+        // The call above takes no annotations at all: the witness came
+        // from the artifact alone, and its label is the artifact.
         //= design/witness/spec.md#producer
         //= type=test
         //# Runtime producers MAY ignore the `annotations` argument
         //# (their witnesses pre-exist in the artifact).
-        let w = jacoco_witness(&artifact).await.unwrap();
-        let _ = std::fs::remove_file(&path);
-
         assert_eq!(w.label, artifact);
         //= design/witness/spec.md#obligation-individuation
         //= type=test
@@ -516,15 +515,9 @@ mod tests {
     #[test]
     fn verus_positions_become_root_span_witnesses_with_hit_maps() {
         let g = graph();
-        // Two quotes, one call: this construction from the parsed graph is
-        // both "prover producers use it to construct witnesses" and
-        // "constructed, not found".
         //= design/witness/spec.md#producer
         //= type=test
         //# Prover producers use it to construct witnesses
-        //= design/witness/spec.md#two-pass-construction
-        //= type=test
-        //# Prover witnesses are constructed, not found:
         let ws = verus_witnesses_from_graph(
             &g,
             "logs/",
@@ -553,7 +546,11 @@ mod tests {
         assert_eq!(w.provenance.producer, "verus-sst");
         assert_eq!(w.provenance.strength, Strength::Consulted);
         assert_eq!(w.provenance.discharge_unit.as_deref(), Some("c::caller"));
-        // The closure pulled the callee's file in, as Hit lines.
+        // The closure pulled the callee's file in, as Hit lines —
+        // a map no coverage file supplied: it was computed.
+        //= design/witness/spec.md#two-pass-construction
+        //= type=test
+        //# Prover witnesses are constructed, not found:
         assert_eq!(w.files["src/b.rs"].get(&5), Some(&CoverageStatus::Hit));
     }
 

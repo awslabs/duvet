@@ -376,18 +376,6 @@ impl<'a> VerifiedVerdicts<'a> {
     /// (G3). Trust-boundary refusals — no classification, defeated
     /// classification, ill-formed annotation range — route to
     /// `Unscorable`, which binds nothing and executes nothing.
-    //= design/witness/spec.md#engine-glue
-    //= type=implementation
-    //# - **G3 (mode routing).** The adapter MUST assign each
-    //# annotation's file the scoring mode its classification actually
-    //# selected — classified, degraded, or the trust-boundary refusal
-    //# that binds nothing and executes nothing
-    //# ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
-    //= design/witness/spec.md#engine-glue
-    //= type=implementation
-    //# The adapter MUST establish
-    //# the verified functions' preconditions at the boundary —
-    //# filter or degrade before calling, never assume.
     fn ctx_of(&self, annotation: &Arc<Annotation>) -> AnnCtx<'_> {
         let (start_line, end_line) = annotation.line_range();
         let span = AnnotationSpan {
@@ -409,9 +397,21 @@ impl<'a> VerifiedVerdicts<'a> {
             Some(&id) => id,
             None => return unscorable(NO_FILE),
         };
+        //= design/witness/spec.md#engine-glue
+        //= type=implementation
+        //# The adapter MUST establish
+        //# the verified functions' preconditions at the boundary —
+        //# filter or degrade before calling, never assume.
         if !span_in_model(end_line) {
             return unscorable(file_id);
         }
+        //= design/witness/spec.md#engine-glue
+        //= type=implementation
+        //# - **G3 (mode routing).** The adapter MUST assign each
+        //# annotation's file the scoring mode its classification actually
+        //# selected — classified, degraded, or the trust-boundary refusal
+        //# that binds nothing and executes nothing
+        //# ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
         match self.classification.get(&path) {
             // Defeated classifications flatten to `Unscorable` here (the
             // shared routing decision — see `FileClassification::scoring_view`).
@@ -1095,20 +1095,19 @@ mod tests {
         // (coarse) model — so no annotation in it is ever scored against
         // the collapsed scope tree (Unscorable binds nothing and executes
         // nothing, per the verified layer).
-        // Two quotes, one assertion: Unscorable on the defeated file is both
-        // the never-score-the-collapsed-tree escalation and the refusal to
-        // silently substitute the coarse model.
+        let broken = mode_of("a/broken.rs");
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=test
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
+        assert!(!matches!(broken, ScoringMode::Degraded));
         //= design/query/coverage-model-spec.md#scopes
         //= type=test
         //# When the stream is unbalanced,
         //# the coverage model MUST NOT score annotations against the collapsed scope tree;
         //# it MUST surface the file as a defeated classification and escalate
         //# (see [Classifier Selection and Dispatch](#dispatch)).
-        //= design/query/coverage-model-spec.md#trust-taxonomy
-        //= type=test
-        //# duvet MUST NOT silently substitute the coarse model or score against
-        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
-        assert!(matches!(mode_of("a/broken.rs"), ScoringMode::Unscorable));
+        assert!(matches!(broken, ScoringMode::Unscorable));
     }
 
     /// Shared constructor for the e2e tests below: a minimal annotation in

@@ -84,7 +84,8 @@ pub open spec fn annotation_target_spec(
 // Single-line-ness is enforced by the return type: `Option<TargetLine>`
 // carries one `line_number`. Fundamentally true by construction —
 // implication, not testable behavior. The spec-evolution clause is the
-// same kind: a constraint on changing the model, not on running it.
+// same kind and lives on the `TargetLine` type itself (types.rs), the
+// construct a multi-line model would have to change.
 //= design/query/coverage-model-spec.md#annotation-target-resolution-properties
 //= type=implication
 //# - **Single-line target:**
@@ -92,12 +93,6 @@ pub open spec fn annotation_target_spec(
 //# a successful resolution is exactly one `TargetLine` —
 //# the single source line the annotation targets —
 //# never a range and never a set.
-//= design/query/coverage-model-spec.md#annotation-target-resolution-properties
-//= type=implication
-//# A resolution model that yields multi-line targets
-//# MUST change this specification
-//# and its stated consumers explicitly;
-//# it cannot be adopted implicitly.
 pub fn annotation_target(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],

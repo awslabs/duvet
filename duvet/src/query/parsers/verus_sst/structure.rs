@@ -206,33 +206,33 @@ impl ObligationNode {
     ///
     //= design/witness/spec.md#closure
     //= type=implementation
-    //# a line enters a fill iff a span of a reached function begins on
-    //# that line — every span, at every nesting depth, declaration
-    //# spans included, so the header line of a wrapped signature is
-    //# addressable.
-    //= design/witness/spec.md#closure
-    //= type=implementation
     //# Producers MUST NOT
     //# lexically classify lines at runtime, and MUST pin the theorem
     //# with a test that lexes checked-in fixture sources against the
     //# golden artifacts (guarding against macro-expansion span
     //# placement).
-    //= design/witness/spec.md#closure
-    //= type=implementation
-    //# A doc-comment line MAY begin a span — doc comments
-    //# are attribute nodes — and the fill records it honestly.
-    //= design/witness/spec.md#closure
-    //= type=implementation
-    //# A line
-    //# the verifier never elaborated — unverified code — appears in no
-    //# span set and MUST NOT appear in any fill.
     pub fn fill_lines(&self) -> BTreeMap<&str, BTreeSet<u32>> {
         let mut out: BTreeMap<&str, BTreeSet<u32>> = BTreeMap::new();
+        //= design/witness/spec.md#closure
+        //= type=implementation
+        //# A line
+        //# the verifier never elaborated — unverified code — appears in no
+        //# span set and MUST NOT appear in any fill.
         for (file, ranges) in &self.span_ranges {
+            //= design/witness/spec.md#closure
+            //= type=implementation
+            //# A doc-comment line MAY begin a span — doc comments
+            //# are attribute nodes — and the fill records it honestly.
             let lines: BTreeSet<u32> = ranges
                 .iter()
                 .copied()
                 .filter(|&(start, end)| start <= end)
+                //= design/witness/spec.md#closure
+                //= type=implementation
+                //# a line enters a fill iff a span of a reached function begins on
+                //# that line — every span, at every nesting depth, declaration
+                //# spans included, so the header line of a wrapped signature is
+                //# addressable.
                 .map(|(start, _)| start)
                 .collect();
             if !lines.is_empty() {
@@ -497,10 +497,6 @@ pub fn parse_module(source: &str) -> Result<Vec<ObligationNode>, StructureError>
 //# discharge units of all four kinds: obligation extents,
 //# `:enss` clause spans, `LoopInv` spans, and proof-assert spans
 //# (decisions.md, Decision 18).
-//= design/witness/spec.md#verus-producer
-//= type=implementation
-//# Until the upstream `proof_note`-on-ensures defect is fixed,
-//# ensures-clause labels MUST come from span identity.
 fn clause_units(items: &[Sexpr<'_>], name: &str) -> Result<Vec<ClauseUnit>, StructureError> {
     let mut units = Vec::new();
 
@@ -523,6 +519,10 @@ fn clause_units(items: &[Sexpr<'_>], name: &str) -> Result<Vec<ClauseUnit>, Stru
                     };
                     // Note never consumed for ensures (the spec §5.5
                     // hazard rule): span identity only.
+                    //= design/witness/spec.md#verus-producer
+                    //= type=implementation
+                    //# Until the upstream `proof_note`-on-ensures defect is fixed,
+                    //# ensures-clause labels MUST come from span identity.
                     push_unit(&mut units, name, UnitKind::Ensures, index, span_str, None)?;
                     index += 1;
                 }

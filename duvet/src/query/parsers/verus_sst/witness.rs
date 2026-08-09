@@ -119,34 +119,34 @@ impl<'g> DischargeUnit<'g> {
 ///
 /// The domain check is exact — it is the soundness boundary: a
 /// position is in `dom(du)` iff a discharge unit is *rooted* there.
-//= design/witness/spec.md#discharge-unit
-//= type=implementation
-//# Its domain (`dom(du)`) MUST contain only positions where an
-//# obligation is *rooted* — proof-element positions,
-//# at every granularity the artifact demonstrably records
-//# (decisions.md, Decisions 13, 17, 18):
-//# fn/lemma headers (obligation extents), ensures clauses,
-//# loop invariants, and proof asserts.
-//= design/witness/spec.md#discharge-unit
-//= type=implementation
-//# Executable body lines MUST NOT be in the domain:
-//# no obligation is rooted at a body line —
-//# body lines are material a proof consults,
-//# not claims a prover discharges —
-//# so a test annotation there is category-mismatched,
-//# and is reported *not proof-testable* rather than unwitnessed
-//# (decisions.md, [Decision 13](decisions.md#decision-13)).
 pub fn classify_position<'g>(
     graph: &'g ObligationGraph,
     file: &str,
     line: u32,
 ) -> PositionKind<'g> {
+    //= design/witness/spec.md#discharge-unit
+    //= type=implementation
+    //# Its domain (`dom(du)`) MUST contain only positions where an
+    //# obligation is *rooted* — proof-element positions,
+    //# at every granularity the artifact demonstrably records
+    //# (decisions.md, Decisions 13, 17, 18):
+    //# fn/lemma headers (obligation extents), ensures clauses,
+    //# loop invariants, and proof asserts.
     let rooted = find_discharge_units(graph, file, line);
     if !rooted.is_empty() {
         return PositionKind::Rooted(rooted);
     }
     let elaborated = graph.nodes.values().any(|n| n.elaborates(file, line));
     if elaborated {
+        //= design/witness/spec.md#discharge-unit
+        //= type=implementation
+        //# Executable body lines MUST NOT be in the domain:
+        //# no obligation is rooted at a body line —
+        //# body lines are material a proof consults,
+        //# not claims a prover discharges —
+        //# so a test annotation there is category-mismatched,
+        //# and is reported *not proof-testable* rather than unwitnessed
+        //# (decisions.md, [Decision 13](decisions.md#decision-13)).
         PositionKind::NotProofTestable
     } else {
         PositionKind::Unelaborated
@@ -307,20 +307,6 @@ impl Default for ClosureMemo {
 /// glue's per-position path, and [`materialize_all`] so
 /// annotation-driven and full-universe production cannot diverge by
 /// construction.
-//= design/witness/spec.md#obligation-individuation
-//= type=implementation
-//# Every delivered witness MUST be the record of exactly one act of
-//# checking.
-//= design/witness/spec.md#closure
-//= type=implementation
-//# **The closure ceiling MUST be stated per producer, because it
-//# bounds what unit granularity buys.** Where a prover checks a
-//# function's obligations in one solver query and assumes callee
-//# contracts whole (Verus does both, §5.5), every discharge unit
-//# inside a function carries the identical function-level consulted
-//# closure: finer units buy precise identity and legible failures,
-//# not smaller witnesses, and discharge verdicts within one function
-//# do not differ across its units at Consulted strength.
 pub fn witness_for_unit(
     graph: &ObligationGraph,
     unit: &DischargeUnit<'_>,
@@ -328,7 +314,21 @@ pub fn witness_for_unit(
     project: impl Fn(&str) -> bool,
     memo: &mut ClosureMemo,
 ) -> Witness {
+    //= design/witness/spec.md#closure
+    //= type=implementation
+    //# **The closure ceiling MUST be stated per producer, because it
+    //# bounds what unit granularity buys.** Where a prover checks a
+    //# function's obligations in one solver query and assumes callee
+    //# contracts whole (Verus does both, §5.5), every discharge unit
+    //# inside a function carries the identical function-level consulted
+    //# closure: finer units buy precise identity and legible failures,
+    //# not smaller witnesses, and discharge verdicts within one function
+    //# do not differ across its units at Consulted strength.
     let files = memo.get(graph, &unit.node.name, project).clone();
+    //= design/witness/spec.md#obligation-individuation
+    //= type=implementation
+    //# Every delivered witness MUST be the record of exactly one act of
+    //# checking.
     Witness {
         label: unit.label.clone(),
         claim: ClaimRule::ByRootSpan {

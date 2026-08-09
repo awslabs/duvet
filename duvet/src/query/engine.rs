@@ -535,15 +535,6 @@ async fn execute_coverage_check(
     // stream. Surfaced unconditionally because it signals either a mislabeled
     // file or a classifier gap — both need a human, and silence is the bug we
     // are fixing.
-    //= design/query/coverage-model-spec.md#scopes
-    //# When the stream is unbalanced,
-    //# the coverage model MUST NOT score annotations against the collapsed scope tree;
-    //# it MUST surface the file as a defeated classification and escalate
-    //# (see [Classifier Selection and Dispatch](#dispatch)).
-    //= design/query/coverage-model-spec.md#trust-taxonomy
-    //= type=implementation
-    //# duvet MUST NOT silently substitute the coarse model or score against
-    //# the collapsed scope tree; it MUST escalate, reporting each located issue.
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
         let mut defeated: std::collections::BTreeMap<&std::path::Path, &Vec<ClassifierIssue>> =
@@ -553,6 +544,10 @@ async fn execute_coverage_check(
                 defeated.insert(path.as_path(), issues);
             }
         }
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=implementation
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
         for (path, issues) in &defeated {
             let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
                 .iter()
@@ -569,6 +564,11 @@ async fn execute_coverage_check(
                     lines.join(", ")
                 ));
             }
+            //= design/query/coverage-model-spec.md#scopes
+            //# When the stream is unbalanced,
+            //# the coverage model MUST NOT score annotations against the collapsed scope tree;
+            //# it MUST surface the file as a defeated classification and escalate
+            //# (see [Classifier Selection and Dispatch](#dispatch)).
             progress!(
                 "Coverage model: {} — the selected classifier could not produce a \
                  trustworthy classification ({}). The file may not be this \
