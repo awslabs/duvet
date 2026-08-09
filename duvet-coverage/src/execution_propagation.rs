@@ -62,16 +62,17 @@ fn collect_hit_lines(coverage: &CoverageReport) -> (result: BTreeSet<u64>)
     s
 }
 
-// Public (not just crate-visible) so an unverified caller can compute the
-// execution set ONCE per (file, coverage-report) pair and share it across every
-// annotation in that file via `is_annotation_executed_with_exec_set`. The set
-// depends only on (classifications, scopes, coverage) — never on the
-// annotation — so recomputing it per annotation (as the self-contained
-// `is_annotation_executed` does) is pure waste: O(annotations × file) instead
-// of O(file). The `ensures` here are exactly the `requires` of
-// `is_annotation_executed_with_exec_set`, so a caller that pipes this result
-// into that function preserves the verified contract by construction.
-pub fn execution_set(
+// Crate-visible only. The set depends only on (classifications, scopes,
+// coverage) — never on the annotation — so a caller scoring many annotations
+// should compute it once, not per annotation. But the safe way to do that is
+// [`crate::file_execution::FileExecution`], which pairs the set with the
+// exact inputs it was computed from as a machine-checked type invariant. A
+// public raw `execution_set` would invite unverified callers to hold the
+// set/inputs pairing by discipline — the axiom `FileExecution` exists to
+// eliminate. The `ensures` here are exactly the `requires` of
+// `is_annotation_executed_with_exec_set`, so in-crate callers that pipe one
+// into the other preserve the verified contract by construction.
+pub(crate) fn execution_set(
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
     coverage: &CoverageReport,
@@ -92,7 +93,9 @@ pub fn execution_set(
         // (`clear_path` and friends in predicates.rs).
         forall|line: u64| result@.contains(line)
             ==> validly_in_exec_set(line, classifications, scopes, coverage),
-        // Property 4 (Completeness): every line with a valid path is in the result
+        // Completeness (converse of the Property 1 clause above): every line
+        // with a valid path is in the result. Not a numbered spec property —
+        // spec Property 4 is Monotonicity, which follows from this iff.
         forall|line: u64| validly_in_exec_set(line, classifications, scopes, coverage)
             ==> result@.contains(line),
 {

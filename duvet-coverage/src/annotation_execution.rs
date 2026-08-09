@@ -124,13 +124,15 @@ pub fn is_annotation_executed(
 /// the file-level inputs, never on the annotation, so a caller scoring N
 /// annotations in one file computes the set once and pays O(target walk +
 /// set lookup) per annotation instead of O(whole-file propagation) per
-/// annotation. Verified callers discharge the clauses from `execution_set`'s
-/// postconditions. Unverified callers should not call this directly — a
-/// `requires` compiles away for them, leaving the pairing as an unchecked
-/// axiom; use [`crate::file_execution::FileExecution`] instead, which carries
-/// the pairing as a machine-checked type invariant and discharges these
-/// clauses itself.
-pub fn is_annotation_executed_with_exec_set(
+/// annotation. In-crate callers discharge the clauses from `execution_set`'s
+/// postconditions (the wrapper above) or from a type invariant
+/// ([`crate::file_execution::FileExecution`]). Crate-visible only, on
+/// purpose: a `requires` compiles away for unverified callers, so a public
+/// version would leave the set/inputs pairing as an unchecked axiom in
+/// their hands — external callers get `FileExecution`, which carries the
+/// pairing as a machine-checked type invariant and discharges these clauses
+/// itself.
+pub(crate) fn is_annotation_executed_with_exec_set(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
