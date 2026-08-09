@@ -200,32 +200,18 @@ jobs:
         # behind; the dogfood job's witness query consumes it. Same proof
         # run, no second verification.
         #
-        # This step is the test side of the "MUST be proven with Verus"
-        # obligations: it fails unless every property in the verified crate
-        # proves. The implementation side lives in the proof files
-        # (duvet-coverage/src/{witness,producer_core,degraded,proofs}.rs).
-        # These test annotations are discharged by this CI run itself, which
-        # duvet's coverage machinery cannot consume — they stay unwitnessed
-        # in the proof-only coverage table by design.
+        # This step is the proving half of the dogfood requirement: it
+        # fails unless every property in the verified crate proves. The
+        # snapshot half lives on the dogfood job's `report --ci` step.
+        # type=implication: the requirement is that this job exists and
+        # runs — the annotation sits on the job itself, so reading the
+        # target verifies the claim; there is no separate act of
+        # checking to cite.
         #= design/witness/spec.md#engine-properties
-        #= type=test
-        #% These properties MUST be proven with Verus,
-        #% as a new phase of the verified coverage model
-        #% (the quantifier layer over the existing per-annotation cells).
-        #= design/witness/producer-core-spec.md#producer-core-verified-model-properties
-        #= type=test
-        #% [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
-        #% define what the Verus producer must do; this document states the
-        #% properties that MUST be proven with Verus, as a new phase of the
-        #% verified coverage model, over a verified model of the parsed
-        #% obligation graph.
-        #= design/query/coverage-model-spec.md#correctness-properties
-        #= type=test
-        #% These properties MUST be proven with Verus.
-        #= design/query/coverage-model-spec.md#degraded-properties
-        #= type=test
-        #% These properties MUST be proven with Verus for the degraded path,
-        #% alongside the Section 5 properties for the classified path.
+        #= type=implication
+        #% The project MUST dogfood the verified coverage machinery: CI
+        #% verifies the `duvet-coverage` proofs with Verus and gates the
+        #% proof files' spec citations through the checked-in snapshot.
         run: cargo verus build -p duvet-coverage --features verify -- --log vir-sst --log-dir verus-sst-logs
 
       - name: Compress SST logs
@@ -288,29 +274,16 @@ jobs:
           cargo xtask build
 
       - name: Run duvet on its own annotations
-        # Test side of "proof files MUST carry duvet annotations": the
-        # snapshot pins every proof-file citation's coverage state, so
-        # removing citations from the proof files drifts the snapshot and
-        # fails this step. The implementation side is the [[source]]
-        # entries in .duvet/config.toml that put the proof files in the
-        # scan. Discharged by this CI run itself — stays unwitnessed in
-        # the coverage table by design.
+        # The snapshot half of the dogfood requirement (witness spec §2,
+        # cited on the verify step): the snapshot pins every proof-file
+        # citation's coverage state, so removing citations from the proof
+        # files drifts the snapshot and fails this step. The [[source]]
+        # entries in .duvet/config.toml put the proof files in the scan.
         #
-        # These MUST-carry tests are also the deletion-catching half of
-        # the "MUST be proven with Verus" conjunction: the verify job
-        # proves whatever is WRITTEN; deleting a specified property
-        # removes its proof-file citation, which drifts the snapshot and
-        # fails THIS step. (The MUST-prove quotes themselves are tested
-        # once, on the verify step — duvet's duplicates check enforces
-        # one test owner per quote.)
-        #= design/witness/spec.md#engine-properties
-        #= type=test
-        #% The Verus proof files MUST carry duvet annotations citing the
-        #% anchors in this section.
-        #= design/witness/producer-core-spec.md#producer-core-verified-model-properties
-        #= type=test
-        #% The Verus proof files MUST carry duvet annotations citing the
-        #% anchors in this document.
+        # This is also the deletion-catching half of the proving story:
+        # the verify job proves whatever is WRITTEN; deleting a specified
+        # property removes its proof-file citation, which drifts the
+        # snapshot and fails THIS step.
         run: ./target/debug/duvet report --ci
 
       - name: Annotation checks

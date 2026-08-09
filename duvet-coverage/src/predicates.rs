@@ -156,10 +156,6 @@ pub open spec fn scope_has_non_linear_control(
         && classifications@[l as int - 1].unwrap()@.contains(LineProperty::NonLinearControl)
 }
 
-//= design/query/coverage-model-spec.md#property-3-conservative-fallback
-//= type=implication
-//# If an ancestor scope S contains `NonLinearControl` but a child
-//# scope S' does not, propagation MAY occur through S'.
 /// Spec predicate: line was reached via backward propagation from hit_line.
 ///
 /// Composes the sub-properties:
@@ -187,6 +183,13 @@ pub open spec fn has_valid_path(
     //# - L is in the same scope as the annotation's target
     &&& propagated_within_scope(line, hit_line, scopes, scope_idx)
     &&& clear_path(line, hit_line, classifications)
+    // Per-scope locality: only THIS scope (the child the propagation
+    // runs in) is consulted — an ancestor's NonLinearControl does not
+    // block it.
+    //= design/query/coverage-model-spec.md#property-3-conservative-fallback
+    //= type=implementation
+    //# If an ancestor scope S contains `NonLinearControl` but a child
+    //# scope S' does not, propagation MAY occur through S'.
     &&& !scope_has_non_linear_control(classifications, scopes, scope_idx)
     // The propagated line itself is not ScopeClose or Statement (the walk stops before inserting)
     &&& (line as int - 1) < classifications@.len()

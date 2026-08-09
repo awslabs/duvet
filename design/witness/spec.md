@@ -255,11 +255,14 @@ identity-bearing decision, on the label.
 
 ## 2. Engine properties {#engine-properties}
 
-These properties MUST be proven with Verus,
-as a new phase of the verified coverage model
-(the quantifier layer over the existing per-annotation cells).
-The Verus proof files MUST carry duvet annotations citing the
-anchors in this section.
+These properties are proven with Verus as a new phase of the
+verified coverage model (the quantifier layer over the existing
+per-annotation cells), and the proof files carry duvet annotations
+citing the anchors in this section. One process requirement keeps
+both facts honest.
+The project MUST dogfood the verified coverage machinery: CI
+verifies the `duvet-coverage` proofs with Verus and gates the
+proof files' spec citations through the checked-in snapshot.
 The properties are stated over witnesses only;
 no producer or format appears in their vocabulary.
 

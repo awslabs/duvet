@@ -5,14 +5,16 @@ This document is the normative companion to
 core.
 [spec.md §5.3](spec.md#discharge-unit)–[§5.5](spec.md#verus-producer)
 define what the Verus producer must do; this document states the
-properties that MUST be proven with Verus, as a new phase of the
+properties that are proven with Verus, as a new phase of the
 verified coverage model, over a verified model of the parsed
 obligation graph. The properties are stated over the model's
 vocabulary only — graphs as adjacency over opaque node ids, spans
 as per-file line sets; no artifact syntax appears.
 
-The Verus proof files MUST carry duvet annotations citing the
-anchors in this document.
+The Verus proof files carry duvet annotations citing the
+anchors in this document; the dogfood requirement
+([spec.md §2](spec.md#engine-properties)) gates the proofs and the
+citations in CI.
 
 ## 1. Model {#model}
 

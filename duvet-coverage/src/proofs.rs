@@ -3,15 +3,12 @@
 
 //! Correctness properties for the coverage model (spec Section 5).
 
-//= design/query/coverage-model-spec.md#correctness-properties
-//= type=implication
-//# The Verus proof files MUST carry
-//# duvet annotations linking each `proof fn` back to the corresponding property
-//# section in this document.
+// The proof fns below are the Verus proofs the spec's §5 describes,
+// each carrying the citation linking it to its property section; the
+// dogfood requirement (witness spec §2, cited on the CI verify step)
+// gates the proofs and the citations in CI.
 
 #[cfg(verus_keep_ghost)]
-//= design/query/coverage-model-spec.md#correctness-properties
-//# These properties MUST be proven with Verus.
 use crate::predicates::{
     all_lines_skippable, line_is_skippable, scope_contains, scopes_match_classifications,
     scopes_well_formed,
@@ -167,11 +164,6 @@ proof fn lemma_no_cross_scope_leakage(
     }
 }
 
-//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-//= type=implication
-//# The implementation MUST prove that for any two lines A and B where A is in
-//# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-//# S2 is not a parent of S1:
 /// Property 2, composed end-to-end over the *public* `is_annotation_executed`.
 ///
 /// This is the P5 treatment applied to Property 2: it calls the real public
@@ -296,10 +288,6 @@ proof fn lemma_conservative_fallback(
     assert(path_scope_idx != scope_idx);
 }
 
-//= design/query/coverage-model-spec.md#property-3-conservative-fallback
-//= type=implication
-//# The implementation MUST prove that no backward propagation occurs WITHIN a
-//# scope that contains a `NonLinearControl` line.
 /// Property 3, composed end-to-end over the *public* `is_annotation_executed`.
 ///
 /// Stated over the value a caller receives: if an annotation is Executed and its
@@ -478,10 +466,6 @@ proof fn lemma_validly_in_exec_set_monotone(
     }
 }
 
-//= design/query/coverage-model-spec.md#property-4-monotonicity
-//= type=implication
-//# The implementation MUST prove that given two coverage reports E1 and E2 where
-//# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 /// Property 4, composed end-to-end over the *public* `is_annotation_executed`.
 ///
 /// The observable form of monotonicity: running the same annotation against a
