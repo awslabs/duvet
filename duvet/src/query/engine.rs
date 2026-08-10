@@ -228,13 +228,12 @@ fn partition_check_roles(
     let mut partition = RolePartition::default();
     for annotation in annotations.iter() {
         match role_of(annotation.anno) {
-            Some(CheckRole::Requirement) => {
-                // Requirement role: the one place the spec-slice filter
-                // applies.
-                if mode.in_scope(annotation) {
-                    partition.requirements.push(annotation.clone());
-                }
+            // Requirement role: the one place the spec-slice filter
+            // applies.
+            Some(CheckRole::Requirement) if mode.in_scope(annotation) => {
+                partition.requirements.push(annotation.clone());
             }
+            Some(CheckRole::Requirement) => {}
             Some(CheckRole::Coverer) => partition.coverers.push(annotation.clone()),
             Some(CheckRole::Pending) => partition.pending.push(annotation.clone()),
             None => {}

@@ -190,6 +190,58 @@ fn parse_coverage_source(s: &str) -> Result<crate::query::producers::CoverageSou
     })
 }
 
+impl Query {
+    pub async fn exec(&self) -> Result {
+        let progress = progress!("Starting duvet in query mode...");
+
+        let sections = self.section.clone().unwrap_or_default();
+
+        let quotes = self.quote.clone().unwrap_or_default();
+
+        // Convert sections and quotes to RequirementMode
+        let requirement_mode = RequirementMode::from_options(&sections, &quotes);
+
+        let result = match &self.check {
+            Some(check_types) if !check_types.is_empty() => {
+                let checks: Vec<(CheckType, &RequirementMode)> = check_types
+                    .iter()
+                    .map(|check_type| (check_type.clone(), &requirement_mode))
+                    .collect();
+
+                // Execute checks
+                engine::execute_checks(
+                    &checks,
+                    self.coverage_report.as_ref(),
+                    self.coverage_format.as_ref(),
+                    self.coverage_source.as_deref().unwrap_or(&[]),
+                    self.verbose,
+                )
+                .await
+            }
+            _ => {
+                // No check types specified — show help
+                use clap::CommandFactory;
+                let mut cmd = crate::Arguments::command();
+                cmd.find_subcommand_mut("query")
+                    .expect("query subcommand")
+                    .print_help()
+                    .expect("print help");
+                println!();
+                return Ok(());
+            }
+        }?;
+
+        progress!(progress, "{}", result);
+
+        // Exit with appropriate code
+        if result.overall_status == result::QueryStatus::Pass {
+            Ok(())
+        } else {
+            std::process::exit(1);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -256,57 +308,5 @@ mod tests {
             err.contains("path must not be empty"),
             "unexpected error: {err}"
         );
-    }
-}
-
-impl Query {
-    pub async fn exec(&self) -> Result {
-        let progress = progress!("Starting duvet in query mode...");
-
-        let sections = self.section.clone().unwrap_or_default();
-
-        let quotes = self.quote.clone().unwrap_or_default();
-
-        // Convert sections and quotes to RequirementMode
-        let requirement_mode = RequirementMode::from_options(&sections, &quotes);
-
-        let result = match &self.check {
-            Some(check_types) if !check_types.is_empty() => {
-                let checks: Vec<(CheckType, &RequirementMode)> = check_types
-                    .iter()
-                    .map(|check_type| (check_type.clone(), &requirement_mode))
-                    .collect();
-
-                // Execute checks
-                engine::execute_checks(
-                    &checks,
-                    self.coverage_report.as_ref(),
-                    self.coverage_format.as_ref(),
-                    self.coverage_source.as_deref().unwrap_or(&[]),
-                    self.verbose,
-                )
-                .await
-            }
-            _ => {
-                // No check types specified — show help
-                use clap::CommandFactory;
-                let mut cmd = crate::Arguments::command();
-                cmd.find_subcommand_mut("query")
-                    .expect("query subcommand")
-                    .print_help()
-                    .expect("print help");
-                println!();
-                return Ok(());
-            }
-        }?;
-
-        progress!(progress, "{}", result);
-
-        // Exit with appropriate code
-        if result.overall_status == result::QueryStatus::Pass {
-            Ok(())
-        } else {
-            std::process::exit(1);
-        }
     }
 }

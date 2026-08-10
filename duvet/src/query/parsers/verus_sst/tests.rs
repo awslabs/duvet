@@ -1085,7 +1085,6 @@ fn interior_comment_line_is_in_no_fill() {
 /// theorem against macro-expansion span placement (`(#n)` contexts)
 /// drifting onto non-code lines in some future Verus.
 #[test]
-#[test]
 //= design/witness/spec.md#closure
 //= type=test
 //# Producers MUST NOT

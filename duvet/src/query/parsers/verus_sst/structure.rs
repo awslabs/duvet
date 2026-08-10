@@ -926,7 +926,7 @@ mod tests {
             !node.span_ranges.contains_key("src/engine.rs"),
             "span-shaped string constant leaked into the span set"
         );
-        assert!(node.fill_lines().get("src/engine.rs").is_none());
+        assert!(!node.fill_lines().contains_key("src/engine.rs"));
         assert!(!node.elaborates("src/engine.rs", 100));
     }
 
