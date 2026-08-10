@@ -24,6 +24,7 @@ pub use duvet_core::{diagnostic::Error, Result};
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Parser)]
+#[command(version = concat!(env!("CARGO_PKG_VERSION"), env!("DUVET_VERSION_SUFFIX")))]
 pub enum Arguments {
     /// Initializes a duvet project
     Init(init::Init),
