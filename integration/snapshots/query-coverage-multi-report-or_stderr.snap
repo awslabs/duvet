@@ -38,7 +38,7 @@ Coverage: ✗ FAIL
    ╰────
   help: Every witness bound to this test, with its per-witness result (a pair
         is discharged only when ALL bound witnesses executed the
-        implementation — design/witness/decisions.md, Decision 14):
+        implementation — design/witness/spec.md §1.6):
         ✓ report-a.xml (executed): executed the implementation
         ✗ report-b.xml (executed): did not execute the implementation
 
