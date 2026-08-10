@@ -117,6 +117,10 @@ fn coverage_status_at(coverage: &CoverageReport, line: u64) -> (result: Option<C
 ///   Missing coverage never yields a verdict (it yields `Unknown`).
 /// - **P3 (target below annotation):** any decided target lies strictly below
 ///   `annotation.end_line`.
+// The D-property proofs below are the Verus proofs the spec describes
+// (this fn's `ensures` carry D1/D2; D3/D4 are the lemmas below); the
+// dogfood requirement (witness spec §2, cited on the CI verify step)
+// gates them in CI.
 //= design/query/coverage-model-spec.md#property-d1-direct-observation
 //= type=implication
 //# The implementation MUST prove that the degraded status is a direct
@@ -265,6 +269,9 @@ mod tests {
     }
 
     // Minimal universal classification: whitespace + annotation known, rest None.
+    // The proof side is the Verus `ensures`/proof fns above (gated by the
+    // dogfood requirement on CI's verify step); this test demonstrates the
+    // proven degraded path on a concrete input, per the `proofs.rs` pattern.
     #[test]
     fn hit_on_nearest_line_is_executed() {
         // annotation lines 1-2, blank line 3, covered code line 4.
