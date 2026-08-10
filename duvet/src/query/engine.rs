@@ -963,7 +963,10 @@ mod tests {
         //# it MUST surface the file as a defeated classification and escalate
         //# (see [Classifier Selection and Dispatch](#dispatch)).
         escalate_defeated_classifications(std::slice::from_ref(&map));
-        assert!(matches!(status, ExecutionStatus::Unknown { line_number: 7 }));
+        assert!(matches!(
+            status,
+            ExecutionStatus::Unknown { line_number: 7 }
+        ));
     }
 
     /// Escalation carries every located issue: the aggregation feeding the
