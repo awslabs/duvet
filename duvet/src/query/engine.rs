@@ -391,6 +391,15 @@ async fn execute_coverage_check(
     //= type=implementation
     //# duvet MUST NOT silently substitute the coarse model or score against
     //# the collapsed scope tree; it MUST escalate, reporting each located issue.
+    //
+    // Once-per-file is carried by the shape of the data: `defeated` is a map
+    // keyed by file, derived from the once-per-file classification bases
+    // (never by re-scanning the per-report maps), and this loop is its only
+    // reporting surface.
+    //= design/query/coverage-model-spec.md#escalation
+    //= type=implementation
+    //# Each located issue MUST be reported exactly once per file, regardless of how
+    //# many coverage reports cover the file.
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
         for (path, issues) in &execution_data.defeated {
@@ -1007,6 +1016,10 @@ mod tests {
         // Aggregated once per file: two reports covering the same defeated
         // file must carry exactly the same located issues as one report —
         // none duplicated (the old per-map re-scan doubled them), none lost.
+        //= design/query/coverage-model-spec.md#escalation
+        //= type=test
+        //# Each located issue MUST be reported exactly once per file, regardless of how
+        //# many coverage reports cover the file.
         assert_eq!(execution_data.defeated, single.defeated);
     }
 

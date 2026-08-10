@@ -145,5 +145,7 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[implementation,test]:   duvet reports `Unknown`.
 
   SECTION: [8.3 Escalation](#escalation)
+    TEXT[!MUST,implementation,test]: Each located issue MUST be reported exactly once per file, regardless of how
+    TEXT[!MUST,implementation,test]: many coverage reports cover the file.
     TEXT[!MUST,exception]: When `report` consumes coverage, a defeated commitment MUST be a hard
     TEXT[!MUST,exception]: error there, because `report` is the authoritative artifact.

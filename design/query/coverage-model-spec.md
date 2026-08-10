@@ -857,6 +857,8 @@ and the response depends on *which* trust was lost:
 
 On a defeated commitment, duvet reports *what* and *where* — the located issues —
 but never *why*, because mislabeled-file versus classifier-gap is undecidable.
+Each located issue MUST be reported exactly once per file, regardless of how
+many coverage reports cover the file.
 In `query`, the inner-loop tool run against in-progress code, escalation is
 non-blocking: the file's annotations resolve to a located `Unknown` and the run
 continues. When `report` consumes coverage, a defeated commitment MUST be a hard
