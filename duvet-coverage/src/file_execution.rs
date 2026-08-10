@@ -6,7 +6,7 @@
 //!
 //! [`FileExecution`] exists to eliminate a trusted-base axiom that previously
 //! lived in duvet's unverified query glue: "the stored `exec_set` is
-//! [`execution_set`] of the stored (classifications, scopes, coverage)".
+//! `execution_set` of the stored (classifications, scopes, coverage)".
 //! `is_annotation_executed_with_exec_set` `requires` that pairing, but a
 //! `requires` compiles away for unverified callers, so a caller that stored
 //! the set beside its inputs had to maintain the pairing by discipline —
@@ -64,7 +64,7 @@ pub open spec fn pairs_in_bounds(pairs: Seq<(u64, CoverageStatus)>, len: int) ->
 /// A file's per-report execution model: the classified line properties, the
 /// scope tree, the coverage map, and the execution set — with the guarantee,
 /// carried by the type itself, that the execution set is exactly
-/// [`execution_set`] of the other three.
+/// `execution_set` of the other three.
 ///
 /// The report-independent inputs (`classifications`, `scopes`) are held via
 /// `Arc` so a caller scoring one file against many coverage reports shares

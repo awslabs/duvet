@@ -6,6 +6,44 @@
 //! This crate contains the pure-function coverage model from the
 //! [coverage model spec](../design/query/coverage-model-spec.md).
 //! When compiled with Verus, the correctness properties are machine-checked.
+//!
+//! # Residual trusted base
+//!
+//! Everything else in this crate is machine-checked. What follows is the
+//! complete list of what a consumer trusts *without* a proof, beyond Verus,
+//! rustc, and the platform:
+//!
+//! 1. **Rust field privacy** — no code outside its module can construct a
+//!    [`file_execution::FileExecution`] or mutate its fields, so the type
+//!    invariant proven at construction holds for every reachable value.
+//! 2. **Absence of interior mutability** in `FileExecution`'s field types
+//!    (`Arc<Vec<_>>`, `BTreeMap`, `BTreeSet`, `u64`) — nothing can change a
+//!    field behind a shared reference after construction.
+//! 3. **`collect_hit_lines`** (`execution_propagation.rs`) — `external_body`
+//!    leaf; its ensures semantically *define* "directly executed". Guarded by
+//!    the `collect_hit_lines_matches_hit_oracle` property test.
+//! 4. **`vec_from_btreeset`** (`execution_propagation.rs`) — `external_body`
+//!    leaf with a membership-only spec.
+//! 5. **`coverage_status_at`** (`degraded.rs`) — `external_body` leaf.
+//!
+//! (The `LineProperty` discriminant order, re-specified by hand for the
+//! proofs, is guarded by `discriminant_matches_derived_ord` in `types.rs`.)
+//!
+//! # Why the exec-set optimization cannot change a verdict
+//!
+//! Callers scoring many annotations against one (file, report) share a
+//! precomputed execution set via [`file_execution::FileExecution`] instead of
+//! recomputing the whole-file fixpoint per annotation. This is proven
+//! verdict-preserving, not argued: the self-contained
+//! [`annotation_execution::is_annotation_executed`] and the sharing
+//! [`file_execution::FileExecution::annotation_status`] each carry an
+//! `ensures` proving their result equals the *same* pure spec function,
+//! `execution_status_of`. Two implementations proven equal to the same
+//! function are proven equal to each other — on every build, by Verus. The
+//! set/inputs pairing the sharing path depends on is a machine-checked type
+//! invariant of `FileExecution` (trusting only items 1 and 2 above), never a
+//! caller discipline; the raw entry points that would require such discipline
+//! are `pub(crate)`.
 
 // Verus generates code patterns that trigger these warnings under normal rustc.
 // The verus_keep_ghost cfg, unused proof variables, double-paren casts, and

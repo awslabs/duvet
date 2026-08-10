@@ -367,7 +367,7 @@ pub open spec fn fold_step_spec(folded: ExecutionStatus, status: ExecutionStatus
 /// - **No invention:** the result is always one of the two inputs; the fold
 ///   can never synthesize a status (and in particular never a line number)
 ///   that no report produced.
-/// - **Definitional twin:** the result is exactly [`fold_step_spec`], pinning
+/// - **Definitional twin:** the result is exactly `fold_step_spec`, pinning
 ///   the full preference order, not just the executed bit.
 ///
 /// There are no `requires`, so nothing compiles away for unverified callers.
