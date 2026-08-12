@@ -88,18 +88,23 @@ impl Init {
                 out,
                 "# Duplicate policy for `duvet query --check duplicates`"
             )?;
+            writeln!(out, "# (semantics: design/duplicates/spec.md)")?;
+            writeln!(out, "# [duplicates.claims]")?;
             writeln!(
                 out,
-                "# (defaults shown; semantics: design/duplicates/spec.md)"
+                "# test = 1           # copies of one claim, per type (the default)"
             )?;
-            writeln!(out, "# [duplicates.claims]")?;
-            writeln!(out, "# test = 1           # copies of one claim, per type")?;
-            writeln!(out, "# implementation = 1")?;
+            writeln!(out, "# implementation = 1 # (the default)")?;
             writeln!(out, "# [duplicates.targets]")?;
             writeln!(
                 out,
-                "# count = 1           # annotations per resolved target (unlimited if unset)"
+                "# count = 1           # EXAMPLE, not the default (default: unlimited)."
             )?;
+            writeln!(
+                out,
+                "#                     # \"One target, one annotation\" -- the strict posture;"
+            )?;
+            writeln!(out, "#                     # duvet's own tree holds it.")?;
 
             Ok(())
         });
