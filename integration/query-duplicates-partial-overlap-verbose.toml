@@ -1,0 +1,45 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates --verbose"]
+report_output = false
+
+# Pins spec §2.5's three layers in their observable window: two quotes that
+# overlap without full coverage in either direction ("aaa bbb" / "bbb ccc")
+# are outside the model. Verdict: the check PASSES — a partial overlap never
+# fails it. Content + presentation: the pair appears in the report under
+# `--verbose` (the display tier where the some_overlap population is shown;
+# verbosity never changes the verdict, §4.1 / P-S0).
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# aaa bbb
+pub fn front_half() {}
+
+//= spec.md#section-1
+//= type=test
+//# bbb ccc
+pub fn back_half() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""

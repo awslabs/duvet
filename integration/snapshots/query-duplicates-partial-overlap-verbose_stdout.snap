@@ -1,0 +1,50 @@
+---
+source: xtask/src/tests.rs
+expression: stdout
+---
+$ duvet query --check duplicates --verbose
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 2 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 2 references 
+
+Duplicates: ✓ PASS
+
+Effective policy ([duplicates] in .duvet/config.toml; semantics: design/duplicates/spec.md §4):
+  claims.test = 1 (default)
+  claims.implementation = 1 (default)
+  claims.types = no free form shares a claim (default)
+  targets.count = unlimited (default)
+  targets.sections = unlimited (default)
+  targets.types = any combination except test+implementation (default)
+
+  ☞ Annotations with some overlap
+   ╭─[src/lib.rs:6:5]
+ 5 │     
+ 6 │ ╭─▶ //= spec.md#section-1
+ 7 │ │   //= type=test
+ 8 │ ├─▶ //# bbb ccc
+   · ╰──── Some overlap
+ 9 │     pub fn back_half() {}
+   ╰────
+
+  ☞ Annotations with some overlap
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa bbb
+   · ╰──── Some overlap
+ 4 │     pub fn front_half() {}
+   ╰────
+
+
+Overall: ✓ PASS

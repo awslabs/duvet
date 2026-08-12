@@ -123,12 +123,16 @@ pub struct DuplicatesAnalysis {
 }
 
 impl DuplicatesAnalysis {
-    /// //= design/duplicates/spec.md#duplicates-verdict
-    /// //# The duplicates check MUST fail if and only if at least one rule of
-    /// //# [§2.1](#same-claim-same-target)–[§2.4](#exclusivity) or of the
-    /// //# target axis ([§3.2](#fan-in-bounds)–[§3.3](#type-combinations))
-    /// //# fires.
     pub fn passes(&self) -> bool {
+        //= design/duplicates/spec.md#duplicates-verdict
+        //# The duplicates check MUST fail if and only if at least one rule of
+        //# [§2.1](#same-claim-same-target)–[§2.4](#exclusivity) or of the
+        //# target axis ([§3.2](#fan-in-bounds)–[§3.3](#type-combinations))
+        //# fires.
+        //
+        //= design/duplicates/spec.md#partial-overlap
+        //# Verdict: a partial overlap MUST NOT fail the duplicates check,
+        //# matching the historical check.
         self.stacked.is_empty()
             && self.over_cap.is_empty()
             && self.subsumed.is_empty()
@@ -410,8 +414,8 @@ pub async fn analyze_duplicates(
                 analysis.subsumed.push(coverage);
             } else if !coverage.covering_annotations.is_empty() {
                 //= design/duplicates/spec.md#partial-overlap
-                //# The check MUST report them and MUST NOT
-                //# fail on them, matching the historical check.
+                //# Content: the check MUST identify every partial-overlap pair in
+                //# its analysis.
                 analysis.some_overlap.push(coverage);
             } else {
                 unique_by_form
