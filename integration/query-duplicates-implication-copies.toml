@@ -1,0 +1,43 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates"]
+report_output = false
+
+# Pins the seam between spec §2.2 and §2.4: two identical `implication`
+# claims are a single-form class, so the claim-form family rule (§2.4) does
+# not range over them — they fail on the free cap alone (fixed at 1, no
+# knob). Exactly ONE finding, the cap; no "share one claim" line rides along.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=implication
+//# aaa bbb ccc
+pub fn holds_by_construction() {}
+
+//= spec.md#section-1
+//= type=implication
+//# aaa bbb ccc
+pub fn also_holds_by_construction() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""

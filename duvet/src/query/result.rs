@@ -585,14 +585,14 @@ impl fmt::Display for DuplicatesResult {
             writeln!(f, "{duplicate_error:?}")?;
         }
 
-        // §2.4 — free-form exclusivity.
+        // §2.4 — the claim-form family.
         for violation in &analysis.exclusivity {
             let (first, rest) = violation
                 .members
                 .split_first()
                 .expect("exclusivity violation has >= 2 members");
             let mut error = error!(
-                "Free claim forms are exclusive: {} share one claim",
+                "One claim shared by forms {} — the combination is inside no allowed set",
                 form_set_name_of(&violation.forms)
             );
             error = with_annotation(error, first, "Shared claim");

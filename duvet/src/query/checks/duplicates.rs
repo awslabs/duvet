@@ -12,7 +12,7 @@
 
 use crate::{
     annotation::{Annotation, AnnotationType},
-    config::{is_free_form, DuplicatesPolicy, FormSet},
+    config::{DuplicatesPolicy, FormSet},
     query::{
         checks::{coverage::stamp_annotation_range, is_annotation_covered},
         classify::{classifier_for_path, Classification, DefaultClassifier, LineClassifier},
@@ -91,7 +91,8 @@ pub struct StackedClaim {
     pub members: Vec<Arc<Annotation>>,
 }
 
-/// A claim class failing free-form exclusivity (spec §2.4).
+/// A claim class whose mixed claim forms are admitted by no member of the
+/// claim-form family (spec §2.4).
 #[derive(Debug)]
 pub struct ExclusivityViolation {
     pub forms: FormSet,
@@ -344,26 +345,24 @@ pub async fn analyze_duplicates(
             }
         }
 
-        // §2.4 — free-form exclusivity over the class's non-spec members.
+        // §2.4 — the claim-form family over the class's non-spec members.
         //
         //= design/duplicates/spec.md#exclusivity
-        //# A claim class whose non-`spec` members include an annotation of a
-        //# free form and number more than one MUST fail the duplicates check,
-        //# unless the set of non-`spec` claim forms in the class is admitted
-        //# by the configured claim-form family
+        //# A claim class whose non-`spec` members bear two or more distinct
+        //# claim forms MUST fail the duplicates check unless the set of
+        //# non-`spec` claim forms is admitted by the configured claim-form
+        //# family
         let non_spec: Vec<Arc<Annotation>> = members
             .iter()
             .filter(|member| member.anno != AnnotationType::Spec)
             .cloned()
             .collect();
-        if non_spec.len() > 1 && non_spec.iter().any(|member| is_free_form(member.anno)) {
-            let forms: FormSet = non_spec.iter().map(|member| member.anno).collect();
-            if !policy.claims.admits(&forms) {
-                analysis.exclusivity.push(ExclusivityViolation {
-                    forms,
-                    members: non_spec,
-                });
-            }
+        let forms: FormSet = non_spec.iter().map(|member| member.anno).collect();
+        if forms.len() >= 2 && !policy.claims.admits(&forms) {
+            analysis.exclusivity.push(ExclusivityViolation {
+                forms,
+                members: non_spec,
+            });
         }
     }
 

@@ -179,20 +179,25 @@ claim, not fragments of it. Together with [§2.2](#caps) at cap 1,
 this rule reproduces the historical verdict
 ([P-D3](#property-p-d3)).
 
-### 2.4 Free-form exclusivity {#exclusivity}
+### 2.4 Claim-form family {#exclusivity}
 
-A claim class whose non-`spec` members include an annotation of a
-free form and number more than one MUST fail the duplicates check,
-unless the set of non-`spec` claim forms in the class is admitted
-by the configured claim-form family ([§4.2](#schema-claims)).
+A claim class whose non-`spec` members bear two or more distinct
+claim forms MUST fail the duplicates check unless the set of
+non-`spec` claim forms is admitted by the configured claim-form
+family ([§4.2](#schema-claims)). A claim class whose non-`spec`
+members bear a single claim form MUST NOT fail this rule: copies
+of one form are the caps' business ([§2.2](#caps)).
 ([Decision 4](decisions.md#decision-4);
 [P-D5](#property-p-d5))
 
 The default claim-form family admits exactly the form sets
 containing no free form ([§4.3](#defaults)) — any combination of
 `test` and `implementation` members may share a claim, each billed
-on its own; a free form must be the only member of its class.
-Derived verdicts under the default family, for the record:
+on its own; a free form never shares a claim with another form.
+An empty family (`types = []`) admits no multi-form set: it
+forbids all multi-form claim sharing, `test` + `implementation`
+included. Derived verdicts under the default family, for the
+record:
 
 | Coexistence (same claim) | Verdict |
 |---|---|
@@ -330,9 +335,10 @@ lives in exactly one namespace; no setting name appears in both.
 - `implementation` — cap for `implementation` duplicate sets.
   Positive integer.
 - `types` — the claim-form family: an array of allowed form sets,
-  each set written as form names joined by `+`. A claim class of
-  size greater than one whose form set is a subset of no member
-  of the family fails [§2.4](#exclusivity). This is the
+  each set written as form names joined by `+`. A claim class
+  whose non-`spec` members bear two or more distinct claim forms
+  fails [§2.4](#exclusivity) unless that form set is a subset of
+  some member of the family. This is the
   coherence-cell mechanism of
   [Decision 14](decisions.md#decision-14): the release notes name
   the family value that restores prior behavior.
@@ -461,8 +467,9 @@ it never flips a failing project to passing.
 Under the default claim-form family: if the duplicates check
 passes, every claim class whose non-`spec` members include an
 `exception`, `implication`, or `todo` annotation has exactly one
-non-`spec` member.
-([§2.4](#exclusivity))
+non-`spec` member. Jointly enforced: mixed-form classes fail the
+claim-form family rule, single-form copies exceed the free caps.
+([§2.4](#exclusivity); [§2.2](#caps))
 
 ### P-T1 — fan-in exactness {#property-p-t1}
 

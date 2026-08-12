@@ -294,7 +294,7 @@ decision document.
 
 ---
 
-## Decision 4: Free claim forms are exclusive within a claim class {#decision-4}
+## Decision 4: Claim form combinations are an allowed-set family {#decision-4}
 
 **Context:** [Decision 2](#decision-2) handles mixed types at one
 position. What about mixed types across positions — an `exception`
@@ -331,26 +331,36 @@ incoherent, …).
   pair by pair; a new annotation type multiplies the cells; and
   the matrix invites cell-by-cell relitigating.
 
-### Option C: One exclusivity rule over the type multiset
+### Option C: One allowed-set family over the class's form set
 
-> If a claim class contains an `exception`, `implication`, or
-> `todo` annotation, that annotation must be the **only** member
-> of the class. Any combination of `test` and `implementation`
-> members is permitted, each billed on its own.
+> A claim class whose non-`spec` members bear two or more distinct
+> claim forms fails unless that form set is admitted by a
+> configured family of allowed form sets. The rule is the family;
+> the policy decision is the family's default value.
 
-- Pro: the entire matrix falls out as derived consequences, with
-  one uniform rationale: **a free form asserts something about the
-  requirement's nature that changes everyone's obligations, so it
-  does not get to share the claim with forms whose obligations it
-  would deflate.**
+- Pro: mechanism and policy separate cleanly. The mechanism is one
+  uniform rule — family membership — and it is the same primitive
+  the target axis uses ([Decision 12](#decision-12)). A project
+  that believes it has a legitimate coexistence writes that form
+  set into the family: a reviewed config line, never a comment.
+- Pro: the entire matrix falls out of the default family as
+  derived consequences, with one uniform rationale for that
+  default: **a free form asserts something about the requirement's
+  nature that changes everyone's obligations, so it does not get
+  to share the claim with forms whose obligations it would
+  deflate.**
 - Pro: a future annotation type gets a verdict by answering one
   question — is it priced? — instead of a row of debates.
 
-### Decision: Option C
+### Decision: Option C, default family = the form sets containing no free form
 
-Checking the rule against every pair the matrix would have argued:
+The default family admits exactly the form sets containing no free
+form: any combination of `test` and `implementation` members may
+share a claim, each billed on its own; a free form never shares a
+claim with another form. Checking that default against every pair
+the matrix would have argued:
 
-| Coexistence (same claim) | Reading | Verdict under the rule |
+| Coexistence (same claim) | Reading | Verdict under the default family |
 |---|---|---|
 | `exception` + `test` | "we don't do R" ∧ "we test R" | fail — contradiction |
 | `exception` + `implementation` | "we don't do R" ∧ "R is implemented here" | fail — contradiction |
@@ -360,10 +370,15 @@ Checking the rule against every pair the matrix would have argued:
 | `test` + `implementation` (different targets) | tested there, implemented here | permitted — this is `discharged(T, I)`, the system itself |
 
 **Consequences:** This is a static check over claim classes — no
-evidence needed; it belongs to the duplicates check. It is a
-deliberate tightening of released behavior: cross-type
-coexistence on one requirement silently passes today. How the
-tightening ships, and how a project that believes it has a
+evidence needed; it belongs to the duplicates check. The family is
+the whole rule, not a carve-out from a free-form precondition: an
+empty family forbids all multi-form claim sharing, `test` +
+`implementation` included. Copies of a single form are outside
+this rule — multiplicity within one form is the caps' business
+([Decision 3](#decision-3)), which holds free forms at one with no
+knob. It is a deliberate tightening of released behavior:
+cross-type coexistence on one requirement silently passes today.
+How the tightening ships, and how a project that believes it has a
 legitimate coexistence records that belief, are settled below once
 all policy values are on the table — the short answer is a
 reviewed config line, never a comment.

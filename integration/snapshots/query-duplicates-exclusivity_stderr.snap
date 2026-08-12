@@ -19,7 +19,8 @@ EXIT: Some(1)
 
 Duplicates: ✗ FAIL
 
-  × Free claim forms are exclusive: implementation+exception share one claim
+  × One claim shared by forms implementation+exception — the combination is
+  │ inside no allowed set
    ╭─[src/lib.rs:1:5]
  1 │ ╭─▶ //= spec.md#section-1
  2 │ │   //= type=exception
@@ -30,7 +31,8 @@ Duplicates: ✗ FAIL
 
 Advice: 
   ☞ Related context for:
-  │  Free claim forms are exclusive: implementation+exception share one claim
+  │  One claim shared by forms implementation+exception — the combination is
+  │ inside no allowed set
    ╭─[src/lib.rs:6:5]
  5 │     
  6 │ ╭─▶ //= spec.md#section-1

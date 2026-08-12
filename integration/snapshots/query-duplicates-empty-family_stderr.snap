@@ -19,25 +19,26 @@ EXIT: Some(1)
 
 Duplicates: ✗ FAIL
 
-  × Duplicate exception annotations: 2 copies exceed the cap of 1
+  × One claim shared by forms test+implementation — the combination is inside
+  │ no allowed set
    ╭─[src/lib.rs:1:5]
  1 │ ╭─▶ //= spec.md#section-1
- 2 │ │   //= type=exception
+ 2 │ │   //= type=test
  3 │ ├─▶ //# aaa bbb ccc
-   · ╰──── Duplicate
- 4 │     pub fn first_waiver() {}
+   · ╰──── Shared claim
+ 4 │     pub fn tested_there() {}
    ╰────
 
 Advice: 
   ☞ Related context for:
-  │  Duplicate exception annotations: 2 copies exceed the cap of 1
+  │  One claim shared by forms test+implementation — the combination is inside
+  │ no allowed set
    ╭─[src/lib.rs:6:5]
  5 │     
  6 │ ╭─▶ //= spec.md#section-1
- 7 │ │   //= type=exception
- 8 │ ├─▶ //# aaa bbb ccc
-   · ╰──── Duplicate
- 9 │     pub fn second_waiver() {}
+ 7 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Shared claim
+ 8 │     pub fn implemented_here() {}
    ╰────
 
 
