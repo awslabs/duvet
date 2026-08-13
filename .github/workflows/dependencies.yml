@@ -27,9 +27,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: "Remove rust-toolchain"
-        run: rm rust-toolchain
-
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           # `--config` and `--all-features` are cargo-deny *common* options and

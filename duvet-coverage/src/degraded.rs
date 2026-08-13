@@ -114,6 +114,15 @@ fn coverage_status_at(coverage: &CoverageReport, line: u64) -> (result: Option<C
 ///   Missing coverage never yields a verdict (it yields `Unknown`).
 /// - **P3 (target below annotation):** any decided target lies strictly below
 ///   `annotation.end_line`.
+// Meta-requirement about this file's proofs: "MUST be proven with Verus" is
+// implemented by the D-property proofs, anchored here at the first proof site
+// (this fn's `ensures` carry D1/D2; D3/D4 are the lemmas below), checked by
+// CI's verify job. The D1/D2 property implications live at their enforcing
+// lines inside the fn bodies below.
+//= design/query/coverage-model-spec.md#degraded-properties
+//= type=implementation
+//# These properties MUST be proven with Verus for the degraded path,
+//# alongside the Section 5 properties for the classified path.
 pub fn degraded_execution_status(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -264,7 +273,14 @@ mod tests {
     }
 
     // Minimal universal classification: whitespace + annotation known, rest None.
+    // The proof side of this quote is the Verus `ensures`/proof fns above
+    // (checked by CI's verify job); this test demonstrates the proven
+    // degraded path on a concrete input, per the `proofs.rs` pattern.
     #[test]
+    //= design/query/coverage-model-spec.md#degraded-properties
+    //= type=test
+    //# These properties MUST be proven with Verus for the degraded path,
+    //# alongside the Section 5 properties for the classified path.
     fn hit_on_nearest_line_is_executed() {
         // annotation lines 1-2, blank line 3, covered code line 4.
         let c = vec![

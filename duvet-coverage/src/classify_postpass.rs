@@ -51,6 +51,12 @@ verus! {
 /// For every index `i` where the input `classifications[i]` contains
 /// `ScopeOpen`, the output also contains `ScopeOpen` at that index.
 /// Symmetrically for `ScopeClose`.
+//= design/query/coverage-model-spec.md#classification-function
+//= type=implementation
+//# Classifiers MUST apply a post-processing pass
+//# after AST classification:
+//# for any line that has `Annotation`, `Comment`, or `Whitespace`,
+//# remove `Statement` and `Declaration` from its property set.
 pub fn clean_classifications(
     classifications: &mut [Option<BTreeSet<LineProperty>>],
     code_start: &[bool],
@@ -107,6 +113,10 @@ pub fn clean_classifications(
             if has_annotation || has_whitespace || (has_comment && !is_code_start) {
                 // Non-code line: strip semantic properties only.
                 // ScopeOpen and ScopeClose are NEVER removed.
+                //= design/query/coverage-model-spec.md#classification-function
+                //= type=implementation
+                //# A line classified as `{Annotation}` MUST NOT also have
+                //# `Statement` or `Declaration` in its property set.
                 props.remove(&LineProperty::Statement);
                 props.remove(&LineProperty::Declaration);
                 props.remove(&LineProperty::NonLinearControl);
@@ -181,6 +191,10 @@ mod tests {
             "ScopeOpen must survive cleaning, got: {props:?}"
         );
         // Declaration should be stripped (annotation line)
+        //= design/query/coverage-model-spec.md#classification-function
+        //= type=test
+        //# A line classified as `{Annotation}` MUST NOT also have
+        //# `Statement` or `Declaration` in its property set.
         assert!(
             !props.contains(&LineProperty::Declaration),
             "Declaration should be stripped from annotation line, got: {props:?}"
@@ -196,6 +210,12 @@ mod tests {
         clean_classifications(&mut classifications, &code_start);
 
         let props = classifications[0].as_ref().unwrap();
+        //= design/query/coverage-model-spec.md#classification-function
+        //= type=test
+        //# Classifiers MUST apply a post-processing pass
+        //# after AST classification:
+        //# for any line that has `Annotation`, `Comment`, or `Whitespace`,
+        //# remove `Statement` and `Declaration` from its property set.
         assert!(!props.contains(&LineProperty::Statement));
         assert!(props.contains(&LineProperty::Comment));
     }

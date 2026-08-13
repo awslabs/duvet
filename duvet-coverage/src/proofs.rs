@@ -775,6 +775,13 @@ mod tests {
     /// 3, a Declaration) is `Executed` via backward propagation from the hit at
     /// line 4, sits inside scope [1,5], and is itself not a coverage hit. Without
     /// it the `!directly_hit` antecedent could be vacuously empty.
+    //
+    // The proof side of this quote is the Verus proof fns in this file
+    // (checked by CI's verify job); this test demonstrates the proven model
+    // on a concrete input.
+    //= design/query/coverage-model-spec.md#correctness-properties
+    //= type=test
+    //# These properties MUST be proven with Verus.
     #[test]
     fn executed_via_propagation_is_reachable() {
         use crate::annotation_execution::is_annotation_executed;

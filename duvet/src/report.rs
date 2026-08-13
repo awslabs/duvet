@@ -59,6 +59,11 @@ pub struct Report {
 }
 
 impl Report {
+    //= design/query/coverage-model-spec.md#escalation
+    //= type=exception
+    //= reason=`report` does not yet consume coverage; the hard-error gate lands with the LCOV follow-up.
+    //# When `report` consumes coverage, a defeated commitment MUST be a hard
+    //# error there, because `report` is the authoritative artifact.
     pub async fn exec(&self) -> Result {
         let config = self.project.config().await?;
         let config = config.as_ref();
