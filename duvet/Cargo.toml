@@ -39,7 +39,7 @@ tree-sitter = "0.24"
 tree-sitter-java = "0.23"
 triple_accel = "0.4"
 url = "2"
-v_jsonescape = "0.7"
+v_jsonescape = "0.9"
 
 [dev-dependencies]
 bolero = "0.13"
