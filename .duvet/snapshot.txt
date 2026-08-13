@@ -94,15 +94,6 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
     TEXT[!MUST,implementation,test]: `implementation` MUST be a configuration error
     TEXT[!MUST,implementation,test]: ([§2.2](#caps)).
 
-  SECTION: [4.5 Scoped overrides](#scoped-overrides)
-    TEXT[!MUST,exception]: If scoped overrides ship,
-    TEXT[!MUST,exception]: they MUST satisfy resolution determinism, unconfigured
-    TEXT[!MUST,exception]: equivalence, and shadowing monotonicity as stated there.
-
-  SECTION: [5. Properties](#properties)
-    TEXT[!MUST,exception]: Each property MUST be pinned by an integration fixture, except
-    TEXT[!MUST,exception]: where noted.
-
 SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverage-model-spec.md)
   SECTION: [1.3 Classification Function and Unknown Lines](#classification-function)
     TEXT[!MUST,implementation,test]: A line classified as `{Annotation}` MUST NOT also have

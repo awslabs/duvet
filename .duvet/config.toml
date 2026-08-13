@@ -49,13 +49,6 @@ pattern = "duvet/src/query/result.rs"
 pattern = "integration/*.toml"
 comment-style = { meta = "#=", content = "#%" }
 
-# This config file is scanned so deferrals can be recorded as reviewed
-# `exception` annotations right where the policy lives (see the end of
-# this file).
-[[source]]
-pattern = ".duvet/config.toml"
-comment-style = { meta = "#=", content = "#%" }
-
 # The CI verify step is the artifact that enforces "These properties MUST be
 # proven with Verus" — the annotation lives on the step, not on a file header
 # (position must discriminate; design/duplicates/spec.md §3). The #=/#% style
@@ -67,16 +60,15 @@ comment-style = { meta = "#=", content = "#%" }
 # Duplicates policy (design/duplicates/spec.md §4). Every value here was
 # settled by running the check on this tree and challenging each collision:
 #
-# - implementation = 2: each proven property carries exactly two
-#   machine-checked artifacts — the core lemma and the composed end-to-end
-#   lemma over the public API. Two evidence artifacts structurally force two
-#   annotations; three would be spray.
+# - claims caps: defaults (1). One claim, one implementation citation — on
+#   the innermost lemma. The composed end-to-end lemma over the public API
+#   is the *proof* that the core connects to the public surface; the proof
+#   carries the connection, not a second annotation. The test citation
+#   sits at the outermost surface. Innermost implementation, outermost
+#   test, proof in between.
 # - targets.count = 1: every fan-in site on this tree dissolved under more
 #   targeted placement (D1/D2 onto their enforcing lines, the Verus-proving
 #   claim onto the CI step that runs the prover). One target, one annotation.
-[duplicates.claims]
-implementation = 2
-
 [duplicates.targets]
 count = 1
 
@@ -96,30 +88,3 @@ enabled = true
 
 [report.snapshot]
 enabled = true
-
-# ---------------------------------------------------------------------------
-# DEFERRALS — reviewed waivers for spec MUSTs with no honest artifact on this
-# branch. Each is an `exception` annotation: visible in the report, gone the
-# day the artifact lands. Do not add implications here — an implication
-# claims the requirement holds by construction, which is exactly the
-# type-shopping §2.4 polices.
-#
-# 1. spec §5's fixture-pinning meta-MUST: the fixture suite exists and CI
-#    runs it, but nothing on this branch audits that EVERY property is
-#    pinned. Deferred until a property-to-fixture traceability check exists.
-#
-#= design/duplicates/spec.md#properties
-#= type=exception
-#% Each property MUST be pinned by an integration fixture, except
-#% where noted.
-
-# 2. spec §4.5 scoped overrides: designed and deferred (Decision 13). The
-#    feature does not exist in this version, so its conditional MUSTs have
-#    no implementation to cite. The exception dissolves when scoped
-#    overrides ship.
-#
-#= design/duplicates/spec.md#scoped-overrides
-#= type=exception
-#% If scoped overrides ship,
-#% they MUST satisfy resolution determinism, unconfigured
-#% equivalence, and shadowing monotonicity as stated there.

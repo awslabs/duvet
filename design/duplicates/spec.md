@@ -431,16 +431,18 @@ empty-quote accident ([§1.2](#claims)).
 ### 4.5 Scoped overrides {#scoped-overrides}
 
 Designed and deferred ([Decision 13](decisions.md#decision-13)).
-All values in this version are global. If scoped overrides ship,
-they MUST satisfy resolution determinism, unconfigured
-equivalence, and shadowing monotonicity as stated there.
+All values in this version are global. This version states no
+requirements for the deferred feature; the invariants a future
+scoped-overrides design owes — resolution determinism,
+unconfigured equivalence, shadowing monotonicity — live with the
+decision that deferred it.
 
 ---
 
 ## 5. Properties {#properties}
 
-Each property MUST be pinned by an integration fixture, except
-where noted.
+Each property is pinned by an integration fixture, except where
+noted.
 
 ### P-D1 — stacked-spam soundness {#property-p-d1}
 
