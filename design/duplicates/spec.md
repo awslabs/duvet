@@ -509,6 +509,13 @@ this specification is a function of the checked-in tree (source
 plus configuration). Verbosity never changes a verdict.
 ([§4.1](#policy-source))
 
+Fixture note: pinned on the verbosity axis (one tree, default and
+`--verbose`, exit codes pinned equal). The full function-of-the-tree
+claim ranges over every command-line option and is held
+architecturally — policy values reach the checks only through
+checked-in configuration ([§4.1](#policy-source)) — rather than by
+fixture enumeration.
+
 ### P-S1 — no pass without evidence {#property-p-s1}
 
 If the duplicates check passes and the coverage check passes:
@@ -518,3 +525,10 @@ claim-form family, and every copy is individually billed by
 coverage. The billing conjunct is the coverage check's own
 contract, restated here so the independence of
 [Decision 5](decisions.md#decision-5) is visibly safe.
+
+Fixture note: no single fixture pins the conjunction. The
+structural conjuncts are pinned by the per-rule fixtures of
+[§2](#duplicates-check)–[§3](#duplicate-targets); the billing
+conjunct is the coverage check's own contract with its own suite.
+P-S1 is their composition, safe by check independence
+([Decision 5](decisions.md#decision-5)).
