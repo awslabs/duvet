@@ -1,3 +1,108 @@
+SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.md)
+  SECTION: [1.1 Annotation model](#annotation-model)
+    TEXT[!MUST,implementation,test]: Every user-facing surface this
+    TEXT[!MUST,implementation,test]: specification defines — configuration keys, report sections,
+    TEXT[!MUST,implementation,test]: failure messages — MUST emit the name `implementation` and MUST
+    TEXT[!MUST,implementation,test]: NOT emit the name `citation`.
+    TEXT[!MUST,implementation,test]: Wherever a claim form is read as
+    TEXT[!MUST,implementation,test]: input, `citation` MUST be accepted as an alias for
+    TEXT[!MUST,implementation,test]: `implementation`.
+
+  SECTION: [2.1 Same claim, same target](#same-claim-same-target)
+    TEXT[!MUST,implementation,test]: Two annotations that share a claim and share a resolved target
+    TEXT[!MUST,implementation,test]: MUST fail the duplicates check, regardless of their claim forms
+    TEXT[!MUST,implementation,test]: and regardless of any configured cap.
+
+  SECTION: [2.2 Multiplicity caps](#caps)
+    TEXT[!MUST,implementation,test]: A duplicate set whose size exceeds its form's cap MUST fail the
+    TEXT[!MUST,implementation,test]: duplicates check.
+    TEXT[!MUST,implementation,test]: Caps MUST be configurable only for the priced forms.
+    TEXT[!MUST,implementation,test]: The caps of
+    TEXT[!MUST,implementation,test]: `spec`, `todo`, `exception`, and `implication` are fixed at 1 and
+    TEXT[!MUST,implementation,test]: MUST NOT be configurable.
+    TEXT[!MUST,implementation,test]: A duplicate set within its cap MUST pass this check
+    TEXT[!MUST,implementation,test]: ([Decision 5](decisions.md#decision-5)), and when its size exceeds
+    TEXT[!MUST,implementation,test]: one it MUST be reported with its size and every member's location,
+    TEXT[!MUST,implementation,test]: so multiplicity is always surfaced, never silent.
+
+  SECTION: [2.3 Subsumption](#subsumption)
+    TEXT[!MUST,implementation,test]: An annotation whose claim is fully covered
+    TEXT[!MUST,implementation,test]: ([§1.3](#claim-coverage)) by the claims of same-form annotations
+    TEXT[!MUST,implementation,test]: outside its own claim class MUST fail the duplicates check,
+    TEXT[!MUST,implementation,test]: regardless of any configured cap.
+
+  SECTION: [2.4 Claim-form family](#exclusivity)
+    TEXT[!MUST,implementation,test]: A claim class whose non-`spec` members bear two or more distinct
+    TEXT[!MUST,implementation,test]: claim forms MUST fail the duplicates check unless the set of
+    TEXT[!MUST,implementation,test]: non-`spec` claim forms is admitted by the configured claim-form
+    TEXT[!MUST,implementation,test]: family ([§4.2](#schema-claims)).
+    TEXT[!MUST,implementation,test]: A claim class whose non-`spec`
+    TEXT[!MUST,implementation,test]: members bear a single claim form MUST NOT fail this rule: copies
+    TEXT[!MUST,implementation,test]: of one form are the caps' business ([§2.2](#caps)).
+    TEXT[implementation,test]: The default claim-form family admits exactly the form sets
+    TEXT[implementation,test]: containing no free form
+
+  SECTION: [2.5 Partial overlap](#partial-overlap)
+    TEXT[!MUST,implementation,test]: Verdict: a partial overlap MUST NOT fail the duplicates check,
+    TEXT[!MUST,implementation,test]: matching the historical check.
+    TEXT[!MUST,implementation,test]: Content: the check MUST identify every partial-overlap pair in
+    TEXT[!MUST,implementation,test]: its analysis.
+
+  SECTION: [2.6 Verdict](#duplicates-verdict)
+    TEXT[!MUST,implementation,test]: The duplicates check MUST fail if and only if at least one rule of
+    TEXT[!MUST,implementation,test]: [§2.1](#same-claim-same-target)–[§2.4](#exclusivity) or of the
+    TEXT[!MUST,implementation,test]: target axis ([§3.2](#fan-in-bounds)–[§3.3](#type-combinations))
+    TEXT[!MUST,implementation,test]: fires.
+
+  SECTION: [3.1 Listing](#fan-in-listing)
+    TEXT[!MUST,implementation,test]: The duplicates check's report MUST include the fan-in listing: it
+    TEXT[!MUST,implementation,test]: MUST contain a target if and only if two or more annotations
+    TEXT[!MUST,implementation,test]: resolve to it.
+    TEXT[!MUST,implementation,test]: Each listed target MUST report its exact annotation count, its
+    TEXT[!MUST,implementation,test]: per-form breakdown, and its distinct-section count, and the
+    TEXT[!MUST,implementation,test]: listing MUST be sorted by annotation count descending.
+
+  SECTION: [3.2 Fan-in bounds](#fan-in-bounds)
+    TEXT[!MUST,implementation,test]: When a bound is configured, a target class exceeding it MUST fail
+    TEXT[!MUST,implementation,test]: the duplicates check.
+
+  SECTION: [3.3 Target form combinations](#type-combinations)
+    TEXT[!MUST,implementation,test]: A target class bearing two or more distinct claim forms MUST fail
+    TEXT[!MUST,implementation,test]: the duplicates check unless its form set is a subset of some
+    TEXT[!MUST,implementation,test]: member of the family.
+    TEXT[!MUST,implementation,test]: A target class bearing a single claim form
+    TEXT[!MUST,implementation,test]: MUST NOT fail this rule.
+    TEXT[implementation,test]: The default family admits every form set that does not contain
+    TEXT[implementation,test]: both `test` and `implementation`
+
+  SECTION: [4.1 Policy source](#policy-source)
+    TEXT[!MUST,implementation,test]: Every policy value in this specification MUST be read from
+    TEXT[!MUST,implementation,test]: checked-in configuration.
+    TEXT[!MUST,implementation,test]: Command-line options MUST NOT change any verdict: the command line
+    TEXT[!MUST,implementation,test]: selects which checks run, points at evidence artifacts, and
+    TEXT[!MUST,implementation,test]: controls verbosity — display, never verdict.
+
+  SECTION: [4.2.3 Shared rules](#schema-shared)
+    TEXT[!MUST,implementation,test]: Form names in configuration use the canonical vocabulary
+    TEXT[!MUST,implementation,test]: ([§1.1](#annotation-model)); `citation` MUST be accepted as an
+    TEXT[!MUST,implementation,test]: alias for `implementation` and MUST NOT appear in any emitted
+    TEXT[!MUST,implementation,test]: output.
+    TEXT[!MUST,implementation,test]: An unrecognized key under `[duplicates.claims]` or
+    TEXT[!MUST,implementation,test]: `[duplicates.targets]` MUST be a configuration error, so a typo
+    TEXT[!MUST,implementation,test]: never silently takes a default.
+    TEXT[!MUST,implementation,test]: Configuring a cap for a form other than `test` or
+    TEXT[!MUST,implementation,test]: `implementation` MUST be a configuration error
+    TEXT[!MUST,implementation,test]: ([§2.2](#caps)).
+
+  SECTION: [4.5 Scoped overrides](#scoped-overrides)
+    TEXT[!MUST,exception]: If scoped overrides ship,
+    TEXT[!MUST,exception]: they MUST satisfy resolution determinism, unconfigured
+    TEXT[!MUST,exception]: equivalence, and shadowing monotonicity as stated there.
+
+  SECTION: [5. Properties](#properties)
+    TEXT[!MUST,exception]: Each property MUST be pinned by an integration fixture, except
+    TEXT[!MUST,exception]: where noted.
+
 SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverage-model-spec.md)
   SECTION: [1.3 Classification Function and Unknown Lines](#classification-function)
     TEXT[!MUST]: A line classified as `{Annotation}` MUST NOT also have

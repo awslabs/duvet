@@ -1,0 +1,39 @@
+target = "design/duplicates/spec.md#type-combinations"
+
+# 3.3 Target form combinations
+#
+# Configuration declares a **family of allowed form sets** for
+# target classes ([§4.2](#schema-targets)).
+# 
+# A target class bearing two or more distinct claim forms MUST fail
+# the duplicates check unless its form set is a subset of some
+# member of the family. A target class bearing a single claim form
+# MUST NOT fail this rule.
+# ([Decision 12](decisions.md#decision-12);
+# [P-T2](#property-p-t2))
+# 
+# The default family admits every form set that does not contain
+# both `test` and `implementation`
+# ([Decision 8](decisions.md#decision-8)): a position claimed as
+# test code and implementation code simultaneously fails by default;
+# the meta-requirement case relaxes the default in configuration and
+# owns the decision in review.
+# 
+# An empty family (`types = []`) forbids all form mixing on a
+# target.
+
+[[spec]]
+level = "MUST"
+quote = '''
+A target class bearing two or more distinct claim forms MUST fail
+the duplicates check unless its form set is a subset of some
+member of the family.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A target class bearing a single claim form
+MUST NOT fail this rule.
+'''
+

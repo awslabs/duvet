@@ -14,6 +14,11 @@ report_output = false
 # Every quote is unique (the claim axis is deliberately clean), no bounds are
 # configured, and all forms are `implementation`, so the check PASSES: a
 # listing is not a gate.
+#= design/duplicates/spec.md#fan-in-listing
+#= type=test
+#% The duplicates check's report MUST include the fan-in listing: it
+#% MUST contain a target if and only if two or more annotations
+#% resolve to it.
 [[file]]
 path = ".duvet/config.toml"
 contents = """
@@ -26,6 +31,11 @@ pattern = "src/**/*.rs"
 source = "spec.md"
 """
 
+#= design/duplicates/spec.md#fan-in-listing
+#= type=test
+#% Each listed target MUST report its exact annotation count, its
+#% per-form breakdown, and its distinct-section count, and the
+#% listing MUST be sorted by annotation count descending.
 [[file]]
 path = "src/lib.rs"
 contents = """
@@ -51,6 +61,10 @@ pub fn pair() {}
 pub fn single() {}
 """
 
+#= design/duplicates/spec.md#type-combinations
+#= type=test
+#% A target class bearing a single claim form
+#% MUST NOT fail this rule.
 [[file]]
 path = "spec.md"
 contents = """

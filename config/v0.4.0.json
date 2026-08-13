@@ -11,7 +11,7 @@
       ]
     },
     "duplicates": {
-      "description": "Policy for the duplicates check and the duplicate-targets query\n(design/duplicates/spec.md §4).",
+      "description": "Policy for the duplicates check — both coincidence axes\n(design/duplicates/spec.md §4).",
       "anyOf": [
         {
           "$ref": "#/$defs/DuplicatesSchema"
@@ -71,7 +71,7 @@
       ]
     },
     "DuplicatesClaims": {
-      "description": "`[duplicates.claims]` — predicates over claim classes.\n\n//= design/duplicates/spec.md#caps\n//# Caps MUST be configurable only for the priced forms.",
+      "description": "`[duplicates.claims]` — predicates over claim classes.",
       "type": "object",
       "properties": {
         "implementation": {
@@ -109,7 +109,7 @@
       "additionalProperties": false
     },
     "DuplicatesSchema": {
-      "description": "The `[duplicates]` configuration section (design/duplicates/spec.md §4.2).\nTwo namespaces mirror the two coincidence axes; every setting lives in\nexactly one namespace.\n\n//= design/duplicates/spec.md#schema-shared\n//# An unrecognized key under `[duplicates.claims]` or\n//# `[duplicates.targets]` MUST be a configuration error, so a typo\n//# never silently takes a default.",
+      "description": "The `[duplicates]` configuration section (design/duplicates/spec.md §4.2).\nTwo namespaces mirror the two coincidence axes; every setting lives in\nexactly one namespace.",
       "type": "object",
       "properties": {
         "claims": {

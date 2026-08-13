@@ -13,6 +13,12 @@ report_output = false
 # on the same shape), this pins P-D4 bound monotonicity at the fixture level:
 # raising the cap flipped section-1's pair from failing to passing and left
 # section-2's triple failing.
+#= design/duplicates/spec.md#duplicates-verdict
+#= type=test
+#% The duplicates check MUST fail if and only if at least one rule of
+#% [§2.1](#same-claim-same-target)–[§2.4](#exclusivity) or of the
+#% target axis ([§3.2](#fan-in-bounds)–[§3.3](#type-combinations))
+#% fires.
 [[file]]
 path = ".duvet/config.toml"
 contents = """
@@ -28,6 +34,10 @@ source = "spec.md"
 test = 2
 """
 
+#= design/duplicates/spec.md#caps
+#= type=test
+#% A duplicate set whose size exceeds its form's cap MUST fail the
+#% duplicates check.
 [[file]]
 path = "src/lib.rs"
 contents = """
@@ -57,6 +67,12 @@ pub fn copy_two() {}
 pub fn copy_three() {}
 """
 
+#= design/duplicates/spec.md#caps
+#= type=test
+#% A duplicate set within its cap MUST pass this check
+#% ([Decision 5](decisions.md#decision-5)), and when its size exceeds
+#% one it MUST be reported with its size and every member's location,
+#% so multiplicity is always surfaced, never silent.
 [[file]]
 path = "spec.md"
 contents = """

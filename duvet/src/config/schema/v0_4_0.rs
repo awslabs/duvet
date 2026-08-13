@@ -113,11 +113,10 @@ impl Schema {
     }
 
     /// Convert the raw `[duplicates]` section into the validated policy.
-    ///
-    /// //= design/duplicates/spec.md#policy-source
-    /// //# Every policy value in this specification MUST be read from
-    /// //# checked-in configuration.
     pub fn duplicates(&self) -> Result<config::DuplicatesPolicy> {
+        //= design/duplicates/spec.md#policy-source
+        //# Every policy value in this specification MUST be read from
+        //# checked-in configuration.
         let Some(schema) = &self.duplicates else {
             return Ok(config::DuplicatesPolicy::default());
         };
@@ -173,11 +172,11 @@ fn positive_cap(value: u32, key: &str) -> Result<u32> {
 /// The `[duplicates]` configuration section (design/duplicates/spec.md §4.2).
 /// Two namespaces mirror the two coincidence axes; every setting lives in
 /// exactly one namespace.
-///
-/// //= design/duplicates/spec.md#schema-shared
-/// //# An unrecognized key under `[duplicates.claims]` or
-/// //# `[duplicates.targets]` MUST be a configuration error, so a typo
-/// //# never silently takes a default.
+//
+//= design/duplicates/spec.md#schema-shared
+//# An unrecognized key under `[duplicates.claims]` or
+//# `[duplicates.targets]` MUST be a configuration error, so a typo
+//# never silently takes a default.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
@@ -189,14 +188,19 @@ pub struct DuplicatesSchema {
 }
 
 /// `[duplicates.claims]` — predicates over claim classes.
-///
-/// //= design/duplicates/spec.md#caps
-/// //# Caps MUST be configurable only for the priced forms.
+//
+//= design/duplicates/spec.md#caps
+//# Caps MUST be configurable only for the priced forms.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct DuplicatesClaims {
     /// Cap for `test` duplicate sets. Default 1.
+    //
+    //= design/duplicates/spec.md#schema-shared
+    //# Configuring a cap for a form other than `test` or
+    //# `implementation` MUST be a configuration error
+    //# ([§2.2](#caps)).
     #[serde(default)]
     pub test: Option<u32>,
     /// Cap for `implementation` duplicate sets. Default 1. `citation` is
@@ -501,6 +505,27 @@ impl From<SpecificationFormat> for crate::specification::Format {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn duplicates_schema_rejects_unknown_and_unpriced_caps() {
+        //= design/duplicates/spec.md#schema-shared
+        //= type=test
+        //# An unrecognized key under `[duplicates.claims]` or
+        //# `[duplicates.targets]` MUST be a configuration error, so a typo
+        //# never silently takes a default.
+        assert!(serde_json::from_str::<DuplicatesSchema>(r#"{"claims":{"bogus":1}}"#).is_err());
+        assert!(serde_json::from_str::<DuplicatesSchema>(r#"{"targets":{"bogus":1}}"#).is_err());
+        //= design/duplicates/spec.md#schema-shared
+        //= type=test
+        //# Configuring a cap for a form other than `test` or
+        //# `implementation` MUST be a configuration error
+        //# ([§2.2](#caps)).
+        assert!(serde_json::from_str::<DuplicatesSchema>(r#"{"claims":{"exception":1}}"#).is_err());
+        //= design/duplicates/spec.md#caps
+        //= type=test
+        //# Caps MUST be configurable only for the priced forms.
+        assert!(serde_json::from_str::<DuplicatesSchema>(r#"{"claims":{"todo":1}}"#).is_err());
+    }
 
     #[test]
     fn schema_test() {

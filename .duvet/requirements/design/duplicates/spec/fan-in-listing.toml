@@ -1,0 +1,33 @@
+target = "design/duplicates/spec.md#fan-in-listing"
+
+# 3.1 Listing
+#
+# The duplicates check's report MUST include the fan-in listing: it
+# MUST contain a target if and only if two or more annotations
+# resolve to it.
+# ([P-T1](#property-p-t1))
+# 
+# Each listed target MUST report its exact annotation count, its
+# per-form breakdown, and its distinct-section count, and the
+# listing MUST be sorted by annotation count descending.
+# 
+# The distinct-section count is a triage column, not a
+# discriminator: `count=12 sections=1` reads "dense but coherent";
+# `count=12 sections=8` reads "look here first."
+
+[[spec]]
+level = "MUST"
+quote = '''
+The duplicates check's report MUST include the fan-in listing: it
+MUST contain a target if and only if two or more annotations
+resolve to it.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Each listed target MUST report its exact annotation count, its
+per-form breakdown, and its distinct-section count, and the
+listing MUST be sorted by annotation count descending.
+'''
+

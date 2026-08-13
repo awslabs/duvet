@@ -1,15 +1,48 @@
 '$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
 
 # Only `duvet-coverage` carries real requirement annotations (the coverage
-# model proofs). `duvet/**` is intentionally NOT scanned for now: duvet's
+# model proofs). `duvet/**` is intentionally NOT scanned wholesale: duvet's
 # annotation parser also reads string literals, so example annotations in
 # duvet's own test fixtures and help strings (e.g. `//= spec.md#...`,
 # `//= https://.../rfc2324...`) would be picked up as real citations. Once
 # that parser issue is fixed, `duvet/**` can be scanned safely.
 # See https://github.com/awslabs/duvet/issues/226
+#
+# The three files below are scanned as explicit exceptions: each was
+# inspected for string literals whose lines begin with the `//=` meta
+# prefix (the tokenizer matches only at trimmed line start —
+# duvet/src/comment/tokenizer.rs) and carries none. Re-inspect before
+# widening any of these patterns.
 
 [[source]]
 pattern = "duvet-coverage/**/*.rs"
+
+[[source]]
+pattern = "duvet/src/query/checks/duplicates.rs"
+
+[[source]]
+pattern = "duvet/src/config.rs"
+
+[[source]]
+pattern = "duvet/src/config/schema/v0_4_0.rs"
+
+[[source]]
+pattern = "duvet/src/query/result.rs"
+
+# The duplicates fixtures carry `#=`-style test citations against
+# design/duplicates/spec.md: each fixture is the test artifact that pins the
+# rule it cites. The `#=`/`#%` style means the Rust-style `//=` annotation
+# text embedded in fixture `contents` strings is never ingested.
+[[source]]
+pattern = "integration/*.toml"
+comment-style = { meta = "#=", content = "#%" }
+
+# This config file is scanned so deferrals can be recorded as reviewed
+# `exception` annotations right where the policy lives (see the end of
+# this file).
+[[source]]
+pattern = ".duvet/config.toml"
+comment-style = { meta = "#=", content = "#%" }
 
 # The CI verify step is the artifact that enforces "These properties MUST be
 # proven with Verus" — the annotation lives on the step, not on a file header
@@ -38,6 +71,9 @@ count = 1
 [[specification]]
 source = "design/query/coverage-model-spec.md"
 
+[[specification]]
+source = "design/duplicates/spec.md"
+
 [report.html]
 enabled = true
 issue-link = "https://github.com/awslabs/duvet/issues"
@@ -48,3 +84,30 @@ enabled = true
 
 [report.snapshot]
 enabled = true
+
+# ---------------------------------------------------------------------------
+# DEFERRALS — reviewed waivers for spec MUSTs with no honest artifact on this
+# branch. Each is an `exception` annotation: visible in the report, gone the
+# day the artifact lands. Do not add implications here — an implication
+# claims the requirement holds by construction, which is exactly the
+# type-shopping §2.4 polices.
+#
+# 1. spec §5's fixture-pinning meta-MUST: the fixture suite exists and CI
+#    runs it, but nothing on this branch audits that EVERY property is
+#    pinned. Deferred until a property-to-fixture traceability check exists.
+#
+#= design/duplicates/spec.md#properties
+#= type=exception
+#% Each property MUST be pinned by an integration fixture, except
+#% where noted.
+
+# 2. spec §4.5 scoped overrides: designed and deferred (Decision 13). The
+#    feature does not exist in this version, so its conditional MUSTs have
+#    no implementation to cite. The exception dissolves when scoped
+#    overrides ship.
+#
+#= design/duplicates/spec.md#scoped-overrides
+#= type=exception
+#% If scoped overrides ship,
+#% they MUST satisfy resolution determinism, unconfigured
+#% equivalence, and shadowing monotonicity as stated there.

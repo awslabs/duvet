@@ -355,12 +355,16 @@ pub async fn analyze_duplicates(
         //# A claim class whose non-`spec` members bear two or more distinct
         //# claim forms MUST fail the duplicates check unless the set of
         //# non-`spec` claim forms is admitted by the configured claim-form
-        //# family
+        //# family ([§4.2](#schema-claims)).
         let non_spec: Vec<Arc<Annotation>> = members
             .iter()
             .filter(|member| member.anno != AnnotationType::Spec)
             .cloned()
             .collect();
+        //= design/duplicates/spec.md#exclusivity
+        //# A claim class whose non-`spec`
+        //# members bear a single claim form MUST NOT fail this rule: copies
+        //# of one form are the caps' business ([§2.2](#caps)).
         let forms: FormSet = non_spec.iter().map(|member| member.anno).collect();
         if forms.len() >= 2 && !policy.claims.admits(&forms) {
             analysis.exclusivity.push(ExclusivityViolation {
@@ -449,9 +453,9 @@ fn analyze_target_axis(
     }
 
     //= design/duplicates/spec.md#fan-in-listing
-    //# it
-    //# MUST contain a target if and only if two or more
-    //# annotations resolve to it.
+    //# The duplicates check's report MUST include the fan-in listing: it
+    //# MUST contain a target if and only if two or more annotations
+    //# resolve to it.
     let mut listing: Vec<TargetClass> = by_target
         .into_iter()
         .filter(|(_, members)| members.len() >= 2)
@@ -472,8 +476,9 @@ fn analyze_target_axis(
         .collect();
 
     //= design/duplicates/spec.md#fan-in-listing
-    //# the listing MUST be
-    //# sorted by annotation count descending.
+    //# Each listed target MUST report its exact annotation count, its
+    //# per-form breakdown, and its distinct-section count, and the
+    //# listing MUST be sorted by annotation count descending.
     listing.sort_by(|a, b| {
         b.count()
             .cmp(&a.count())
@@ -505,6 +510,9 @@ fn analyze_target_axis(
         //# the duplicates check unless its form set is a subset of some
         //# member of the family.
         let form_set = class.form_set();
+        //= design/duplicates/spec.md#type-combinations
+        //# A target class bearing a single claim form
+        //# MUST NOT fail this rule.
         if form_set.len() >= 2 && !policy.targets.admits(&form_set) {
             analysis.type_violations.push(index);
         }

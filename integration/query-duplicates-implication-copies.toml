@@ -6,6 +6,11 @@ report_output = false
 # claims are a single-form class, so the claim-form family rule (§2.4) does
 # not range over them — they fail on the free cap alone (fixed at 1, no
 # knob). Exactly ONE finding, the cap; no "share one claim" line rides along.
+#= design/duplicates/spec.md#exclusivity
+#= type=test
+#% A claim class whose non-`spec`
+#% members bear a single claim form MUST NOT fail this rule: copies
+#% of one form are the caps' business ([§2.2](#caps)).
 [[file]]
 path = ".duvet/config.toml"
 contents = """

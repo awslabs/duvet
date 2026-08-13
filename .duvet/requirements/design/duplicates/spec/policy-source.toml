@@ -1,0 +1,29 @@
+target = "design/duplicates/spec.md#policy-source"
+
+# 4.1 Policy source
+#
+# Every policy value in this specification MUST be read from
+# checked-in configuration. The shipped defaults
+# ([§4.3](#defaults)) apply where configuration is silent.
+# 
+# Command-line options MUST NOT change any verdict: the command line
+# selects which checks run, points at evidence artifacts, and
+# controls verbosity — display, never verdict.
+# ([Decision 9](decisions.md#decision-9);
+# [P-S0](#property-p-s0))
+
+[[spec]]
+level = "MUST"
+quote = '''
+Every policy value in this specification MUST be read from
+checked-in configuration.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Command-line options MUST NOT change any verdict: the command line
+selects which checks run, points at evidence artifacts, and
+controls verbosity — display, never verdict.
+'''
+

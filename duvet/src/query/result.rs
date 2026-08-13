@@ -695,6 +695,10 @@ impl fmt::Display for DuplicatesResult {
             writeln!(f, "{error:?}")?;
         }
 
+        //= design/duplicates/spec.md#policy-source
+        //# Command-line options MUST NOT change any verdict: the command line
+        //# selects which checks run, points at evidence artifacts, and
+        //# controls verbosity — display, never verdict.
         if self.verbose {
             // §2.5 — partial overlap: reported, never failed.
             for coverage in &analysis.some_overlap {

@@ -8,6 +8,10 @@ report_output = false
 # fails it. Content + presentation: the pair appears in the report under
 # `--verbose` (the display tier where the some_overlap population is shown;
 # verbosity never changes the verdict, §4.1 / P-S0).
+#= design/duplicates/spec.md#partial-overlap
+#= type=test
+#% Verdict: a partial overlap MUST NOT fail the duplicates check,
+#% matching the historical check.
 [[file]]
 path = ".duvet/config.toml"
 contents = """
@@ -20,6 +24,10 @@ pattern = "src/**/*.rs"
 source = "spec.md"
 """
 
+#= design/duplicates/spec.md#partial-overlap
+#= type=test
+#% Content: the check MUST identify every partial-overlap pair in
+#% its analysis.
 [[file]]
 path = "src/lib.rs"
 contents = """
@@ -34,6 +42,11 @@ pub fn front_half() {}
 pub fn back_half() {}
 """
 
+#= design/duplicates/spec.md#policy-source
+#= type=test
+#% Command-line options MUST NOT change any verdict: the command line
+#% selects which checks run, points at evidence artifacts, and
+#% controls verbosity — display, never verdict.
 [[file]]
 path = "spec.md"
 contents = """

@@ -1,0 +1,19 @@
+target = "design/duplicates/spec.md#scoped-overrides"
+
+# 4.5 Scoped overrides
+#
+# Designed and deferred ([Decision 13](decisions.md#decision-13)).
+# All values in this version are global. If scoped overrides ship,
+# they MUST satisfy resolution determinism, unconfigured
+# equivalence, and shadowing monotonicity as stated there.
+# 
+# ---
+
+[[spec]]
+level = "MUST"
+quote = '''
+If scoped overrides ship,
+they MUST satisfy resolution determinism, unconfigured
+equivalence, and shadowing monotonicity as stated there.
+'''
+

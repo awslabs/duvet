@@ -6,6 +6,10 @@ report_output = false
 # input as query-duplicates-exclusivity, with the coexistence admitted by one
 # reviewed configuration line — a rule-level policy declaration, never a
 # per-instance waiver comment. PASSES.
+#= design/duplicates/spec.md#policy-source
+#= type=test
+#% Every policy value in this specification MUST be read from
+#% checked-in configuration.
 [[file]]
 path = ".duvet/config.toml"
 contents = """

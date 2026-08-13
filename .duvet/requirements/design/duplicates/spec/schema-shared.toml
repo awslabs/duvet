@@ -1,0 +1,55 @@
+target = "design/duplicates/spec.md#schema-shared"
+
+# 4.2.3 Shared rules
+#
+# Form names in configuration use the canonical vocabulary
+# ([§1.1](#annotation-model)); `citation` MUST be accepted as an
+# alias for `implementation` and MUST NOT appear in any emitted
+# output.
+# 
+# An unrecognized key under `[duplicates.claims]` or
+# `[duplicates.targets]` MUST be a configuration error, so a typo
+# never silently takes a default.
+# 
+# Configuring a cap for a form other than `test` or
+# `implementation` MUST be a configuration error
+# ([§2.2](#caps)).
+# 
+# Example:
+# 
+# ```toml
+# [duplicates.claims]
+# test = 2                        # proof + PBT: two evidence artifacts
+# # implementation defaults to 1
+# # types defaults to the free-form-exclusive family (§4.3)
+# 
+# [duplicates.targets]
+# count = 15                      # opt-in fan-in bound
+# types = ["exception+test"]      # allow this combination on one target
+# ```
+
+[[spec]]
+level = "MUST"
+quote = '''
+Form names in configuration use the canonical vocabulary
+([§1.1](#annotation-model)); `citation` MUST be accepted as an
+alias for `implementation` and MUST NOT appear in any emitted
+output.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+An unrecognized key under `[duplicates.claims]` or
+`[duplicates.targets]` MUST be a configuration error, so a typo
+never silently takes a default.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Configuring a cap for a form other than `test` or
+`implementation` MUST be a configuration error
+([§2.2](#caps)).
+'''
+

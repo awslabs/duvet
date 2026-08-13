@@ -7,6 +7,11 @@ report_output = false
 # family — disjoint populations in every codebase we care about. The claims
 # differ (no duplicate-claim question); the collision is purely on the target
 # axis of the one duplicates check.
+#= design/duplicates/spec.md#type-combinations
+#= type=test
+#% A target class bearing two or more distinct claim forms MUST fail
+#% the duplicates check unless its form set is a subset of some
+#% member of the family.
 [[file]]
 path = ".duvet/config.toml"
 contents = """

@@ -10,6 +10,12 @@ report_output = false
 # table predicts. This coexistence silently passed the historical check; the
 # tightening is deliberate (Decision 14), restorable per
 # query-duplicates-exclusivity-family.
+#= design/duplicates/spec.md#exclusivity
+#= type=test
+#% A claim class whose non-`spec` members bear two or more distinct
+#% claim forms MUST fail the duplicates check unless the set of
+#% non-`spec` claim forms is admitted by the configured claim-form
+#% family ([§4.2](#schema-claims)).
 [[file]]
 path = ".duvet/config.toml"
 contents = """

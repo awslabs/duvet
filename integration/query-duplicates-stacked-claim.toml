@@ -11,6 +11,11 @@ report_output = false
 # (§2.1 is cap-independent), and no same-form cap is exceeded (one member per
 # form). The target axis independently flags the same stack as a mixed
 # test+implementation target (§3.3) — both firings appear in the snapshot.
+#= design/duplicates/spec.md#same-claim-same-target
+#= type=test
+#% Two annotations that share a claim and share a resolved target
+#% MUST fail the duplicates check, regardless of their claim forms
+#% and regardless of any configured cap.
 [[file]]
 path = ".duvet/config.toml"
 contents = """

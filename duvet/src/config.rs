@@ -15,13 +15,12 @@ pub type FormSet = BTreeSet<AnnotationType>;
 pub type FormFamily = Option<Vec<FormSet>>;
 
 /// The canonical user-facing name of a claim form.
-///
-/// //= design/duplicates/spec.md#annotation-model
-/// //# Every user-facing surface this
-/// //# specification defines — configuration keys, report sections,
-/// //# failure messages — MUST emit the name `implementation` and MUST
-/// //# NOT emit the name `citation`.
 pub fn form_name(form: AnnotationType) -> &'static str {
+    //= design/duplicates/spec.md#annotation-model
+    //# Every user-facing surface this
+    //# specification defines — configuration keys, report sections,
+    //# failure messages — MUST emit the name `implementation` and MUST
+    //# NOT emit the name `citation`.
     match form {
         AnnotationType::Spec => "spec",
         AnnotationType::Test => "test",
@@ -150,12 +149,11 @@ impl Default for ClaimsPolicy {
 
 impl ClaimsPolicy {
     /// The multiplicity cap for a claim form.
-    ///
-    /// //= design/duplicates/spec.md#caps
-    /// //# The caps of
-    /// //# `spec`, `todo`, `exception`, and `implication` are fixed at 1 and
-    /// //# MUST NOT be configurable.
     pub fn cap(&self, form: AnnotationType) -> u32 {
+        //= design/duplicates/spec.md#caps
+        //# The caps of
+        //# `spec`, `todo`, `exception`, and `implication` are fixed at 1 and
+        //# MUST NOT be configurable.
         match form {
             AnnotationType::Test => self.test,
             AnnotationType::Citation => self.implementation,
@@ -164,11 +162,10 @@ impl ClaimsPolicy {
     }
 
     /// Whether the claim-form family admits this set of coexisting forms.
-    ///
-    /// //= design/duplicates/spec.md#exclusivity
-    /// //# The default claim-form family admits exactly the form sets
-    /// //# containing no free form
     pub fn admits(&self, forms: &FormSet) -> bool {
+        //= design/duplicates/spec.md#exclusivity
+        //# The default claim-form family admits exactly the form sets
+        //# containing no free form
         match &self.types {
             Some(family) => family.iter().any(|allowed| forms.is_subset(allowed)),
             None => !forms.iter().any(|form| is_free_form(*form)),
@@ -191,11 +188,10 @@ pub struct TargetsPolicy {
 
 impl TargetsPolicy {
     /// Whether the target-form family admits this set of coexisting forms.
-    ///
-    /// //= design/duplicates/spec.md#type-combinations
-    /// //# The default family admits every form set that does not contain
-    /// //# both `test` and `implementation`
     pub fn admits(&self, forms: &FormSet) -> bool {
+        //= design/duplicates/spec.md#type-combinations
+        //# The default family admits every form set that does not contain
+        //# both `test` and `implementation`
         match &self.types {
             Some(family) => family.iter().any(|allowed| forms.is_subset(allowed)),
             None => {
@@ -209,6 +205,10 @@ impl TargetsPolicy {
 /// Parse a claim form name as configuration input. `citation` is accepted as
 /// an alias for `implementation`; the canonical name is what we emit.
 pub fn parse_form_name(name: &str) -> Result<AnnotationType> {
+    //= design/duplicates/spec.md#annotation-model
+    //# Wherever a claim form is read as
+    //# input, `citation` MUST be accepted as an alias for
+    //# `implementation`.
     match name.trim() {
         "spec" => Ok(AnnotationType::Spec),
         "test" => Ok(AnnotationType::Test),
@@ -225,6 +225,11 @@ pub fn parse_form_name(name: &str) -> Result<AnnotationType> {
 
 /// Parse a `+`-joined form-set family, e.g. `["exception+test"]`.
 pub fn parse_form_family(entries: &[String]) -> Result<Vec<FormSet>> {
+    //= design/duplicates/spec.md#schema-shared
+    //# Form names in configuration use the canonical vocabulary
+    //# ([§1.1](#annotation-model)); `citation` MUST be accepted as an
+    //# alias for `implementation` and MUST NOT appear in any emitted
+    //# output.
     let mut family = Vec::with_capacity(entries.len());
     for entry in entries {
         let mut set = FormSet::new();
@@ -393,6 +398,10 @@ mod tests {
     /// containing no free form.
     #[test]
     fn default_claims_family_excludes_free_forms() {
+        //= design/duplicates/spec.md#exclusivity
+        //= type=test
+        //# The default claim-form family admits exactly the form sets
+        //# containing no free form
         let policy = ClaimsPolicy::default();
         assert!(policy.admits(&forms(&["test", "implementation"])));
         assert!(policy.admits(&forms(&["test"])));
@@ -409,6 +418,10 @@ mod tests {
     /// does not contain both `test` and `implementation`.
     #[test]
     fn default_targets_family_splits_test_from_implementation() {
+        //= design/duplicates/spec.md#type-combinations
+        //= type=test
+        //# The default family admits every form set that does not contain
+        //# both `test` and `implementation`
         let policy = TargetsPolicy::default();
         assert!(!policy.admits(&forms(&["test", "implementation"])));
         assert!(!policy.admits(&forms(&["test", "implementation", "exception"])));
@@ -439,6 +452,11 @@ mod tests {
     /// spec §2.2: free-form caps are fixed at 1 regardless of the priced caps.
     #[test]
     fn free_form_caps_are_fixed() {
+        //= design/duplicates/spec.md#caps
+        //= type=test
+        //# The caps of
+        //# `spec`, `todo`, `exception`, and `implication` are fixed at 1 and
+        //# MUST NOT be configurable.
         let policy = ClaimsPolicy {
             test: 5,
             implementation: 5,
@@ -460,12 +478,33 @@ mod tests {
     /// emitted, unknown names rejected.
     #[test]
     fn form_name_round_trip() {
+        //= design/duplicates/spec.md#annotation-model
+        //= type=test
+        //# Wherever a claim form is read as
+        //# input, `citation` MUST be accepted as an alias for
+        //# `implementation`.
         assert_eq!(
             parse_form_name("citation").unwrap(),
             AnnotationType::Citation
         );
+        //= design/duplicates/spec.md#annotation-model
+        //= type=test
+        //# Every user-facing surface this
+        //# specification defines — configuration keys, report sections,
+        //# failure messages — MUST emit the name `implementation` and MUST
+        //# NOT emit the name `citation`.
         assert_eq!(form_name(AnnotationType::Citation), "implementation");
         assert!(parse_form_name("citations").is_err());
         assert!(parse_form_family(&["".to_string()]).is_err());
+        //= design/duplicates/spec.md#schema-shared
+        //= type=test
+        //# Form names in configuration use the canonical vocabulary
+        //# ([§1.1](#annotation-model)); `citation` MUST be accepted as an
+        //# alias for `implementation` and MUST NOT appear in any emitted
+        //# output.
+        assert_eq!(
+            parse_form_family(&["citation+test".to_string()]).unwrap(),
+            vec![forms(&["implementation", "test"])]
+        );
     }
 }

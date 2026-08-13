@@ -8,6 +8,10 @@ report_output = false
 # one section is within both. These are the only rules that fail code for a
 # smell rather than a violated evidence property; the team opted in by
 # writing the numbers.
+#= design/duplicates/spec.md#fan-in-bounds
+#= type=test
+#% When a bound is configured, a target class exceeding it MUST fail
+#% the duplicates check.
 [[file]]
 path = ".duvet/config.toml"
 contents = """
