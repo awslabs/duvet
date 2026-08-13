@@ -303,22 +303,29 @@ an `implementation`? Today the duplicates check is same-type-only
 and never sees these coexistences.
 
 The engine fact from [the formal space](#formal-space) makes this
-urgent rather than cosmetic: an `exception` or `implication`
-exempts its requirement from the test obligation. So a free form
-added *next to* an existing priced form silently deflates the
-priced form's obligations — an LLM (or a tired human) that learns
-"tests need witnesses and implementations must execute" also
-learns that `implication` requires nothing. Type-shopping is the
-gate-evasion strategy the pricing table predicts, and the free
-forms are its escape valve. A per-target rule cannot catch it: an
+urgent rather than cosmetic: the free forms are satisfied coverers
+everywhere the checks look for implementations — they cover
+requirements in the implementation check and cover tests in the
+coverage check — while the test check ranges over `implementation`
+annotations only. A free form written *in place of* a priced form
+therefore satisfies implementation coverage while creating no test
+obligation at all — an LLM (or a tired human) that learns "tests
+need witnesses and implementations must execute" also learns that
+`implication` requires nothing. (A free form added *next to* an
+intact priced form deflates nothing — the priced form keeps its
+obligations; what that coexistence signals is incoherent claims
+about the requirement's nature.) Type-shopping is the gate-evasion
+strategy the pricing table predicts, and the free forms are its
+escape valve. A per-target rule cannot catch the coexistence: an
 `exception`'s position is incidental, so it evades any co-location
 check by sitting anywhere else.
 
 ### Option A: Leave it alone (today's behavior)
 
-- Con: the exploit is live. Adding an `implication` next to an
-  existing `implementation` annotation silently deflates the
-  requirement's obligations, and nothing reports the coexistence.
+- Con: the exploit is live. An `implication` written where an
+  `implementation` belongs satisfies the implementation check and
+  carries no test obligation, and nothing reports a free form
+  coexisting with priced claims on one requirement.
 
 ### Option B: A pairwise contradiction matrix
 
@@ -1119,11 +1126,6 @@ Pinned by fixture unless noted.
 
 ## Follow-ups
 
-- Verify against the engine: the exact control flow by which
-  exception/implication exempt the test obligation (implementation
-  and test checks), so P-D5's fixture set covers the real paths;
-  and that exact/full mutual coverage is transitive, so claim
-  classes are well-defined.
 - Integration fixtures: cap fixtures at N=1 (legacy parity) and
   N=2; coherence fixtures per row of the Decision 4 table; fan-in
   listing exactness; mixed-form target default.
