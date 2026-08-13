@@ -298,7 +298,7 @@ pub async fn analyze_duplicates(
         ..Default::default()
     };
 
-    for (_key, members) in classes.iter() {
+    for members in classes.values() {
         // §2.1 — same claim, same resolved target: always fails, every form
         // pair, cap-independent.
         //
