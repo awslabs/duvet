@@ -391,14 +391,23 @@ pub async fn analyze_duplicates(
     }
 
     for (form, form_annotations) in &by_form {
-        for annotation in form_annotations {
-            let Some(key) = ClaimKey::of(annotation) else {
+        // Precompute each annotation's claim key once. `ClaimKey::of` is a
+        // pure normalization, so hoisting it out of the pair loop is
+        // behavior-preserving; recomputing it per (annotation, other) pair
+        // was O(n²) normalizations per form.
+        let keyed: Vec<(&Arc<Annotation>, Option<ClaimKey>)> = form_annotations
+            .iter()
+            .map(|annotation| (annotation, ClaimKey::of(annotation)))
+            .collect();
+
+        for (annotation, annotation_key) in &keyed {
+            let Some(key) = annotation_key else {
                 continue;
             };
-            let pool: Vec<Arc<Annotation>> = form_annotations
+            let pool: Vec<Arc<Annotation>> = keyed
                 .iter()
-                .filter(|other| ClaimKey::of(other).as_ref() != Some(&key))
-                .cloned()
+                .filter(|(_, other_key)| other_key.as_ref() != Some(key))
+                .map(|(other, _)| Arc::clone(other))
                 .collect();
 
             let (coverage, coverage_errors) =
@@ -425,7 +434,7 @@ pub async fn analyze_duplicates(
                 unique_by_form
                     .entry(*form)
                     .or_default()
-                    .push(annotation.clone());
+                    .push(Arc::clone(annotation));
             }
         }
     }
