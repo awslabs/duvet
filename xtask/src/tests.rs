@@ -57,31 +57,28 @@ impl Tests {
     }
 
     fn download_rfcs(&self, sh: &Shell) -> Result {
-        let url = "https://www.rfc-editor.org/rfc/tar/RFC-all.tar.gz";
-
         let dir = "target/www.rfc-editor.org";
         sh.create_dir(dir)?;
+
+        let src = "rsync.rfc-editor.org::rfcs-text-only/";
+        eprintln!("syncing RFCs from {src}");
+        cmd!(sh, "rsync -az --delete {src} {dir}").run()?;
+
         let _dir = sh.push_dir(dir);
-
-        let tar_gz = Path::new("RFC-all.tar.gz");
-        if !sh.path_exists(tar_gz) {
-            eprintln!("downloading {url}");
-            cmd!(sh, "curl --fail --output {tar_gz} {url}").run()?;
-            cmd!(sh, "tar -xf {tar_gz}").run()?;
-        }
-
         for file in sh.read_dir(".")? {
-            if file.ends_with(tar_gz) {
+            let name = file
+                .file_name()
+                .and_then(|v| v.to_str())
+                .unwrap_or_default();
+            // keep files matching `^rfc[0-9]+\.txt$`; drop indexes, refs, and
+            // non-numeric variants like `rfc17a.txt`
+            let stem = name
+                .strip_prefix("rfc")
+                .and_then(|n| n.strip_suffix(".txt"));
+            if stem.is_some_and(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())) {
                 continue;
             }
-
-            if let Some(ext) = file.extension().and_then(|v| v.to_str()) {
-                if ext != "txt" {
-                    sh.remove_path(file)?;
-                }
-            } else {
-                sh.remove_path(file)?;
-            }
+            sh.remove_path(file)?;
         }
 
         Ok(())
@@ -142,6 +139,14 @@ struct IntegrationTest {
     env: BTreeMap<String, String>,
     #[serde(default)]
     cwd: Option<String>,
+    #[serde(default)]
+    report_output: Option<bool>,
+    /// Additional JSON files (paths relative to the test's working
+    /// directory) to capture as insta snapshots after the cmd loop runs.
+    /// Useful for tests that produce multiple JSON outputs (e.g. a `duvet
+    /// merge` test that writes per-package and merged reports).
+    #[serde(default)]
+    extra_json_snapshots: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -225,14 +230,21 @@ impl IntegrationTest {
     }
 
     fn run(&self, target: &Path, sh: &Shell) -> Result {
-        let Self { name, cmd, cwd, .. } = self;
+        let Self {
+            name,
+            cmd,
+            cwd,
+            report_output,
+            ..
+        } = self;
 
-        let (stderr, json_report, json_v2_report, snapshot_report) = {
-            let target_dir = if let Some(cwd) = cwd {
-                target.join(cwd)
-            } else {
-                target.to_path_buf()
-            };
+        let target_dir = if let Some(cwd) = cwd {
+            target.join(cwd)
+        } else {
+            target.to_path_buf()
+        };
+
+        let (stdout, stderr, json_report, json_v2_report, snapshot_report) = {
             let _dir = sh.push_dir(&target_dir);
             let html_report = sh.current_dir().join("duvet_report.html");
             let json_report = sh.current_dir().join("duvet_report.json");
@@ -258,6 +270,7 @@ impl IntegrationTest {
                 env.push(sh.push_env(key, value));
             }
 
+            let mut stdout = String::new();
             let mut stderr = String::new();
 
             for cmd in cmd {
@@ -271,20 +284,26 @@ impl IntegrationTest {
                         stderr.push_str(&format!("EXIT: {:?}\n", output.status.code()));
                         stderr.push_str(&String::from_utf8_lossy(&output.stderr));
                         continue;
+                    } else {
+                        stdout.push_str(&format!("$ {cmd}\n"));
+                        // Send both to "stdout".
+                        // because progress! sends status messages and the like to stderr
+                        stdout.push_str(&String::from_utf8_lossy(&output.stdout));
+                        stdout.push_str(&String::from_utf8_lossy(&output.stderr));
                     }
                 } else {
                     runner.run()?;
                 }
             }
 
-            if stderr.is_empty() {
+            if stderr.is_empty() && !matches!(report_output, Some(false)) {
                 assert!(html_report.exists());
                 assert!(json_report.exists());
                 assert!(json_v2_report.exists());
                 assert!(snapshot_report.exists());
             }
 
-            (stderr, json_report, json_v2_report, snapshot_report)
+            (stdout, stderr, json_report, json_v2_report, snapshot_report)
         };
 
         let mut settings = insta::Settings::clone_current();
@@ -299,19 +318,35 @@ impl IntegrationTest {
             return Ok(());
         }
 
-        let json_file = sh.read_file(&json_report)?;
-        let json: serde_json::Value = serde_json::from_str(&json_file)?;
+        if matches!(self.report_output, None | Some(true)) {
+            let json_file = sh.read_file(&json_report)?;
+            let json: serde_json::Value = serde_json::from_str(&json_file)?;
 
-        let json_v2_file = sh.read_file(&json_v2_report)?;
-        let json_v2: serde_json::Value = serde_json::from_str(&json_v2_file)?;
+            let snapshot = sh.read_file(&snapshot_report)?;
 
-        let snapshot = sh.read_file(&snapshot_report)?;
+            let json_v2_file = sh.read_file(&json_v2_report)?;
+            let json_v2: serde_json::Value = serde_json::from_str(&json_v2_file)?;
 
-        settings.bind(|| {
-            insta::assert_snapshot!(format!("{name}"), snapshot);
-            insta::assert_json_snapshot!(format!("{name}_json"), json);
-            insta::assert_json_snapshot!(format!("{name}_json_v2"), json_v2);
-        });
+            settings.bind(|| {
+                insta::assert_snapshot!(format!("{name}"), snapshot);
+                insta::assert_json_snapshot!(format!("{name}_json"), json);
+                insta::assert_json_snapshot!(format!("{name}_json_v2"), json_v2);
+            });
+        } else {
+            settings.bind(|| {
+                insta::assert_snapshot!(format!("{name}_stdout"), stdout);
+            });
+        }
+
+        for rel in &self.extra_json_snapshots {
+            let path = target_dir.join(rel);
+            let contents = sh.read_file(&path)?;
+            let value: serde_json::Value = serde_json::from_str(&contents)?;
+            let slug = rel.trim_end_matches(".json").replace('/', "_");
+            settings.bind(|| {
+                insta::assert_json_snapshot!(format!("{name}_{slug}"), value);
+            });
+        }
 
         Ok(())
     }

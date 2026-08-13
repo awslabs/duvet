@@ -1,0 +1,44 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c implementation
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 4 sources 
+     Parsing annotations
+      Parsed 4 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 2 sections 
+    Matching references
+     Matched 4 references 
+  ×   × Exactly matchable quote not found in section
+  │    ╭─[src/first.rs:1:5]
+  │  1 │ ╭─▶ //= spec.md#section-1
+  │  2 │ │   //= type=spec
+  │  3 │ ├─▶ //# The system MUST do the first thinX.
+  │    · ╰──── Quote
+  │  4 │     fn first() {}
+  │    ╰────
+  │   help: This is likely a multiline comment and the second line is missing
+  │ `-`
+  │         or other list operator.
+  │ 
+  │   × Exactly matchable quote not found in section
+  │    ╭─[src/second.rs:1:5]
+  │  1 │ ╭─▶ //= spec.md#section-2
+  │  2 │ │   //= type=spec
+  │  3 │ ├─▶ //# The system MUST do the second thinX.
+  │    · ╰──── Quote
+  │  4 │     fn second() {}
+  │    ╰────
+  │   help: This is likely a multiline comment and the second line is missing
+  │ `-`
+  │         or other list operator.
+  │ 
+  │ 
+  ╰─▶ encountered 2 errors

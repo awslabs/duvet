@@ -358,6 +358,12 @@
             "string",
             "null"
           ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false,
