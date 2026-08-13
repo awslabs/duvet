@@ -685,12 +685,12 @@ async fn execute_duplicates(
         QueryStatus::Fail
     };
 
-    Ok(CheckResult::Duplicates(DuplicatesResult {
+    Ok(CheckResult::Duplicates(Box::new(DuplicatesResult {
         status,
         analysis,
         policy: project_data.duplicates_policy.clone(),
         verbose,
-    }))
+    })))
 }
 
 /// Fold an annotation's execution status across the given coverage reports

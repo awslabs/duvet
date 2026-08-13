@@ -22,7 +22,7 @@ pub enum CheckResult {
     Implementation(ImplementationResult),
     Tests(TestResult),
     Coverage(CoverageResult),
-    Duplicates(DuplicatesResult),
+    Duplicates(Box<DuplicatesResult>),
 }
 
 impl CheckResult {
