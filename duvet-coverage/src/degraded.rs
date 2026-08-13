@@ -41,6 +41,9 @@ use crate::{
     target_resolution::annotation_target_spec,
 };
 use crate::{target_resolution::annotation_target, types::*};
+use verus_builtin_macros::verus;
+// Ghost-only import; see the note in `lib.rs`.
+#[cfg(feature = "verify")]
 use vstd::prelude::*;
 
 verus! {
@@ -111,6 +114,14 @@ fn coverage_status_at(coverage: &CoverageReport, line: u64) -> (result: Option<C
 ///   Missing coverage never yields a verdict (it yields `Unknown`).
 /// - **P3 (target below annotation):** any decided target lies strictly below
 ///   `annotation.end_line`.
+// Meta-requirement about this file's proofs: "MUST be proven with Verus" is
+// implemented by the D-property proofs, anchored here at the first proof site
+// (this fn's `ensures` carry D1/D2; D3/D4 are the lemmas below), checked by
+// CI's verify job.
+//= design/query/coverage-model-spec.md#degraded-properties
+//= type=implementation
+//# These properties MUST be proven with Verus for the degraded path,
+//# alongside the Section 5 properties for the classified path.
 //= design/query/coverage-model-spec.md#property-d1-direct-observation
 //= type=implication
 //# The implementation MUST prove that the degraded status is a direct
@@ -261,7 +272,14 @@ mod tests {
     }
 
     // Minimal universal classification: whitespace + annotation known, rest None.
+    // The proof side of this quote is the Verus `ensures`/proof fns above
+    // (checked by CI's verify job); this test demonstrates the proven
+    // degraded path on a concrete input, per the `proofs.rs` pattern.
     #[test]
+    //= design/query/coverage-model-spec.md#degraded-properties
+    //= type=test
+    //# These properties MUST be proven with Verus for the degraded path,
+    //# alongside the Section 5 properties for the classified path.
     fn hit_on_nearest_line_is_executed() {
         // annotation lines 1-2, blank line 3, covered code line 4.
         let c = vec![
