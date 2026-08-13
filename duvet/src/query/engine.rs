@@ -751,7 +751,6 @@ fn collect_defeated_issues(
     defeated
 }
 
-
 fn expand_coverage_globs(reports: &[String]) -> Result<Vec<String>> {
     let mut expanded_paths = Vec::new();
 
