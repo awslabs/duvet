@@ -1,0 +1,121 @@
+# End-to-end test for 3-way `duvet merge`. Three packages each cover an
+# overlapping (Feature B) plus a distinct feature of one shared specification.
+# Exercises the N-way fold (vs. the 2-way path covered by
+# `merge-multi-package`): the merged output must dedup the spec inline source
+# to a single entry, preserve all three repository entries, preserve all the
+# distinct linked sources, and include all input cites and requirements
+# regardless of input order.
+
+source = { local = true }
+cmd = [
+  "duvet report --config-path=package-a/.duvet/config.toml --json-v2=package-a/duvet_report_v2.json",
+  "duvet report --config-path=package-b/.duvet/config.toml --json-v2=package-b/duvet_report_v2.json",
+  "duvet report --config-path=package-c/.duvet/config.toml --json-v2=package-c/duvet_report_v2.json",
+  "duvet merge --input=package-a/duvet_report_v2.json --input=package-b/duvet_report_v2.json --input=package-c/duvet_report_v2.json --output=merged.json",
+]
+extra_json_snapshots = [
+  "package-a/duvet_report_v2.json",
+  "package-b/duvet_report_v2.json",
+  "package-c/duvet_report_v2.json",
+  "merged.json",
+]
+
+[[file]]
+path = "my-spec.md"
+contents = """
+# My Specification
+
+## Feature A
+
+Feature A MUST be implemented.
+
+## Feature B
+
+Feature B MUST be implemented.
+
+## Feature C
+
+Feature C MUST be implemented.
+
+## Feature D
+
+Feature D MUST be implemented.
+"""
+
+[[file]]
+path = "package-a/.duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "package-a/src/*.rs"
+blob-link = "https://github.com/org/package-a/blob/main"
+
+[[requirement]]
+pattern = "package-a/.duvet/requirements/**/*.toml"
+
+[[specification]]
+source = "my-spec.md"
+"""
+
+[[file]]
+path = "package-a/src/impl.rs"
+contents = """
+//= my-spec.md#feature-a
+//# Feature A MUST be implemented.
+
+//= my-spec.md#feature-b
+//# Feature B MUST be implemented.
+"""
+
+[[file]]
+path = "package-b/.duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "package-b/src/*.rs"
+blob-link = "https://github.com/org/package-b/blob/main"
+
+[[requirement]]
+pattern = "package-b/.duvet/requirements/**/*.toml"
+
+[[specification]]
+source = "my-spec.md"
+"""
+
+[[file]]
+path = "package-b/src/impl.rs"
+contents = """
+//= my-spec.md#feature-b
+//# Feature B MUST be implemented.
+
+//= my-spec.md#feature-c
+//# Feature C MUST be implemented.
+"""
+
+[[file]]
+path = "package-c/.duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "package-c/src/*.rs"
+blob-link = "https://github.com/org/package-c/blob/main"
+
+[[requirement]]
+pattern = "package-c/.duvet/requirements/**/*.toml"
+
+[[specification]]
+source = "my-spec.md"
+"""
+
+[[file]]
+path = "package-c/src/impl.rs"
+contents = """
+//= my-spec.md#feature-b
+//# Feature B MUST be implemented.
+
+//= my-spec.md#feature-d
+//# Feature D MUST be implemented.
+"""

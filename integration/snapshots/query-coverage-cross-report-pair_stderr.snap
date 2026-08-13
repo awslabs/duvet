@@ -1,0 +1,53 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c coverage -r report-b.xml -r report-a.xml -f jacoco-xml
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 3 sources 
+     Parsing annotations
+      Parsed 3 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 3 references 
+  
+Coverage: ✗ FAIL
+
+  Coverage reports checked: 2
+  Executed tests: 1
+  Executed implementations: 1
+  Successful correlations: 0
+  Failed correlations: 1
+  Tests with no implementation: 0
+
+  × Failed correlation
+   ╭─[src/test/java/com/example/ImplTest.java:5:13]
+ 4 │         public void testThing() {
+ 5 │ ╭─▶         //= spec.md#section-1
+ 6 │ │           //= type=test
+ 7 │ ├─▶         //# This MUST do the thing
+   · ╰──── Executed test
+ 8 │             new Impl().doThing();
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Failed correlation
+   ╭─[src/main/java/com/example/Impl.java:5:13]
+ 4 │         public void doThing() {
+ 5 │ ╭─▶         //= spec.md#section-1
+ 6 │ │           //= type=implementation
+ 7 │ ├─▶         //# This MUST do the thing
+   · ╰──── Not executed implementation
+ 8 │             run();
+   ╰────
+
+
+
+Overall: ✗ FAIL

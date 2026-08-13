@@ -1,0 +1,14 @@
+target = "design/query/coverage-model-spec.md#degraded-properties"
+
+# 7.4 Properties
+#
+# These properties MUST be proven with Verus for the degraded path,
+# alongside the Section 5 properties for the classified path.
+
+[[spec]]
+level = "MUST"
+quote = '''
+These properties MUST be proven with Verus for the degraded path,
+alongside the Section 5 properties for the classified path.
+'''
+

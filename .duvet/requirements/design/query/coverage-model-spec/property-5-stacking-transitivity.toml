@@ -1,0 +1,28 @@
+target = "design/query/coverage-model-spec.md#property-5-stacking-transitivity"
+
+# Property 5: Annotation Stacking Transitivity
+#
+# The implementation MUST prove that
+# if annotation A (lines a1..a2) is immediately above
+# annotation B (lines b1..b2)
+# with only whitespace, comments, or other annotations between them,
+# and `is_annotation_executed(B, ...) = Executed`,
+# then `is_annotation_executed(A, ...) = Executed`.
+# 
+# This follows from:
+# A and B resolve to the same target
+# (Phase 1 walks through all three: annotations, whitespace, and comments),
+# and if B's target is in the execution set,
+# A's target is too (same target).
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that
+if annotation A (lines a1..a2) is immediately above
+annotation B (lines b1..b2)
+with only whitespace, comments, or other annotations between them,
+and `is_annotation_executed(B, ...) = Executed`,
+then `is_annotation_executed(A, ...) = Executed`.
+'''
+
