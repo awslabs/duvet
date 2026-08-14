@@ -8,6 +8,12 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
     TEXT[!MUST,implementation,test]: input, `citation` MUST be accepted as an alias for
     TEXT[!MUST,implementation,test]: `implementation`.
 
+  SECTION: [1.4 Resolved targets and target classes](#targets)
+    TEXT[!MUST,implementation,test]: An annotation declared in a requirement artifact (an extracted
+    TEXT[!MUST,implementation,test]: requirement, or an exception or todo declared in TOML) is a
+    TEXT[!MUST,implementation,test]: statement about a requirement, not a placement in source: it MUST
+    TEXT[!MUST,implementation,test]: NOT participate in any target class.
+
   SECTION: [2.1 Same claim, same target](#same-claim-same-target)
     TEXT[!MUST,implementation,test]: Two annotations that share a claim and share a resolved target
     TEXT[!MUST,implementation,test]: MUST fail the duplicates check, regardless of their claim forms

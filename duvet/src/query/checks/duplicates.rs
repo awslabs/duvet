@@ -26,7 +26,7 @@ use crate::{
 use duvet_core::path::Path;
 use duvet_coverage::{target_resolution::annotation_target, types::AnnotationSpan};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     sync::Arc,
 };
 
@@ -188,22 +188,29 @@ impl DuplicateTargetsAnalysis {
 /// files without one use the minimal universal classification (the degraded
 /// path's input). Both feed the same verified forward walk.
 ///
+/// `declaration_sources` is the set of TOML requirement-artifact paths
+/// (extracted requirements, declared exceptions and todos — the project's
+/// `SourceFile::Toml` entries). Annotations from those files are declarations
+/// about requirements, not placements in source, and are excluded from
+/// target resolution by provenance — never by file extension, which would
+/// also exempt genuine comment annotations in scanned TOML sources.
+///
 /// //= design/duplicates/spec.md#targets
 /// //# An annotation whose target does not resolve (defeated
 /// //# classification, or resolution yielding no line) participates in no
 /// //# target class.
 pub async fn resolve_targets(
     annotations: &[Arc<Annotation>],
+    declaration_sources: &HashSet<&Path>,
 ) -> Result<HashMap<Arc<Annotation>, ResolvedTarget>> {
     let mut by_file: BTreeMap<Path, Vec<Arc<Annotation>>> = BTreeMap::new();
     for annotation in annotations {
-        // Requirement TOMLs are not source files; their annotations (extracted
-        // requirements) have no source position to resolve.
-        if annotation
-            .source
-            .extension()
-            .is_some_and(|ext| ext == "toml")
-        {
+        //= design/duplicates/spec.md#targets
+        //# An annotation declared in a requirement artifact (an extracted
+        //# requirement, or an exception or todo declared in TOML) is a
+        //# statement about a requirement, not a placement in source: it MUST
+        //# NOT participate in any target class.
+        if declaration_sources.contains(&annotation.source) {
             continue;
         }
         by_file
@@ -291,7 +298,18 @@ pub async fn analyze_duplicates(
 
     let policy = &project_data.duplicates_policy;
     let classes = claim_classes(&annotations);
-    let targets = resolve_targets(&annotations).await?;
+
+    // Provenance, not extension: the project's `SourceFile::Toml` entries are
+    // the requirement artifacts whose annotations never join target classes.
+    let declaration_sources: HashSet<&Path> = project_data
+        .project_sources
+        .iter()
+        .filter_map(|source| match source {
+            crate::source::SourceFile::Toml(path) => Some(path),
+            crate::source::SourceFile::Text { .. } => None,
+        })
+        .collect();
+    let targets = resolve_targets(&annotations, &declaration_sources).await?;
 
     let mut analysis = DuplicatesAnalysis {
         targets: analyze_target_axis(&annotations, &targets, policy),

@@ -97,6 +97,13 @@ a pure function of the checked-in tree.
 A **target class** is a maximal set of annotations sharing a
 resolved target.
 
+An annotation declared in a requirement artifact (an extracted
+requirement, or an exception or todo declared in TOML) is a
+statement about a requirement, not a placement in source: it MUST
+NOT participate in any target class. An annotation parsed from a
+source comment participates normally, whatever the source file's
+language or extension.
+
 An annotation whose target does not resolve (defeated
 classification, or resolution yielding no line) participates in no
 target class. Claim-axis rules ([§2.2](#caps)–[§2.4](#exclusivity))

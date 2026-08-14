@@ -1,0 +1,53 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query --check duplicates
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 2 sources 
+     Parsing annotations
+      Parsed 4 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 4 references 
+
+Duplicates: ✗ FAIL
+
+Fan-in: 1 target(s) bear more than one annotation (max 2); run with --verbose for the listing
+
+  × Target fixtures/data.toml:8 bears 2 annotations, exceeding the configured
+  │ count bound
+
+Advice: 
+  ☞ Related context for:
+  │  Target fixtures/data.toml:8 bears 2 annotations, exceeding the configured
+  │ count bound
+   ╭─[fixtures/data.toml:1:4]
+ 1 │ ╭─▶ #@ spec.md#section-1
+ 2 │ │   #@ type=implementation
+ 3 │ ├─▶ #$ The system MUST alpha beta gamma.
+   · ╰──── Fan-in
+ 4 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Target fixtures/data.toml:8 bears 2 annotations, exceeding the configured
+  │ count bound
+   ╭─[fixtures/data.toml:5:4]
+ 4 │     
+ 5 │ ╭─▶ #@ spec.md#section-1
+ 6 │ │   #@ type=implementation
+ 7 │ ├─▶ #$ The system MUST delta epsilon zeta.
+   · ╰──── Fan-in
+ 8 │     key = "value"
+   ╰────
+
+
+Overall: ✗ FAIL
