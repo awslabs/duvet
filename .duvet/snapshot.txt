@@ -55,12 +55,17 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
     TEXT[!MUST,implementation,test]: fires.
 
   SECTION: [3.1 Listing](#fan-in-listing)
-    TEXT[!MUST,implementation,test]: The duplicates check's report MUST include the fan-in listing: it
-    TEXT[!MUST,implementation,test]: MUST contain a target if and only if two or more annotations
+    TEXT[!MUST,implementation,test]: The duplicates check's analysis MUST include the fan-in listing:
+    TEXT[!MUST,implementation,test]: it MUST contain a target if and only if two or more annotations
     TEXT[!MUST,implementation,test]: resolve to it.
     TEXT[!MUST,implementation,test]: Each listed target MUST report its exact annotation count, its
     TEXT[!MUST,implementation,test]: per-form breakdown, and its distinct-section count, and the
     TEXT[!MUST,implementation,test]: listing MUST be sorted by annotation count descending.
+    TEXT[!MUST,implementation,test]: Presentation is verbosity-tiered, mirroring
+    TEXT[!MUST,implementation,test]: [§2.5](#partial-overlap): the default report MUST summarize the
+    TEXT[!MUST,implementation,test]: listing in one line naming the number of listed targets and the
+    TEXT[!MUST,implementation,test]: maximum annotation count, and `--verbose` MUST print the listing
+    TEXT[!MUST,implementation,test]: in full.
 
   SECTION: [3.2 Fan-in bounds](#fan-in-bounds)
     TEXT[!MUST,implementation,test]: When a bound is configured, a target class exceeding it MUST fail

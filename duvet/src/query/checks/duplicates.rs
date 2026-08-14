@@ -491,8 +491,8 @@ fn analyze_target_axis(
     }
 
     //= design/duplicates/spec.md#fan-in-listing
-    //# The duplicates check's report MUST include the fan-in listing: it
-    //# MUST contain a target if and only if two or more annotations
+    //# The duplicates check's analysis MUST include the fan-in listing:
+    //# it MUST contain a target if and only if two or more annotations
     //# resolve to it.
     let mut listing: Vec<TargetClass> = by_target
         .into_iter()

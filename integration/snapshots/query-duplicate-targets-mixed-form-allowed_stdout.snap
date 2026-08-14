@@ -18,8 +18,7 @@ $ duvet query --check duplicates
 
 Duplicates: ✓ PASS
 
-Targets bearing more than one annotation (count descending):
-  src/lib.rs:7 count=2 sections=2 forms=test:1,implementation:1
+Fan-in: 1 target(s) bear more than one annotation (max 2); run with --verbose for the listing
 
 
 Overall: ✓ PASS

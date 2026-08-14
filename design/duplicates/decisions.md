@@ -613,12 +613,17 @@ a precisely-annotated dense function.
 ### Option C: Query first, snapshot ratchet, opt-in bounds
 
 1. **A listing, not (by default) a gate.** The duplicates check's
-   report carries a fan-in listing: every target bearing more than
+   analysis carries a fan-in listing: every target bearing more than
    one annotation, sorted by count descending, with per-target type
    breakdown and distinct-section count. Not a separate check — the
    target axis and the claim axis are the two partitions of one
    model, and one invocation evaluates both, mirroring the one
-   `[duplicates]` configuration table. The listing itself carries no
+   `[duplicates]` configuration table. Presentation is
+   verbosity-tiered (spec §3.1): the default report summarizes the
+   listing in one line, `--verbose` prints it in full — un-gated
+   fan-in is the observed shape of dense code, and enumerating it
+   unconditionally buries signal under corpus-scale noise. The
+   listing itself carries no
    verdict — a sorted list needs no
    threshold and no false-positive story; the human reads the top.
    Even inspection output owes an exactness obligation: a target
@@ -1103,7 +1108,7 @@ Pinned by fixture unless noted.
   class containing an exception, implication, or todo annotation
   is a singleton.
 - **P-T1 (fan-in exactness).** The fan-in listing in the
-  duplicates report contains a target iff ≥ 2 annotations resolve
+  duplicates analysis contains a target iff ≥ 2 annotations resolve
   to it; counts, type breakdowns, and section counts are exact.
 - **P-T2 (type-family exactness).** With a configured family, a
   target class bearing two or more distinct types fails the

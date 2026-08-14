@@ -262,14 +262,29 @@ check: one invocation evaluates both axes, mirroring the one
 
 ### 3.1 Listing {#fan-in-listing}
 
-The duplicates check's report MUST include the fan-in listing: it
-MUST contain a target if and only if two or more annotations
+The duplicates check's analysis MUST include the fan-in listing:
+it MUST contain a target if and only if two or more annotations
 resolve to it.
 ([P-T1](#property-p-t1))
 
 Each listed target MUST report its exact annotation count, its
 per-form breakdown, and its distinct-section count, and the
 listing MUST be sorted by annotation count descending.
+
+Presentation is verbosity-tiered, mirroring
+[§2.5](#partial-overlap): the default report MUST summarize the
+listing in one line naming the number of listed targets and the
+maximum annotation count, and `--verbose` MUST print the listing
+in full. Rationale, non-normative: an admitted duplicate set
+([§2.2](#caps)) exists because configuration raised a cap — an
+accepted standing liability, surfaced at every verbosity — while
+un-gated fan-in is the observed shape of dense code
+([§4.3](#defaults)); enumerating it unconditionally buries signal
+under corpus-scale noise. Targets violating a bound or the
+form-combination rule
+([§3.2](#fan-in-bounds)–[§3.3](#type-combinations)) are failures
+and are reported at every verbosity; verbosity never changes the
+verdict ([§4.1](#policy-source)).
 
 The distinct-section count is a triage column, not a
 discriminator: `count=12 sections=1` reads "dense but coherent";
@@ -494,9 +509,11 @@ claim-form family rule, single-form copies exceed the free caps.
 
 ### P-T1 — fan-in exactness {#property-p-t1}
 
-The fan-in listing in the duplicates report contains a target if
+The fan-in listing in the duplicates analysis contains a target if
 and only if two or more annotations resolve to it; counts, form
-breakdowns, and section counts are exact.
+breakdowns, and section counts are exact. The default report
+summarizes the listing; the verbose report prints it in full
+([§3.1](#fan-in-listing)).
 ([§3.1](#fan-in-listing))
 
 ### P-T2 — form-family exactness {#property-p-t2}

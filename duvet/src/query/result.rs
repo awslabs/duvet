@@ -613,39 +613,45 @@ impl fmt::Display for DuplicatesResult {
         }
 
         // The target axis (spec §3): the fan-in listing is part of this
-        // check's report; bounds and form-combination violations as errors.
+        // check's analysis; bounds and form-combination violations as errors.
         let targets = &analysis.targets;
         if !targets.listing.is_empty() {
-            writeln!(
-                f,
-                "Targets bearing more than one annotation (count descending):"
-            )?;
-            // Discoverability (decisions.md Decision 9): the moment a reader
-            // is looking at fan-in with no gate configured, name the knob.
-            if !self.policy.targets_gates_configured() {
+            //= design/duplicates/spec.md#fan-in-listing
+            //# Presentation is verbosity-tiered, mirroring
+            //# [§2.5](#partial-overlap): the default report MUST summarize the
+            //# listing in one line naming the number of listed targets and the
+            //# maximum annotation count, and `--verbose` MUST print the listing
+            //# in full.
+            if self.verbose {
                 writeln!(
                     f,
-                    "  (opt-in bounds: [duplicates.targets] count / sections / types \
-                     in .duvet/config.toml — design/duplicates/spec.md §3)"
+                    "Targets bearing more than one annotation (count descending):"
                 )?;
-            }
-            for class in &targets.listing {
-                let forms = class
-                    .forms
-                    .iter()
-                    .map(|(form, count)| format!("{}:{}", form_name(*form), count))
-                    .collect::<Vec<_>>()
-                    .join(",");
-                writeln!(
-                    f,
-                    "  {}:{} count={} sections={} forms={}",
-                    class.target.file.display(),
-                    class.target.line,
-                    class.count(),
-                    class.sections,
-                    forms
-                )?;
-                if self.verbose {
+                // Discoverability (decisions.md Decision 9): the moment a reader
+                // is looking at fan-in with no gate configured, name the knob.
+                if !self.policy.targets_gates_configured() {
+                    writeln!(
+                        f,
+                        "  (opt-in bounds: [duplicates.targets] count / sections / types \
+                         in .duvet/config.toml — design/duplicates/spec.md §3)"
+                    )?;
+                }
+                for class in &targets.listing {
+                    let forms = class
+                        .forms
+                        .iter()
+                        .map(|(form, count)| format!("{}:{}", form_name(*form), count))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    writeln!(
+                        f,
+                        "  {}:{} count={} sections={} forms={}",
+                        class.target.file.display(),
+                        class.target.line,
+                        class.count(),
+                        class.sections,
+                        forms
+                    )?;
                     let members_info = info!(
                         "Annotations resolving to {}:{}",
                         class.target.file.display(),
@@ -654,6 +660,25 @@ impl fmt::Display for DuplicatesResult {
                     let members_info =
                         with_related_annotations(members_info, &class.members, "Resolves here");
                     writeln!(f, "{members_info:?}")?;
+                }
+            } else {
+                // The listing is sorted by count descending, so the first
+                // entry carries the maximum.
+                writeln!(
+                    f,
+                    "Fan-in: {} target(s) bear more than one annotation \
+                     (max {}); run with --verbose for the listing",
+                    targets.listing.len(),
+                    targets.listing[0].count()
+                )?;
+                // Discoverability (decisions.md Decision 9): the moment a reader
+                // is looking at fan-in with no gate configured, name the knob.
+                if !self.policy.targets_gates_configured() {
+                    writeln!(
+                        f,
+                        "  (opt-in bounds: [duplicates.targets] count / sections / types \
+                         in .duvet/config.toml — design/duplicates/spec.md §3)"
+                    )?;
                 }
             }
             writeln!(f)?;

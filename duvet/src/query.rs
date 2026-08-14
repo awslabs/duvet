@@ -168,8 +168,9 @@ The check FAILS when:
 - A target mixes claim forms outside the allowed combinations (by default,
   test+implementation on one target fails)
 
-The report always includes the fan-in listing: every target bearing more than
-one annotation, count descending, with per-type breakdown and section count.
+The default report summarizes fan-in in one line (targets bearing more than
+one annotation, maximum count); --verbose prints the full listing: every such
+target, count descending, with per-type breakdown and section count.
 
 Policy lives in checked-in configuration in .duvet/config.toml; the command
 line never changes a verdict. All keys, with their defaults:
