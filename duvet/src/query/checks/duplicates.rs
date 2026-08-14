@@ -314,6 +314,9 @@ pub async fn analyze_duplicates(
         }
         for (target, stack) in by_target {
             if stack.len() > 1 {
+                // Renderer contract (result.rs): a stacked class has >= 2
+                // members — it split_first()s unconditionally.
+                debug_assert!(stack.len() >= 2);
                 analysis.stacked.push(StackedClaim {
                     target: target.clone(),
                     members: stack,
@@ -338,6 +341,10 @@ pub async fn analyze_duplicates(
                 members: set_members.clone(),
             };
             if set_members.len() as u64 > cap as u64 {
+                // Renderer contract (result.rs): an over-cap set is
+                // non-empty (len > cap >= 1) — it split_first()s
+                // unconditionally.
+                debug_assert!(!set.members.is_empty());
                 analysis.over_cap.push(set);
             } else if set_members.len() > 1 {
                 //= design/duplicates/spec.md#caps
@@ -367,6 +374,9 @@ pub async fn analyze_duplicates(
         //# of one form are the caps' business ([§2.2](#caps)).
         let forms: FormSet = non_spec.iter().map(|member| member.anno).collect();
         if forms.len() >= 2 && !policy.claims.admits(&forms) {
+            // Renderer contract (result.rs): >= 2 distinct forms implies
+            // >= 2 members — it split_first()s unconditionally.
+            debug_assert!(non_spec.len() >= 2);
             analysis.exclusivity.push(ExclusivityViolation {
                 forms,
                 members: non_spec,
@@ -400,11 +410,30 @@ pub async fn analyze_duplicates(
             .map(|annotation| (annotation, ClaimKey::of(annotation)))
             .collect();
 
+        // Index the form's annotations by target section. Coverage never
+        // crosses sections — `is_annotation_covered` admits coverers only
+        // from the target's own section (its second filter) — so a
+        // cross-section pool member can contribute neither coverage nor a
+        // coverer-level error, and restricting each pool to its section
+        // group is behavior-preserving. This turns pool construction from
+        // O(n²) Arc clones per form into O(Σ n_s²) over sections, the shape
+        // the matching work already had. Iteration order (and therefore
+        // report order) is unchanged: the target loop below still walks
+        // `keyed` in the form's original order.
+        type SectionGroup<'a> = Vec<(&'a Arc<Annotation>, &'a Option<ClaimKey>)>;
+        let mut by_section: BTreeMap<&str, SectionGroup> = BTreeMap::new();
+        for (annotation, key) in &keyed {
+            by_section
+                .entry(annotation.target.as_str())
+                .or_default()
+                .push((annotation, key));
+        }
+
         for (annotation, annotation_key) in &keyed {
             let Some(key) = annotation_key else {
                 continue;
             };
-            let pool: Vec<Arc<Annotation>> = keyed
+            let pool: Vec<Arc<Annotation>> = by_section[annotation.target.as_str()]
                 .iter()
                 .filter(|(_, other_key)| other_key.as_ref() != Some(key))
                 .map(|(other, _)| Arc::clone(other))
