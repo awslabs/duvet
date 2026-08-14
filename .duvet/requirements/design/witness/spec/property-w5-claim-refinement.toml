@@ -1,0 +1,21 @@
+target = "design/witness/spec.md#property-w5-claim-refinement"
+
+# Property W5: Claim Refinement
+#
+# The implementation MUST prove that binding under `ByExecution`
+# implies execution of the test in the same witness:
+# 
+# ```
+# w.claim = ByExecution ∧ binds(T, w)  ⟹  executed(T, w)
+# ```
+# 
+# so that positional claiming (`ByRootSpan`) is a refinement of
+# evidence claiming, never a loophole.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that binding under `ByExecution`
+implies execution of the test in the same witness:
+'''
+

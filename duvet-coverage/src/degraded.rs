@@ -35,6 +35,9 @@
 //! not propagate, so its blindness to `NonLinearControl` cannot cause an unsound
 //! inference. It reports only what coverage directly says about the target line.
 
+// The D-properties below are the Verus proofs the spec describes; the
+// dogfood requirement (witness spec §2, cited on the CI verify step)
+// gates them in CI.
 #[cfg(verus_keep_ghost)]
 use crate::{
     annotation_execution::execution_status_of, predicates::validly_in_exec_set,
@@ -114,24 +117,15 @@ fn coverage_status_at(coverage: &CoverageReport, line: u64) -> (result: Option<C
 ///   Missing coverage never yields a verdict (it yields `Unknown`).
 /// - **P3 (target below annotation):** any decided target lies strictly below
 ///   `annotation.end_line`.
-// Meta-requirement about this file's proofs: "MUST be proven with Verus" is
-// implemented by the D-property proofs, anchored here at the first proof site
-// (this fn's `ensures` carry D1/D2; D3/D4 are the lemmas below), checked by
-// CI's verify job.
-//= design/query/coverage-model-spec.md#degraded-properties
-//= type=implementation
-//# These properties MUST be proven with Verus for the degraded path,
-//# alongside the Section 5 properties for the classified path.
+// The D-property proofs below are the Verus proofs the spec describes
+// (this fn's `ensures` carry D1/D2; D3/D4 are the lemmas below); the
+// dogfood requirement (witness spec §2, cited on the CI verify step)
+// gates them in CI.
 //= design/query/coverage-model-spec.md#property-d1-direct-observation
 //= type=implication
 //# The implementation MUST prove that the degraded status is a direct
 //# observation of the target line's own coverage, never an inference propagated
 //# from another line.
-//= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
-//= type=implication
-//# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
-//# status resolves a target strictly below the annotation
-//# (`target > annotation.end_line`).
 pub fn degraded_execution_status(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -147,6 +141,11 @@ pub fn degraded_execution_status(
             coverage,
         ),
         // P5 + P3: a `Executed` verdict is a direct hit on a target below the annotation.
+        //= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
+        //= type=implication
+        //# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
+        //# status resolves a target strictly below the annotation
+        //# (`target > annotation.end_line`).
         status == ExecutionStatus::Executed ==> {
             let t = annotation_target_spec(annotation, classifications, file_length);
             &&& t.is_some()
@@ -189,9 +188,7 @@ pub fn degraded_execution_status(
     }
 }
 
-/// **P7 (stacking transitivity).** The degraded status depends on the annotation
-/// only through its resolved target line: two annotations that resolve to the
-/// same target receive the same status. Immediate from the functional form of
+/// **P7 (stacking transitivity).** Immediate from the functional form of
 /// [`degraded_status_of`].
 //= design/query/coverage-model-spec.md#property-d3-degraded-stacking
 //= type=implication
@@ -272,14 +269,10 @@ mod tests {
     }
 
     // Minimal universal classification: whitespace + annotation known, rest None.
-    // The proof side of this quote is the Verus `ensures`/proof fns above
-    // (checked by CI's verify job); this test demonstrates the proven
-    // degraded path on a concrete input, per the `proofs.rs` pattern.
+    // The proof side is the Verus `ensures`/proof fns above (gated by the
+    // dogfood requirement on CI's verify step); this test demonstrates the
+    // proven degraded path on a concrete input, per the `proofs.rs` pattern.
     #[test]
-    //= design/query/coverage-model-spec.md#degraded-properties
-    //= type=test
-    //# These properties MUST be proven with Verus for the degraded path,
-    //# alongside the Section 5 properties for the classified path.
     fn hit_on_nearest_line_is_executed() {
         // annotation lines 1-2, blank line 3, covered code line 4.
         let c = vec![

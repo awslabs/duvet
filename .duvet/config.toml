@@ -1,19 +1,24 @@
 '$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
 
-# `duvet-coverage` carries the coverage-model proof annotations. `duvet/**`
-# still cannot be scanned wholesale: duvet's annotation parser also reads
-# string literals, so example annotations in duvet's own test fixtures and
-# help strings (e.g. `//= spec.md#...`,
-# `//= https://.../rfc2324...`) would be picked up as real citations. The
-# known fixture carriers are `duvet/src/query.rs` (rfc2324 examples in clap
-# help strings), `duvet/src/query/checks/coverage.rs`, and
-# `duvet/src/query/classify/java.rs` (classifier test fixtures).
-# Fixture-clean files under `duvet/src` are enumerated explicitly below so
-# the spec's §8 (dispatch/escalation) citations can live at their
-# implementing sites; when adding citations to a new file there, add it
-# here. Once that parser issue is fixed, `duvet/**` can be scanned safely.
-# See https://github.com/awslabs/duvet/issues/226
+# `duvet-coverage` carries the coverage-model proof annotations, and the
+# witness engine files in `duvet/src/query/**` carry the witness-spec
+# citations. `duvet/**` still cannot be scanned wholesale: duvet's
+# annotation parser reads raw lines, so fixture annotations that sit at
+# line start inside multiline string literals would be ingested as real
+# citations. The known fixture carriers are `duvet/src/query.rs` (rfc2324
+# examples in clap help strings), `duvet/src/query/checks/coverage.rs`,
+# and `duvet/src/query/classify/java.rs` (classifier test fixtures). The
+# config has no exclusion patterns, so the engine files are enumerated
+# explicitly; when adding citations to a new file under `duvet/src`,
+# add it here. See https://github.com/awslabs/duvet/issues/226 for the
+# parser fix that would make `duvet/**` scannable.
 
+# These [[source]] entries are the mechanism behind the snapshot half
+# of the dogfood requirement (witness spec §2, cited on the CI verify
+# step): they put the proof-file citations into the scan, and
+# `report --ci` (the dogfood job) pins their existence in the
+# snapshot — removing the citations from the proof files drifts the
+# snapshot and fails CI.
 [[source]]
 pattern = "duvet-coverage/**/*.rs"
 
@@ -23,8 +28,51 @@ pattern = "duvet/src/query/engine.rs"
 [[source]]
 pattern = "duvet/src/report.rs"
 
+[[source]]
+pattern = "duvet/src/query/producers.rs"
+
+[[source]]
+pattern = "duvet/src/query/result.rs"
+
+[[source]]
+pattern = "duvet/src/query/witness.rs"
+
+[[source]]
+pattern = "duvet/src/query/parsers/verus_sst/structure.rs"
+
+[[source]]
+pattern = "duvet/src/query/parsers/verus_sst/mod.rs"
+
+[[source]]
+pattern = "duvet/src/query/parsers/verus_sst/closure.rs"
+
+[[source]]
+pattern = "duvet/src/query/parsers/verus_sst/tests.rs"
+
+[[source]]
+pattern = "duvet/src/query/parsers/verus_sst/witness.rs"
+
+# CI workflow and this config file: scanned so that repo/CI obligations
+# (enforced by the verify job and the snapshot gate) can carry
+# annotations instead of self-discharging implications. YAML and TOML
+# share the `#` comment leader; `#%` is chosen over `##` for content so
+# ordinary comments can never be ingested as quote lines.
+[[source]]
+pattern = ".github/workflows/ci.yml"
+comment-style = { meta = "#=", content = "#%" }
+
+[[source]]
+pattern = ".duvet/config.toml"
+comment-style = { meta = "#=", content = "#%" }
+
 [[specification]]
 source = "design/query/coverage-model-spec.md"
+
+[[specification]]
+source = "design/witness/spec.md"
+
+[[specification]]
+source = "design/witness/producer-core-spec.md"
 
 [report.html]
 enabled = true

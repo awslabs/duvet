@@ -1,0 +1,58 @@
+source = { local = true }
+cmd = ["duvet query -c coverage --coverage-source verus-sst=../../../duvet/src/query/parsers/verus_sst/testdata/vacuity"]
+report_output = false
+
+# Property W6: a test annotation for which NO configured producer yields a
+# witness is reported as a failure, never silently (design/witness/spec.md
+# W6; decisions.md Decision 8).
+#
+# The only configured source is the Verus SST golden fixture (referenced
+# relative to target/integration/<name>/), whose log never mentions
+# runtime.xyzzy. The test annotation below would be witnessed by a runtime
+# coverage report — none is configured — so this is Decision 8's
+# subset-of-producers behavior, on purpose: running a subset of producers
+# MAY fail a test annotation the full set passes, and that is correct. The
+# verdict must identify the annotation and state that no configured
+# producer yielded a witness for it, distinctly from a failed correlation
+# (there are zero failed correlations here).
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "*.xyzzy"
+
+[[specification]]
+source = "spec.md"
+"""
+
+# `.xyzzy` has no language classifier on purpose (any real language could
+# gain one later and change the routing); the verified degraded model
+# handles it.
+[[file]]
+path = "runtime.xyzzy"
+contents = """
+fn do_thing() {
+    //= spec.md#section-1
+    //# This MUST do the thing
+    run();
+}
+
+fn test_do_thing() {
+    //= spec.md#section-1
+    //= type=test
+    //# This MUST do the thing
+    do_thing();
+}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+"""

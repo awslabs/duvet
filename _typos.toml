@@ -1,2 +1,2 @@
 [files]
-extend-exclude = ["*.snap", "integration/snapshots/**", "specs/**"]
+extend-exclude = ["*.snap", "integration/snapshots/**", "specs/**", "*.vir", "*.vir.gz"]

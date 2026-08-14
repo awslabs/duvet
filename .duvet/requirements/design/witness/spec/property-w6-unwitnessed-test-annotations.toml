@@ -1,0 +1,36 @@
+target = "design/witness/spec.md#property-w6-unwitnessed-test-annotations"
+
+# Property W6: Unwitnessed Test Annotations Are Failures
+#
+# The engine MUST report every test annotation for which no
+# delivered witness binds it —
+# across ALL configured producers —
+# as a failure, never silently:
+# 
+# ```
+# ¬∃ w ∈ witnesses : binds(T, w)   ⟹   T is reported unwitnessed
+# ```
+# 
+# Consequence (intended): running a subset of producers MAY fail a
+# test annotation that the full set passes;
+# that behavior is correct
+# (decisions.md, [Decision 8](decisions.md#decision-8)).
+
+[[spec]]
+level = "MUST"
+quote = '''
+The engine MUST report every test annotation for which no
+delivered witness binds it —
+across ALL configured producers —
+as a failure, never silently:
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+Consequence (intended): running a subset of producers MAY fail a
+test annotation that the full set passes;
+that behavior is correct
+(decisions.md, [Decision 8](decisions.md#decision-8)).
+'''
+

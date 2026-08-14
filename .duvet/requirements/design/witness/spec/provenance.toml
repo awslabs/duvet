@@ -1,0 +1,34 @@
+target = "design/witness/spec.md#provenance"
+
+# 1.3 Provenance
+#
+# ```
+# Provenance = {
+#     producer:       String,   -- "jacoco", "lcov", "verus-sst", ...
+#     artifact:       String,   -- the source artifact (file, log dir)
+#     discharge_unit: Option<String>,
+#                               -- prover producers only: the obligation
+#                               -- the witness was constructed from
+#     strength:       Strength, -- Executed | Consulted
+# }
+# ```
+# 
+# `strength` records what kind of claim the witness supports:
+# `Executed` (a runtime act ran these lines) or
+# `Consulted` (a prover's elaboration reached these lines).
+# Verdict output MUST report every bound witness's label and
+# strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
+# each claim
+# (decisions.md, [Decision 7](decisions.md#decision-7) and
+# [Decision 14](decisions.md#decision-14)).
+
+[[spec]]
+level = "MUST"
+quote = '''
+Verdict output MUST report every bound witness's label and
+strength with its per-witness result ([§3](#verdict-output)), so a reader can judge
+each claim
+(decisions.md, [Decision 7](decisions.md#decision-7) and
+[Decision 14](decisions.md#decision-14)).
+'''
+

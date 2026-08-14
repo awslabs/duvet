@@ -1,0 +1,31 @@
+target = "design/witness/spec.md#property-w7-positional-binding-map-independence"
+
+# Property W7: Positional Binding is Map-Independent
+#
+# The implementation MUST prove that binding under `ByRootSpan` does
+# not depend on the witness's coverage maps:
+# 
+# ```
+# w.claim = w'.claim = ByRootSpan(f, r)
+#     ⟹  (binds(T, w) ⟺ binds(T, w'))
+# ```
+# 
+# Which annotations a positional witness binds is a function of its
+# root span alone. Consequences: enlarging a proof witness's closure
+# never extends the set of test annotations it witnesses, and a
+# witness whose maps Hit-cover another test annotation's lines still
+# does not witness it — one proof's witness cannot capture another
+# proof's test annotation, however deep the dependency chain between
+# the proofs. This is [W5](#property-w5-claim-refinement)'s
+# complement: `ByExecution` binding is exactly map evidence;
+# `ByRootSpan` binding is exactly geometry.
+# 
+# ---
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that binding under `ByRootSpan` does
+not depend on the witness's coverage maps:
+'''
+

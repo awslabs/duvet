@@ -1,0 +1,85 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c coverage --coverage-source verus-sst=../../../duvet/src/query/parsers/verus_sst/testdata/vacuity
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 3 sources 
+     Parsing annotations
+      Parsed 7 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 2 sections 
+    Matching references
+     Matched 7 references 
+  
+Coverage: ✗ FAIL
+
+  Coverage reports checked: 2
+  Executed tests: 2
+  Executed implementations: 1
+  Successful correlations: 1
+  Failed correlations: 1
+  Tests with no implementation: 0
+  Unwitnessed tests: 1
+
+  × Unwitnessed test annotation
+    ╭─[vacuity.rs:55:5]
+ 54 │ pub fn self_contained(x: u32) -> (r: u32)
+ 55 │ //= spec.md#body
+    ·     ──────┬─────
+    ·           ╰── Not proof-testable test target
+ 56 │ //= type=test
+    ╰────
+  help: A prover elaborated this annotation's target, but this position
+        carries no dischargeable obligation; it can only be witnessed by an
+        execution-style producer (design/witness/spec.md §5.2). Move the
+        annotation to a proof-element position (fn/lemma header, ensures
+        clause, loop invariant, proof assert), or configure an execution-style
+        coverage source that runs this code.
+
+
+  × Failed correlation
+    ╭─[vacuity.rs:51:5]
+ 50 │     //
+ 51 │ ╭─▶ //= spec.md#add-one
+ 52 │ │   //= type=test
+ 53 │ ├─▶ //# Adding one MUST produce the successor
+    · ╰──── Executed test
+ 54 │     pub fn self_contained(x: u32) -> (r: u32)
+    ╰────
+  help: Every witness bound to this test, with its per-witness result (a pair
+        is discharged only when ALL bound witnesses executed the
+        implementation — design/witness/spec.md §1.6):
+        ✗ vacuity::self_contained (consulted): did not execute the
+        implementation
+
+Advice: 
+  ☞ Related context for:
+  │  Failed correlation
+   ╭─[vacuity.rs:7:5]
+ 6 │     
+ 7 │ ╭─▶ //= spec.md#add-one
+ 8 │ ├─▶ //# Adding one MUST produce the successor
+   · ╰──── Not executed because of an unknown not executable line.
+ 9 │     pub open spec fn spec_add_one(x: int) -> int {
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Failed correlation
+    ╭─[vacuity.rs:9:1]
+  8 │ //# Adding one MUST produce the successor
+  9 │ pub open spec fn spec_add_one(x: int) -> int {
+    · ───────────────────────┬──────────────────────
+    ·                        ╰── Problematic line
+ 10 │     x + 1
+    ╰────
+
+
+
+Overall: ✗ FAIL

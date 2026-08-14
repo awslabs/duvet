@@ -1,0 +1,19 @@
+target = "design/witness/spec.md#property-w2-test-execution"
+
+# Property W2: Test Execution
+#
+# The implementation MUST prove that a test annotation is reported
+# executed if and only if some delivered witness binds it:
+# 
+# ```
+# report_test_executed(T, witnesses) = true
+#     ⟺  ∃ w ∈ witnesses : binds(T, w)
+# ```
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that a test annotation is reported
+executed if and only if some delivered witness binds it:
+'''
+

@@ -1,0 +1,108 @@
+target = "design/witness/spec.md#engine-glue"
+
+# 4.4 Engine glue
+#
+# The verified layer's guarantees ([§2](#engine-properties)) reach the user only through
+# unverified engine glue. Each glue component is named, bounded,
+# and unit-tested (the posture [§4.3](#obligation-testing) takes for producers):
+# 
+# - **G1 (file identity).** The engine adapter MUST map file paths
+#   to the model's file identities injectively and consistently
+#   across all annotations and witnesses in one run, and MUST
+#   deliver each witness's per-file maps free of duplicate
+#   identities. Ambiguous producer-path matches are refused at
+#   bind time, never selected among ([§1.5](#claim-rules)).
+#   What remains axiomatic: an absolute path is a faithful file
+#   identity.
+# - **G2 (call obligation).** The engine MUST compute every pair,
+#   test, and global verdict (Properties
+#   [W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
+#   [W6](#property-w6-unwitnessed-test-annotations)) by calling the
+#   verified layer's functions, and MUST derive per-witness
+#   failure diagnostics ([§3](#verdict-output)) from the same verified cells;
+#   no parallel engine-side verdict computation may exist.
+#   The verified layer cannot check its own callers, so G2 is a
+#   trusted-base item — enforced by review and by the engine's
+#   end-to-end test suite.
+# - **G3 (mode routing).** The adapter MUST assign each
+#   annotation's file the scoring mode its classification actually
+#   selected — classified, degraded, or the trust-boundary refusal
+#   that binds nothing and executes nothing
+#   ([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)). The adapter MUST establish
+#   the verified functions' preconditions at the boundary —
+#   filter or degrade before calling, never assume.
+# - **G4 (bound-set precomputation).** The glue MAY compute a test's
+#   bound-witness set once — each membership decided by the verified
+#   binding cell — and pass it to a bound-set-taking verified
+#   discharge entry point, provided the verified layer proves that
+#   entry point's verdict equal to [§1.6](#discharge) discharge over
+#   the full delivered set whenever the supplied set is exactly
+#   `witnesses_for(T)`, sound and complete by index.
+#   The exactness precondition MUST be established the G3 way:
+#   the set is assembled from the verified binding cells' results
+#   for the same test context and witness list, never recomputed
+#   engine-side.
+# 
+# ---
+
+[[spec]]
+level = "MUST"
+quote = '''
+- **G1 (file identity).** The engine adapter MUST map file paths
+to the model's file identities injectively and consistently
+across all annotations and witnesses in one run, and MUST
+deliver each witness's per-file maps free of duplicate
+identities.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- **G2 (call obligation).** The engine MUST compute every pair,
+test, and global verdict (Properties
+[W1](#property-w1-same-witness-discharge)–[W4](#property-w4-monotonicity),
+[W6](#property-w6-unwitnessed-test-annotations)) by calling the
+verified layer's functions, and MUST derive per-witness
+failure diagnostics ([§3](#verdict-output)) from the same verified cells;
+no parallel engine-side verdict computation may exist.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+- **G3 (mode routing).** The adapter MUST assign each
+annotation's file the scoring mode its classification actually
+selected — classified, degraded, or the trust-boundary refusal
+that binds nothing and executes nothing
+([§1.4](#executed); decisions.md, [Decision 15](decisions.md#decision-15)).
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The adapter MUST establish
+the verified functions' preconditions at the boundary —
+filter or degrade before calling, never assume.
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+- **G4 (bound-set precomputation).** The glue MAY compute a test's
+bound-witness set once — each membership decided by the verified
+binding cell — and pass it to a bound-set-taking verified
+discharge entry point, provided the verified layer proves that
+entry point's verdict equal to [§1.6](#discharge) discharge over
+the full delivered set whenever the supplied set is exactly
+`witnesses_for(T)`, sound and complete by index.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The exactness precondition MUST be established the G3 way:
+the set is assembled from the verified binding cells' results
+for the same test context and witness list, never recomputed
+engine-side.
+'''
+

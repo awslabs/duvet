@@ -66,6 +66,33 @@ pub open spec fn annotation_target_spec(
 //= type=implication
 //# If `annotation_target(annotation, ...) = Some(target)`,
 //# then `target.line_number > annotation.end_line`.
+//
+// The witness spec's placement note is a consequence of this walk's
+// skip test (`line_is_skippable`): unclassified lines — every ordinary
+// comment in a degraded file — are not skippable and become the target.
+//= design/witness/spec.md#annotations
+//= type=implementation
+//# Placement note (degraded files): in a file with no language
+//# classifier, resolution cannot recognize comment lines as skippable —
+//# only blank lines and annotation lines are skipped — so an annotation
+//# (stacked or not) MUST be the last comment block above the code it
+//# targets; an intervening ordinary comment (e.g. a doc comment between
+//# the annotation and a proof fn header) becomes the resolved target
+//# itself, which a prover producer sees as an unelaborated position
+//# ([Property W6](#property-w6-unwitnessed-test-annotations)).
+//
+// Single-line-ness is enforced by the return type: `Option<TargetLine>`
+// carries one `line_number`. Fundamentally true by construction —
+// implication, not testable behavior. The spec-evolution clause is the
+// same kind and lives on the `TargetLine` type itself (types.rs), the
+// construct a multi-line model would have to change.
+//= design/query/coverage-model-spec.md#annotation-target-resolution-properties
+//= type=implication
+//# - **Single-line target:**
+//# Resolution MUST yield at most one target line per annotation:
+//# a successful resolution is exactly one `TargetLine` —
+//# the single source line the annotation targets —
+//# never a range and never a set.
 pub fn annotation_target(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -264,8 +291,21 @@ mod tests {
             )
         );
     }
+    // The unknown (unclassified) line is NOT skipped — it becomes the
+    // target. In a degraded file every ordinary comment line is exactly
+    // this case: the walk stops on it (the witness spec's placement note).
     #[test]
     fn annotation_before_unknown_line() {
+        //= design/witness/spec.md#annotations
+        //= type=test
+        //# Placement note (degraded files): in a file with no language
+        //# classifier, resolution cannot recognize comment lines as skippable —
+        //# only blank lines and annotation lines are skipped — so an annotation
+        //# (stacked or not) MUST be the last comment block above the code it
+        //# targets; an intervening ordinary comment (e.g. a doc comment between
+        //# the annotation and a proof fn header) becomes the resolved target
+        //# itself, which a prover producer sees as an unelaborated position
+        //# ([Property W6](#property-w6-unwitnessed-test-annotations)).
         assert_eq!(
             annotation_target(
                 &AnnotationSpan {

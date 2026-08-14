@@ -1,0 +1,39 @@
+target = "design/witness/spec.md#property-w4-monotonicity"
+
+# Property W4: Failure Monotonicity
+#
+# The implementation MUST prove that adding a witness never flips a
+# failing pair to passing:
+# 
+# ```
+# witnesses ⊆ witnesses'  ⟹
+#     (report_discharged(T, I, witnesses')
+#         ⟹ report_discharged(T, I, witnesses)
+#            ∨ ¬∃ w ∈ witnesses : binds(T, w))
+# ```
+# 
+# Adding a witness MAY newly fail a previously-discharged pair —
+# that is deliberate: the added witness is a claim T now makes, and
+# if it does not reach I it is the vacuity being caught
+# (decisions.md, [Decision 14](decisions.md#decision-14)).
+# The only way adding witnesses turns a non-discharged pair into a
+# discharged one is by witnessing a previously *unwitnessed* test
+# (the `witnesses_for(T) = ∅` case), never by outvoting a bound
+# witness that failed.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that adding a witness never flips a
+failing pair to passing:
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+Adding a witness MAY newly fail a previously-discharged pair —
+that is deliberate: the added witness is a claim T now makes, and
+if it does not reach I it is the vacuity being caught
+(decisions.md, [Decision 14](decisions.md#decision-14)).
+'''
+

@@ -2,19 +2,26 @@ source = { local = true }
 cmd = ["duvet query -c coverage -r report-a.xml -r report-b.xml -f jacoco-xml"]
 report_output = false
 
-# Regression test for multi-report OR semantics (design 5.2, Decisions 6 & 13).
+# EXPECTATION FLIPPED by Decision 14 (design/witness/decisions.md;
+# spec §1.6/W1 universal discharge). Fixture data unchanged.
 #
 # One implementation + one test annotate the same spec text. Two reports both
 # show the test executed; report A shows the implementation executed, report B
-# shows it missed. Report A therefore witnesses BOTH sides of the pair, so the
-# pair is discharged and this is a single successful correlation. The extra
-# report B must not cause a false failure or double-counting: the old
-# per-report verdict pushed the same test into both `successful` (report A)
-# and `failed` (report B), failing the check even though report A proves full
-# coverage.
+# shows it missed. The test therefore BINDS both witnesses, and the verdict is
+# universal: every bound witness must execute the implementation. Report B is
+# a bound claim that never reached the implementation — a per-run vacuity —
+# so the pair must FAIL, and the output must show the per-witness
+# disagreement (✓ report-a / ✗ report-b), never silently.
+#
+# Under the previous ∃-semantics (report A alone discharges; extra reports
+# cannot cause failure) this test pinned a PASS. Decision 14 rejects exactly
+# that masking: a passing witness must not outvote a bound witness that
+# failed. The old concern this test guarded — double-counting one test into
+# both `successful` and `failed` — remains pinned: the test appears exactly
+# once, as one failed correlation.
 #
 # Contrast with query-coverage-cross-report-pair.toml, where NO single report
-# witnesses both sides and the check must fail.
+# witnesses both sides and the check must also fail.
 [[file]]
 path = ".duvet/config.toml"
 contents = """

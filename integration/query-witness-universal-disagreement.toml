@@ -1,0 +1,125 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r report-a.xml -r report-b.xml -r report-c.xml -f jacoco-xml"]
+report_output = false
+
+# Decision 14 universal discharge, disagreement side (spec §1.6, W1).
+#
+# One test annotation bound by THREE witnesses (its lines execute in all
+# three reports); the implementation executes in A and C but NOT in B.
+# The ∀-clause fails: report B is a bound claim that never reached the
+# implementation — the per-run vacuity Decision 14 exists to catch — so
+# the pair FAILS even though two of the three bound witnesses saw both
+# sides (bound witnesses are never outvoted). Per spec §3 the output
+# MUST list EVERY bound witness with its per-witness result, so this
+# snapshot pins the visible disagreement:
+#   ✓ report-a.xml ... executed the implementation
+#   ✗ report-b.xml ... did not execute the implementation
+#   ✓ report-c.xml ... executed the implementation
+#
+# The agreement side of the same shape is pinned as a PASS by
+# query-witness-universal-agreement.toml.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/main/java/com/example/Impl.java"
+contents = """
+package com.example;
+
+public class Impl {
+    public void doThing() {
+        //= spec.md#section-1
+        //= type=implementation
+        //# This MUST do the thing
+        run();
+    }
+}
+"""
+
+[[file]]
+path = "src/test/java/com/example/ImplTest.java"
+contents = """
+package com.example;
+
+public class ImplTest {
+    public void testThing() {
+        //= spec.md#section-1
+        //= type=test
+        //# This MUST do the thing
+        new Impl().doThing();
+    }
+}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+"""
+
+# report A: test executed, implementation executed
+[[file]]
+path = "report-a.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="A">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""
+
+# report B: test executed, implementation MISSED (the failing bound claim)
+[[file]]
+path = "report-b.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="B">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="3" ci="0" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""
+
+# report C: test executed, implementation executed
+[[file]]
+path = "report-c.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="C">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""

@@ -1,0 +1,102 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r report-a.xml -r report-b.xml -f jacoco-xml --verbose"]
+report_output = false
+
+# Decision 14 universal discharge, agreement side (spec §1.6, W1).
+#
+# One test annotation bound by TWO witnesses (its lines execute in both
+# reports), and the implementation executes in BOTH. The ∀-clause holds:
+# every bound witness saw both sides, the pair is discharged, and the
+# verbose verdict names EVERY bound witness with its strength (spec §3:
+# "the output MUST name every bound witness").
+#
+# The disagreement side of the same shape — one of the two bound
+# witnesses missing the implementation — is pinned as a FAIL by
+# query-witness-universal-disagreement.toml.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/main/java/com/example/Impl.java"
+contents = """
+package com.example;
+
+public class Impl {
+    public void doThing() {
+        //= spec.md#section-1
+        //= type=implementation
+        //# This MUST do the thing
+        run();
+    }
+}
+"""
+
+[[file]]
+path = "src/test/java/com/example/ImplTest.java"
+contents = """
+package com.example;
+
+public class ImplTest {
+    public void testThing() {
+        //= spec.md#section-1
+        //= type=test
+        //# This MUST do the thing
+        new Impl().doThing();
+    }
+}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+"""
+
+# report A: test executed, implementation executed
+[[file]]
+path = "report-a.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="A">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""
+
+# report B: test executed, implementation executed
+[[file]]
+path = "report-b.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="B">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""

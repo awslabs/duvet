@@ -52,6 +52,11 @@ verus! {
 /// cannot be a scope delimiter). On unbalanced input the tree collapses to a
 /// single file-level scope spanning the whole file — see the trust-boundary note
 /// at the fallback below for why that is a deliberate, if lossy, choice.
+//= design/query/coverage-model-spec.md#scopes
+//= type=implementation
+//# A scope is a contiguous range of lines
+//# delimited by `ScopeOpen` and `ScopeClose` properties.
+//# Scopes nest.
 pub fn build_scope_tree(events: &[ScopeEvent], file_length: u64) -> (scopes: Vec<Scope>)
     requires
         file_length < u64::MAX,
@@ -68,7 +73,7 @@ pub fn build_scope_tree(events: &[ScopeEvent], file_length: u64) -> (scopes: Vec
     ensures
         scopes_well_formed(scopes@),
         // The scope-bound preconditions of `is_annotation_executed` (#3/#4).
-        // Stated here so the runtime trust boundary in `executed_status_for`
+        // Stated here so the runtime trust boundary in `executed_status`
         // can rely on the *contract*, not on this function's implementation.
         forall|i: int| 0 <= i < scopes@.len() ==>
             (#[trigger] scopes@[i]).open_line >= 1
@@ -82,8 +87,12 @@ pub fn build_scope_tree(events: &[ScopeEvent], file_length: u64) -> (scopes: Vec
     // is legitimate (spec §1.5). NOTE: unlike the old set-based matcher, an
     // *imbalanced* stream can no longer reach here silently — the dispatcher
     // runs the verified `scope_imbalance_site` on this same event stream first
-    // and escalates to `DefeatedClassification`, so a spurious whole-file
+    // and escalates to `FileClassification::Defeated`, so a spurious whole-file
     // collapse from a dropped brace is no longer possible (spec §1.5).
+    //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+    //= type=implementation
+    //# A stream with no scope delimiters is balanced, and its whole-file scope is
+    //# legitimate.
     if pairs.len() == 0 {
         if file_length >= 1 {
             let s = vec![Scope { open_line: 1, close_line: file_length, parent: None, children: vec![] }];
@@ -421,23 +430,14 @@ pub open spec fn scope_stream_balanced_spec(e: Seq<ScopeEvent>) -> bool {
 //# matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
 //# no `ScopeClose` occurs with no open to match,
 //# and no `ScopeOpen` is left unmatched at end of file.
-//= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
-//= type=implementation
-//# The implementation MUST prove that the balance detector returns balanced if and
-//# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
-//# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
-//# end of file.
 pub fn scope_imbalance_site(events: &[ScopeEvent]) -> (result: Option<u64>)
-    // The `ensures` below IS the verification of Property 11 (the iff with the
-    // depth-counter spec), machine-checked by CI's verify job — so the test
-    // annotation anchors on the clause that verifies, not on the fn header.
-    //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
-    //= type=test
-    //# The implementation MUST prove that the balance detector returns balanced if and
-    //# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
-    //# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
-    //# end of file.
     ensures
+        //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+        //= type=test
+        //# The implementation MUST prove that the balance detector returns balanced if and
+        //# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+        //# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+        //# end of file.
         (result is None) <==> scope_stream_balanced_spec(events@),
 {
     let mut depth: u64 = 0;
@@ -445,6 +445,12 @@ pub fn scope_imbalance_site(events: &[ScopeEvent]) -> (result: Option<u64>)
     let mut last_open_line: u64 = 0;
     let mut i: usize = 0;
 
+    //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+    //= type=implementation
+    //# The implementation MUST prove that the balance detector returns balanced if and
+    //# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+    //# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+    //# end of file.
     while i < events.len()
         invariant
             0 <= i <= events.len(),
@@ -492,15 +498,15 @@ mod tests {
         ScopeEvent { line, opens }
     }
 
-    //= design/query/coverage-model-spec.md#scopes
-    //= type=test
-    //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
-    //# `ScopeClose` properties. Scopes nest.
     #[test]
     fn simple_method_in_class() {
         // class `{` L1, method `{` L2, `}` L4, `}` L5.
         let e = vec![ev(1, true), ev(2, true), ev(4, false), ev(5, false)];
         let sc = build_scope_tree(&e, 5);
+        //= design/query/coverage-model-spec.md#scopes
+        //= type=test
+        //# A scope is a contiguous range of lines delimited by `ScopeOpen` and
+        //# `ScopeClose` properties. Scopes nest.
         assert_eq!(sc.len(), 2);
         let outer = sc.iter().find(|s| s.open_line == 1).unwrap();
         let inner = sc.iter().find(|s| s.open_line == 2).unwrap();
@@ -526,7 +532,7 @@ mod tests {
     fn unclosed_open_falls_back_to_whole_file() {
         // A single unclosed `{`: no pair is emitted, so build_scope_tree yields
         // the whole-file scope. (The dispatcher's balance gate escalates this
-        // case to DefeatedClassification before it ever reaches here.)
+        // case to `FileClassification::Defeated` before it ever reaches here.)
         let sc = build_scope_tree(&[ev(1, true)], 2);
         assert!(sc.len() >= 1);
         assert_eq!((sc[0].open_line, sc[0].close_line), (1, 2));

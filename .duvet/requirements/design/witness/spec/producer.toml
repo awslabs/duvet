@@ -1,0 +1,88 @@
+target = "design/witness/spec.md#producer"
+
+# 1.7 Producer
+#
+# A producer maps declared artifacts to witnesses:
+# 
+# ```
+# produce : (artifacts, annotations) → Vec<Witness>
+# ```
+# 
+# Runtime producers MAY ignore the `annotations` argument
+# (their witnesses pre-exist in the artifact).
+# Prover producers use it to construct witnesses ([§5](#prover-producers)).
+# The producer-internal artifact format MUST NOT escape the
+# producer; the engine consumes only `Vec<Witness>`.
+# 
+# The `annotations` argument is a **semantically inert
+# optimization**, never a semantic input.
+# The witness universe is defined by the artifact alone —
+# conceptually one potential witness per obligation —
+# and the argument only selects which members are materialized,
+# so that producers need not close every obligation to serve a few
+# annotations.
+# Normatively: every delivered witness MUST be a function of
+# (artifact, obligation) only — identical regardless of which
+# annotation caused its materialization, carrying no annotation
+# identity — and the filtering MUST be sound:
+# for every requested annotation, binding and discharge verdicts
+# over the materialized set MUST equal the verdicts over the full
+# universe.
+# (The filter only removes witnesses binding no requested
+# annotation; [W1](#property-w1-same-witness-discharge),
+# [W2](#property-w2-test-execution), and
+# [W6](#property-w6-unwitnessed-test-annotations) quantify only
+# over witnesses binding
+# the annotation in question, so soundness follows.
+# Stated as the consequence users rely on: every proof-testable
+# test annotation is witnessed by its own obligations' witnesses,
+# and no other annotation — and no other witness's contents
+# ([Property W7](#property-w7-positional-binding-map-independence)
+# for the verified half) — influences that.
+# [W3](#property-w3-global-execution) quantifies over delivered
+# witnesses by definition.)
+# 
+# A witness's **identity** is the (artifact, obligation, unit)
+# triple; the `label` ([§1.2](#witness)) is presentation only.
+# Two distinct units MAY carry identical labels —
+# user-authored label text is not unique ([§5.5](#verus-producer)) —
+# so a producer MUST NOT key witness deduplication, or any other
+# identity-bearing decision, on the label.
+# 
+# ---
+
+[[spec]]
+level = "MAY"
+quote = '''
+Runtime producers MAY ignore the `annotations` argument
+(their witnesses pre-exist in the artifact).
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The producer-internal artifact format MUST NOT escape the
+producer; the engine consumes only `Vec<Witness>`.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Normatively: every delivered witness MUST be a function of
+(artifact, obligation) only — identical regardless of which
+annotation caused its materialization, carrying no annotation
+identity — and the filtering MUST be sound:
+for every requested annotation, binding and discharge verdicts
+over the materialized set MUST equal the verdicts over the full
+universe.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Two distinct units MAY carry identical labels —
+user-authored label text is not unique ([§5.5](#verus-producer)) —
+so a producer MUST NOT key witness deduplication, or any other
+identity-bearing decision, on the label.
+'''
+

@@ -1,0 +1,47 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c coverage --coverage-source verus-sst=../../../duvet/src/query/parsers/verus_sst/testdata/vacuity
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 2 sources 
+     Parsing annotations
+      Parsed 3 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 3 references 
+  
+Coverage: ✗ FAIL
+
+  Coverage reports checked: 0
+  Executed tests: 0
+  Executed implementations: 0
+  Successful correlations: 0
+  Failed correlations: 0
+  Tests with no implementation: 0
+  Unwitnessed tests: 1
+
+  × Unwitnessed test annotation
+    ╭─[runtime.xyzzy:8:9]
+  7 │     fn test_do_thing() {
+  8 │ ╭─▶     //= spec.md#section-1
+  9 │ │       //= type=test
+ 10 │ ├─▶     //# This MUST do the thing
+    · ╰──── Not executed test
+ 11 │         do_thing();
+    ╰────
+  help: No configured coverage source yielded a witness for this test
+        annotation (design/witness/spec.md, property W6). If its checking act
+        runs under a producer not configured in this invocation, add that
+        coverage source; otherwise this annotation points at behavior nothing
+        checked.
+
+
+
+Overall: ✗ FAIL

@@ -1,0 +1,180 @@
+target = "design/witness/spec.md#closure"
+
+# 5.4 Closure
+#
+# A constructed witness's `files` maps MUST equal the set of
+# **span-start lines** over the downward reachable set of the
+# prover's obligation graph, starting from the discharge unit
+# (decisions.md, [Decision 19](decisions.md#decision-19)):
+# a line enters a fill iff a span of a reached function begins on
+# that line — every span, at every nesting depth, declaration
+# spans included, so the header line of a wrapped signature is
+# addressable.
+# Reachability is transitive: the closure follows the obligation
+# graph's reference edges through any number of call or reference
+# hops — a lemma reaching a fn reaching a fn reaching a fn: all of
+# them enter — until a fixpoint.
+# The fill is a declared **projection** of the retained fact — the
+# per-function consulted span set the producer parses and keeps —
+# chosen for the consumer that exists today, positional annotation
+# evaluation (`target ∈ fill`), for which it is lossless; a future
+# consumer needing execution extents (runtime-map union, strength
+# comparison) MUST extend the producer to deliver the retained
+# spans rather than reinterpret the fill.
+# The map is not a claim that only those lines were consulted:
+# the three consumers named on record — LCOV-union comparison,
+# strength-lattice work, and report phrasing about specific
+# consulted lines — take the retained spans, never a
+# reinterpretation of this map
+# (decisions.md, [Decision 19](decisions.md#decision-19)).
+# Every function in the reachable set — exec, proof, and spec
+# alike — is **transparent** to this evaluation: the fill applies
+# the same span-start rule to the root's own body and, recursively,
+# to the body of every consulted function, with no special case at
+# the function barrier. Transparency is a traceability property of
+# what duvet reads, not a change to proof semantics: the prover
+# keeps reasoning by contract.
+# 
+# Comment and blank lines are excluded by **theorem**, not by
+# rule: spans anchor AST nodes, and ordinary comments and blanks
+# are not nodes, so no span begins on one. Producers MUST NOT
+# lexically classify lines at runtime, and MUST pin the theorem
+# with a test that lexes checked-in fixture sources against the
+# golden artifacts (guarding against macro-expansion span
+# placement). A doc-comment line MAY begin a span — doc comments
+# are attribute nodes — and the fill records it honestly. A line
+# the verifier never elaborated — unverified code — appears in no
+# span set and MUST NOT appear in any fill.
+# 
+# The closure MUST be **reflexive**: it includes the discharge
+# unit's own root node (`root ∈ closure(root)`), so the root
+# function's own span-start lines — its declaration line
+# included — are in every one of its witnesses' fills.
+# Binding stays positional and map-independent
+# ([§1.5](#claim-rules),
+# [Property W7](#property-w7-positional-binding-map-independence)):
+# a root-span line on which no span begins binds its annotation by
+# geometry even when it is absent from the fill.
+# Producers MUST carry a unit test asserting reflexivity for every
+# constructed witness.
+# Only reachable nodes contribute;
+# nothing outside the reachable set may be included.
+# The closure MUST be computed at the finest granularity the
+# artifact demonstrably supports
+# (decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the
+# artifact's ceiling or across a named architectural boundary);
+# what is normative now:
+# the closure MUST be a fixpoint (no truncation at a depth bound),
+# and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
+# not load-bearing dependency.
+# 
+# **The closure ceiling MUST be stated per producer, because it
+# bounds what unit granularity buys.** Where a prover checks a
+# function's obligations in one solver query and assumes callee
+# contracts whole (Verus does both, §5.5), every discharge unit
+# inside a function carries the identical function-level consulted
+# closure: finer units buy precise identity and legible failures,
+# not smaller witnesses, and discharge verdicts within one function
+# do not differ across its units at Consulted strength.
+# Reports and documentation MUST NOT present clause-level units as
+# implying clause-level evidence.
+
+[[spec]]
+level = "MUST"
+quote = '''
+A constructed witness's `files` maps MUST equal the set of
+**span-start lines** over the downward reachable set of the
+prover's obligation graph, starting from the discharge unit
+(decisions.md, [Decision 19](decisions.md#decision-19)):
+a line enters a fill iff a span of a reached function begins on
+that line — every span, at every nesting depth, declaration
+spans included, so the header line of a wrapped signature is
+addressable.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The fill is a declared **projection** of the retained fact — the
+per-function consulted span set the producer parses and keeps —
+chosen for the consumer that exists today, positional annotation
+evaluation (`target ∈ fill`), for which it is lossless; a future
+consumer needing execution extents (runtime-map union, strength
+comparison) MUST extend the producer to deliver the retained
+spans rather than reinterpret the fill.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Producers MUST NOT
+lexically classify lines at runtime, and MUST pin the theorem
+with a test that lexes checked-in fixture sources against the
+golden artifacts (guarding against macro-expansion span
+placement).
+'''
+
+[[spec]]
+level = "MAY"
+quote = '''
+A doc-comment line MAY begin a span — doc comments
+are attribute nodes — and the fill records it honestly.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A line
+the verifier never elaborated — unverified code — appears in no
+span set and MUST NOT appear in any fill.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The closure MUST be **reflexive**: it includes the discharge
+unit's own root node (`root ∈ closure(root)`), so the root
+function's own span-start lines — its declaration line
+included — are in every one of its witnesses' fills.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Producers MUST carry a unit test asserting reflexivity for every
+constructed witness.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The closure MUST be computed at the finest granularity the
+artifact demonstrably supports
+(decisions.md, [Decision 17](decisions.md#decision-17) — deferral is legitimate only at the
+artifact's ceiling or across a named architectural boundary);
+what is normative now:
+the closure MUST be a fixpoint (no truncation at a depth bound),
+and the semantics is *consulted* (strength `Consulted`, [§1.3](#provenance)),
+not load-bearing dependency.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+**The closure ceiling MUST be stated per producer, because it
+bounds what unit granularity buys.** Where a prover checks a
+function's obligations in one solver query and assumes callee
+contracts whole (Verus does both, §5.5), every discharge unit
+inside a function carries the identical function-level consulted
+closure: finer units buy precise identity and legible failures,
+not smaller witnesses, and discharge verdicts within one function
+do not differ across its units at Consulted strength.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Reports and documentation MUST NOT present clause-level units as
+implying clause-level evidence.
+'''
+

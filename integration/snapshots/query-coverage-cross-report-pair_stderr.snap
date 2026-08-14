@@ -25,6 +25,7 @@ Coverage: ✗ FAIL
   Successful correlations: 0
   Failed correlations: 1
   Tests with no implementation: 0
+  Unwitnessed tests: 0
 
   × Failed correlation
    ╭─[src/test/java/com/example/ImplTest.java:5:13]
@@ -35,6 +36,10 @@ Coverage: ✗ FAIL
    · ╰──── Executed test
  8 │             new Impl().doThing();
    ╰────
+  help: Every witness bound to this test, with its per-witness result (a pair
+        is discharged only when ALL bound witnesses executed the
+        implementation — design/witness/spec.md §1.6):
+        ✗ report-b.xml (executed): did not execute the implementation
 
 Advice: 
   ☞ Related context for:

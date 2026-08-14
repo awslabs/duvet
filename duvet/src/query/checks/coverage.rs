@@ -3,13 +3,9 @@
 
 use crate::{
     annotation::{Annotation, AnnotationSet, AnnotationType},
-    query::{
-        classify::{
-            classifier_for_path, Classification, ClassifierFailure, ClassifierIssue,
-            DefaultClassifier, LineClassifier,
-        },
-        coverage::{CoverageData, CoverageParser, FileCoverage},
-        parsers::JacocoParser,
+    query::classify::{
+        classifier_for_path, Classification, ClassifierFailure, ClassifierIssue, DefaultClassifier,
+        LineClassifier,
     },
     source::SourceFile,
     Result,
@@ -22,6 +18,7 @@ use duvet_coverage::{
         AnnotationSpan, CoverageReport as CoverageReportMap, ExecutionStatus, LineClass,
         LineProperty, Scope,
     },
+    witness::ScoringMode,
 };
 use rustc_hash::FxHashMap;
 use std::{
@@ -30,263 +27,231 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Clone, Debug, clap::ValueEnum)]
-pub enum CoverageFormat {
-    JacocoXml,
-    // Future: Lcov, Clover
+/// Coverage-independent classification of one source file — the expensive,
+/// witness-invariant input to [`executed_status`]. Classification depends
+/// only on the file's content and the annotation set, never on any coverage
+/// report, so it is computed once per file and shared across every witness
+/// (the per-file cache above the witness loop: witness count can exceed
+/// report count by orders of magnitude for prover producers).
+#[derive(Debug, Clone)]
+pub enum FileClassification {
+    /// Tree-sitter classifier present: verified two-phase model inputs.
+    Classified {
+        classifications: Vec<Option<LineClass>>,
+        scopes: Vec<Scope>,
+        file_length: u64,
+    },
+    /// No classifier: verified degraded-path inputs.
+    Degraded {
+        classifications: Vec<Option<LineClass>>,
+        file_length: u64,
+    },
+    /// Defeated commitment (spec §1.5): no trustworthy classification.
+    Defeated { issues: Vec<ClassifierIssue> },
 }
 
-/// Coverage model data for a file with a tree-sitter classifier.
-/// Contains the classified line properties, scope tree, and coverage data
-/// in the format expected by the verified `duvet-coverage` algorithms.
-#[derive(Debug, Clone)]
-pub struct ClassifiedFileData {
-    pub classifications: Vec<Option<LineClass>>,
-    pub scopes: Vec<Scope>,
-    pub coverage: CoverageReportMap,
+/// Per-file classification cache.
+pub type ClassificationMap = FxHashMap<PathBuf, FileClassification>;
+
+/// One file's classification flattened to the inputs the verified scoring
+/// layer consumes, plus the [`ScoringMode`] routing decision (G3).
+///
+/// This is THE routing point for the Classified/Degraded/Defeated arms:
+/// every consumer — the diagnostic scorer ([`executed_status`]), target
+/// resolution ([`resolve_target_line`]), and the verified adapter
+/// (`VerifiedVerdicts`) — derives its arm from this view instead of
+/// re-matching [`FileClassification`], so the trust-boundary routing
+/// cannot drift between them.
+#[derive(Clone, Copy, Debug)]
+pub struct ScoringView<'a> {
+    pub mode: ScoringMode,
+    pub classifications: &'a [Option<LineClass>],
+    /// Empty for every mode but `Classified` (the degraded path scores
+    /// without a scope tree).
+    pub scopes: &'a [Scope],
     pub file_length: u64,
+    /// `Unscorable` (defeated) only: the first classifier issue's line,
+    /// for `Unknown` diagnostics.
+    pub defeat_line: Option<u64>,
 }
 
-/// Coverage model data for a file with **no** tree-sitter classifier: the
-/// minimal universal classification (blank lines → `Whitespace`, everything else
-/// → `None`, annotation lines stamped by the caller) plus coverage and length.
-/// Fed to the verified degraded path, which needs no scope tree because it does
-/// not propagate — it reads coverage directly on the resolved target line.
-#[derive(Debug, Clone)]
-pub struct DegradedFileData {
-    pub classifications: Vec<Option<LineClass>>,
-    pub coverage: CoverageReportMap,
-    pub file_length: u64,
+impl ScoringView<'static> {
+    /// The view of a file that cannot be scored at all: no
+    /// classification exists, or the annotation's context is otherwise
+    /// refused at the trust boundary. Binds nothing, executes nothing.
+    pub const UNSCORABLE: Self = ScoringView {
+        mode: ScoringMode::Unscorable,
+        classifications: &[],
+        scopes: &[],
+        file_length: 0,
+        defeat_line: None,
+    };
 }
 
-/// Per-file execution data. A file with a tree-sitter classifier uses the
-/// verified two-phase model ([`FileExecutionData::Classified`]); a file without
-/// one uses the verified degraded path ([`FileExecutionData::Degraded`]). Both
-/// paths are verified in `duvet-coverage`; they differ only in fidelity
-/// (scope-based governance vs. forward-nearest governance).
-#[derive(Debug, Clone)]
-pub enum FileExecutionData {
-    /// File has a tree-sitter classifier — uses the two-phase coverage model
-    /// (target resolution + execution propagation) from duvet-coverage.
-    Classified(ClassifiedFileData),
-    /// File has no tree-sitter classifier — uses the verified degraded path
-    /// ([`duvet_coverage::degraded::degraded_execution_status`]): the same
-    /// forward target walk, deciding status by reading coverage directly on the
-    /// resolved line. Sound but lower-fidelity (no scope propagation).
-    Degraded(DegradedFileData),
-    /// **Defeated commitment** (spec §1.5). Either the classifier
-    /// reported it could not parse the file, or the verified balance check found
-    /// its `ScopeOpen`/`ScopeClose` stream unbalanced. Either way no trustworthy
-    /// classification exists, so instead of scoring against `build_scope_tree`'s
-    /// collapsed whole-file scope — a well-formed *wrong* tree — we route every
-    /// annotation in the file to a located `Unknown`. `issues` is **non-empty**
-    /// and names each problem (parse errors: one per `ERROR` node; imbalance: the
-    /// witness site). The cause (the file is not this language vs. a classifier
-    /// gap) is undecidable here, so we escalate rather than auto-substitute the
-    /// coarse model. Non-blocking in `query`.
-    DefeatedClassification { issues: Vec<ClassifierIssue> },
-}
-
-/// Map from file path to execution data.
-pub type ExecutionDataMap = FxHashMap<PathBuf, FileExecutionData>;
-
-/// Build execution data for all source files that have coverage. Each covered
-/// file is routed to the verified two-phase model when a tree-sitter classifier
-/// exists for its language ([`FileExecutionData::Classified`]), or to the
-/// verified degraded path otherwise ([`FileExecutionData::Degraded`]). Both are
-/// verified; neither is the old unverified forward-walk.
-pub async fn build_execution_data(
-    annotations: &AnnotationSet,
-    coverage_data: &CoverageData,
-    project_sources: &HashSet<SourceFile>,
-) -> Result<ExecutionDataMap> {
-    let generic = coverage_data.as_generic();
-
-    // Resolve each duvet source file to its absolute path once. The absolute
-    // path carries the file's full on-disk directory context, which is exactly
-    // what lets a report's file path be matched regardless of where duvet was
-    // run from: a report path (e.g. JaCoCo's package-relative `com/example/Foo.java`,
-    // or LCOV's `SF:` path) is, when it refers to this file, a suffix of the
-    // file's real absolute path. See `coverage_path_matches`.
-    let mut duvet_sources: Vec<(&Path, String)> = Vec::new();
-    for source_file in project_sources {
-        let duvet_path = match source_file {
-            SourceFile::Text { path, .. } => &**path,
-            SourceFile::Toml(_) => continue,
-        };
-        let absolute = std::path::absolute(duvet_path).map_err(|err| {
-            duvet_core::error!(
-                "could not resolve absolute path for {}: {err}",
-                duvet_path.display()
-            )
-        })?;
-        duvet_sources.push((duvet_path, absolute.to_string_lossy().into_owned()));
+impl ScoringView<'_> {
+    /// Whether the verified scorers' runtime-checkable preconditions hold
+    /// for an annotation ending at `end_line`, scored against `coverage`,
+    /// under this view's mode. Mirrors, exactly, the two
+    /// runtime-checkable preconditions:
+    ///   - `annotation.end_line < u64::MAX` ([`span_in_model`])
+    ///   - for classified files, every coverage key maps to a valid
+    ///     0-based index ([`Self::coverage_in_bounds`])
+    ///
+    /// (The scope-bounds invariants in the verified fn's third/fourth
+    /// `requires` are guaranteed by `build_scope_tree`'s postcondition
+    /// and need no runtime check here.
+    ///
+    /// Property 2's `scopes_match_classifications` hypothesis is *not* a
+    /// `requires` of `is_annotation_executed` and is likewise not checked
+    /// here — but not because of `build_scope_tree`: that postcondition
+    /// governs the scope *tree*, while propagation reads the per-line
+    /// classification *set*, and their silent disagreement was a real bug
+    /// (a `} // comment` line lost `ScopeClose` to the mutual-exclusivity
+    /// post-pass, letting backward propagation cross the brace). It is
+    /// discharged upstream by construction: the verified post-pass
+    /// (`classify_postpass::clean_classifications`) proves
+    /// `ScopeOpen`/`ScopeClose` are never stripped, and the classifier
+    /// property test proves boundary lines carry them in the first
+    /// place.)
+    pub fn preconditions_hold(&self, end_line: u64, coverage: &CoverageReportMap) -> bool {
+        span_in_model(end_line) && self.coverage_in_bounds(coverage)
     }
 
-    // Match every duvet source against every report entry by the suffix rule,
-    // collecting ALL matches in both directions so a genuine ambiguity is caught
-    // rather than silently resolved to whichever entry iterated first (the old
-    // `.find()` did the latter — verified-looking, but potentially wrong).
-    //
-    // A single duvet file matching TWO report entries, or a single report entry
-    // matched by TWO duvet files (the multi-module collision: `moduleA/…/com/example/Foo.java`
-    // and `moduleB/…/com/example/Foo.java` against a report that only says
-    // `com/example/Foo.java`), are both unresolvable from the paths alone. We
-    // refuse rather than guess.
-    let mut matches_for_file: Vec<(&Path, &FileCoverage)> = Vec::new();
-    let mut files_for_coverage: FxHashMap<&str, Vec<&Path>> = FxHashMap::default();
-
-    for (duvet_path, absolute) in &duvet_sources {
-        let mut matched: Vec<(&str, &FileCoverage)> = Vec::new();
-        for (coverage_path, file_coverage) in &generic.files {
-            if coverage_path_matches(absolute, coverage_path) {
-                matched.push((coverage_path.as_str(), file_coverage));
-                files_for_coverage
-                    .entry(coverage_path.as_str())
-                    .or_default()
-                    .push(duvet_path);
+    /// The coverage-keys half of the preconditions, shared with the
+    /// verified adapter's per-witness-map drop (which has no annotation
+    /// span in scope): for a classified file, every coverage key `K`
+    /// must map to a valid 0-based index (`1 <= K` and
+    /// `K - 1 < classifications.len()`) — the verified two-phase
+    /// scorer's `requires`. Degraded files carry no such requirement
+    /// (direct observation), and an unscorable file's map is inert
+    /// (nothing in it is ever scored), so both keep their maps.
+    pub fn coverage_in_bounds(&self, coverage: &CoverageReportMap) -> bool {
+        match self.mode {
+            ScoringMode::Classified => {
+                let len = self.classifications.len();
+                coverage.keys().all(|&k| k >= 1 && (k as usize - 1) < len)
             }
-        }
-
-        if matched.len() > 1 {
-            // `generic.files` is a hash map, so match order is not stable; sort
-            // the reported entries for a deterministic message.
-            let mut entries = matched.iter().map(|(path, _)| *path).collect::<Vec<_>>();
-            entries.sort_unstable();
-            let entries = entries.join(", ");
-            return Err(duvet_core::error!(
-                "coverage is ambiguous for {}: its path matches multiple report \
-                 entries ({}). duvet cannot tell which entry refers to this file.",
-                duvet_path.display(),
-                entries
-            ));
-        }
-
-        if let Some((_, file_coverage)) = matched.first() {
-            matches_for_file.push((*duvet_path, *file_coverage));
+            ScoringMode::Degraded | ScoringMode::Unscorable => true,
         }
     }
+}
 
-    // The mirror ambiguity: one report entry claimed by more than one source file.
-    for (coverage_path, files) in &files_for_coverage {
-        if files.len() > 1 {
-            // `project_sources` is a `HashSet`, so iteration order is not stable;
-            // sort the reported names for a deterministic message.
-            let mut names = files
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect::<Vec<_>>();
-            names.sort();
-            let names = names.join(", ");
-            return Err(duvet_core::error!(
-                "coverage report entry '{}' is ambiguous: it matches multiple \
-                 source files ({}). duvet cannot tell which file the report \
-                 refers to.",
-                coverage_path,
-                names
-            ));
+/// The span half of the verified scorers' preconditions: they require
+/// `end_line < u64::MAX` (an annotation whose range never resolved).
+/// Trust boundary: ill-formed spans are refused before the verified
+/// fns, never fed to them.
+pub fn span_in_model(end_line: u64) -> bool {
+    end_line < u64::MAX
+}
+
+impl FileClassification {
+    /// Flatten this classification to the [`ScoringView`] the scoring
+    /// paths consume: `Classified` and `Degraded` expose their verified
+    /// inputs; `Defeated` routes to [`ScoringMode::Unscorable`] with the
+    /// defeat's diagnostic line.
+    ///
+    /// This is glue assumption G3's routing decision (spec §4.4); the
+    /// citation lives on the adapter's consumption site in
+    /// `duvet/src/query/witness.rs` (`ctx_of`) — this file is excluded
+    /// from duvet's scan (fixture carrier, see `.duvet/config.toml`).
+    pub fn scoring_view(&self) -> ScoringView<'_> {
+        match self {
+            FileClassification::Classified {
+                classifications,
+                scopes,
+                file_length,
+            } => ScoringView {
+                mode: ScoringMode::Classified,
+                classifications,
+                scopes,
+                file_length: *file_length,
+                defeat_line: None,
+            },
+            FileClassification::Degraded {
+                classifications,
+                file_length,
+            } => ScoringView {
+                mode: ScoringMode::Degraded,
+                classifications,
+                scopes: &[],
+                file_length: *file_length,
+                defeat_line: None,
+            },
+            FileClassification::Defeated { issues } => ScoringView {
+                defeat_line: issues.first().map(|i| i.line),
+                ..ScoringView::UNSCORABLE
+            },
         }
     }
+}
 
-    let mut file_futures = Vec::new();
-    for (duvet_path, file_coverage) in matches_for_file {
-        // A covered file without a language classifier is no longer refused: it
-        // is routed to the verified degraded path in `build_file_execution_data`
-        // (forward-nearest governance over the minimal universal classification).
-        // Both the classified and degraded paths are verified in duvet-coverage.
-        let duvet_path = duvet_path.to_path_buf();
-        let annotations = annotations.clone();
-        let file_coverage = file_coverage.clone();
-
-        let future = async move {
-            let data = build_file_execution_data(&duvet_path, &annotations, &file_coverage).await?;
-            Result::<_, crate::Error>::Ok((duvet_path.clone(), data))
-        };
-
-        file_futures.push(future);
-    }
-
-    let results = futures::future::try_join_all(file_futures).await?;
+/// Classify a set of files once, in parallel — [`classify_file`] per file.
+/// Classification carries no coverage: that half is per-witness and is
+/// joined back in by [`executed_status`].
+pub async fn classify_files(
+    annotations: &AnnotationSet,
+    paths: impl IntoIterator<Item = PathBuf>,
+) -> Result<ClassificationMap> {
+    let futures: Vec<_> = paths
+        .into_iter()
+        .map(|path| {
+            let annotations = annotations.clone();
+            async move {
+                let data = classify_file(&path, &annotations).await?;
+                Result::<_, crate::Error>::Ok((path, data))
+            }
+        })
+        .collect();
+    let results = futures::future::try_join_all(futures).await?;
     Ok(results.into_iter().collect())
 }
 
-/// Build execution data for a single covered file. Uses the verified two-phase
-/// model when a tree-sitter classifier exists for the language, otherwise the
-/// verified degraded path over the minimal universal classification.
-async fn build_file_execution_data(
+/// Classify a single source file (coverage-independent). The routing:
+/// a tree-sitter classifier → [`FileClassification::Classified`] (verified
+/// two-phase model inputs); no classifier → [`FileClassification::Degraded`];
+/// parse error or unbalanced scopes → [`FileClassification::Defeated`].
+pub async fn classify_file(
     duvet_path: &Path,
     annotations: &AnnotationSet,
-    file_coverage: &FileCoverage,
-) -> Result<FileExecutionData> {
+) -> Result<FileClassification> {
     let source_file = duvet_core::vfs::read_string(duvet_path).await?;
     let file_content = source_file.to_string();
     let line_count = file_content.lines().count() as u64;
-    let coverage = file_coverage.to_coverage_report();
 
     if let Some(classifier) = classifier_for_path(duvet_path) {
-        // Classified path: tree-sitter classification + verified two-phase model.
         let mut classifications = match classifier.classify(&file_content) {
             Classification::Classified(c) => c,
-            // Defeated commitment (spec §1.5): the classifier could not parse the
-            // file and reported located parse errors. Escalate rather than build
-            // and score a scope tree from garbage — same response as an
-            // unbalanced stream below, since the cause is equally undecidable.
             Classification::Unclassifiable { first, rest } => {
                 let mut issues = Vec::with_capacity(rest.len() + 1);
                 issues.push(first);
                 issues.extend(rest);
-                return Ok(FileExecutionData::DefeatedClassification { issues });
+                return Ok(FileClassification::Defeated { issues });
             }
         };
 
-        // Build the scope tree from the *pristine* classifier output, before the
-        // annotation override below. A duvet annotation trailing a structural
-        // line (e.g. `//= spec.md#x` on a method's closing `}`) would otherwise
-        // overwrite that line's ScopeClose with {Annotation}, unbalancing the
-        // ScopeOpen/ScopeClose stream. build_scope_tree would then fall back to a
-        // single whole-file scope and every annotation in the file would resolve
-        // against it. The scope tree depends only on structure, not on which
-        // lines carry annotations, so building it first is correct.
-        // Discharge `build_scope_tree`'s (and `match_scope_pairs`') sole
-        // precondition, `file_length < u64::MAX`, at this Verus/Rust boundary.
-        // Verus checks it against the proof but it compiles away for this
-        // unverified caller, so state it explicitly. It is physically
-        // unfalsifiable — `line_count` is a line tally, and u64::MAX lines is
-        // ~exabytes — so `debug_assert!` (checked in tests/CI, compiled out in
-        // release) is the honest weight: it asserts the contract input where a
-        // logic regression would surface, without a release panic path that can
-        // never fire.
+        // The scope tree below is built from the *pristine* CST event
+        // stream, before `apply_annotation_override`: an annotation
+        // trailing a structural line (e.g. `//= spec.md#x` on a closing
+        // `}`) would otherwise replace that line's ScopeClose and
+        // unbalance the stream, collapsing the tree to a single
+        // whole-file scope. Structure does not depend on which lines
+        // carry annotations, so pristine-first is correct. The
+        // debug_asserts here and below discharge `build_scope_tree`'s
+        // preconditions (`file_length < u64::MAX`; ordered, bounded
+        // events) at this Verus/Rust boundary — physically unfalsifiable
+        // by construction, so debug-weight: a tripwire in tests/CI with
+        // no release panic path.
         debug_assert!(line_count < u64::MAX);
 
-        // Spec §1.5 Scope Balance Contract: the selected classifier MUST emit a
-        // balanced scope stream. We check the classifier's *ordered scope-event
-        // stream* — every `{`/`}` in source order, with full multiplicity — not
-        // the per-line `LineClass` set. The set holds at most one
-        // `ScopeOpen`/`ScopeClose` per line and so drops a brace on a COMPOUND
-        // line (`} finally {}`, `}}`), which made the verified balance check
-        // (correctly, over its lossy input) report balanced code as unbalanced
-        // and falsely escalate valid Java to `DefeatedClassification`. The
-        // event stream is faithful, so a
-        // brace-balanced file now passes the gate. On a genuine imbalance we
-        // still refuse to score against `build_scope_tree`'s collapsed whole-file
-        // scope (spec §1.5) and escalate to a located `Unknown`.
         let scope_events = classifier.scope_events(&file_content);
         if let Some(witness_line) = scope_imbalance_site(&scope_events) {
-            return Ok(FileExecutionData::DefeatedClassification {
+            return Ok(FileClassification::Defeated {
                 issues: vec![ClassifierIssue {
                     reason: ClassifierFailure::UnbalancedScopes,
                     line: witness_line,
                 }],
             });
         }
-
-        // Discharge `build_scope_tree`'s event-stream preconditions at this
-        // same boundary: events arrive in source order (lines never decrease)
-        // and every brace sits on a real, bounded line. This holds by
-        // construction today — classifiers emit events sorted by byte offset
-        // and tree-sitter rows are monotone — but a future classifier that
-        // violates it would void the verified nesting guarantees, so this is
-        // the tripwire.
         debug_assert!(scope_events.windows(2).all(|w| w[0].line <= w[1].line));
         debug_assert!(scope_events
             .iter()
@@ -296,44 +261,315 @@ async fn build_file_execution_data(
 
         apply_annotation_override(&mut classifications, annotations, duvet_path);
 
-        // TRUSTED-BASE ASSUMPTION (unverified glue): the `scopes` stored here
-        // satisfy `is_annotation_executed`'s scope-bound preconditions
-        // (open_line >= 1, close_line < u64::MAX) *because* they came from
-        // `build_scope_tree`, whose contract now states those bounds. Nothing at
-        // the type level enforces that this field only ever holds a
-        // `build_scope_tree` result — `scopes: Vec<Scope>` is a plain public
-        // field. Today this is the sole producer, so the assumption holds by
-        // construction. TODO(VerifiedScopeTree): replace `Vec<Scope>` with an
-        // opaque newtype whose only constructor is `build_scope_tree` and whose
-        // Verus type invariant carries the bounds, so the query-side consumer
-        // discharges those `requires` from the type instead of this comment.
-        Ok(FileExecutionData::Classified(ClassifiedFileData {
+        Ok(FileClassification::Classified {
             classifications,
             scopes,
-            coverage,
             file_length: line_count,
-        }))
+        })
     } else {
-        // Degraded path: no language classifier for this file. Build the minimal
-        // universal classification (blank → Whitespace, else None), stamp
-        // annotation lines, and let the verified `degraded_execution_status`
-        // resolve the target and read coverage directly. No scope tree is built:
-        // the degraded model does not propagate, so none is needed.
         let mut classifications = match DefaultClassifier.classify(&file_content) {
             Classification::Classified(c) => c,
-            // DefaultClassifier is total (blank-line detection cannot fail), so
-            // it never reports Unclassifiable. This arm is unreachable.
             Classification::Unclassifiable { .. } => {
                 unreachable!("DefaultClassifier never returns Unclassifiable")
             }
         };
         apply_annotation_override(&mut classifications, annotations, duvet_path);
-        Ok(FileExecutionData::Degraded(DegradedFileData {
+        Ok(FileClassification::Degraded {
             classifications,
-            coverage,
             file_length: line_count,
-        }))
+        })
     }
+}
+
+/// Project sources with their absolute paths, computed once per run.
+/// Absolutizing is what lets a producer-recorded path (JaCoCo's
+/// package-relative tail, an SST log's cwd-relative path) be matched by the
+/// single suffix rule regardless of where duvet ran; see
+/// [`coverage_path_matches`].
+pub struct SourceIndex {
+    entries: Vec<(PathBuf, String)>,
+    /// Exact project-path lookup for [`Self::absolute_of`].
+    by_path: FxHashMap<PathBuf, usize>,
+    /// Suffix-rule pre-filter: [`suffix_key`] of the absolute path →
+    /// entry indices. Sound because [`coverage_path_matches`] implies
+    /// equal suffix keys (see `suffix_key`), so a bucket lookup never
+    /// drops a true match — in particular every ambiguity the full
+    /// scan would refuse is still seen and refused.
+    by_suffix: FxHashMap<String, Vec<usize>>,
+}
+
+impl SourceIndex {
+    pub fn build(project_sources: &HashSet<SourceFile>) -> Result<Self> {
+        let mut entries = Vec::new();
+        for source_file in project_sources {
+            let duvet_path = match source_file {
+                SourceFile::Text { path, .. } => &**path,
+                SourceFile::Toml(_) => continue,
+            };
+            let absolute = std::path::absolute(duvet_path).map_err(|err| {
+                duvet_core::error!(
+                    "could not resolve absolute path for {}: {err}",
+                    duvet_path.display()
+                )
+            })?;
+            entries.push((
+                duvet_path.to_path_buf(),
+                absolute.to_string_lossy().into_owned(),
+            ));
+        }
+        Ok(Self::index(entries))
+    }
+
+    /// Build the lookup maps over the entry list. Every constructor
+    /// funnels through here so the maps can never drift from the list.
+    fn index(entries: Vec<(PathBuf, String)>) -> Self {
+        let mut by_path = FxHashMap::default();
+        let mut by_suffix: FxHashMap<String, Vec<usize>> = FxHashMap::default();
+        for (i, (path, absolute)) in entries.iter().enumerate() {
+            by_path.entry(path.clone()).or_insert(i);
+            by_suffix
+                .entry(suffix_key(absolute).to_string())
+                .or_default()
+                .push(i);
+        }
+        Self {
+            entries,
+            by_path,
+            by_suffix,
+        }
+    }
+
+    /// The absolute path of a project source, if it is one.
+    pub fn absolute_of(&self, path: &Path) -> Option<&str> {
+        self.by_path.get(path).map(|&i| self.entries[i].1.as_str())
+    }
+
+    /// Every project source with its absolute path, in build order. The
+    /// witness adapter enumerates these to translate producer-recorded
+    /// paths into file identities (and to refuse ambiguous matches).
+    pub fn entries(&self) -> &[(PathBuf, String)] {
+        &self.entries
+    }
+
+    /// Test-only constructor from explicit (project path, absolute path)
+    /// pairs, so adapter tests can pin path-identity behavior without
+    /// touching the filesystem.
+    #[cfg(test)]
+    pub fn from_entries(entries: Vec<(PathBuf, String)>) -> Self {
+        Self::index(entries)
+    }
+
+    /// Every entry whose absolute path suffix-matches `coverage_path`,
+    /// in entry (build) order. Exactly the entries a full
+    /// [`coverage_path_matches`] scan would keep — the suffix-key
+    /// bucket only skips entries the matcher must reject — so callers'
+    /// ambiguity refusals (>1 candidate) are preserved verbatim.
+    pub fn matching_entries<'a>(
+        &'a self,
+        coverage_path: &'a str,
+    ) -> impl Iterator<Item = &'a (PathBuf, String)> + 'a {
+        self.matching_indices(coverage_path)
+            .map(|i| &self.entries[i])
+    }
+
+    /// Indices of [`Self::matching_entries`], ascending (bucket vectors
+    /// are filled in entry order).
+    fn matching_indices<'a>(&'a self, coverage_path: &'a str) -> impl Iterator<Item = usize> + 'a {
+        self.by_suffix
+            .get(suffix_key(coverage_path))
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(move |&i| coverage_path_matches(&self.entries[i].1, coverage_path))
+    }
+
+    /// Whether a producer-recorded path refers to any project source
+    /// (the `project` predicate for prover-producer closures).
+    pub fn matches_any(&self, coverage_path: &str) -> bool {
+        self.matching_entries(coverage_path).next().is_some()
+    }
+
+    /// Match one witness's per-file maps to project sources by the suffix
+    /// rule, refusing both ambiguity directions (one source matching two
+    /// entries; one entry claimed by two sources) rather than guessing —
+    /// the same refusals `build_execution_data` applies per report.
+    /// Returned maps are `Arc` clones of the witness's own — shared, not
+    /// copied.
+    ///
+    /// This is half of glue assumption G1 (spec §4.4, file identity); the
+    /// citation lives on the adapter's id interning in
+    /// `duvet/src/query/witness.rs` (`VerifiedVerdicts::build`) — this
+    /// file is excluded from duvet's scan (fixture carrier).
+    pub fn match_witness_files(
+        &self,
+        files: &std::collections::BTreeMap<
+            String,
+            std::sync::Arc<duvet_coverage::types::CoverageReport>,
+        >,
+    ) -> Result<FxHashMap<PathBuf, std::sync::Arc<duvet_coverage::types::CoverageReport>>> {
+        let mut matched: FxHashMap<PathBuf, std::sync::Arc<duvet_coverage::types::CoverageReport>> =
+            FxHashMap::default();
+        let mut files_for_coverage: FxHashMap<&str, Vec<&Path>> = FxHashMap::default();
+        // Hits per entry, indexed like `entries`. Bucket lookups visit
+        // exactly the (entry, coverage_path) pairs the full scan would
+        // match (suffix_key invariant), and both iteration orders —
+        // entries ascending within a bucket, `files` in BTreeMap order —
+        // reproduce the full scan's hit lists verbatim.
+        let mut hits_per_entry: Vec<Vec<&str>> = vec![Vec::new(); self.entries.len()];
+
+        for (coverage_path, report) in files {
+            for i in self.matching_indices(coverage_path) {
+                let (duvet_path, _) = &self.entries[i];
+                hits_per_entry[i].push(coverage_path.as_str());
+                files_for_coverage
+                    .entry(coverage_path.as_str())
+                    .or_default()
+                    .push(duvet_path);
+                matched.insert(duvet_path.clone(), std::sync::Arc::clone(report));
+            }
+        }
+
+        for (i, mut hits) in hits_per_entry.into_iter().enumerate() {
+            if hits.len() > 1 {
+                hits.sort_unstable();
+                let entries = hits.join(", ");
+                return Err(duvet_core::error!(
+                    "coverage is ambiguous for {}: its path matches multiple report \
+                     entries ({}). duvet cannot tell which entry refers to this file.",
+                    self.entries[i].0.display(),
+                    entries
+                ));
+            }
+        }
+
+        for (coverage_path, sources) in &files_for_coverage {
+            if sources.len() > 1 {
+                let mut names = sources
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>();
+                names.sort();
+                let names = names.join(", ");
+                return Err(duvet_core::error!(
+                    "coverage report entry '{}' is ambiguous: it matches multiple \
+                     source files ({}). duvet cannot tell which file the report \
+                     refers to.",
+                    coverage_path,
+                    names
+                ));
+            }
+        }
+
+        Ok(matched)
+    }
+}
+
+/// Score one annotation against one witness's coverage for its file — the
+/// `executed(X, w)` cell of spec §1.4. Routing follows the annotation's
+/// [`FileClassification`] arm, with the classification supplied from the
+/// per-file cache and the coverage from the witness.
+// Spec §1.4 (design/witness/spec.md#executed): "exactly the existing
+// verified Phases 1–3 (`is_annotation_executed`, or the degraded path),
+// applied to one witness's coverage maps." This file is excluded from
+// duvet's scan, so no annotation lives here — the implementation
+// citation is on the verified `executed_by` in
+// duvet-coverage/src/witness.rs, the definitional site.
+//
+// `coverage` is `None` when the witness does not touch the annotation's
+// file — diagnostic status `NotExecuted`, exactly as a report that does
+// not name the file ("If w's `files` contains no map for X's file at
+// all, `executed(X, w)` is false" — cited on `executed_by`'s
+// `None => false` arm in duvet-coverage/src/witness.rs).
+pub fn executed_status(
+    annotation: &Arc<Annotation>,
+    classification: Option<&FileClassification>,
+    coverage: Option<&CoverageReportMap>,
+) -> ExecutionStatus {
+    if matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo) {
+        return ExecutionStatus::NotExecuted;
+    }
+    let Some(coverage) = coverage else {
+        return ExecutionStatus::NotExecuted;
+    };
+    let (start_line, end_line) = annotation.line_range();
+    // The witness covers the file but nothing classified it. The engine
+    // classifies every witness-matched file, so a missing entry means a
+    // caller bug; conservative `Unknown` rather than a panic in release.
+    let Some(view) = classification.map(FileClassification::scoring_view) else {
+        return ExecutionStatus::Unknown {
+            line_number: start_line,
+        };
+    };
+    // Trust boundary: ill-formed inputs fall back to `Unknown` rather
+    // than reaching the verified fns — see
+    // `ScoringView::preconditions_hold` for the predicate.
+    if !view.preconditions_hold(end_line, coverage) {
+        return ExecutionStatus::Unknown {
+            line_number: start_line,
+        };
+    }
+    let ann_span = AnnotationSpan {
+        start_line,
+        end_line,
+    };
+    match view.mode {
+        ScoringMode::Classified => is_annotation_executed(
+            &ann_span,
+            view.classifications,
+            view.scopes,
+            coverage,
+            view.file_length,
+        ),
+        ScoringMode::Degraded => {
+            degraded_execution_status(&ann_span, view.classifications, coverage, view.file_length)
+        }
+        // Defeated commitment (spec §1.5): no trustworthy classification.
+        ScoringMode::Unscorable => ExecutionStatus::Unknown {
+            line_number: view.defeat_line.unwrap_or(0),
+        },
+    }
+}
+
+/// Resolve an annotation's target line via the verified target resolution.
+/// This is resolution only — no scoring — and is what the `ByRootSpan`
+/// claim rule consumes.
+// Spec (design/witness/spec.md#annotations): "each resolved to the
+// source lines it governs by the coverage model's target resolution
+// (coverage-model-spec §2, including the degraded path)." This file is
+// excluded from duvet's scan, so no annotation lives here; the verified
+// target resolution (duvet-coverage/src/target_resolution.rs) owns the
+// citation.
+//
+// This resolution feeds the ByRootSpan claim arm (spec §1.5, quoted at
+// the verified `binds`: the target must EXIST and fall within the root
+// span).
+//
+// `None` when the file's classification is defeated, the annotation's
+// range is degenerate, or the walk finds no target: an unresolvable
+// target binds no positional witness (the annotation surfaces via W6).
+pub fn resolve_target_line(
+    annotation: &Arc<Annotation>,
+    classification: &FileClassification,
+) -> Option<u64> {
+    let (start_line, end_line) = annotation.line_range();
+    // Trust boundary: `annotation_target` requires `end_line < u64::MAX`.
+    if !span_in_model(end_line) {
+        return None;
+    }
+    let view = classification.scoring_view();
+    if matches!(view.mode, ScoringMode::Unscorable) {
+        return None;
+    }
+    let ann_span = AnnotationSpan {
+        start_line,
+        end_line,
+    };
+    duvet_coverage::target_resolution::annotation_target(
+        &ann_span,
+        view.classifications,
+        view.file_length,
+    )
+    .map(|t| t.line_number)
 }
 
 /// Override annotation lines using duvet's authoritative parsed annotation data.
@@ -387,13 +623,13 @@ fn stamp_annotation_range(classifications: &mut [Option<LineClass>], range: (u64
 /// the duvet source file whose absolute on-disk path is `absolute_duvet_path`.
 ///
 /// The rule is a single test: **is `coverage_path` a suffix of the absolute
-/// duvet path, ending at a `/` boundary?** This is deterministic, direction-free,
-/// and dominates the old four-strategy `paths_match`:
+/// duvet path, ending at a `/` boundary?** This is deterministic and
+/// direction-free, and covers every shape reports produce:
 ///
-///   - It subsumes exact-match and duvet-is-longer (the report names the whole
-///     path, or a package-relative tail of it).
-///   - It subsumes coverage-is-longer / nested-`.duvet` (duvet was run from
-///     inside the package so its glob returned a short path): absolutizing
+///   - The report names the whole path, or a package-relative tail of it
+///     (exact match; shorter report path).
+///   - The report's path is longer than duvet's (duvet was run from inside
+///     the package so its glob returned a short path): absolutizing
 ///     restores the real package directories, so the report's longer path is a
 ///     suffix of the real file — anchored to the actual package, not a bare
 ///     filename.
@@ -409,7 +645,7 @@ fn stamp_annotation_range(classifications: &mut [Option<LineClass>], range: (u64
 ///
 /// Report paths are normalized to `/` separators for the comparison; duvet
 /// absolute paths already use the platform separator, which is `/` here.
-fn coverage_path_matches(absolute_duvet_path: &str, coverage_path: &str) -> bool {
+pub(crate) fn coverage_path_matches(absolute_duvet_path: &str, coverage_path: &str) -> bool {
     let coverage_path = coverage_path.replace('\\', "/");
     let absolute = absolute_duvet_path.replace('\\', "/");
 
@@ -423,149 +659,32 @@ fn coverage_path_matches(absolute_duvet_path: &str, coverage_path: &str) -> bool
     prefix_len == 0 || absolute.as_bytes()[prefix_len - 1] == b'/'
 }
 
-/// Parse coverage data from file.
-pub async fn parse_coverage_data(
-    coverage_path: &String,
-    format: &CoverageFormat,
-) -> Result<CoverageData> {
-    match format {
-        CoverageFormat::JacocoXml => {
-            let parser = JacocoParser;
-            parser.parse(Path::new(coverage_path)).await
-        }
-    }
-}
-
-/// Check if an annotation is executed according to coverage data.
+/// The final path component of `path` under the same separator
+/// normalization [`coverage_path_matches`] applies (both `/` and `\`
+/// split components).
 ///
-/// Decide the [`ExecutionStatus`] of an annotation given the execution data for
-/// its source file. A [`FileExecutionData::Classified`] entry is scored by the
-/// verified two-phase model in `duvet_coverage`; a [`FileExecutionData::Degraded`]
-/// entry (no tree-sitter classifier) is scored by the verified degraded path
-/// [`duvet_coverage::degraded::degraded_execution_status`]. Both paths are
-/// verified.
-pub fn executed_status_for(
-    annotation: &Arc<Annotation>,
-    execution_data_map: &ExecutionDataMap,
-) -> ExecutionStatus {
-    if matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo) {
-        return ExecutionStatus::NotExecuted;
-    }
-
-    let file_path = annotation.source.to_path_buf();
-
-    match execution_data_map.get(&file_path) {
-        Some(FileExecutionData::Classified(data)) => {
-            let (start_line, end_line) = annotation.line_range();
-            let ann_span = AnnotationSpan {
-                start_line,
-                end_line,
-            };
-
-            // Enforce `is_annotation_executed`'s `requires` at this trust
-            // boundary. Verus checks those clauses statically against the
-            // *proof*, but they compile away in release builds, so nothing stops
-            // ill-formed runtime inputs from reaching the verified algorithm and
-            // making its guarantees vacuous. The inputs here are not proof-clean:
-            // `file_length`/`classifications` come from the tree-sitter
-            // classifier while `coverage` keys are JaCoCo `<line nr=...>` values
-            // from a separately-produced XML, so source/coverage drift, a
-            // trailing newline, or `nr` past EOF can violate the preconditions.
-            // When that happens we cannot soundly trust the model's verdict, so
-            // fall back to `Unknown` (the conservative status) instead of calling
-            // the verified fn on inputs it never reasoned about.
-            //
-            // requires: annotation.end_line < u64::MAX
-            // requires: every coverage key K has (K - 1) < classifications.len()
-            let precondition_holds =
-                classified_preconditions_hold(end_line, &data.coverage, data.classifications.len());
-
-            if !precondition_holds {
-                ExecutionStatus::Unknown {
-                    line_number: start_line,
-                }
-            } else {
-                is_annotation_executed(
-                    &ann_span,
-                    &data.classifications,
-                    &data.scopes,
-                    &data.coverage,
-                    data.file_length,
-                )
-            }
-        }
-        Some(FileExecutionData::Degraded(data)) => {
-            let (start_line, end_line) = annotation.line_range();
-            // Trust boundary: `degraded_execution_status` requires
-            // `end_line < u64::MAX` (it computes `end_line + 1` in the target
-            // walk). Physically unfalsifiable for a real line number, but guard
-            // rather than risk overflow in release, mirroring the classified
-            // precondition guard above.
-            if end_line == u64::MAX {
-                ExecutionStatus::Unknown {
-                    line_number: start_line,
-                }
-            } else {
-                let ann_span = AnnotationSpan {
-                    start_line,
-                    end_line,
-                };
-                degraded_execution_status(
-                    &ann_span,
-                    &data.classifications,
-                    &data.coverage,
-                    data.file_length,
-                )
-            }
-        }
-        Some(FileExecutionData::DefeatedClassification { issues }) => {
-            // Defeated commitment (spec §1.5): no trustworthy classification
-            // exists for this file (parse error or unbalanced scopes). Report a
-            // located, non-blocking `Unknown` anchored to the first issue rather
-            // than a verdict computed against a collapsed/garbage tree. `issues`
-            // is non-empty by construction; fall back defensively to line 0.
-            let line_number = issues.first().map(|i| i.line).unwrap_or(0);
-            ExecutionStatus::Unknown { line_number }
-        }
-        None => ExecutionStatus::NotExecuted,
-    }
-}
-
-/// Whether the classified inputs satisfy `is_annotation_executed`'s `requires`
-/// clauses. Pure so it can be tested without constructing a full `Annotation`.
-/// Mirrors, exactly, the two runtime-checkable preconditions:
-///   - `annotation.end_line < u64::MAX`
-///   - every coverage key `K` maps to a valid 0-based index: `1 <= K` and
-///     `K - 1 < classifications_len`
-///
-/// (The scope-bounds invariants in the third/fourth `requires` are guaranteed
-/// by `build_scope_tree`'s postcondition and need no runtime check here.
-///
-/// Property 2's `scopes_match_classifications` hypothesis is *not* a
-/// `requires` of `is_annotation_executed` and is likewise not checked here —
-/// but not because of `build_scope_tree`: that postcondition governs the
-/// scope *tree*, while propagation reads the per-line classification *set*,
-/// and their silent disagreement was a real bug (a `} // comment` line lost
-/// `ScopeClose` to the mutual-exclusivity post-pass, letting backward
-/// propagation cross the brace). It is discharged upstream by construction:
-/// the verified post-pass (`classify_postpass::clean_classifications`) proves
-/// `ScopeOpen`/`ScopeClose` are never stripped, and the classifier property
-/// test proves boundary lines carry them in the first place.)
-fn classified_preconditions_hold(
-    end_line: u64,
-    coverage: &CoverageReportMap,
-    classifications_len: usize,
-) -> bool {
-    end_line < u64::MAX
-        && coverage
-            .keys()
-            .all(|&k| k >= 1 && (k as usize - 1) < classifications_len)
+/// Invariant (the bucket pre-filter's license, pinned by
+/// `suffix_key_agrees_with_coverage_path_matches`):
+/// `coverage_path_matches(abs, cov)` implies
+/// `suffix_key(abs) == suffix_key(cov)`. Proof shape: a match makes
+/// the normalized `cov` a suffix of the normalized `abs` beginning at
+/// a separator boundary, so the text after the last separator is the
+/// same string on both sides. Hence bucketing candidate paths by
+/// suffix key never hides a true match — including the matches an
+/// ambiguity refusal needs to see.
+pub(crate) fn suffix_key(path: &str) -> &str {
+    path.rsplit(['/', '\\'])
+        .next()
+        .expect("rsplit yields at least one segment")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::classify::{java::JavaClassifier, Classification, LineClassifier};
+    use crate::query::{
+        classify::{java::JavaClassifier, Classification, LineClassifier},
+        coverage::FileCoverage,
+    };
     use duvet_coverage::types::{CoverageStatus, LineProperty};
 
     fn coverage_with_keys(keys: &[u64]) -> CoverageReportMap {
@@ -581,10 +700,10 @@ mod tests {
     }
 
     /// The scope tree is derived from the classifier's CST scope-event stream,
-    /// so an annotation override that clobbers a `ScopeClose` on the per-line
-    /// classification set can no longer unbalance the tree or collapse the file
-    /// to a single whole-file scope. The hazard the old pristine-ordering
-    /// guarded is eliminated by construction (PR #227).
+    /// not from the per-line classification set, so an annotation override
+    /// that clobbers a `ScopeClose` on that set cannot unbalance the tree or
+    /// collapse the file to a single whole-file scope — the hazard is
+    /// eliminated by construction (regression pinned by PR #227).
     #[test]
     fn scope_tree_survives_annotation_on_closing_brace() {
         // A two-method class. An annotation ends on `bar`'s closing brace
@@ -615,10 +734,10 @@ public class Two {
 
         // The scope tree is built from the CST-derived event stream, not from
         // `classifications`, so it recovers the real scopes (class body + two
-        // method bodies) and — unlike the old set-based matcher — cannot be
-        // collapsed by an annotation override that clobbers a `ScopeClose` on
-        // the classification set. That hazard is eliminated by construction
-        // (PR #227): `build_scope_tree` no longer reads the mutated set.
+        // method bodies) and cannot be collapsed by an annotation override
+        // that clobbers a `ScopeClose` on the classification set — that
+        // hazard is eliminated by construction (PR #227):
+        // `build_scope_tree` does not read the mutated set.
         let events = JavaClassifier.scope_events(source);
         let scopes = build_scope_tree(&events, line_count);
         assert!(
@@ -628,7 +747,7 @@ public class Two {
         );
 
         // Overriding the classification set (what `apply_annotation_override`
-        // does) no longer feeds `build_scope_tree`, so the tree is unchanged —
+        // does) does not feed `build_scope_tree`, so the tree is unchanged —
         // demonstrating the reorder hazard is gone rather than merely avoided.
         let mut overridden = classifications.clone();
         stamp_annotation_range(&mut overridden, (6, 8));
@@ -639,11 +758,28 @@ public class Two {
         );
     }
 
+    /// The guard predicate as [`executed_status`]'s Classified arm applies
+    /// it: a view over `len` classified lines, probed with the shared
+    /// [`ScoringView::preconditions_hold`]. Every guard test below routes
+    /// through this — the same predicate the verified adapter's bounds-drop
+    /// consults — so the two trust-boundary responses cannot drift.
+    fn classified_preconditions(end_line: u64, coverage: &CoverageReportMap, len: usize) -> bool {
+        let classifications = vec![None; len];
+        let view = ScoringView {
+            mode: ScoringMode::Classified,
+            classifications: &classifications,
+            scopes: &[],
+            file_length: len as u64,
+            defeat_line: None,
+        };
+        view.preconditions_hold(end_line, coverage)
+    }
+
     #[test]
     fn preconditions_hold_for_in_bounds_coverage() {
         // 5 classified lines; coverage keys 1..=5 all map to valid indices.
         let coverage = coverage_with_keys(&[1, 3, 5]);
-        assert!(classified_preconditions_hold(4, &coverage, 5));
+        assert!(classified_preconditions(4, &coverage, 5));
     }
 
     #[test]
@@ -652,35 +788,104 @@ public class Two {
         // JaCoCo-nr-past-EOF / source-coverage-drift case that would otherwise
         // reach the verified fn with an input it never reasoned about.
         let coverage = coverage_with_keys(&[1, 6]);
-        assert!(!classified_preconditions_hold(4, &coverage, 5));
+        assert!(!classified_preconditions(4, &coverage, 5));
     }
 
     #[test]
     fn zero_coverage_key_violates_precondition() {
         // Line numbers are 1-based; key 0 has no valid 0-based index.
         let coverage = coverage_with_keys(&[0, 1]);
-        assert!(!classified_preconditions_hold(4, &coverage, 5));
+        assert!(!classified_preconditions(4, &coverage, 5));
     }
 
     #[test]
     fn end_line_at_u64_max_violates_precondition() {
         let coverage = coverage_with_keys(&[1]);
-        assert!(!classified_preconditions_hold(u64::MAX, &coverage, 5));
+        assert!(!classified_preconditions(u64::MAX, &coverage, 5));
     }
 
     #[test]
     fn empty_coverage_holds() {
         // No keys -> the forall is vacuously satisfied.
         let coverage = coverage_with_keys(&[]);
-        assert!(classified_preconditions_hold(4, &coverage, 5));
+        assert!(classified_preconditions(4, &coverage, 5));
+    }
+
+    /// The guard behavior of every arm, pinned through the shared
+    /// predicate: only classified views impose the coverage-keys bound
+    /// (degraded is direct observation; an unscorable file's map is
+    /// inert), while the span guard applies to every mode.
+    #[test]
+    fn coverage_bounds_guard_is_classified_only() {
+        let out_of_bounds = coverage_with_keys(&[1, 99]);
+        let classifications = vec![None, None];
+        let classified = ScoringView {
+            mode: ScoringMode::Classified,
+            classifications: &classifications,
+            scopes: &[],
+            file_length: 2,
+            defeat_line: None,
+        };
+        let degraded = ScoringView {
+            mode: ScoringMode::Degraded,
+            ..classified
+        };
+        assert!(!classified.coverage_in_bounds(&out_of_bounds));
+        assert!(degraded.coverage_in_bounds(&out_of_bounds));
+        assert!(ScoringView::UNSCORABLE.coverage_in_bounds(&out_of_bounds));
+        // The span guard applies regardless of mode.
+        assert!(!degraded.preconditions_hold(u64::MAX, &out_of_bounds));
+        assert!(degraded.preconditions_hold(3, &out_of_bounds));
+    }
+
+    /// The Classified/Degraded/Defeated routing decision, pinned at the
+    /// single accessor every consumer derives it from. (G3's duvet
+    /// citations live in `query/witness.rs` — this file is unscannable.)
+    #[test]
+    fn scoring_view_routes_each_arm_to_its_mode() {
+        use crate::query::classify::{ClassifierFailure, ClassifierIssue};
+        let classified = FileClassification::Classified {
+            classifications: vec![None; 3],
+            scopes: vec![],
+            file_length: 3,
+        };
+        let degraded = FileClassification::Degraded {
+            classifications: vec![None; 3],
+            file_length: 3,
+        };
+        let defeated = FileClassification::Defeated {
+            issues: vec![ClassifierIssue {
+                reason: ClassifierFailure::UnbalancedScopes,
+                line: 7,
+            }],
+        };
+        assert!(matches!(
+            classified.scoring_view().mode,
+            ScoringMode::Classified
+        ));
+        assert!(matches!(
+            degraded.scoring_view().mode,
+            ScoringMode::Degraded
+        ));
+        let view = defeated.scoring_view();
+        assert!(matches!(view.mode, ScoringMode::Unscorable));
+        assert_eq!(
+            view.defeat_line,
+            Some(7),
+            "the defeat's diagnostic line rides on the view"
+        );
+        assert!(
+            degraded.scoring_view().scopes.is_empty(),
+            "degraded scoring has no scope tree"
+        );
     }
 
     // --- coverage_path_matches ---
     //
-    // These exercise the single suffix rule against every shape the old
-    // four-strategy `paths_match` handled, plus the boundary and same-name
-    // cases. The duvet side is always an *absolute* path, since
-    // the caller absolutizes before matching.
+    // These exercise the single suffix rule against every real-world path
+    // shape (exact, package-relative tail, report-longer), plus the
+    // boundary and same-name cases. The duvet side is always an *absolute*
+    // path, since the caller absolutizes before matching.
 
     #[test]
     fn exact_full_path_matches() {
@@ -749,11 +954,246 @@ public class Two {
         ));
     }
 
+    // --- suffix_key bucket pre-filter equivalence ---
+
+    /// Adversarial path shapes for the bucket-invariant cross-product:
+    /// same filenames under different roots, filename-only entries,
+    /// non-boundary near-misses, backslash separators, mixed
+    /// separators, trailing separators, empty string.
+    fn adversarial_paths() -> Vec<&'static str> {
+        vec![
+            "/proj/src/main/java/com/example/Foo.java",
+            "/other/src/main/java/com/example/Foo.java",
+            "/proj/com/example/Foo.java",
+            "com/example/Foo.java",
+            "example/Foo.java",
+            "Foo.java",
+            "myexample/Foo.java",
+            "/proj/src/main/java/com/myexample/Foo.java",
+            "otherFoo.java",
+            "com\\example\\Foo.java",
+            "C:\\proj\\src\\com\\example\\Foo.java",
+            "com/example\\Foo.java",
+            "src/lib.rs",
+            "duvet-coverage/src/lib.rs",
+            "/abs/duvet-coverage/src/lib.rs",
+            "lib.rs",
+            "b.rs",
+            "src/b.rs",
+            "other/src/b.rs",
+            "/proj/other/src/b.rs",
+            "trailing/",
+            "",
+        ]
+    }
+
+    /// The license for every suffix-key bucket in the codebase
+    /// (SourceIndex::matching_entries, the producer's graph-file
+    /// buckets): a match implies equal suffix keys, so bucketing by
+    /// suffix key never hides a match — nor an ambiguity. Checked as a
+    /// full cross-product over the adversarial shapes, both argument
+    /// orders.
+    #[test]
+    fn suffix_key_agrees_with_coverage_path_matches() {
+        let paths = adversarial_paths();
+        for a in &paths {
+            for b in &paths {
+                if coverage_path_matches(a, b) {
+                    assert_eq!(
+                        suffix_key(a),
+                        suffix_key(b),
+                        "match with unequal suffix keys: ({a:?}, {b:?}) — the \
+                         bucket pre-filter would hide this match"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Bucket-backed SourceIndex lookups are extensionally equal to the
+    /// full linear scan they replaced, over the adversarial
+    /// cross-product: same candidate sets (so the same ambiguity
+    /// refusals), same matches_any, same absolute_of.
+    #[test]
+    fn source_index_bucket_lookups_match_full_scan() {
+        let paths = adversarial_paths();
+        let entries: Vec<(PathBuf, String)> = paths
+            .iter()
+            .enumerate()
+            .map(|(i, p)| (PathBuf::from(format!("rel{i}")), p.to_string()))
+            .collect();
+        let index = SourceIndex::from_entries(entries.clone());
+        for probe in &paths {
+            let full_scan: Vec<&str> = entries
+                .iter()
+                .filter(|(_, abs)| coverage_path_matches(abs, probe))
+                .map(|(_, abs)| abs.as_str())
+                .collect();
+            let bucketed: Vec<&str> = index
+                .matching_entries(probe)
+                .map(|(_, abs)| abs.as_str())
+                .collect();
+            assert_eq!(
+                bucketed, full_scan,
+                "candidate set diverged for probe {probe:?}"
+            );
+            assert_eq!(index.matches_any(probe), !full_scan.is_empty());
+        }
+        for (path, abs) in &entries {
+            assert_eq!(index.absolute_of(path), Some(abs.as_str()));
+        }
+        assert_eq!(index.absolute_of(Path::new("not-an-entry")), None);
+    }
+
+    /// The loop-inversion equivalence evidence for
+    /// `match_witness_files`: both refusal directions still fire with
+    /// the same messages, and the happy path returns the same map.
+    /// (G1's duvet citations live in `query/witness.rs` — this file is
+    /// unscannable.)
+    #[test]
+    fn match_witness_files_refuses_source_matching_two_report_entries() {
+        use duvet_coverage::types::{CoverageReport, CoverageStatus};
+        let index = SourceIndex::from_entries(vec![(
+            PathBuf::from("src/Foo.java"),
+            "/proj/src/Foo.java".to_string(),
+        )]);
+        let mut files = std::collections::BTreeMap::<String, std::sync::Arc<CoverageReport>>::new();
+        files.insert(
+            "src/Foo.java".into(),
+            std::sync::Arc::new([(1u64, CoverageStatus::Hit)].into_iter().collect()),
+        );
+        files.insert(
+            "proj/src/Foo.java".into(),
+            std::sync::Arc::new([(1u64, CoverageStatus::Hit)].into_iter().collect()),
+        );
+        let err = index.match_witness_files(&files).unwrap_err();
+        let msg = format!("{err:?}");
+        assert!(msg.contains("coverage is ambiguous for"), "{msg}");
+        assert!(
+            msg.contains("proj/src/Foo.java, src/Foo.java"),
+            "hits must be listed sorted: {msg}"
+        );
+    }
+
+    #[test]
+    fn match_witness_files_refuses_report_entry_matching_two_sources() {
+        use duvet_coverage::types::{CoverageReport, CoverageStatus};
+        let index = SourceIndex::from_entries(vec![
+            (
+                PathBuf::from("a/Foo.java"),
+                "/a/com/example/Foo.java".to_string(),
+            ),
+            (
+                PathBuf::from("b/Foo.java"),
+                "/b/com/example/Foo.java".to_string(),
+            ),
+        ]);
+        let mut files = std::collections::BTreeMap::<String, std::sync::Arc<CoverageReport>>::new();
+        files.insert(
+            "com/example/Foo.java".into(),
+            std::sync::Arc::new([(1u64, CoverageStatus::Hit)].into_iter().collect()),
+        );
+        let err = index.match_witness_files(&files).unwrap_err();
+        let msg = format!("{err:?}");
+        assert!(msg.contains("coverage report entry"), "{msg}");
+        assert!(msg.contains("a/Foo.java, b/Foo.java"), "{msg}");
+    }
+
+    #[test]
+    fn match_witness_files_unambiguous_maps_each_source_to_its_entry() {
+        use duvet_coverage::types::{CoverageReport, CoverageStatus};
+        let index = SourceIndex::from_entries(vec![
+            (
+                PathBuf::from("a/Foo.java"),
+                "/proj/a/com/x/Foo.java".to_string(),
+            ),
+            (PathBuf::from("b/Bar.java"), "/proj/b/Bar.java".to_string()),
+        ]);
+        let mut files = std::collections::BTreeMap::<String, std::sync::Arc<CoverageReport>>::new();
+        files.insert(
+            "com/x/Foo.java".into(),
+            std::sync::Arc::new([(1u64, CoverageStatus::Hit)].into_iter().collect()),
+        );
+        files.insert(
+            "unrelated/Other.java".into(),
+            std::sync::Arc::new([(2u64, CoverageStatus::Hit)].into_iter().collect()),
+        );
+        let matched = index.match_witness_files(&files).unwrap();
+        assert_eq!(matched.len(), 1);
+        assert_eq!(
+            matched[&PathBuf::from("a/Foo.java")],
+            files["com/x/Foo.java"]
+        );
+    }
+
+    /// Perf harness (run explicitly: `cargo test --release -p duvet
+    /// bench_source_index -- --ignored --nocapture`): bucket lookups vs
+    /// the full linear scan they replaced. The scan closure below IS
+    /// the old implementation shape, so this both measures the win and
+    /// re-checks agreement on every probe.
+    #[test]
+    #[ignore = "perf harness, run explicitly with --ignored --nocapture"]
+    fn bench_source_index_lookups() {
+        let n = 500usize;
+        let entries: Vec<(PathBuf, String)> = (0..n)
+            .map(|i| {
+                (
+                    PathBuf::from(format!("mod{i}/src/file{i}.rs")),
+                    format!("/proj/mod{i}/src/file{i}.rs"),
+                )
+            })
+            .collect();
+        let index = SourceIndex::from_entries(entries.clone());
+        // Probe mix: hits (recorded tails), misses (foreign files),
+        // same-filename near-misses.
+        let probes: Vec<String> = (0..n)
+            .flat_map(|i| {
+                [
+                    format!("src/file{i}.rs"),
+                    format!("other{i}/nope.rs"),
+                    format!("wrong{i}/src/file{i}.rs"),
+                ]
+            })
+            .collect();
+        let full_scan = |probe: &str| -> bool {
+            entries
+                .iter()
+                .any(|(_, abs)| coverage_path_matches(abs, probe))
+        };
+        for p in &probes {
+            assert_eq!(index.matches_any(p), full_scan(p), "probe {p}");
+        }
+        let iters = 10u32;
+        let t0 = std::time::Instant::now();
+        for _ in 0..iters {
+            for p in &probes {
+                std::hint::black_box(full_scan(p));
+            }
+        }
+        let scan = t0.elapsed();
+        let t1 = std::time::Instant::now();
+        for _ in 0..iters {
+            for p in &probes {
+                std::hint::black_box(index.matches_any(p));
+            }
+        }
+        let bucketed = t1.elapsed();
+        println!(
+            "bench_source_index_lookups: entries={} probes={} iters={} \
+             full-scan={:?} bucketed={:?}",
+            n,
+            probes.len(),
+            iters,
+            scan,
+            bucketed
+        );
+    }
+
     // --- forward-walk fallback (degraded path) integration ---
 
     /// End-to-end coverage of the non-Java format path (the previously
     /// disclosed gap: "forward-walk fallback has no integration test, no non-Java
-    /// format ships"). Drives the real dispatcher `build_file_execution_data` on a
+    /// format ships"). Drives the real classification routing [`classify_file`] on a
     /// file whose extension has no tree-sitter classifier, then feeds the result
     /// to the verified `degraded_execution_status`.
     ///
@@ -765,11 +1205,11 @@ public class Two {
     /// to the classified path, rotting the test. `.xyzzy` will not.
     ///
     /// This exercises the routing decision unique to the fallback — `classifier_for_path`
-    /// returns `None`, so the file must land on `FileExecutionData::Degraded`
-    /// (not `Classified`, not `DefeatedClassification`) — and then the verified
-    /// degraded verdict over the `DefaultClassifier` projection. (`executed_status_for`'s
+    /// returns `None`, so the file must land on `FileClassification::Degraded`
+    /// (not `Classified`, not `Defeated`) — and then the verified
+    /// degraded verdict over the `DefaultClassifier` projection. (`executed_status`'s
     /// `Degraded` arm is a thin guard-and-delegate over `degraded_execution_status`,
-    /// covered by that function's own unit tests.)
+    /// covered by that function's own unit tests in `duvet-coverage/src/degraded.rs`.)
     #[tokio::test]
     async fn unknown_extension_routes_to_verified_degraded_path() {
         use duvet_coverage::types::{AnnotationSpan, CoverageStatus, ExecutionStatus};
@@ -817,40 +1257,48 @@ public class Two {
             branches: std::collections::BTreeMap::new(),
         };
 
-        let data = build_file_execution_data(&path, &annotations, &file_coverage)
+        let data = classify_file(&path, &annotations)
             .await
             .expect("degraded path must not error");
+
+        // The witness half: coverage stays separate from classification (the
+        // per-file cache is witness-invariant); convert as a producer would.
+        let coverage = file_coverage.to_coverage_report();
 
         let _ = std::fs::remove_file(&path);
 
         // 1. Routing: an unknown extension is neither refused nor classified — it
         //    is the verified degraded path.
         let degraded = match data {
-            FileExecutionData::Degraded(d) => d,
+            FileClassification::Degraded {
+                classifications,
+                file_length,
+            } => (classifications, file_length),
             other => panic!("unknown extension must route to Degraded, got {other:?}"),
         };
+        let (classifications, file_length) = degraded;
 
-        // 2. The degraded data is the DefaultClassifier projection + the coverage
-        //    report (blank -> Whitespace, code -> None).
-        assert_eq!(degraded.file_length, 3);
-        assert_eq!(degraded.classifications.len(), 3);
+        // 2. The degraded data is the DefaultClassifier projection (blank ->
+        //    Whitespace, code -> None); coverage lives with the witness.
+        assert_eq!(file_length, 3);
+        assert_eq!(classifications.len(), 3);
         assert!(
-            degraded.classifications[0].is_none(),
+            classifications[0].is_none(),
             "line 1 is code -> None (unclassified)"
         );
         assert!(
-            degraded.classifications[1]
+            classifications[1]
                 .as_ref()
                 .unwrap()
                 .contains(&LineProperty::Whitespace),
             "line 2 is blank -> Whitespace"
         );
         assert!(
-            degraded.classifications[2].is_none(),
+            classifications[2].is_none(),
             "line 3 is code -> None (unclassified)"
         );
-        assert_eq!(degraded.coverage.get(&1), Some(&CoverageStatus::Hit));
-        assert_eq!(degraded.coverage.get(&3), Some(&CoverageStatus::Miss));
+        assert_eq!(coverage.get(&1), Some(&CoverageStatus::Hit));
+        assert_eq!(coverage.get(&3), Some(&CoverageStatus::Miss));
 
         // 3. The verified degraded verdict flows through. An annotation ending on
         //    line 1 resolves forward over the blank line 2 (skippable) to the
@@ -860,14 +1308,136 @@ public class Two {
                 start_line: 1,
                 end_line: 1,
             },
-            &degraded.classifications,
-            &degraded.coverage,
-            degraded.file_length,
+            &classifications,
+            &coverage,
+            file_length,
         );
         assert_eq!(
             not_executed,
             ExecutionStatus::NotExecuted,
             "forward walk lands on line 3 (Miss)"
+        );
+    }
+
+    /// Ground truth for degraded target resolution over the two shapes the
+    /// dogfood run exercises in Rust sources (no Rust classifier -> degraded
+    /// path), pinned end-to-end through the REAL pipeline: comment parser ->
+    /// `classify_file` (annotation-override stamping) -> `resolve_target_line`.
+    ///
+    /// Shape 1 — stacked annotations (`proofs.rs` mod tests shape): two
+    /// back-to-back `//=` blocks above one `#[test]` fn. Both annotations'
+    /// lines are stamped `{Annotation}` (skippable), so BOTH resolve past the
+    /// stack to the first non-annotation, non-blank line below it. Stacking
+    /// works; the walk does NOT stop on a later annotation's comment lines.
+    ///
+    /// Shape 2 — doc comments between the annotation and the fn header
+    /// (`witness.rs` proof-fn shape): `///` lines have no classifier in
+    /// degraded mode (-> None = unclassified), are NOT skippable, and become
+    /// the resolved target. The annotation therefore resolves to the doc
+    /// comment, not the fn header below it — so a prover producer sees an
+    /// Unelaborated position and constructs no witness (plain W6, not
+    /// not-proof-testable). This is the classified-vs-degraded divergence:
+    /// the Java classifier marks comments skippable; the degraded projection
+    /// cannot. Placement rule that follows: in degraded files, a test
+    /// annotation must be the LAST comment block before the code it targets.
+    #[tokio::test]
+    async fn degraded_resolution_stacked_annotations_and_doc_comments() {
+        use crate::comment;
+
+        // 1-based layout mirroring the real shapes:
+        //  1  //= spec.md#a
+        //  2  //= type=test
+        //  3  //# quote a
+        //  4  //= spec.md#b
+        //  5  //= type=test
+        //  6  //# quote b
+        //  7  #[test]                  <- shape-1 target (unclassified)
+        //  8  fn t() {}
+        //  9  (blank)
+        // 10  //= spec.md#c
+        // 11  //= type=test
+        // 12  //# quote c
+        // 13  /// doc comment          <- shape-2 target (unclassified!)
+        // 14  /// more doc
+        // 15  pub fn real_target() {}
+        let content = "\
+//= spec.md#a
+//= type=test
+//# quote a
+//= spec.md#b
+//= type=test
+//# quote b
+#[test]
+fn t() {}
+
+//= spec.md#c
+//= type=test
+//# quote c
+/// doc comment
+/// more doc
+pub fn real_target() {}
+";
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "duvet_degraded_shapes_{}_{}.rs",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::write(&path, content).unwrap();
+
+        // Rust has no classifier: these files take the degraded path. If a
+        // Rust classifier ever lands, this test's premise changes — fail
+        // loudly here rather than silently testing the wrong path.
+        assert!(
+            classifier_for_path(&path).is_none(),
+            ".rs must have no classifier for the degraded premise to hold"
+        );
+
+        // Real comment parser produces the annotation set (line_range is the
+        // parser's, not hand-built).
+        let source = duvet_core::file::SourceFile::new(path.clone(), content).unwrap();
+        let (annotations, errors) = comment::extract(
+            &source,
+            &comment::Pattern::default(),
+            crate::annotation::AnnotationType::Citation,
+            None,
+        );
+        assert!(errors.is_empty(), "parser errors: {errors:?}");
+        assert_eq!(annotations.len(), 3, "three annotations parsed");
+
+        let classification = classify_file(&path, &annotations).await.unwrap();
+        let _ = std::fs::remove_file(&path);
+
+        let mut targets: Vec<(String, Option<u64>)> = annotations
+            .iter()
+            .map(|a| (a.target.clone(), resolve_target_line(a, &classification)))
+            .collect();
+        targets.sort();
+
+        // Shape 1: both stacked annotations resolve THROUGH the stack to the
+        // `#[test]` attribute line (7) — never to the sibling annotation's
+        // comment lines (4-6).
+        assert_eq!(
+            targets[0],
+            ("spec.md#a".to_string(), Some(7)),
+            "first stacked annotation skips the second's lines and lands on line 7"
+        );
+        assert_eq!(
+            targets[1],
+            ("spec.md#b".to_string(), Some(7)),
+            "second stacked annotation lands on line 7"
+        );
+
+        // Shape 2: the doc comment line (13) is unclassified in degraded mode
+        // and becomes the target — NOT the fn header (15).
+        assert_eq!(
+            targets[2],
+            ("spec.md#c".to_string(), Some(13)),
+            "doc comments are not skippable in degraded mode: the annotation \
+             resolves to line 13 (the doc comment), not 15 (the fn header)"
         );
     }
 }

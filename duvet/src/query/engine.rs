@@ -5,18 +5,20 @@ use super::{
     checks::{
         classify_annotation_coverage,
         coverage::{
-            build_execution_data, executed_status_for, parse_coverage_data, CoverageFormat,
-            ExecutionDataMap,
+            classify_files, coverage_path_matches, executed_status, resolve_target_line,
+            ClassificationMap, FileClassification, SourceIndex,
         },
         ClassifiedCoverage,
     },
     coverage::ExecutionStatus,
+    producers::{produce, CoverageFormat, CoverageProducer, CoverageSource, RequestedPosition},
     requirements::RequirementMode,
     result::{
         AnnotationCoverage, CheckResult, CoverageResult, CoveredTestAnnotation, Duplicates,
-        DuplicatesResult, ImplementationResult, NotExecutedAnnotation, QueryResult, QueryStatus,
-        TestResult,
+        DuplicatesResult, ImplementationResult, MissingImplementationTest, NotExecutedAnnotation,
+        QueryResult, QueryStatus, TestResult, UnwitnessedTestAnnotation,
     },
+    witness::{VerifiedVerdicts, Witness},
     CheckType,
 };
 use crate::{
@@ -27,10 +29,10 @@ use crate::{
     Result,
 };
 
-use duvet_core::{diagnostic::IntoDiagnostic, progress};
-use glob::glob;
+use duvet_core::progress;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -38,6 +40,7 @@ pub async fn execute_checks(
     checks: &[(CheckType, &RequirementMode)],
     coverage_reports: Option<&Vec<String>>,
     coverage_format: Option<&CoverageFormat>,
+    coverage_sources: &[CoverageSource],
     verbose: bool,
 ) -> Result<QueryResult> {
     // Load project data
@@ -61,32 +64,37 @@ pub async fn execute_checks(
                 results.push(result);
             }
             CheckType::Coverage | CheckType::ExecutedCoverage => {
-                // Determine coverage report path
-                let report_globs = coverage_reports.ok_or_else(|| {
-                    duvet_core::error!("Coverage report path is required. Use --coverage-report")
-                })?;
-                let report_paths = expand_coverage_globs(report_globs)?;
-
-                // Determine coverage format
-                let format = coverage_format.ok_or_else(|| {
-                    duvet_core::error!("Coverage format is required. Use --coverage-format")
-                })?;
+                // Assemble the declared coverage sources (each
+                // source pairs a producer with its artifacts, declared
+                // repeatably). The legacy flags are the one-source
+                // degenerate case and combine with --coverage-source.
+                let mut sources: Vec<CoverageSource> = Vec::new();
+                if let Some(report_globs) = coverage_reports {
+                    let format = coverage_format.ok_or_else(|| {
+                        duvet_core::error!("Coverage format is required. Use --coverage-format")
+                    })?;
+                    sources.push(CoverageSource {
+                        producer: format.producer(),
+                        globs: report_globs.clone(),
+                    });
+                }
+                sources.extend_from_slice(coverage_sources);
+                if sources.is_empty() {
+                    return Err(duvet_core::error!(
+                        "Coverage source is required. Use --coverage-report with \
+                         --coverage-format, or --coverage-source"
+                    ));
+                }
 
                 let coverage_check_executed_tests_only =
                     matches!(check_type, CheckType::ExecutedCoverage);
 
-                // Parse coverage data in parallel using async
-                let parse_futures: Vec<_> = report_paths
-                    .iter()
-                    .map(|path| parse_coverage_data(path, format))
-                    .collect();
-
-                let coverage_data = futures::future::try_join_all(parse_futures).await?;
+                let load = load_witnesses(&sources, &project_data).await?;
 
                 let result = execute_coverage_check(
                     &project_data,
                     mode,
-                    &coverage_data,
+                    load,
                     coverage_check_executed_tests_only,
                     verbose,
                 )
@@ -170,6 +178,70 @@ async fn load_project_data(verbose: bool) -> Result<ProjectData> {
     })
 }
 
+/// An annotation's role in one check's coverage fold.
+enum CheckRole {
+    /// The requirement side: the annotations the check reports on.
+    Requirement,
+    /// The covering pool: the annotations that tile a requirement's quote.
+    Coverer,
+    /// Pending work (`Todo`), a third bucket only the implementation
+    /// check consumes.
+    Pending,
+}
+
+/// One check's annotation partition: requirement role, covering pool,
+/// and (for the implementation check) pending todos.
+#[derive(Default)]
+struct RolePartition {
+    requirements: Vec<Arc<Annotation>>,
+    coverers: Vec<Arc<Annotation>>,
+    pending: Vec<Arc<Annotation>>,
+}
+
+/// Split the annotation set into each check's roles, applying the
+/// spec-slice filter to the requirement role ONLY. This is the single
+/// home of that rule; every coverage-fold check partitions through it.
+///
+/// `-s`/`-q` are *spec-slice filters*: they cut the words of the spec to
+/// select which requirements are in scope to report on. They are applied
+/// to the requirement role only — never to the covering pool. Coverers
+/// come along transitively: `is_annotation_covered` pairs a coverer with
+/// a requirement only when they share an exact `target` (checks/mod.rs),
+/// so a coverer quoting an out-of-scope slice of the spec simply never
+/// matches an in-scope requirement and falls away on its own — no error.
+///
+/// This is what keeps a filter honest: it narrows *what you look at*, but
+/// can never turn a covered requirement into a miss (or a miss into a
+/// pass). A requirement is covered when its coverers tile its full quote;
+/// filtering the coverer pool by `-q` could drop one tile of that mosaic
+/// and manufacture a false miss. So `in_scope` gates the requirement push
+/// below and nothing else.
+///
+/// `role_of` names every annotation type's role in the calling check
+/// (`None` excludes the type from the check entirely); exhaustive matches
+/// at the call sites keep the exclusions explicit.
+fn partition_check_roles(
+    annotations: &AnnotationSet,
+    mode: &RequirementMode,
+    role_of: impl Fn(AnnotationType) -> Option<CheckRole>,
+) -> RolePartition {
+    let mut partition = RolePartition::default();
+    for annotation in annotations.iter() {
+        match role_of(annotation.anno) {
+            // Requirement role: the one place the spec-slice filter
+            // applies.
+            Some(CheckRole::Requirement) if mode.in_scope(annotation) => {
+                partition.requirements.push(annotation.clone());
+            }
+            Some(CheckRole::Requirement) => {}
+            Some(CheckRole::Coverer) => partition.coverers.push(annotation.clone()),
+            Some(CheckRole::Pending) => partition.pending.push(annotation.clone()),
+            None => {}
+        }
+    }
+    partition
+}
+
 async fn execute_implementation_check(
     project_data: &ProjectData,
     mode: &RequirementMode,
@@ -179,49 +251,22 @@ async fn execute_implementation_check(
         progress!("Running implementation annotation coverage check...");
     }
 
-    // `-s`/`-q` are *spec-slice filters*: they cut the words of the spec to
-    // select which requirements are in scope to report on. They are applied to
-    // the requirement annotations (`Spec`) ONLY — never to the covering pool.
-    // Coverers come along transitively: `is_annotation_covered` pairs a coverer
-    // with a requirement only when they share an exact `target` (checks/mod.rs),
-    // so a coverer quoting an out-of-scope slice of the spec simply never matches
-    // an in-scope requirement and falls away on its own — no error.
-    //
-    // This is what keeps a filter honest: it narrows *what you look at*, but can
-    // never turn a covered requirement into a miss (or a miss into a pass). A
-    // requirement is covered when its coverers tile its full quote; filtering the
-    // coverer pool by `-q` could drop one tile of that mosaic and manufacture a
-    // false miss. So `in_scope` gates the `Spec` push below and nothing else.
-    let (spec_annotations, implemented_annotations, todo_annotations) = project_data
-        .annotations
-        .iter()
-        .filter(|annotation| !matches!(annotation.anno, AnnotationType::Test))
-        .fold(
-            (Vec::new(), Vec::new(), Vec::new()),
-            |(mut specs, mut impls, mut todos), annotation| {
-                match &annotation.anno {
-                    AnnotationType::Spec => {
-                        // Requirement role: apply the spec-slice filter here.
-                        if mode.in_scope(annotation) {
-                            specs.push(annotation.clone());
-                        }
-                    }
-                    AnnotationType::Citation
-                    | AnnotationType::Implication
-                    | AnnotationType::Exception => {
-                        // Coverer: never filtered — the full pool tiles the quote.
-                        impls.push(annotation.clone());
-                    }
-                    AnnotationType::Todo => {
-                        todos.push(annotation.clone());
-                    }
-                    // Shouldn't happen due to filter, but good to be explicit
-                    _ => unreachable!(),
-                }
-
-                (specs, impls, todos)
-            },
-        );
+    // Requirements are the spec's own annotations; implementations (plus
+    // implications and exceptions) cover them; todos are pending. The
+    // spec-slice filter applies to the requirement role only — see
+    // `partition_check_roles` for the full rationale.
+    let RolePartition {
+        requirements: spec_annotations,
+        coverers: implemented_annotations,
+        pending: todo_annotations,
+    } = partition_check_roles(&project_data.annotations, mode, |anno| match anno {
+        AnnotationType::Spec => Some(CheckRole::Requirement),
+        AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => {
+            Some(CheckRole::Coverer)
+        }
+        AnnotationType::Todo => Some(CheckRole::Pending),
+        AnnotationType::Test => None,
+    });
 
     // 4. Classify each spec annotation
     let ClassifiedCoverage {
@@ -269,53 +314,25 @@ async fn execute_test_check(
         progress!("Running test annotation coverage check...");
     }
 
-    let (implementation_annotations, test_annotations) = project_data
-        .annotations
-        .iter()
-        // 1. Gather annotations that need testing
-        // We are interested in testing things that are implemented
-        // Making sure you have implemented everything is a job for the implementation check.
-        .filter(|annotation| {
-            !matches!(
-                annotation.anno,
-                // A requirement. i.e. something that needs to be implemented
-                AnnotationType::Spec
-            // Not yet been implemented. Test driven development?
-            | AnnotationType::Todo
-            // Fundamentally true or not testable. No test required.
-            | AnnotationType::Implication
-            // You don't do it. not test required.
-            | AnnotationType::Exception
-            )
-        })
-        // 2. Organize the annotations into implementations (things needing tests) and tests.
-        // The `-s`/`-q` spec-slice filter applies to the requirement role only —
-        // here the implementations being tested — never to the covering `Test`
-        // pool. See `execute_implementation_check` for the full rationale: a test
-        // may tile a requirement's quote in several pieces, so filtering the test
-        // pool by `-q` could drop one tile and manufacture a false "not tested".
-        .fold(
-            (Vec::new(), Vec::new()),
-            |(mut impls, mut tests), annotation| {
-                match &annotation.anno {
-                    // An implementation, it needs a test. Requirement role here:
-                    // apply the spec-slice filter.
-                    AnnotationType::Citation => {
-                        if mode.in_scope(annotation) {
-                            impls.push(annotation.clone());
-                        }
-                    }
-                    // A test! Coverer: never filtered.
-                    AnnotationType::Test => {
-                        tests.push(annotation.clone());
-                    }
-                    // Shouldn't happen due to filter, but good to be explicit
-                    _ => unreachable!(),
-                }
-
-                (impls, tests)
-            },
-        );
+    // The requirement role here is the implementations being tested (making
+    // sure everything is implemented is the implementation check's job);
+    // tests cover them. Spec requirements, todos (test-driven development?),
+    // implications (fundamentally true or not testable), and exceptions
+    // (you don't do it) need no test. The spec-slice filter applies to the
+    // requirement role only — see `partition_check_roles` for why filtering
+    // the test pool could manufacture a false "not tested".
+    let RolePartition {
+        requirements: implementation_annotations,
+        coverers: test_annotations,
+        ..
+    } = partition_check_roles(&project_data.annotations, mode, |anno| match anno {
+        AnnotationType::Citation => Some(CheckRole::Requirement),
+        AnnotationType::Test => Some(CheckRole::Coverer),
+        AnnotationType::Spec
+        | AnnotationType::Todo
+        | AnnotationType::Implication
+        | AnnotationType::Exception => None,
+    });
 
     // 4. Classify each annotation
     let ClassifiedCoverage {
@@ -347,10 +364,136 @@ async fn execute_test_check(
     }))
 }
 
+/// Everything witness production yields besides the witnesses:
+/// the per-file classification cache (already seeded with test-annotation
+/// files when a prover producer needed target resolution) and the source
+/// index (absolute paths for suffix matching).
+struct WitnessLoad {
+    witnesses: Vec<Witness>,
+    /// Positions a prover producer elaborated but which root no
+    /// obligation (spec §5.2): delivered as a fact by
+    /// `produce`, consumed here only to refine the *report* for
+    /// unwitnessed annotations — never the verdict.
+    not_proof_testable: Vec<RequestedPosition>,
+    classification: ClassificationMap,
+    index: SourceIndex,
+}
+
+/// THE filter deciding which annotations get positions requested from
+/// prover producers — nothing else ever crosses that boundary.
+//= design/witness/spec.md#witnessable-annotations
+//= type=implementation
+//# Prover producers MUST construct witnesses for `type=test`
+//# annotations only
+//# (decisions.md, [Decision 6](decisions.md#decision-6);
+//# self-discharging implication annotations are a deferred separate
+//# feature).
+fn witnessable(anno: AnnotationType) -> bool {
+    matches!(anno, AnnotationType::Test)
+}
+
+/// Produce every declared source's witnesses, in declaration order (which
+/// makes the "first discharging witness" named in verdicts deterministic).
+//
+// When a prover producer is declared, test files are classified first
+// and targets resolved via the verified target resolution — positions,
+// not annotations, cross the boundary (§1.7's inertness requirement,
+// cited on `RequestedPosition`). The producer-contract citations
+// ("Runtime producers MAY ignore the `annotations` argument", "Prover
+// witnesses are constructed, not found") live on the producer arms in
+// `producers.rs` (`produce`'s JaCoCo arm, `verus_witnesses_from_graph`).
+async fn load_witnesses(
+    sources: &[CoverageSource],
+    project_data: &ProjectData,
+) -> Result<WitnessLoad> {
+    let index = SourceIndex::build(&project_data.project_sources)?;
+    let mut classification: ClassificationMap = Default::default();
+
+    let needs_positions = sources
+        .iter()
+        .any(|s| matches!(s.producer, CoverageProducer::VerusSst));
+    let mut positions: Vec<RequestedPosition> = Vec::new();
+    if needs_positions {
+        let test_files: HashSet<PathBuf> = project_data
+            .annotations
+            .iter()
+            .filter(|a| witnessable(a.anno))
+            .map(|a| a.source.to_path_buf())
+            .collect();
+        classification.extend(classify_files(&project_data.annotations, test_files).await?);
+        for annotation in project_data
+            .annotations
+            .iter()
+            .filter(|a| witnessable(a.anno))
+        {
+            let path = annotation.source.to_path_buf();
+            let Some(file_classification) = classification.get(&path) else {
+                continue;
+            };
+            let Some(line) = resolve_target_line(annotation, file_classification) else {
+                // Unresolvable target: the annotation surfaces through W6.
+                //= design/witness/spec.md#claim-rules
+                //# An annotation with no resolved target (e.g. a Structural
+                //# annotation) binds no ByRootSpan witness —
+                //# empty-target containment MUST NOT bind vacuously.
+                continue;
+            };
+            let Some(absolute) = index.absolute_of(&path) else {
+                continue;
+            };
+            positions.push(RequestedPosition {
+                absolute_file: absolute.to_string(),
+                line,
+            });
+        }
+    }
+
+    let mut witnesses = Vec::new();
+    let mut not_proof_testable = Vec::new();
+    for source in sources {
+        let produced = produce(source, &positions, coverage_path_matches, |file| {
+            index.matches_any(file)
+        })
+        .await?;
+        witnesses.extend(produced.witnesses);
+        not_proof_testable.extend(produced.not_proof_testable);
+    }
+
+    Ok(WitnessLoad {
+        witnesses,
+        not_proof_testable,
+        classification,
+        index,
+    })
+}
+
+/// Fold execution statuses with OR semantics: `Executed` wins outright;
+/// among the rest `Unknown` is preferred (it carries a diagnostic line);
+/// `NotExecuted` is the base case. Diagnostic detail only, never a
+/// verdict: the quantifier properties of design/witness/spec.md §2 are
+/// implemented by the verified layer (`duvet_coverage::witness`), not by
+/// this fold — callers choose which statuses to feed it purely for
+/// report headlines.
+fn fold_statuses(statuses: impl IntoIterator<Item = ExecutionStatus>) -> ExecutionStatus {
+    let mut folded = ExecutionStatus::NotExecuted;
+    for status in statuses {
+        match status {
+            ExecutionStatus::Executed => return ExecutionStatus::Executed,
+            ExecutionStatus::Unknown { .. } => folded = status,
+            _ => {
+                if matches!(folded, ExecutionStatus::NotExecuted) {
+                    folded = status;
+                }
+            }
+        }
+    }
+    folded
+}
+
 async fn execute_coverage_check(
     project_data: &ProjectData,
     mode: &RequirementMode,
-    coverage_data: &[crate::query::coverage::CoverageData],
+    load: WitnessLoad,
     coverage_check_executed_tests_only: bool,
     verbose: bool,
 ) -> Result<CheckResult> {
@@ -358,45 +501,52 @@ async fn execute_coverage_check(
         progress!("Running test execution correlation check...");
     }
 
-    // Build execution data for each coverage report in parallel.
-    // Each report produces an ExecutionDataMap (one entry per source file with coverage).
-    let build_futures: Vec<_> = coverage_data
-        .iter()
-        .map(|cover| {
-            build_execution_data(
-                &project_data.annotations,
-                cover,
-                &project_data.project_sources,
-            )
-        })
-        .collect();
+    let WitnessLoad {
+        witnesses,
+        not_proof_testable,
+        mut classification,
+        index,
+    } = load;
 
-    let execution_data_maps: Vec<ExecutionDataMap> =
-        futures::future::try_join_all(build_futures).await?;
-    let report_count = execution_data_maps.len();
+    // Producer-delivered not-proof-testable positions, keyed for the
+    // per-test membership check below.
+    let not_proof_testable: HashSet<RequestedPosition> = not_proof_testable.into_iter().collect();
+
+    // Match each witness's per-file maps to project sources (suffix rule,
+    // both ambiguity refusals), then classify every matched file once.
+    // Classification is witness-invariant, so this cache sits above the
+    // witness loop: witness count can exceed report count by orders of
+    // magnitude for prover producers.
+    let matched: Vec<_> = witnesses
+        .iter()
+        .map(|w| index.match_witness_files(&w.files))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let unclassified: HashSet<PathBuf> = matched
+        .iter()
+        .flat_map(|m| m.keys().cloned())
+        .filter(|p| !classification.contains_key(p))
+        .collect();
+    classification.extend(classify_files(&project_data.annotations, unclassified).await?);
 
     // Loud, non-verbose: files whose selected classifier could not produce a
-    // trustworthy classification — a parse error, or an unbalanced scope stream
-    // (spec §1.5). We refuse to score against a collapsed/garbage
-    // tree; their annotations are reported `Unknown`. Surfaced unconditionally
-    // because it signals either a mislabeled file or a classifier gap — both need
-    // a human, and silence is the bug we are fixing. `query` stays non-blocking
-    // (annotations are `Unknown`, the run continues); the hard-error gate belongs
-    // to `report` once it consumes coverage. We report *that* and *where*, never
-    // a *cause* (mislabeled vs. classifier gap is undecidable here).
-    //= design/query/coverage-model-spec.md#scopes
-    //= type=implementation
-    //# When the stream is unbalanced,
-    //# the coverage model MUST NOT score annotations against the collapsed scope tree;
-    //# it MUST surface the file as a defeated classification and escalate
-    //# (see [Classifier Selection and Dispatch](#dispatch)).
-    //= design/query/coverage-model-spec.md#trust-taxonomy
-    //= type=implementation
-    //# duvet MUST NOT silently substitute the coarse model or score against
-    //# the collapsed scope tree; it MUST escalate, reporting each located issue.
+    // trustworthy classification — a parse error, or an unbalanced scope
+    // stream. Surfaced unconditionally because it signals either a mislabeled
+    // file or a classifier gap — both need a human, and silence is the bug we
+    // are fixing.
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
-        let defeated = collect_defeated_issues(&execution_data_maps);
+        let mut defeated: std::collections::BTreeMap<&std::path::Path, &Vec<ClassifierIssue>> =
+            std::collections::BTreeMap::new();
+        for (path, data) in &classification {
+            if let FileClassification::Defeated { issues } = data {
+                defeated.insert(path.as_path(), issues);
+            }
+        }
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=implementation
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
         for (path, issues) in &defeated {
             let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
                 .iter()
@@ -413,6 +563,11 @@ async fn execute_coverage_check(
                     lines.join(", ")
                 ));
             }
+            //= design/query/coverage-model-spec.md#scopes
+            //# When the stream is unbalanced,
+            //# the coverage model MUST NOT score annotations against the collapsed scope tree;
+            //# it MUST surface the file as a defeated classification and escalate
+            //# (see [Classifier Selection and Dispatch](#dispatch)).
             progress!(
                 "Coverage model: {} — the selected classifier could not produce a \
                  trustworthy classification ({}). The file may not be this \
@@ -427,24 +582,20 @@ async fn execute_coverage_check(
     if verbose {
         // Tell the user which coverage path each covered file uses: the
         // language-aware two-phase model (classifier present) or the verified
-        // degraded path (no classifier). Both are verified; the degraded path is
-        // lower-fidelity (forward-nearest governance). Aggregate across reports.
+        // degraded path (no classifier). Both are verified; the degraded path
+        // is lower-fidelity (forward-nearest governance).
         let mut classified_files: BTreeSet<&std::path::Path> = BTreeSet::new();
         let mut degraded_files: BTreeSet<&std::path::Path> = BTreeSet::new();
-        for map in &execution_data_maps {
-            for (path, data) in map {
-                match data {
-                    crate::query::checks::coverage::FileExecutionData::Classified(_) => {
-                        classified_files.insert(path.as_path());
-                    }
-                    crate::query::checks::coverage::FileExecutionData::Degraded(_) => {
-                        degraded_files.insert(path.as_path());
-                    }
-                    crate::query::checks::coverage::FileExecutionData::DefeatedClassification {
-                        ..
-                    } => {
-                        // Reported unconditionally above (loud, not verbose-gated).
-                    }
+        for (path, data) in &classification {
+            match data {
+                FileClassification::Classified { .. } => {
+                    classified_files.insert(path.as_path());
+                }
+                FileClassification::Degraded { .. } => {
+                    degraded_files.insert(path.as_path());
+                }
+                FileClassification::Defeated { .. } => {
+                    // Reported unconditionally above (loud, not verbose-gated).
                 }
             }
         }
@@ -458,30 +609,58 @@ async fn execute_coverage_check(
         }
     }
 
-    let mut test_annotations: Vec<_> = Vec::new();
-    let mut implementation_annotations: Vec<_> = Vec::new();
+    // The `executed(X, w)` cell in DIAGNOSTIC form (`executed_status`, which
+    // cites spec §1.4), with `Unknown` carrying line detail. Verdicts do not
+    // flow through this closure — they are computed by the verified Phase 4
+    // quantifier layer through the adapter below; this cell only feeds
+    // report detail and the executed-tests-only mode filter.
+    let cell = |annotation: &Arc<Annotation>, witness_index: usize| -> ExecutionStatus {
+        let path = annotation.source.to_path_buf();
+        executed_status(
+            annotation,
+            classification.get(&path),
+            matched[witness_index].get(&path).map(|arc| arc.as_ref()),
+        )
+    };
 
-    // The spec-slice filter (`-s`/`-q`) applies to the requirement role only —
-    // here the `Test` annotations being correlated — never to the covering
-    // implementation pool. See `execute_implementation_check` for why filtering
-    // coverers can manufacture a false miss.
-    for annotation in project_data.annotations.iter().filter(|annotation| {
-        !matches!(annotation.anno, AnnotationType::Spec | AnnotationType::Todo)
-    }) {
-        match &annotation.anno {
-            // Requirement role: apply the spec-slice filter here.
-            AnnotationType::Test => {
-                if mode.in_scope(annotation) {
-                    test_annotations.push(annotation.clone())
-                }
-            }
-            // Coverer: never filtered.
-            AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => {
-                implementation_annotations.push(annotation.clone())
-            }
-            _ => unreachable!(),
+    // A test annotation's resolved target, for the ByRootSpan claim arm
+    // (spec §1.5, quoted at the verified `binds`: the target must EXIST
+    // and fall within the root span).
+    // None when the file was never classified (it had no coverage and no
+    // prover producer is configured), classification was defeated, or the
+    // walk found no target - all of which bind no positional witness.
+    let resolve = |annotation: &Arc<Annotation>| -> Option<RequestedPosition> {
+        let path = annotation.source.to_path_buf();
+        let line = resolve_target_line(annotation, classification.get(&path)?)?;
+        Some(RequestedPosition {
+            absolute_file: index.absolute_of(&path)?.to_string(),
+            line,
+        })
+    };
+
+    // The G1 adapter: witnesses and annotation scoring contexts translated
+    // into the verified model's vocabulary (injective file ids, scoring
+    // modes). Translation refuses ambiguous root-span path matches
+    // (spec §1.5) rather than selecting. All verdicts below flow through it
+    // (glue obligation G2 — cited at the top of `query/witness.rs`):
+    let adapter = VerifiedVerdicts::build(&witnesses, &matched, &classification, &index)?;
+
+    // The requirement role here is the `Test` annotations being correlated;
+    // implementations (plus implications and exceptions) cover them. The
+    // spec-slice filter applies to the requirement role only — see
+    // `partition_check_roles` for why filtering coverers can manufacture a
+    // false miss.
+    let RolePartition {
+        requirements: test_annotations,
+        coverers: implementation_annotations,
+        ..
+    } = partition_check_roles(&project_data.annotations, mode, |anno| match anno {
+        AnnotationType::Test => Some(CheckRole::Requirement),
+        AnnotationType::Citation | AnnotationType::Implication | AnnotationType::Exception => {
+            Some(CheckRole::Coverer)
         }
-    }
+        AnnotationType::Spec | AnnotationType::Todo => None,
+    });
 
     let ClassifiedCoverage {
         complete_coverage,
@@ -498,64 +677,77 @@ async fn execute_coverage_check(
 
     let mut successful: Vec<CoveredTestAnnotation> = Vec::new();
     let mut failed: Vec<CoveredTestAnnotation> = Vec::new();
+    let mut unwitnessed: Vec<UnwitnessedTestAnnotation> = Vec::new();
 
-    // Tests whose covered spec text has no correlated implementation annotation
-    // anywhere. Per design §2.4 the coverage check must surface these — the test
-    // points at behavior nobody implements — rather than silently dropping them
-    // (which reported ✓ PASS with zero correlations and hid the gap until the
-    // `duvet report` CI gate). In executed-coverage mode a NotExecuted such test
-    // is skipped, consistent with that mode ignoring tests that did not run.
-    let mut missing_implementation: Vec<Arc<Annotation>> = Vec::new();
+    // Tests whose covered spec text has no correlated implementation
+    // annotation anywhere (design §2.4). In executed-coverage mode a
+    // NotExecuted such test is skipped, consistent with that mode ignoring
+    // tests that did not run.
+    //
+    // Spec W6 quantifies over EVERY test annotation, these included: they
+    // fail before reaching the unwitnessed check below, so the boundness
+    // fact is computed here (same pure quantifier layer, reporting only —
+    // the failure verdict is already decided by the missing implementation).
+    let mut missing_implementation: Vec<MissingImplementationTest> = Vec::new();
     for test in &no_coverage {
         if coverage_check_executed_tests_only
             && matches!(
-                fold_execution_status(test, &execution_data_maps),
+                fold_statuses((0..witnesses.len()).map(|wi| cell(test, wi))),
                 ExecutionStatus::NotExecuted
             )
         {
             continue;
         }
-        missing_implementation.push(test.clone());
+        missing_implementation.push(MissingImplementationTest {
+            test: test.clone(),
+            // Verified W6 verdict through the adapter (reporting refinement
+            // here — the failure is already decided by the missing
+            // implementation).
+            unwitnessed: adapter.is_unwitnessed(test),
+        });
     }
 
     for test in complete_coverage.iter().chain(&incomplete_coverage) {
-        // Witnesses for this test: the reports that show the test itself
-        // executed (design §5.2). A pair (test, implementation) is discharged
-        // only by a single witness that also shows the implementation
-        // executed — a test executed in one report and an implementation
-        // executed only in a different report do not correlate, because no
-        // single measurement demonstrates that the test exercised the
-        // implementation (Decision 13). Folding each side independently
-        // across ALL reports asked (∃r: test(r)) ∧ (∃r: impl(r)) when the
-        // check means ∃r: test(r) ∧ impl(r), passing exactly the vacuous
-        // cross-report case the check exists to catch.
-        let witnesses: Vec<&ExecutionDataMap> = execution_data_maps
-            .iter()
-            .filter(|exec_data| {
-                matches!(
-                    executed_status_for(&test.target, exec_data),
-                    ExecutionStatus::Executed
-                )
-            })
-            .collect();
+        //= design/witness/spec.md#claim-rules
+        //= type=implementation
+        //# A test annotation must find *its own* witness.
+        let resolved_target = resolve(&test.target);
+        // Verified W2/W6 verdict and the bound-witness detail, both through
+        // the adapter (the same verified `binds` cell decides both).
+        let test_is_unwitnessed = adapter.is_unwitnessed(&test.target);
+        let bound = adapter.bound_witnesses(&test.target);
 
-        if !witnesses.is_empty() {
-            // The test executed in at least one report. Evaluate each
-            // covering implementation across the witnesses only, with OR
-            // semantics within that set: a pair discharged by any one
-            // witness must not be failed by another report that missed it
-            // (Decision 6's motivating case, preserved by Decision 13).
+        if !test_is_unwitnessed {
+            // The test is witnessed:
+            // Evaluate each covering implementation against EVERY bound
+            // witness — bound witnesses are never outvoted
+            // (spec §1.6 discharge); the citation lives on the
+            // verified `discharged` spec fn in `duvet-coverage`:
             let mut executed_implementations = Vec::new();
             let mut not_executed_implementations = Vec::new();
 
             for annotation in &test.covering_annotations {
-                let status = fold_execution_status(annotation, witnesses.iter().copied());
-                if matches!(status, ExecutionStatus::Executed) {
+                // Verified W1 verdict; the diagnostic closure only feeds the
+                // per-witness `status` detail (`Unknown` line numbers).
+                let verdict = adapter
+                    .discharge_verdict(&test.target, annotation, &bound, |wi| cell(annotation, wi));
+                if verdict.discharged {
                     executed_implementations.push(annotation.clone());
                 } else {
+                    // Headline status for the failing implementation:
+                    // fold over the witnesses that did NOT execute it
+                    // (preference order: `fold_statuses`).
+                    let status = fold_statuses(
+                        verdict
+                            .per_witness
+                            .iter()
+                            .filter(|r| !r.executed)
+                            .map(|r| r.status),
+                    );
                     not_executed_implementations.push(NotExecutedAnnotation {
                         annotation: annotation.clone(),
                         status,
+                        per_witness: verdict.per_witness,
                     });
                 }
             }
@@ -563,6 +755,7 @@ async fn execute_coverage_check(
             let result = CoveredTestAnnotation {
                 test: test.target.clone(),
                 test_execution_status: ExecutionStatus::Executed,
+                bound_witnesses: adapter.witness_refs(&bound),
                 executed_implementations,
                 not_executed_implementations,
             };
@@ -572,31 +765,43 @@ async fn execute_coverage_check(
                 failed.push(result);
             }
         } else {
-            // No witnesses: fold the test's own status across all reports
-            // for the diagnostic (Unknown is preferred over Structural /
-            // NotExecuted because it carries line information).
-            let test_executed = fold_execution_status(&test.target, &execution_data_maps);
+            // W6's spec text (prose and formula) is owned by the verified
+            // `is_unwitnessed` in duvet-coverage — the engine-side copy was
+            // removed with the other cross-crate W2/W3/W6 annotations (they
+            // structurally cannot be witnessed by a proof-only run; they
+            // return with the LCOV mixed-coverage producer).
+            //
+            // Diagnostic detail: fold the test's own execution status
+            // across ALL witnesses (preference order: `fold_statuses`).
+            let diagnostic_status =
+                fold_statuses((0..witnesses.len()).map(|wi| cell(&test.target, wi)));
 
             // Unknown tests are NOT skipped in executed-coverage mode: they
             // represent annotation placement errors that must be fixed
             // regardless of which test you're working on. Only NotExecuted
             // tests are skipped.
             if coverage_check_executed_tests_only
-                && matches!(test_executed, ExecutionStatus::NotExecuted)
+                && matches!(diagnostic_status, ExecutionStatus::NotExecuted)
             {
                 continue;
             }
 
-            let result = CoveredTestAnnotation {
+            unwitnessed.push(UnwitnessedTestAnnotation {
                 test: test.target.clone(),
-                test_execution_status: test_executed,
-                executed_implementations: Vec::new(),
-                // When the test itself wasn't executed, its implementation
-                // correlations are meaningless — we can't know which
-                // implementations would have been reached.
-                not_executed_implementations: Vec::new(),
-            };
-            failed.push(result);
+                diagnostic_status,
+                // Reporting refinement only: the annotation is unwitnessed
+                // either way (the verdict above is unchanged), and the
+                // producer's fact is consulted ONLY in this unwitnessed
+                // branch — a not-proof-testable position that bound a
+                // runtime witness never reaches it, so binding stays
+                // normal in mixed runs by construction. This names the
+                // producer-delivered reason when there is one. (The
+                // "binds runtime witnesses normally" citation lives on
+                // the binding path, `witness.rs::bound_witnesses`.)
+                not_proof_testable: resolved_target
+                    .as_ref()
+                    .is_some_and(|target| not_proof_testable.contains(target)),
+            });
         }
     }
 
@@ -613,25 +818,20 @@ async fn execute_coverage_check(
         .flat_map(|result| &result.executed_implementations)
         .collect::<BTreeSet<_>>();
 
+    // Verified W3 verdict through the adapter. The union with discharged
+    // implementations is subsumed by W1 ⟹ W3 (a discharged pair's bound
+    // witness executed I), kept for report-shape stability.
     let executed_implementations = implementation_annotations
         .iter()
         .filter(|annotation| {
-            if executed_from_tests.contains(annotation) {
-                true
-            } else {
-                execution_data_maps.iter().any(|exec_data| {
-                    matches!(
-                        executed_status_for(annotation, exec_data),
-                        ExecutionStatus::Executed
-                    )
-                })
-            }
+            executed_from_tests.contains(annotation) || adapter.ever_executed(annotation)
         })
         .cloned()
         .collect::<BTreeSet<_>>()
         .into();
 
-    let status = if failed.is_empty() && missing_implementation.is_empty() {
+    let status = if failed.is_empty() && missing_implementation.is_empty() && unwitnessed.is_empty()
+    {
         QueryStatus::Pass
     } else {
         QueryStatus::Fail
@@ -639,12 +839,13 @@ async fn execute_coverage_check(
 
     Ok(CheckResult::Coverage(CoverageResult {
         status,
-        report_count,
+        report_count: witnesses.len(),
         executed_tests,
         executed_implementations,
         successful,
         failed,
         missing_implementation,
+        unwitnessed,
         verbose,
     }))
 }
@@ -655,11 +856,12 @@ async fn execute_duplicates(
     verbose: bool,
 ) -> Result<CheckResult> {
     // Unlike the coverage-fold checks, duplicates classifies each type against
-    // *itself*, so there is no requirement/coverer split and no coverage mosaic
-    // to dismantle: the worst a spec-slice filter can do here is not *show* you a
-    // duplicate that lies outside the slice — it can never flip a verdict. So the
-    // filter is applied uniformly, which is also what "only look at this slice"
-    // means for a duplicate report.
+    // *itself*, so there is no requirement/coverer split (no
+    // `partition_check_roles`) and no coverage mosaic to dismantle: the worst a
+    // spec-slice filter can do here is not *show* you a duplicate that lies
+    // outside the slice — it can never flip a verdict. So the filter is applied
+    // uniformly, which is also what "only look at this slice" means for a
+    // duplicate report.
     let annotations_by_type: HashMap<AnnotationType, Vec<Arc<Annotation>>> = project_data
         .annotations
         .iter()
@@ -764,64 +966,6 @@ fn empty_duplicates() -> Duplicates {
     }
 }
 
-/// Fold an annotation's execution status across the given coverage reports
-/// with OR semantics: if any report shows it `Executed`, the result is
-/// `Executed` (design §5.2). Among the remaining statuses, `Unknown` is
-/// preferred over `Structural`/`NotExecuted` because it carries diagnostic
-/// line information; `NotExecuted` is the base case when there are no reports.
-///
-/// The caller chooses the quantifier scope by choosing the reports (design
-/// §5.2, Decision 13): fold over ALL reports for per-annotation questions
-/// ("was this ever executed?"), or over a single test's witnesses for pair
-/// discharge ("did the implementation run in a report where the test ran?").
-fn fold_execution_status<'a>(
-    annotation: &Arc<Annotation>,
-    execution_data_maps: impl IntoIterator<Item = &'a ExecutionDataMap>,
-) -> ExecutionStatus {
-    let mut folded = ExecutionStatus::NotExecuted;
-    for exec_data in execution_data_maps {
-        let status = executed_status_for(annotation, exec_data);
-        match status {
-            // Executed wins outright — no later report can override it.
-            ExecutionStatus::Executed => return ExecutionStatus::Executed,
-            // Prefer Unknown over any previously-seen non-executed status.
-            ExecutionStatus::Unknown { .. } => folded = status,
-            // Structural / NotExecuted: only take it if we have nothing better.
-            _ => {
-                if matches!(folded, ExecutionStatus::NotExecuted) {
-                    folded = status;
-                }
-            }
-        }
-    }
-    folded
-}
-
-/// Aggregate every located issue from files whose classification was defeated,
-/// across all reports — the escalation's input. Extracted so a unit test can
-/// pin that each located issue reaches the escalation surface (none dropped,
-/// none merged away); the loud per-file report in `execute_coverage_check`
-/// iterates exactly this.
-fn collect_defeated_issues(
-    execution_data_maps: &[ExecutionDataMap],
-) -> std::collections::BTreeMap<std::path::PathBuf, Vec<crate::query::classify::ClassifierIssue>> {
-    let mut defeated: std::collections::BTreeMap<
-        std::path::PathBuf,
-        Vec<crate::query::classify::ClassifierIssue>,
-    > = std::collections::BTreeMap::new();
-    for map in execution_data_maps {
-        for (path, data) in map {
-            if let crate::query::checks::coverage::FileExecutionData::DefeatedClassification {
-                issues,
-            } = data
-            {
-                defeated.entry(path.clone()).or_default().extend(issues);
-            }
-        }
-    }
-    defeated
-}
-
 fn deduplicate_annotation_coverage(
     coverage_list: Vec<AnnotationCoverage>,
 ) -> Vec<AnnotationCoverage> {
@@ -848,145 +992,28 @@ fn deduplicate_annotation_coverage(
     result
 }
 
-fn expand_coverage_globs(reports: &[String]) -> Result<Vec<String>> {
-    let mut expanded_paths = Vec::new();
-
-    for pattern in reports {
-        // TODO, same as project.js:
-        // switch from `glob` to `duvet_core::glob` once the implementation
-        // is compatible with the expected behavior.
-        // Using glob here so that the pattern matching is predictable and the same as the current process.
-        for entry in glob(pattern).into_diagnostic()? {
-            let path = entry.into_diagnostic()?;
-            expanded_paths.push(path.to_string_lossy().to_string());
-        }
-    }
-
-    Ok(expanded_paths)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query::{
-        checks::coverage::FileExecutionData,
-        classify::{ClassifierFailure, ClassifierIssue},
-    };
-    use std::sync::Arc;
 
-    /// Minimal annotation in `path`: `//= spec#s` on line 1, `code();` on
-    /// line 2. Single-line string literal on purpose — a multiline fixture
-    /// with `//=` at line start would be ingested as a real annotation now
-    /// that this file is a scanned source (see `.duvet/config.toml`).
-    fn annotation(path: &str) -> Arc<Annotation> {
-        use crate::annotation::AnnotationLevel;
-        use duvet_core::file::SourceFile as CoreSourceFile;
-        let contents = "//= spec#s\ncode();\n";
-        let source = CoreSourceFile::new(path, contents).unwrap();
-        let text = source.substr_range(0..10).unwrap();
-        let target = source.substr_range(4..10).unwrap();
-        let quote = source.substr_range(11..18).unwrap();
-        Arc::new(Annotation {
-            source: source.path().clone(),
-            anno_line: 1,
-            original_target: target,
-            original_text: text,
-            original_quote: quote,
-            anno: AnnotationType::Citation,
-            target: "spec#s".to_string(),
-            quote: String::new(),
-            comment: String::new(),
-            manifest_dir: source.path().clone(),
-            level: AnnotationLevel::Auto,
-            format: crate::specification::Format::Auto,
-            tracking_issue: String::new(),
-            feature: String::new(),
-            tags: Default::default(),
-            blob_link: None,
-        })
-    }
-
-    /// A file whose classification was defeated (here: an unbalanced scope
-    /// stream) is never scored: its annotations resolve to a located
-    /// `Unknown` anchored at the issue — not an `Executed`/`NotExecuted`
-    /// verdict computed against the collapsed whole-file scope tree, and not
-    /// a silent hand-off to the coarse degraded model.
+    /// Executes the actual engine filter (`witnessable`) — the single
+    /// predicate deciding which annotations get positions requested from
+    /// prover producers — over every annotation type.
     #[test]
-    fn defeated_classification_is_surfaced_not_scored() {
-        let ann = annotation("a/broken.rs");
-        let mut map = ExecutionDataMap::default();
-        map.insert(
-            std::path::PathBuf::from("a/broken.rs"),
-            FileExecutionData::DefeatedClassification {
-                issues: vec![ClassifierIssue {
-                    reason: ClassifierFailure::UnbalancedScopes,
-                    line: 7,
-                }],
-            },
-        );
-        //= design/query/coverage-model-spec.md#scopes
+    fn only_test_annotations_are_witnessable() {
+        //= design/witness/spec.md#witnessable-annotations
         //= type=test
-        //# When the stream is unbalanced,
-        //# the coverage model MUST NOT score annotations against the collapsed scope tree;
-        //# it MUST surface the file as a defeated classification and escalate
-        //# (see [Classifier Selection and Dispatch](#dispatch)).
-        //= design/query/coverage-model-spec.md#trust-taxonomy
-        //= type=test
-        //# duvet MUST NOT silently substitute the coarse model or score against
-        //# the collapsed scope tree;
-        assert!(matches!(
-            executed_status_for(&ann, &map),
-            ExecutionStatus::Unknown { line_number: 7 }
-        ));
-    }
-
-    /// Escalation carries every located issue: the aggregation feeding the
-    /// loud per-file report (the escalation surface) preserves each located
-    /// issue from every defeated file across all reports — none dropped,
-    /// none merged away. The printing itself is presentation glue; what is
-    /// pinned here is that each located issue reaches it.
-    #[test]
-    fn escalation_reports_each_located_issue() {
-        let unbalanced = |line| ClassifierIssue {
-            reason: ClassifierFailure::UnbalancedScopes,
-            line,
-        };
-        let parse = |line| ClassifierIssue {
-            reason: ClassifierFailure::ParseError,
-            line,
-        };
-        let mut map_a = ExecutionDataMap::default();
-        map_a.insert(
-            std::path::PathBuf::from("a/broken.rs"),
-            FileExecutionData::DefeatedClassification {
-                issues: vec![unbalanced(7), parse(2)],
-            },
-        );
-        let mut map_b = ExecutionDataMap::default();
-        map_b.insert(
-            std::path::PathBuf::from("b/also_broken.rs"),
-            FileExecutionData::DefeatedClassification {
-                issues: vec![unbalanced(11)],
-            },
-        );
-        let defeated = collect_defeated_issues(&[map_a, map_b]);
-        //= design/query/coverage-model-spec.md#trust-taxonomy
-        //= type=test
-        //# it MUST escalate, reporting each located issue.
-        assert_eq!(defeated.len(), 2);
-        assert_eq!(
-            defeated[std::path::Path::new("a/broken.rs")]
-                .iter()
-                .map(|i| i.line)
-                .collect::<Vec<_>>(),
-            [7, 2]
-        );
-        assert_eq!(
-            defeated[std::path::Path::new("b/also_broken.rs")]
-                .iter()
-                .map(|i| i.line)
-                .collect::<Vec<_>>(),
-            [11]
-        );
+        //# Prover producers MUST construct witnesses for `type=test`
+        //# annotations only
+        //# (decisions.md, [Decision 6](decisions.md#decision-6);
+        //# self-discharging implication annotations are a deferred separate
+        //# feature).
+        assert!(witnessable(AnnotationType::Test));
+        assert!(!witnessable(AnnotationType::Citation));
+        assert!(!witnessable(AnnotationType::Spec));
+        assert!(!witnessable(AnnotationType::Exception));
+        assert!(!witnessable(AnnotationType::Todo));
+        // Deferred separate feature — deliberately NOT witnessable today:
+        assert!(!witnessable(AnnotationType::Implication));
     }
 }

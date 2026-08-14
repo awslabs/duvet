@@ -1,0 +1,16 @@
+target = "design/witness/spec.md#obligation-testing"
+
+# 4.3 Producer testing
+#
+# Each producer MUST be unit-tested against golden artifacts
+# (a real report file; a real prover log),
+# since producers are unverified glue at the trust boundary.
+
+[[spec]]
+level = "MUST"
+quote = '''
+Each producer MUST be unit-tested against golden artifacts
+(a real report file; a real prover log),
+since producers are unverified glue at the trust boundary.
+'''
+

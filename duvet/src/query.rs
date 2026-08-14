@@ -12,9 +12,11 @@ pub mod result;
 
 mod checks;
 mod engine;
+pub mod producers;
 mod requirements;
+pub mod witness;
 
-use checks::coverage::CoverageFormat;
+use producers::CoverageFormat;
 use requirements::RequirementMode;
 
 #[derive(Debug, Parser)]
@@ -31,13 +33,22 @@ pub struct Query {
     #[clap(short = 'q', long)]
     pub quote: Option<Vec<String>>,
 
-    /// Coverage report path(s), supports globs (required for coverage checks)
-    #[clap(short = 'r', long, required_if_eq_any([("check", "coverage"), ("check", "executed-coverage")]))]
+    /// Coverage report path(s), supports globs (with --coverage-format, the
+    /// one-source shorthand for coverage checks)
+    #[clap(short = 'r', long)]
     pub coverage_report: Option<Vec<String>>,
 
-    /// Coverage format (required for coverage checks)
-    #[clap(short = 'f', long, required_if_eq_any([("check", "coverage"), ("check", "executed-coverage")]))]
+    /// Coverage format (applies to every --coverage-report path)
+    #[clap(short = 'f', long)]
     pub coverage_format: Option<CoverageFormat>,
+
+    /// Coverage source as PRODUCER=PATH_OR_GLOB (repeatable;
+    /// each source pairs a producer with its artifacts, N sources per
+    /// invocation). Producers: `jacoco-xml` (report files), `verus-sst`
+    /// (Verus `--log vir-sst` log directories). Combines with the
+    /// -r/-f shorthand.
+    #[clap(long, value_parser = parse_coverage_source)]
+    pub coverage_source: Option<Vec<crate::query::producers::CoverageSource>>,
 
     /// Enable verbose output
     #[clap(short = 'v', long)]
@@ -157,6 +168,28 @@ This is helpful for quick on-off checking of a single test.
     Duplicates,
 }
 
+/// Parse a `--coverage-source` value: `PRODUCER=PATH_OR_GLOB`.
+fn parse_coverage_source(s: &str) -> Result<crate::query::producers::CoverageSource, String> {
+    let Some((producer, path)) = s.split_once('=') else {
+        return Err(format!(
+            "expected PRODUCER=PATH_OR_GLOB (e.g. jacoco-xml=target/site/jacoco.xml \
+             or verus-sst=target/verus-logs), got '{s}'"
+        ));
+    };
+    let Some(producer) = crate::query::producers::CoverageProducer::parse(producer) else {
+        return Err(format!(
+            "unknown coverage producer '{producer}' (expected jacoco-xml or verus-sst)"
+        ));
+    };
+    if path.is_empty() {
+        return Err("coverage source path must not be empty".to_string());
+    }
+    Ok(crate::query::producers::CoverageSource {
+        producer,
+        globs: vec![path.to_string()],
+    })
+}
+
 impl Query {
     pub async fn exec(&self) -> Result {
         let progress = progress!("Starting duvet in query mode...");
@@ -180,6 +213,7 @@ impl Query {
                     &checks,
                     self.coverage_report.as_ref(),
                     self.coverage_format.as_ref(),
+                    self.coverage_source.as_deref().unwrap_or(&[]),
                     self.verbose,
                 )
                 .await
@@ -205,5 +239,74 @@ impl Query {
         } else {
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use producers::CoverageProducer;
+
+    // `parse_coverage_source` is the CLI seam for `--coverage-source`:
+    // total over &str — every input either yields a recognized
+    // producer paired with a non-empty single-glob path, or a
+    // descriptive error. Three error paths, exercised below: missing
+    // '=', unknown producer, empty path.
+
+    #[test]
+    fn parse_coverage_source_jacoco_xml() {
+        let source = parse_coverage_source("jacoco-xml=target/site/jacoco.xml").unwrap();
+        assert_eq!(source.producer, CoverageProducer::JacocoXml);
+        assert_eq!(source.globs, ["target/site/jacoco.xml"]);
+    }
+
+    #[test]
+    fn parse_coverage_source_verus_sst() {
+        let source = parse_coverage_source("verus-sst=target/verus-logs").unwrap();
+        assert_eq!(source.producer, CoverageProducer::VerusSst);
+        assert_eq!(source.globs, ["target/verus-logs"]);
+    }
+
+    #[test]
+    fn parse_coverage_source_splits_on_first_equals() {
+        // `split_once` semantics: only the first '=' separates
+        // producer from path, so paths containing '=' stay intact.
+        let source = parse_coverage_source("jacoco-xml=reports/run=1/jacoco.xml").unwrap();
+        assert_eq!(source.producer, CoverageProducer::JacocoXml);
+        assert_eq!(source.globs, ["reports/run=1/jacoco.xml"]);
+    }
+
+    #[test]
+    fn parse_coverage_source_missing_equals() {
+        let err = parse_coverage_source("jacoco-xml").unwrap_err();
+        assert!(
+            err.contains("expected PRODUCER=PATH_OR_GLOB"),
+            "unexpected error: {err}"
+        );
+        assert!(err.contains("'jacoco-xml'"), "should echo the input: {err}");
+    }
+
+    #[test]
+    fn parse_coverage_source_unknown_producer() {
+        let err = parse_coverage_source("lcov=coverage.info").unwrap_err();
+        assert!(
+            err.contains("unknown coverage producer 'lcov'"),
+            "unexpected error: {err}"
+        );
+        // Empty producer (input starting with '=') lands here too.
+        let err = parse_coverage_source("=coverage.info").unwrap_err();
+        assert!(
+            err.contains("unknown coverage producer ''"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_coverage_source_empty_path() {
+        let err = parse_coverage_source("jacoco-xml=").unwrap_err();
+        assert!(
+            err.contains("path must not be empty"),
+            "unexpected error: {err}"
+        );
     }
 }

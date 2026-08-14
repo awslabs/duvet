@@ -61,7 +61,12 @@ pub struct Report {
 impl Report {
     //= design/query/coverage-model-spec.md#escalation
     //= type=exception
-    //= reason=`report` does not yet consume coverage; the hard-error gate lands with the LCOV follow-up.
+    //= reason=`report` does not consume coverage yet: no coverage source
+    //= reason=reaches this path today, so the conditional ("When `report`
+    //= reason=consumes coverage") is vacuous. The hard-error obligation
+    //= reason=lands with the LCOV mixed-coverage follow-up that wires
+    //= reason=coverage into report; until then there is no code site that
+    //= reason=could implement it.
     //# When `report` consumes coverage, a defeated commitment MUST be a hard
     //# error there, because `report` is the authoritative artifact.
     pub async fn exec(&self) -> Result {

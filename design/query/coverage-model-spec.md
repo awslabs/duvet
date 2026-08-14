@@ -350,6 +350,23 @@ ensures `Statement` and `Declaration` are stripped.
   An unknown line becomes the target (with `properties: None`)
   rather than being skipped.
   This ensures unknown lines cannot be silently bypassed.
+- **Single-line target:**
+  Resolution MUST yield at most one target line per annotation:
+  a successful resolution is exactly one `TargetLine` —
+  the single source line the annotation targets —
+  never a range and never a set.
+  This holds for every resolution model
+  (the degraded model resolves to the first
+  non-annotation, non-blank line below the annotation;
+  a richer classifier still yields one line).
+  `ByRootSpan` binding in the witness specification
+  ([spec.md §1.5](../witness/spec.md#claim-rules))
+  consumes this property:
+  containment is membership of the single resolved line.
+  A resolution model that yields multi-line targets
+  MUST change this specification
+  and its stated consumers explicitly;
+  it cannot be adopted implicitly.
 
 ## 3. Phase 2: Execution Propagation {#execution-propagation}
 
@@ -513,11 +530,13 @@ fn is_annotation_executed(annotation, classifications, scopes, coverage):
 
 ## 5. Correctness Properties {#correctness-properties}
 
-These properties MUST be proven with Verus.
+These properties are proven with Verus.
 Each property below defines a correctness invariant of the coverage model.
-The Verus proof files MUST carry duvet annotations
+The Verus proof files carry duvet annotations
 linking each `proof fn` back to the corresponding property section
-in this document.
+in this document; the dogfood requirement
+([witness spec §2](../witness/spec.md#engine-properties)) gates the
+proofs and the citations in CI.
 
 ### Property 1: No False Positives {#property-1-no-false-positives}
 
@@ -788,7 +807,7 @@ skippable lines — yields `Unknown`: there is nothing observable to attribute.
 
 ### 7.4 Properties {#degraded-properties}
 
-These properties MUST be proven with Verus for the degraded path,
+These properties are proven with Verus for the degraded path,
 alongside the Section 5 properties for the classified path.
 
 #### Property D1: Direct Observation {#property-d1-direct-observation}

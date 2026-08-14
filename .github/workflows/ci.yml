@@ -12,7 +12,12 @@ on:
 
 name: ci
 
+# Least-privilege GITHUB_TOKEN for every job: nothing in this workflow
+# writes to the repository. `actions: read` is required by
+# actions/download-artifact to fetch the verus-sst-logs artifact
+# through the API in the dogfood job.
 permissions:
+  actions: read
   contents: read
 
 env:
@@ -35,9 +40,10 @@ jobs:
       - name: Evaluate definitions
         id: definitions
         run: |
-          export MSRV=$(grep -m1 '^rust-version' duvet/Cargo.toml | sed -E 's/^rust-version *= *"(.+)"/\1/')
+          rustup show active-toolchain
+          export MSRV=$(rustup show active-toolchain | awk -F'-' '{print $1}')
           if [ -z "$MSRV" ]; then
-            echo "Error: MSRV did not parse correctly from duvet/Cargo.toml"
+            echo "Error: MSRV did not parse correctly"
             exit 1
           fi
           echo "msrv=$MSRV" >> "$GITHUB_OUTPUT"
@@ -190,7 +196,36 @@ jobs:
       - name: Verify duvet-coverage proofs
         # `--features verify` pulls in vstd, which is verification-only and
         # optional so it stays out of the published dependency graph.
-        run: cargo verus build -p duvet-coverage --features verify
+        # `--log vir-sst` makes the verification run leave its SST record
+        # behind; the dogfood job's witness query consumes it. Same proof
+        # run, no second verification.
+        #
+        # This step is the proving half of the dogfood requirement: it
+        # fails unless every property in the verified crate proves. The
+        # snapshot half lives on the dogfood job's `report --ci` step.
+        # type=implication: the requirement is that this job exists and
+        # runs — the annotation sits on the job itself, so reading the
+        # target verifies the claim; there is no separate act of
+        # checking to cite.
+        #= design/witness/spec.md#engine-properties
+        #= type=implication
+        #% The project MUST dogfood the verified coverage machinery: CI
+        #% verifies the `duvet-coverage` proofs with Verus and gates the
+        #% proof files' spec citations through the checked-in snapshot.
+        run: cargo verus build -p duvet-coverage --features verify -- --log vir-sst --log-dir verus-sst-logs
+
+      - name: Compress SST logs
+        # duvet's verus-sst producer reads *-sst.vir.gz transparently and
+        # the SST text compresses ~21:1 (measured on the checked-in golden
+        # corpus), so ship the artifact gzipped.
+        run: gzip -9 verus-sst-logs/*-sst.vir
+
+      - name: Upload SST logs for the witness-query dogfood
+        uses: actions/upload-artifact@v6
+        with:
+          name: verus-sst-logs
+          path: verus-sst-logs/
+          if-no-files-found: error
 
   action: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
@@ -205,10 +240,18 @@ jobs:
   dogfood: # duvet runs on itself: the branch-built duvet checks the repo's own
     # requirement annotations against .duvet/config.toml. `report --ci`
     # compares the freshly generated snapshot against the committed
-    # .duvet/snapshot.txt and fails on any drift; the annotation checks
-    # are judged by exit code alone — no output parsing, no thresholds,
-    # no expected-failure lists.
+    # .duvet/snapshot.txt and fails on any drift. The snapshot pins the
+    # per-line coverage state of every registered spec (including the
+    # witness spec's MUST lines), so a coverage regression — or an
+    # unintended new citation — fails this job; improving coverage
+    # requires regenerating and committing the snapshot.
+    #
+    # The witness-query step then dogfoods the coverage check itself: it
+    # feeds the SST logs the `verify` job left behind to
+    # `duvet query -c coverage`, sliced to the witness properties
+    # (W1–W7, P1–P4), and gates on every property pair discharging.
     runs-on: ubuntu-latest
+    needs: verify
     steps:
       - uses: actions/checkout@v7
 
@@ -231,15 +274,47 @@ jobs:
           cargo xtask build
 
       - name: Run duvet on its own annotations
-        # Snapshot gate: any coverage regression — or an unintended new
-        # citation — drifts the generated snapshot from the committed one
-        # and fails this step; improving coverage requires regenerating
-        # and committing the snapshot.
+        # The snapshot half of the dogfood requirement (witness spec §2,
+        # cited on the verify step): the snapshot pins every proof-file
+        # citation's coverage state, so removing citations from the proof
+        # files drifts the snapshot and fails this step. The [[source]]
+        # entries in .duvet/config.toml put the proof files in the scan.
+        #
+        # This is also the deletion-catching half of the proving story:
+        # the verify job proves whatever is WRITTEN; deleting a specified
+        # property removes its proof-file citation, which drifts the
+        # snapshot and fails THIS step.
         run: ./target/debug/duvet report --ci
 
       - name: Annotation checks
-        # Tree-wide invariant, plain customer invocation: every spec
-        # requirement carries an implementation annotation, every
-        # implementation annotation carries a test annotation, and no
-        # (type, quote) pair has more than one owner.
+        # Tree-wide invariant, plain customer invocation: every quote
+        # tiled by one implementation owner, every requirement's test
+        # evidence present, no duplicate (type, target, quote) owners.
+        # Incorporating these checks into `report` is a missing duvet
+        # feature (see decisions.md Follow-ups); until it lands they
+        # run here as their own step.
         run: ./target/debug/duvet query -c implementation,test,duplicates
+
+      - name: Download Verus SST logs
+        uses: actions/download-artifact@v6
+        with:
+          name: verus-sst-logs
+          path: verus-sst-logs
+
+      - name: Witness query dogfood
+        # Correlation floor: every test/implementation pair in the
+        # sliced sections must discharge against the proof witnesses —
+        # plain exit 0, no thresholds, no expected failures.
+        #
+        # The slice is the set of sections that fully discharge from
+        # proof witnesses alone. Sections outside it carry runtime
+        # test annotations that stay unwitnessed until the LCOV
+        # producer lands; as sections become fully dischargeable they
+        # are added here and can never backslide.
+        run: |
+          set -euo pipefail
+          SECTIONS="design/witness/spec.md#property-w1-same-witness-discharge,design/witness/spec.md#property-w2-test-execution,design/witness/spec.md#property-w3-global-execution,design/witness/spec.md#property-w4-monotonicity,design/witness/spec.md#property-w5-claim-refinement,design/witness/spec.md#property-w6-unwitnessed-test-annotations,design/witness/spec.md#property-w7-positional-binding-map-independence,design/witness/producer-core-spec.md#property-p1-closure-fixpoint,design/witness/producer-core-spec.md#property-p2-most-specific-wins,design/witness/producer-core-spec.md#property-p3-witness-assembly,design/witness/producer-core-spec.md#property-p4-filter-soundness,design/query/coverage-model-spec.md#escalation,design/query/coverage-model-spec.md#property-1-no-false-positives,design/query/coverage-model-spec.md#property-d1-direct-observation,design/query/coverage-model-spec.md#property-d2-degraded-target-bounds,design/query/coverage-model-spec.md#property-d3-degraded-stacking,design/query/coverage-model-spec.md#property-d4-agreement-with-classified"
+
+          ./target/debug/duvet query -c coverage \
+            --coverage-source verus-sst=verus-sst-logs \
+            -s "$SECTIONS"
