@@ -331,9 +331,14 @@ Every policy value in this specification MUST be read from
 checked-in configuration. The shipped defaults
 ([§4.3](#defaults)) apply where configuration is silent.
 
-Command-line options MUST NOT change any verdict: the command line
-selects which checks run, points at evidence artifacts, and
-controls verbosity — display, never verdict.
+Command-line options MUST NOT set or override any policy value of
+this specification: the command line selects which checks run and
+which requirement slice they evaluate, points at evidence
+artifacts, and controls verbosity. Slice selection changes the
+input set, never the rules ([§2](#duplicates-check)); for a fixed
+check selection and slice, the verdict is a function of the
+checked-in tree alone ([P-S0](#property-p-s0)); verbosity is
+display, never verdict.
 ([Decision 9](decisions.md#decision-9);
 [P-S0](#property-p-s0))
 
@@ -506,17 +511,20 @@ passing.
 
 ### P-S0 — verdict determinism {#property-p-s0}
 
-For a fixed set of checks and evidence inputs, every verdict in
-this specification is a function of the checked-in tree (source
-plus configuration). Verbosity never changes a verdict.
+For a fixed check selection, requirement slice, and evidence
+inputs, every verdict in this specification is a function of the
+checked-in tree (source plus configuration). Verbosity never
+changes a verdict. A slice can hide a violation that lies outside
+it — selection is not policy — so tree-wide gates (CI) run
+unsliced.
 ([§4.1](#policy-source))
 
 Fixture note: pinned on the verbosity axis (one tree, default and
 `--verbose`, exit codes pinned equal). The full function-of-the-tree
-claim ranges over every command-line option and is held
-architecturally — policy values reach the checks only through
-checked-in configuration ([§4.1](#policy-source)) — rather than by
-fixture enumeration.
+claim ranges over every command-line option other than check and
+slice selection, and is held architecturally — policy values reach
+the checks only through checked-in configuration
+([§4.1](#policy-source)) — rather than by fixture enumeration.
 
 ### P-S1 — no pass without evidence {#property-p-s1}
 

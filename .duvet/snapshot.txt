@@ -78,9 +78,10 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
   SECTION: [4.1 Policy source](#policy-source)
     TEXT[!MUST,implementation,test]: Every policy value in this specification MUST be read from
     TEXT[!MUST,implementation,test]: checked-in configuration.
-    TEXT[!MUST,implementation,test]: Command-line options MUST NOT change any verdict: the command line
-    TEXT[!MUST,implementation,test]: selects which checks run, points at evidence artifacts, and
-    TEXT[!MUST,implementation,test]: controls verbosity — display, never verdict.
+    TEXT[!MUST,implementation,test]: Command-line options MUST NOT set or override any policy value of
+    TEXT[!MUST,implementation,test]: this specification: the command line selects which checks run and
+    TEXT[!MUST,implementation,test]: which requirement slice they evaluate, points at evidence
+    TEXT[!MUST,implementation,test]: artifacts, and controls verbosity.
 
   SECTION: [4.2.3 Shared rules](#schema-shared)
     TEXT[!MUST,implementation,test]: Form names in configuration use the canonical vocabulary

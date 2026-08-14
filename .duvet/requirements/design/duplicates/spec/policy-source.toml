@@ -6,9 +6,14 @@ target = "design/duplicates/spec.md#policy-source"
 # checked-in configuration. The shipped defaults
 # ([§4.3](#defaults)) apply where configuration is silent.
 # 
-# Command-line options MUST NOT change any verdict: the command line
-# selects which checks run, points at evidence artifacts, and
-# controls verbosity — display, never verdict.
+# Command-line options MUST NOT set or override any policy value of
+# this specification: the command line selects which checks run and
+# which requirement slice they evaluate, points at evidence
+# artifacts, and controls verbosity. Slice selection changes the
+# input set, never the rules ([§2](#duplicates-check)); for a fixed
+# check selection and slice, the verdict is a function of the
+# checked-in tree alone ([P-S0](#property-p-s0)); verbosity is
+# display, never verdict.
 # ([Decision 9](decisions.md#decision-9);
 # [P-S0](#property-p-s0))
 
@@ -22,8 +27,9 @@ checked-in configuration.
 [[spec]]
 level = "MUST"
 quote = '''
-Command-line options MUST NOT change any verdict: the command line
-selects which checks run, points at evidence artifacts, and
-controls verbosity — display, never verdict.
+Command-line options MUST NOT set or override any policy value of
+this specification: the command line selects which checks run and
+which requirement slice they evaluate, points at evidence
+artifacts, and controls verbosity.
 '''
 
