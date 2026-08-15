@@ -19,8 +19,9 @@ pub fn form_name(form: AnnotationType) -> &'static str {
     //= design/duplicates/spec.md#annotation-model
     //# Every user-facing surface this
     //# specification defines — configuration keys, report sections,
-    //# failure messages — MUST emit the name `implementation` and MUST
-    //# NOT emit the name `citation`.
+    //# failure messages the check composes — MUST emit the name
+    //# `implementation` and MUST NOT emit the name `citation`;
+    //# enumerations of accepted input vocabulary may name the alias.
     match form {
         AnnotationType::Spec => "spec",
         AnnotationType::Test => "test",
@@ -228,8 +229,8 @@ pub fn parse_form_family(entries: &[String]) -> Result<Vec<FormSet>> {
     //= design/duplicates/spec.md#schema-shared
     //# Form names in configuration use the canonical vocabulary
     //# ([§1.1](#annotation-model)); `citation` MUST be accepted as an
-    //# alias for `implementation` and MUST NOT appear in any emitted
-    //# output.
+    //# alias for `implementation` and MUST NOT appear in any output the
+    //# check composes.
     let mut family = Vec::with_capacity(entries.len());
     for entry in entries {
         let mut set = FormSet::new();
@@ -491,8 +492,9 @@ mod tests {
         //= type=test
         //# Every user-facing surface this
         //# specification defines — configuration keys, report sections,
-        //# failure messages — MUST emit the name `implementation` and MUST
-        //# NOT emit the name `citation`.
+        //# failure messages the check composes — MUST emit the name
+        //# `implementation` and MUST NOT emit the name `citation`;
+        //# enumerations of accepted input vocabulary may name the alias.
         assert_eq!(form_name(AnnotationType::Citation), "implementation");
         assert!(parse_form_name("citations").is_err());
         assert!(parse_form_family(&["".to_string()]).is_err());
@@ -500,8 +502,8 @@ mod tests {
         //= type=test
         //# Form names in configuration use the canonical vocabulary
         //# ([§1.1](#annotation-model)); `citation` MUST be accepted as an
-        //# alias for `implementation` and MUST NOT appear in any emitted
-        //# output.
+        //# alias for `implementation` and MUST NOT appear in any output the
+        //# check composes.
         assert_eq!(
             parse_form_family(&["citation+test".to_string()]).unwrap(),
             vec![forms(&["implementation", "test"])]

@@ -4,8 +4,8 @@ target = "design/duplicates/spec.md#schema-shared"
 #
 # Form names in configuration use the canonical vocabulary
 # ([§1.1](#annotation-model)); `citation` MUST be accepted as an
-# alias for `implementation` and MUST NOT appear in any emitted
-# output.
+# alias for `implementation` and MUST NOT appear in any output the
+# check composes.
 # 
 # An unrecognized key under `[duplicates.claims]` or
 # `[duplicates.targets]` MUST be a configuration error, so a typo
@@ -33,8 +33,8 @@ level = "MUST"
 quote = '''
 Form names in configuration use the canonical vocabulary
 ([§1.1](#annotation-model)); `citation` MUST be accepted as an
-alias for `implementation` and MUST NOT appear in any emitted
-output.
+alias for `implementation` and MUST NOT appear in any output the
+check composes.
 '''
 
 [[spec]]

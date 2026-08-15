@@ -13,25 +13,26 @@ target = "design/duplicates/spec.md#annotation-model"
 # `implementation` is the canonical user-facing name of the claim
 # form the codebase calls `Citation`. Every user-facing surface this
 # specification defines — configuration keys, report sections,
-# failure messages — MUST emit the name `implementation` and MUST
-# NOT emit the name `citation`. Wherever a claim form is read as
-# input, `citation` MUST be accepted as an alias for
-# `implementation`.
+# failure messages the check composes — MUST emit the name
+# `implementation` and MUST NOT emit the name `citation`;
+# enumerations of accepted input vocabulary may name the alias.
+# Wherever a claim form is read as input, `citation` MUST be
+# accepted as an alias for `implementation`.
 
 [[spec]]
 level = "MUST"
 quote = '''
 Every user-facing surface this
 specification defines — configuration keys, report sections,
-failure messages — MUST emit the name `implementation` and MUST
-NOT emit the name `citation`.
+failure messages the check composes — MUST emit the name
+`implementation` and MUST NOT emit the name `citation`;
+enumerations of accepted input vocabulary may name the alias.
 '''
 
 [[spec]]
 level = "MUST"
 quote = '''
-Wherever a claim form is read as
-input, `citation` MUST be accepted as an alias for
-`implementation`.
+Wherever a claim form is read as input, `citation` MUST be
+accepted as an alias for `implementation`.
 '''
 

@@ -38,10 +38,11 @@ Naming ([Decision 10](decisions.md#decision-10)):
 `implementation` is the canonical user-facing name of the claim
 form the codebase calls `Citation`. Every user-facing surface this
 specification defines — configuration keys, report sections,
-failure messages — MUST emit the name `implementation` and MUST
-NOT emit the name `citation`. Wherever a claim form is read as
-input, `citation` MUST be accepted as an alias for
-`implementation`.
+failure messages the check composes — MUST emit the name
+`implementation` and MUST NOT emit the name `citation`;
+enumerations of accepted input vocabulary may name the alias.
+Wherever a claim form is read as input, `citation` MUST be
+accepted as an alias for `implementation`.
 
 ### 1.2 Claims and claim classes {#claims}
 
@@ -164,7 +165,7 @@ MUST NOT be configurable.
 ([Decision 3](decisions.md#decision-3);
 [P-D2](#property-p-d2))
 
-A duplicate set within its cap MUST pass this check
+A duplicate set within its cap MUST pass this rule
 ([Decision 5](decisions.md#decision-5)), and when its size exceeds
 one it MUST be reported with its size and every member's location,
 so multiplicity is always surfaced, never silent.
@@ -256,6 +257,10 @@ The `executed-coverage` mode carries no duplicate guarantees; it
 is deliberately partial for everything, and duplicates inherit
 that partiality ([Decision 7](decisions.md#decision-7)).
 
+Boundary, non-normative: a run that cannot locate a claim
+terminates with located errors and renders no verdict; the
+location contract belongs to the engine, not this specification.
+
 ---
 
 ## 3. The duplicates check: target axis {#duplicate-targets}
@@ -279,10 +284,10 @@ per-form breakdown, and its distinct-section count, and the
 listing MUST be sorted by annotation count descending.
 
 Presentation is verbosity-tiered, mirroring
-[§2.5](#partial-overlap): the default report MUST summarize the
-listing in one line naming the number of listed targets and the
-maximum annotation count, and `--verbose` MUST print the listing
-in full. Rationale, non-normative: an admitted duplicate set
+[§2.5](#partial-overlap): when the listing is non-empty, the
+default report MUST summarize it in one line naming the number of
+listed targets and the maximum annotation count, and `--verbose`
+MUST print the listing in full. Rationale, non-normative: an admitted duplicate set
 ([§2.2](#caps)) exists because configuration raised a cap — an
 accepted standing liability, surfaced at every verbosity — while
 un-gated fan-in is the observed shape of dense code
@@ -397,8 +402,8 @@ lives in exactly one namespace; no setting name appears in both.
 
 Form names in configuration use the canonical vocabulary
 ([§1.1](#annotation-model)); `citation` MUST be accepted as an
-alias for `implementation` and MUST NOT appear in any emitted
-output.
+alias for `implementation` and MUST NOT appear in any output the
+check composes.
 
 An unrecognized key under `[duplicates.claims]` or
 `[duplicates.targets]` MUST be a configuration error, so a typo
@@ -519,8 +524,8 @@ claim-form family rule, single-form copies exceed the free caps.
 The fan-in listing in the duplicates analysis contains a target if
 and only if two or more annotations resolve to it; counts, form
 breakdowns, and section counts are exact. The default report
-summarizes the listing; the verbose report prints it in full
-([§3.1](#fan-in-listing)).
+summarizes the non-empty listing; the verbose report prints it in
+full ([§3.1](#fan-in-listing)).
 ([§3.1](#fan-in-listing))
 
 ### P-T2 — form-family exactness {#property-p-t2}

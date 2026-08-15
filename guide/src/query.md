@@ -18,7 +18,7 @@ $ duvet query -c implementation -c test
 | `test` | Do all in-scope implementation annotations have corresponding test annotations? |
 | `coverage` | Do test annotations actually execute their corresponding implementation annotations? |
 | `executed-coverage` | Same as `coverage`, but skips test annotations the supplied coverage data shows as not executed. Useful when iterating on a single test. |
-| `duplicates` | Do annotations collide on either coincidence axis — several copies of one claim (same section, same quoted text), or several annotations resolving to one source position (fan-in)? Policy lives in `[duplicates.claims]` / `[duplicates.targets]` in `.duvet/config.toml` — every key is documented in [Configuration](./config.md); the report always includes the fan-in listing. |
+| `duplicates` | Do annotations collide on either coincidence axis — several copies of one claim (same section, same quoted text), or several annotations resolving to one source position (fan-in)? Policy lives in `[duplicates.claims]` / `[duplicates.targets]` in `.duvet/config.toml` — every key is documented in [Configuration](./config.md); the report summarizes fan-in whenever any target bears more than one annotation, and `--verbose` prints the full listing. |
 
 Annotations of type `citation`, `implication`, and `exception` count as implementation. `todo` annotations are tracked separately — a requirement covered only by `todo` annotations is reported as "TODO only" by the `implementation` check, not as implemented.
 

@@ -366,7 +366,7 @@ pub async fn analyze_duplicates(
                 analysis.over_cap.push(set);
             } else if set_members.len() > 1 {
                 //= design/duplicates/spec.md#caps
-                //# A duplicate set within its cap MUST pass this check
+                //# A duplicate set within its cap MUST pass this rule
                 //# ([Decision 5](decisions.md#decision-5)), and when its size exceeds
                 //# one it MUST be reported with its size and every member's location,
                 //# so multiplicity is always surfaced, never silent.

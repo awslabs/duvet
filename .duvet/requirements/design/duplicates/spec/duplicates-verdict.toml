@@ -14,6 +14,10 @@ target = "design/duplicates/spec.md#duplicates-verdict"
 # is deliberately partial for everything, and duplicates inherit
 # that partiality ([Decision 7](decisions.md#decision-7)).
 # 
+# Boundary, non-normative: a run that cannot locate a claim
+# terminates with located errors and renders no verdict; the
+# location contract belongs to the engine, not this specification.
+# 
 # ---
 
 [[spec]]

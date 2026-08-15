@@ -2,11 +2,11 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
   SECTION: [1.1 Annotation model](#annotation-model)
     TEXT[!MUST,implementation,test]: Every user-facing surface this
     TEXT[!MUST,implementation,test]: specification defines — configuration keys, report sections,
-    TEXT[!MUST,implementation,test]: failure messages — MUST emit the name `implementation` and MUST
-    TEXT[!MUST,implementation,test]: NOT emit the name `citation`.
-    TEXT[!MUST,implementation,test]: Wherever a claim form is read as
-    TEXT[!MUST,implementation,test]: input, `citation` MUST be accepted as an alias for
-    TEXT[!MUST,implementation,test]: `implementation`.
+    TEXT[!MUST,implementation,test]: failure messages the check composes — MUST emit the name
+    TEXT[!MUST,implementation,test]: `implementation` and MUST NOT emit the name `citation`;
+    TEXT[!MUST,implementation,test]: enumerations of accepted input vocabulary may name the alias.
+    TEXT[!MUST,implementation,test]: Wherever a claim form is read as input, `citation` MUST be
+    TEXT[!MUST,implementation,test]: accepted as an alias for `implementation`.
 
   SECTION: [1.4 Resolved targets and target classes](#targets)
     TEXT[!MUST,implementation,test]: An annotation declared in a requirement artifact (an extracted
@@ -26,7 +26,7 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
     TEXT[!MUST,implementation,test]: The caps of
     TEXT[!MUST,implementation,test]: `spec`, `todo`, `exception`, and `implication` are fixed at 1 and
     TEXT[!MUST,implementation,test]: MUST NOT be configurable.
-    TEXT[!MUST,implementation,test]: A duplicate set within its cap MUST pass this check
+    TEXT[!MUST,implementation,test]: A duplicate set within its cap MUST pass this rule
     TEXT[!MUST,implementation,test]: ([Decision 5](decisions.md#decision-5)), and when its size exceeds
     TEXT[!MUST,implementation,test]: one it MUST be reported with its size and every member's location,
     TEXT[!MUST,implementation,test]: so multiplicity is always surfaced, never silent.
@@ -68,10 +68,10 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
     TEXT[!MUST,implementation,test]: per-form breakdown, and its distinct-section count, and the
     TEXT[!MUST,implementation,test]: listing MUST be sorted by annotation count descending.
     TEXT[!MUST,implementation,test]: Presentation is verbosity-tiered, mirroring
-    TEXT[!MUST,implementation,test]: [§2.5](#partial-overlap): the default report MUST summarize the
-    TEXT[!MUST,implementation,test]: listing in one line naming the number of listed targets and the
-    TEXT[!MUST,implementation,test]: maximum annotation count, and `--verbose` MUST print the listing
-    TEXT[!MUST,implementation,test]: in full.
+    TEXT[!MUST,implementation,test]: [§2.5](#partial-overlap): when the listing is non-empty, the
+    TEXT[!MUST,implementation,test]: default report MUST summarize it in one line naming the number of
+    TEXT[!MUST,implementation,test]: listed targets and the maximum annotation count, and `--verbose`
+    TEXT[!MUST,implementation,test]: MUST print the listing in full.
 
   SECTION: [3.2 Fan-in bounds](#fan-in-bounds)
     TEXT[!MUST,implementation,test]: When a bound is configured, a target class exceeding it MUST fail
@@ -97,8 +97,8 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
   SECTION: [4.2.3 Shared rules](#schema-shared)
     TEXT[!MUST,implementation,test]: Form names in configuration use the canonical vocabulary
     TEXT[!MUST,implementation,test]: ([§1.1](#annotation-model)); `citation` MUST be accepted as an
-    TEXT[!MUST,implementation,test]: alias for `implementation` and MUST NOT appear in any emitted
-    TEXT[!MUST,implementation,test]: output.
+    TEXT[!MUST,implementation,test]: alias for `implementation` and MUST NOT appear in any output the
+    TEXT[!MUST,implementation,test]: check composes.
     TEXT[!MUST,implementation,test]: An unrecognized key under `[duplicates.claims]` or
     TEXT[!MUST,implementation,test]: `[duplicates.targets]` MUST be a configuration error, so a typo
     TEXT[!MUST,implementation,test]: never silently takes a default.

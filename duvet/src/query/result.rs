@@ -618,10 +618,10 @@ impl fmt::Display for DuplicatesResult {
         if !targets.listing.is_empty() {
             //= design/duplicates/spec.md#fan-in-listing
             //# Presentation is verbosity-tiered, mirroring
-            //# [§2.5](#partial-overlap): the default report MUST summarize the
-            //# listing in one line naming the number of listed targets and the
-            //# maximum annotation count, and `--verbose` MUST print the listing
-            //# in full.
+            //# [§2.5](#partial-overlap): when the listing is non-empty, the
+            //# default report MUST summarize it in one line naming the number of
+            //# listed targets and the maximum annotation count, and `--verbose`
+            //# MUST print the listing in full.
             if self.verbose {
                 writeln!(
                     f,
