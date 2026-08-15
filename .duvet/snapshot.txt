@@ -13,6 +13,9 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
     TEXT[!MUST,implementation,test]: requirement, or an exception or todo declared in TOML) is a
     TEXT[!MUST,implementation,test]: statement about a requirement, not a placement in source: it MUST
     TEXT[!MUST,implementation,test]: NOT participate in any target class.
+    TEXT[!MUST,implementation,test]: When any file bearing annotations defeats
+    TEXT[!MUST,implementation,test]: classification, the duplicates check MUST fail the run, reporting
+    TEXT[!MUST,implementation,test]: each located classifier issue, and render no verdict.
 
   SECTION: [2.1 Same claim, same target](#same-claim-same-target)
     TEXT[!MUST,implementation,test]: Two annotations that share a claim and share a resolved target

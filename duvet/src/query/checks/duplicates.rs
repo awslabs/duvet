@@ -196,13 +196,13 @@ impl DuplicateTargetsAnalysis {
 /// also exempt genuine comment annotations in scanned TOML sources.
 ///
 /// //= design/duplicates/spec.md#targets
-/// //# An annotation whose target does not resolve (defeated
-/// //# classification, or resolution yielding no line) participates in no
-/// //# target class.
+/// //# An annotation whose resolution yields no line (the forward walk
+/// //# finds nothing below it to target) participates in no target
+/// //# class.
 pub async fn resolve_targets(
     annotations: &[Arc<Annotation>],
     declaration_sources: &HashSet<&Path>,
-) -> Result<HashMap<Arc<Annotation>, ResolvedTarget>> {
+) -> Result<(HashMap<Arc<Annotation>, ResolvedTarget>, Vec<Error>)> {
     let mut by_file: BTreeMap<Path, Vec<Arc<Annotation>>> = BTreeMap::new();
     for annotation in annotations {
         //= design/duplicates/spec.md#targets
@@ -220,6 +220,7 @@ pub async fn resolve_targets(
     }
 
     let mut resolved = HashMap::new();
+    let mut errors: Vec<Error> = Vec::new();
 
     for (file, file_annotations) in by_file {
         let source = duvet_core::vfs::read_string(&file).await?;
@@ -227,15 +228,32 @@ pub async fn resolve_targets(
         let line_count = content.lines().count() as u64;
 
         // Classified when a language classifier exists and parses the file;
-        // otherwise the minimal universal classification. A defeated
-        // classification (parse failure) resolves nothing in the file.
+        // otherwise the minimal universal classification.
         let classification = match classifier_for_path(&file) {
             Some(classifier) => classifier.classify(&content),
             None => DefaultClassifier.classify(&content),
         };
         let mut classifications = match classification {
             Classification::Classified(c) => c,
-            Classification::Unclassifiable { .. } => continue,
+            //= design/duplicates/spec.md#targets
+            //# When any file bearing annotations defeats
+            //# classification, the duplicates check MUST fail the run, reporting
+            //# each located classifier issue, and render no verdict.
+            Classification::Unclassifiable { first, rest } => {
+                let lines: Vec<String> = core::iter::once(&first)
+                    .chain(rest.iter())
+                    .map(|issue| issue.line.to_string())
+                    .collect();
+                errors.push(duvet_core::error!(
+                    "{}: the selected classifier could not produce a trustworthy \
+                     classification (issue(s) at line(s) {}). The file's annotation \
+                     targets are unknowable, so the duplicates check renders no \
+                     verdict. Fix the file, or report the classifier gap.",
+                    file.display(),
+                    lines.join(", ")
+                ));
+                continue;
+            }
         };
 
         // Duvet's parsed annotation ranges are authoritative over the
@@ -265,7 +283,7 @@ pub async fn resolve_targets(
         }
     }
 
-    Ok(resolved)
+    Ok((resolved, errors))
 }
 
 /// Group annotations into claim classes (spec §1.2). Section-level references
@@ -309,7 +327,7 @@ pub async fn analyze_duplicates(
             crate::source::SourceFile::Text { .. } => None,
         })
         .collect();
-    let targets = resolve_targets(&annotations, &declaration_sources).await?;
+    let (targets, defeat_errors) = resolve_targets(&annotations, &declaration_sources).await?;
 
     let mut analysis = DuplicatesAnalysis {
         targets: analyze_target_axis(&annotations, &targets, policy),
@@ -407,7 +425,10 @@ pub async fn analyze_duplicates(
     // pool restricted to same-form annotations whose claim differs, so a
     // claim-class twin never counts as a coverer (twins are the cap's
     // business, §2.2). Partial overlap surfaces here too (§2.5).
-    let mut errors: Vec<Error> = Vec::new();
+    //
+    // Seed with the defeat errors so every problem surfaces in one pass;
+    // any gathered error fails the run (execute_duplicates).
+    let mut errors: Vec<Error> = defeat_errors;
     let mut unique_by_form: BTreeMap<AnnotationType, Vec<Arc<Annotation>>> = BTreeMap::new();
 
     let mut by_form: BTreeMap<AnnotationType, Vec<Arc<Annotation>>> = BTreeMap::new();

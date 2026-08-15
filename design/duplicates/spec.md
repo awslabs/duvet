@@ -105,13 +105,20 @@ NOT participate in any target class. An annotation parsed from a
 source comment participates normally, whatever the source file's
 language or extension.
 
-An annotation whose target does not resolve (defeated
-classification, or resolution yielding no line) participates in no
-target class. Claim-axis rules ([§2.2](#caps)–[§2.4](#exclusivity))
+An annotation whose resolution yields no line (the forward walk
+finds nothing below it to target) participates in no target
+class. Claim-axis rules ([§2.2](#caps)–[§2.4](#exclusivity))
 still apply to it. Environmental note, non-normative: code
 formatters relocate comments, so same-target collisions can be
 tooling artifacts; the rules over target classes are policy about
 placement, not accusations of intent.
+
+A defeated classification is an inability, not a judgment: no
+trustworthy classification exists, so the file's annotation
+targets are unknowable and a passing verdict over target classes
+would be unsound. When any file bearing annotations defeats
+classification, the duplicates check MUST fail the run, reporting
+each located classifier issue, and render no verdict.
 
 ### 1.5 Pricing {#pricing}
 

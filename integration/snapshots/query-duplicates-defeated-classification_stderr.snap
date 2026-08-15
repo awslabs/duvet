@@ -1,0 +1,28 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query --check duplicates
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 2 sources 
+     Parsing annotations
+      Parsed 2 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 2 references 
+  ×   × src/Broken.java: the selected classifier could not produce a
+  │ trustworthy
+  │   │ classification (issue(s) at line(s) 5). The file's annotation targets
+  │ are
+  │   │ unknowable, so the duplicates check renders no verdict. Fix the file,
+  │ or
+  │   │ report the classifier gap.
+  │ 
+  │ 
+  ╰─▶ encountered 1 errors
