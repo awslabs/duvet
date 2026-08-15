@@ -1,0 +1,48 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates", "duvet query --check duplicates --verbose"]
+report_output = false
+
+# Pins spec §4.1 / P-S0 verdict determinism on the verbosity axis: the SAME
+# tree as query-duplicates-exclusivity (an exception and an implementation
+# sharing one claim — FAILS under the default claim-form family), run once
+# at default verbosity and once with --verbose. The snapshot pins BOTH exit
+# codes and BOTH outputs: the verdict is identical (EXIT 1 twice); only the
+# display differs. Verbosity is display, never verdict.
+#
+# No test citation here: the #policy-source CLI sentence is cited once, on
+# query-duplicates-partial-overlap-verbose (the test cap is 1); this fixture
+# widens the evidence to the FAIL direction without re-claiming the quote.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=exception
+//# aaa bbb ccc
+pub fn waived_here() {}
+
+//= spec.md#section-1
+//# aaa bbb ccc
+pub fn implemented_here() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""

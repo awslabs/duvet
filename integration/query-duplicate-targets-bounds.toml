@@ -1,0 +1,70 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates --verbose"]
+report_output = false
+
+# Pins spec §3.2: opt-in fan-in bounds. With `count = 2` and `sections = 1`
+# configured, `dumped()` — three implementation claims from two sections on
+# one target — violates both bounds and FAILS. `fine()` with two claims from
+# one section is within both. These are the only rules that fail code for a
+# smell rather than a violated evidence property; the team opted in by
+# writing the numbers.
+#= design/duplicates/spec.md#fan-in-bounds
+#= type=test
+#% When a bound is configured, a target class exceeding it MUST fail
+#% the duplicates check.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+
+[duplicates.targets]
+count = 2
+sections = 1
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//# aaa
+
+//= spec.md#section-1
+//# bbb
+
+//= spec.md#section-2
+//# ccc
+pub fn dumped() {}
+
+//= spec.md#section-1
+//# ddd
+
+//= spec.md#section-1
+//# eee
+pub fn fine() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa
+
+bbb
+
+ddd
+
+eee
+
+## Section 2
+
+ccc
+"""

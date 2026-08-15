@@ -1,0 +1,38 @@
+target = "design/duplicates/spec.md#annotation-model"
+
+# 1.1 Annotation model
+#
+# An annotation is a triple **(τ, q, t)**:
+# 
+# - **τ** — the claim form: one of `test`, `implementation`,
+#   `implication`, `exception`, `todo`, `spec`.
+# - **q** — the claim ([§1.2](#claims)).
+# - **t** — the resolved target ([§1.4](#targets)).
+# 
+# Naming ([Decision 10](decisions.md#decision-10)):
+# `implementation` is the canonical user-facing name of the claim
+# form the codebase calls `Citation`. Every user-facing surface this
+# specification defines — configuration keys, report sections,
+# failure messages the check composes — MUST emit the name
+# `implementation` and MUST NOT emit the name `citation`;
+# enumerations of accepted input vocabulary may name the alias.
+# Wherever a claim form is read as input, `citation` MUST be
+# accepted as an alias for `implementation`.
+
+[[spec]]
+level = "MUST"
+quote = '''
+Every user-facing surface this
+specification defines — configuration keys, report sections,
+failure messages the check composes — MUST emit the name
+`implementation` and MUST NOT emit the name `citation`;
+enumerations of accepted input vocabulary may name the alias.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Wherever a claim form is read as input, `citation` MUST be
+accepted as an alias for `implementation`.
+'''
+

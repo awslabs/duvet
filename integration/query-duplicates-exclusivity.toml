@@ -1,0 +1,52 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates"]
+report_output = false
+
+# Pins spec §2.4 / P-D5 (Decision 4): a free claim form sharing a claim with a
+# priced form FAILS under the default claim-form family, even at distinct
+# targets. An `exception` on a requirement exempts it from the test
+# obligation, so an exception coexisting with an `implementation` claim
+# silently unbills the implementation — the type-shopping exploit the pricing
+# table predicts. This coexistence silently passed the historical check; the
+# tightening is deliberate (Decision 14), restorable per
+# query-duplicates-exclusivity-family.
+#= design/duplicates/spec.md#exclusivity
+#= type=test
+#% A claim class whose non-`spec` members bear two or more distinct
+#% claim forms MUST fail the duplicates check unless the set of
+#% non-`spec` claim forms is admitted by the configured claim-form
+#% family ([§4.2](#schema-claims)).
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=exception
+//# aaa bbb ccc
+pub fn waived_here() {}
+
+//= spec.md#section-1
+//# aaa bbb ccc
+pub fn implemented_here() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""

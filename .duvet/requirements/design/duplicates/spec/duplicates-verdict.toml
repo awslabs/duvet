@@ -1,0 +1,31 @@
+target = "design/duplicates/spec.md#duplicates-verdict"
+
+# 2.6 Verdict
+#
+# The duplicates check MUST fail if and only if at least one rule of
+# [§2.1](#same-claim-same-target)–[§2.4](#exclusivity) or of the
+# target axis ([§3.2](#fan-in-bounds)–[§3.3](#type-combinations))
+# fires.
+# 
+# Run alone, a passing verdict claims structure only. Evidence
+# billing of every copy is the coverage check's contract, enforced
+# whether or not this check runs ([Decision 5](decisions.md#decision-5)).
+# The `executed-coverage` mode carries no duplicate guarantees; it
+# is deliberately partial for everything, and duplicates inherit
+# that partiality ([Decision 7](decisions.md#decision-7)).
+# 
+# Boundary, non-normative: a run that cannot locate a claim
+# terminates with located errors and renders no verdict; the
+# location contract belongs to the engine, not this specification.
+# 
+# ---
+
+[[spec]]
+level = "MUST"
+quote = '''
+The duplicates check MUST fail if and only if at least one rule of
+[§2.1](#same-claim-same-target)–[§2.4](#exclusivity) or of the
+target axis ([§3.2](#fan-in-bounds)–[§3.3](#type-combinations))
+fires.
+'''
+

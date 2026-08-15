@@ -157,7 +157,6 @@ pub open spec fn scope_has_non_linear_control(
 }
 
 //= design/query/coverage-model-spec.md#property-3-conservative-fallback
-//= type=implication
 //# If an ancestor scope S contains `NonLinearControl` but a child
 //# scope S' does not, propagation MAY occur through S'.
 /// Spec predicate: line was reached via backward propagation from hit_line.

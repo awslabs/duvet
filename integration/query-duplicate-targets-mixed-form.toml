@@ -1,0 +1,51 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates"]
+report_output = false
+
+# Pins spec §3.3 / P-T2 (Decisions 8 and 12): a target claimed as test code
+# and implementation code simultaneously FAILS under the default target-form
+# family — disjoint populations in every codebase we care about. The claims
+# differ (no duplicate-claim question); the collision is purely on the target
+# axis of the one duplicates check.
+#= design/duplicates/spec.md#type-combinations
+#= type=test
+#% A target class bearing two or more distinct claim forms MUST fail
+#% the duplicates check unless its form set is a subset of some
+#% member of the family.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# aaa
+
+//= spec.md#section-2
+//# bbb
+pub fn both_roles() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa
+
+## Section 2
+
+bbb
+"""

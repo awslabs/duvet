@@ -22,7 +22,7 @@ pub enum CheckResult {
     Implementation(ImplementationResult),
     Tests(TestResult),
     Coverage(CoverageResult),
-    Duplicates(DuplicatesResult),
+    Duplicates(Box<DuplicatesResult>),
 }
 
 impl CheckResult {
@@ -73,18 +73,15 @@ pub struct CoverageResult {
     pub verbose: bool,
 }
 
+/// The duplicates check's result (design/duplicates/spec.md §2–§3).
 #[derive(Debug)]
 pub struct DuplicatesResult {
     pub status: QueryStatus,
-    pub categories: Vec<(&'static str, Duplicates)>,
+    pub analysis: crate::query::checks::duplicates::DuplicatesAnalysis,
+    /// The effective policy, rendered for discoverability (Decision 9's
+    /// discovery loop): verbose prints every value, defaults labeled.
+    pub policy: crate::config::DuplicatesPolicy,
     pub verbose: bool,
-}
-
-#[derive(Debug)]
-pub struct Duplicates {
-    pub duplicates: Vec<AnnotationCoverage>,
-    pub some_overlap: Vec<AnnotationCoverage>,
-    pub unique: Vec<Arc<Annotation>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -526,52 +523,229 @@ impl fmt::Display for CoverageResult {
 
 impl fmt::Display for DuplicatesResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use crate::config::{form_name, form_set_name_of};
+
         writeln!(f)?;
         writeln!(f, "Duplicates: {}", self.status)?;
         writeln!(f)?;
 
-        for (category_name, duplicates) in &self.categories {
-            if !duplicates.duplicates.is_empty() {
-                for coverage in &duplicates.duplicates {
-                    let duplicate_error = coverage2error(
-                        coverage,
-                        format!("Duplicate {} annotations", category_name.to_lowercase()),
-                        "Duplicate".to_string(),
-                        "Duplicate".to_string(),
-                    );
-                    writeln!(f, "{duplicate_error:?}")?;
-                }
-            }
+        if self.verbose {
+            writeln!(
+                f,
+                "Effective policy ([duplicates] in .duvet/config.toml; \
+                 semantics: design/duplicates/spec.md §4):"
+            )?;
+            write!(f, "{}", self.policy.describe())?;
+            writeln!(f)?;
         }
 
+        let analysis = &self.analysis;
+
+        // §2.1 — same claim, same resolved target.
+        for stacked in &analysis.stacked {
+            let (first, rest) = stacked
+                .members
+                .split_first()
+                .expect("stacked class has >= 2 members");
+            let mut error = error!(
+                "Same claim stacked on one target ({}:{})",
+                stacked.target.file.display(),
+                stacked.target.line
+            );
+            error = with_annotation(error, first, "Stacked");
+            error = with_related_annotations(error, rest, "Stacked");
+            writeln!(f, "{error:?}")?;
+        }
+
+        // §2.2 — duplicate sets over cap.
+        for set in &analysis.over_cap {
+            let (first, rest) = set
+                .members
+                .split_first()
+                .expect("over-cap set has >= 1 member");
+            let mut error = error!(
+                "Duplicate {} annotations: {} copies exceed the cap of {}",
+                form_name(set.form),
+                set.members.len(),
+                set.cap
+            );
+            error = with_annotation(error, first, "Duplicate");
+            error = with_related_annotations(error, rest, "Duplicate");
+            writeln!(f, "{error:?}")?;
+        }
+
+        // §2.3 — subsumption.
+        for coverage in &analysis.subsumed {
+            let duplicate_error = coverage2error(
+                coverage,
+                "Subsumed annotation: its claim is fully covered by other annotations".to_string(),
+                "Subsumed".to_string(),
+                "Covered by".to_string(),
+            );
+            writeln!(f, "{duplicate_error:?}")?;
+        }
+
+        // §2.4 — the claim-form family.
+        for violation in &analysis.exclusivity {
+            let (first, rest) = violation
+                .members
+                .split_first()
+                .expect("exclusivity violation has >= 2 members");
+            let mut error = error!(
+                "One claim shared by forms {} — the combination is inside no allowed set",
+                form_set_name_of(&violation.forms)
+            );
+            error = with_annotation(error, first, "Shared claim");
+            error = with_related_annotations(error, rest, "Shared claim");
+            writeln!(f, "{error:?}")?;
+        }
+
+        // §2.2 — within-cap multiplicity is always surfaced, never silent.
+        for set in &analysis.allowed_sets {
+            let mut set_info = info!(
+                "Allowed duplicate set: {} {} annotations (cap {})",
+                set.members.len(),
+                form_name(set.form),
+                set.cap
+            );
+            set_info = with_related_annotations(set_info, &set.members, "Allowed duplicate");
+            writeln!(f, "{set_info:?}")?;
+        }
+
+        // The target axis (spec §3): the fan-in listing is part of this
+        // check's analysis; bounds and form-combination violations as errors.
+        let targets = &analysis.targets;
+        if !targets.listing.is_empty() {
+            //= design/duplicates/spec.md#fan-in-listing
+            //# Presentation is verbosity-tiered, mirroring
+            //# [§2.5](#partial-overlap): when the listing is non-empty, the
+            //# default report MUST summarize it in one line naming the number of
+            //# listed targets and the maximum annotation count, and `--verbose`
+            //# MUST print the listing in full.
+            if self.verbose {
+                writeln!(
+                    f,
+                    "Targets bearing more than one annotation (count descending):"
+                )?;
+                // Discoverability (decisions.md Decision 9): the moment a reader
+                // is looking at fan-in with no gate configured, name the knob.
+                if !self.policy.targets_gates_configured() {
+                    writeln!(
+                        f,
+                        "  (opt-in bounds: [duplicates.targets] count / sections / types \
+                         in .duvet/config.toml — design/duplicates/spec.md §3)"
+                    )?;
+                }
+                for class in &targets.listing {
+                    let forms = class
+                        .forms
+                        .iter()
+                        .map(|(form, count)| format!("{}:{}", form_name(*form), count))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    writeln!(
+                        f,
+                        "  {}:{} count={} sections={} forms={}",
+                        class.target.file.display(),
+                        class.target.line,
+                        class.count(),
+                        class.sections,
+                        forms
+                    )?;
+                    let members_info = info!(
+                        "Annotations resolving to {}:{}",
+                        class.target.file.display(),
+                        class.target.line
+                    );
+                    let members_info =
+                        with_related_annotations(members_info, &class.members, "Resolves here");
+                    writeln!(f, "{members_info:?}")?;
+                }
+            } else {
+                // The listing is sorted by count descending, so the first
+                // entry carries the maximum.
+                writeln!(
+                    f,
+                    "Fan-in: {} target(s) bear more than one annotation \
+                     (max {}); run with --verbose for the listing",
+                    targets.listing.len(),
+                    targets.listing[0].count()
+                )?;
+                // Discoverability (decisions.md Decision 9): the moment a reader
+                // is looking at fan-in with no gate configured, name the knob.
+                if !self.policy.targets_gates_configured() {
+                    writeln!(
+                        f,
+                        "  (opt-in bounds: [duplicates.targets] count / sections / types \
+                         in .duvet/config.toml — design/duplicates/spec.md §3)"
+                    )?;
+                }
+            }
+            writeln!(f)?;
+        }
+
+        for &index in &targets.count_violations {
+            let class = &targets.listing[index];
+            let error = error!(
+                "Target {}:{} bears {} annotations, exceeding the configured count bound",
+                class.target.file.display(),
+                class.target.line,
+                class.count()
+            );
+            let error = with_related_annotations(error, &class.members, "Fan-in");
+            writeln!(f, "{error:?}")?;
+        }
+
+        for &index in &targets.sections_violations {
+            let class = &targets.listing[index];
+            let error = error!(
+                "Target {}:{} bears annotations from {} distinct sections, exceeding the configured sections bound",
+                class.target.file.display(),
+                class.target.line,
+                class.sections
+            );
+            let error = with_related_annotations(error, &class.members, "Fan-in");
+            writeln!(f, "{error:?}")?;
+        }
+
+        for &index in &targets.type_violations {
+            let class = &targets.listing[index];
+            let error = error!(
+                "Target {}:{} mixes claim forms {} — the combination is inside no allowed set",
+                class.target.file.display(),
+                class.target.line,
+                form_set_name_of(&class.form_set())
+            );
+            let error = with_related_annotations(error, &class.members, "Mixed forms");
+            writeln!(f, "{error:?}")?;
+        }
+
+        //= design/duplicates/spec.md#policy-source
+        //# Command-line options MUST NOT set or override any policy value of
+        //# this specification: the command line selects which checks run and
+        //# which requirement slice they evaluate, points at evidence
+        //# artifacts, and controls verbosity.
         if self.verbose {
-            for (category_name, duplicates) in &self.categories {
-                if !duplicates.some_overlap.is_empty() {
-                    for coverage in &duplicates.some_overlap {
-                        let mut overlap_info =
-                            info!("{} annotations with some overlap", category_name);
-                        match coverage.covering_annotations.split_first() {
-                            Some((first, rest)) => {
-                                overlap_info = with_annotation(overlap_info, first, "Some overlap");
-                                overlap_info =
-                                    with_related_annotations(overlap_info, rest, "Some overlap");
-                            }
-                            // Whitespace-only quote: trivially covered, no coverers. Render
-                            // the target rather than panicking on an empty slice.
-                            None => {
-                                overlap_info =
-                                    with_annotation(overlap_info, &coverage.target, "Some overlap");
-                            }
-                        }
-                        writeln!(f, "{overlap_info:?}")?;
+            // §2.5 — partial overlap: reported, never failed.
+            for coverage in &analysis.some_overlap {
+                let mut overlap_info = info!("Annotations with some overlap");
+                match coverage.covering_annotations.split_first() {
+                    Some((first, rest)) => {
+                        overlap_info = with_annotation(overlap_info, first, "Some overlap");
+                        overlap_info = with_related_annotations(overlap_info, rest, "Some overlap");
+                    }
+                    None => {
+                        overlap_info =
+                            with_annotation(overlap_info, &coverage.target, "Some overlap");
                     }
                 }
+                writeln!(f, "{overlap_info:?}")?;
+            }
 
-                if !duplicates.unique.is_empty() {
-                    let mut unique_info =
-                        info!("Unique {} annotations", category_name.to_lowercase());
-                    unique_info =
-                        with_related_annotations(unique_info, &duplicates.unique, "Unique");
+            for (form, annotations) in &analysis.unique {
+                if !annotations.is_empty() {
+                    let mut unique_info = info!("Unique {} annotations", form_name(*form));
+                    unique_info = with_related_annotations(unique_info, annotations, "Unique");
                     writeln!(f, "{unique_info:?}")?;
                 }
             }

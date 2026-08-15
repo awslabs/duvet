@@ -1,0 +1,87 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r cov.xml -f jacoco-xml"]
+report_output = false
+
+# Pins the check composition on the partial-waiver shape: the requirement is
+# "aaa bbb ccc"; an implementation quotes "aaa bbb"; an exception quotes
+# "bbb ccc"; a test quotes the whole requirement. The claim axis is silent —
+# three distinct quotes, no shared claim class. But coverage is positional,
+# so the test's covering set slurps in BOTH the implementation (overlap
+# "aaa bbb") and the exception (overlap "bbb ccc"), and the correlation then
+# demands execution of EVERY coverer under the test's witness. The
+# implementation's target line is a Hit; the exception's target line is a
+# Miss — so the correlation FAILS, naming the exception as the not-executed
+# coverer. An exception cannot silently absorb test evidence: any test that
+# spans exempted text drags the exception into correlation, and a waiver
+# has no execution to offer.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/impl.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# aaa bbb
+fn work() {}
+"""
+
+[[file]]
+path = "src/waiver.rs"
+contents = """
+//= spec.md#section-1
+//= type=exception
+//# bbb ccc
+fn not_done() {}
+"""
+
+[[file]]
+path = "src/impl_test.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# aaa bbb ccc
+fn check_work() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""
+
+# The witness saw the test execute (impl_test.rs:4 Hit) and the
+# implementation execute (impl.rs:4 Hit); the exception's target line is an
+# explicit Miss (waiver.rs:4, ci=0).
+[[file]]
+path = "cov.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="X">
+    <package name="src">
+        <sourcefile name="impl_test.rs">
+            <line nr="4" mi="0" ci="1" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="impl.rs">
+            <line nr="4" mi="0" ci="1" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="waiver.rs">
+            <line nr="4" mi="1" ci="0" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""

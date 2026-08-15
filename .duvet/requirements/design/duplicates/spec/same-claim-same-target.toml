@@ -1,0 +1,23 @@
+target = "design/duplicates/spec.md#same-claim-same-target"
+
+# 2.1 Same claim, same target
+#
+# Two annotations that share a claim and share a resolved target
+# MUST fail the duplicates check, regardless of their claim forms
+# and regardless of any configured cap.
+# ([Decision 2](decisions.md#decision-2);
+# [P-D1](#property-p-d1))
+# 
+# Same location is defined as same *resolved target*, never same
+# source line: stacked copies above one statement collapse to one
+# target and fail here; copies that resolve to different targets are
+# governed by the cap ([§2.2](#caps)).
+
+[[spec]]
+level = "MUST"
+quote = '''
+Two annotations that share a claim and share a resolved target
+MUST fail the duplicates check, regardless of their claim forms
+and regardless of any configured cap.
+'''
+

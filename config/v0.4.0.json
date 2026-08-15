@@ -10,6 +10,17 @@
         "null"
       ]
     },
+    "duplicates": {
+      "description": "Policy for the duplicates check — both coincidence axes\n(design/duplicates/spec.md §4).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DuplicatesSchema"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "report": {
       "$ref": "#/$defs/Report"
     },
@@ -58,6 +69,109 @@
         "todo",
         "implication"
       ]
+    },
+    "DuplicatesClaims": {
+      "description": "`[duplicates.claims]` — predicates over claim classes.",
+      "type": "object",
+      "properties": {
+        "implementation": {
+          "description": "Cap for `implementation` duplicate sets. Default 1. `citation` is\naccepted as an input alias and never emitted.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "test": {
+          "description": "Cap for `test` duplicate sets. Default 1.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "types": {
+          "description": "The claim-form family: allowed coexisting form sets, `+`-joined\n(e.g. `[\"exception+test\"]`). Unset = default family (no free form\nshares a claim).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "DuplicatesSchema": {
+      "description": "The `[duplicates]` configuration section (design/duplicates/spec.md §4.2).\nTwo namespaces mirror the two coincidence axes; every setting lives in\nexactly one namespace.",
+      "type": "object",
+      "properties": {
+        "claims": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DuplicatesClaims"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "targets": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DuplicatesTargets"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "DuplicatesTargets": {
+      "description": "`[duplicates.targets]` — predicates over target classes. Bounds are\nopt-in: unlimited when unset.",
+      "type": "object",
+      "properties": {
+        "count": {
+          "description": "Fan-in bound: maximum annotations per target.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "sections": {
+          "description": "Maximum distinct sections per target.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "types": {
+          "description": "The target-form family: allowed coexisting form sets, `+`-joined.\nUnset = default family (everything except `test`+`implementation`).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "HtmlReport": {
       "type": "object",

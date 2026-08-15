@@ -1,0 +1,99 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates", "duvet query --check duplicates --verbose"]
+report_output = false
+
+# Pins spec §3.1 / P-T1: the fan-in listing contains a target iff
+# two or more annotations resolve to it, with exact counts, per-form
+# breakdown, and distinct-section counts, sorted by count descending —
+# and its two presentations: the default report summarizes the listing
+# in one line (count of listed targets, maximum fan-in), --verbose
+# prints it in full. Both invocations run on one tree; both PASS.
+#
+# - `dense()` bears three implementation claims from two sections
+#   (count=3 sections=2)
+# - `pair()` bears two from one section (count=2 sections=1)
+# - `single()` bears one — it MUST NOT appear.
+#
+# Every quote is unique (the claim axis is deliberately clean), no bounds are
+# configured, and all forms are `implementation`, so the check PASSES: a
+# listing is not a gate.
+#= design/duplicates/spec.md#fan-in-listing
+#= type=test
+#% The duplicates check's analysis MUST include the fan-in listing:
+#% it MUST contain a target if and only if two or more annotations
+#% resolve to it.
+#
+#= design/duplicates/spec.md#fan-in-listing
+#= type=test
+#% Presentation is verbosity-tiered, mirroring
+#% [§2.5](#partial-overlap): when the listing is non-empty, the
+#% default report MUST summarize it in one line naming the number of
+#% listed targets and the maximum annotation count, and `--verbose`
+#% MUST print the listing in full.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+#= design/duplicates/spec.md#fan-in-listing
+#= type=test
+#% Each listed target MUST report its exact annotation count, its
+#% per-form breakdown, and its distinct-section count, and the
+#% listing MUST be sorted by annotation count descending.
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//# aaa
+
+//= spec.md#section-1
+//# bbb
+
+//= spec.md#section-2
+//# ccc
+pub fn dense() {}
+
+//= spec.md#section-1
+//# ddd
+
+//= spec.md#section-1
+//# eee
+pub fn pair() {}
+
+//= spec.md#section-2
+//# fff
+pub fn single() {}
+"""
+
+#= design/duplicates/spec.md#type-combinations
+#= type=test
+#% A target class bearing a single claim form
+#% MUST NOT fail this rule.
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa
+
+bbb
+
+ddd
+
+eee
+
+## Section 2
+
+ccc
+
+fff
+"""

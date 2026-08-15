@@ -1,0 +1,45 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query --check duplicates
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 2 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 2 references 
+
+Duplicates: ✗ FAIL
+
+  × One claim shared by forms implementation+exception — the combination is
+  │ inside no allowed set
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=exception
+ 3 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Shared claim
+ 4 │     pub fn waived_here() {}
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  One claim shared by forms implementation+exception — the combination is
+  │ inside no allowed set
+   ╭─[src/lib.rs:6:5]
+ 5 │     
+ 6 │ ╭─▶ //= spec.md#section-1
+ 7 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Shared claim
+ 8 │     pub fn implemented_here() {}
+   ╰────
+
+
+Overall: ✗ FAIL

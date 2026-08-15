@@ -1,0 +1,44 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query --check duplicates
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 2 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 2 references 
+
+Duplicates: ✗ FAIL
+
+  × Duplicate exception annotations: 2 copies exceed the cap of 1
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=exception
+ 3 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Duplicate
+ 4 │     pub fn first_waiver() {}
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Duplicate exception annotations: 2 copies exceed the cap of 1
+   ╭─[src/lib.rs:6:5]
+ 5 │     
+ 6 │ ╭─▶ //= spec.md#section-1
+ 7 │ │   //= type=exception
+ 8 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Duplicate
+ 9 │     pub fn second_waiver() {}
+   ╰────
+
+
+Overall: ✗ FAIL

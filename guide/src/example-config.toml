@@ -50,3 +50,35 @@ path = ".duvet/reports/report.html" # Sets the path to the report output
 [report.snapshot]
 enabled = true               # Enables the snapshot report
 path = ".duvet/snapshot.txt" # Sets the path to the report output
+
+# Policy for `duvet query --check duplicates`. Two namespaces mirror the two
+# ways annotations can collide: sharing a claim (same section, same quoted
+# requirement) or sharing a resolved target (several annotations on one
+# source position). The check runs with its defaults even when this whole
+# section is absent; every key below states its default.
+# Full semantics: design/duplicates/spec.md
+[duplicates.claims]
+test = 2                        # Max copies of one claim as `test` annotations
+                                # (default 1). Raise to admit multiple evidence
+                                # artifacts per requirement, e.g. a proof and a
+                                # property-based test
+implementation = 1              # Max copies as `implementation` annotations
+                                # (default 1). spec/todo/exception/implication
+                                # are always unique, with no knob
+types = ["exception+test"]      # Which type combinations may share one claim,
+                                # each entry a `+`-joined set. Default when
+                                # unset: any mix of test+implementation, and
+                                # the free forms (exception, implication,
+                                # todo) never share a claim
+
+[duplicates.targets]
+count = 5                       # Max annotations resolving to one source
+                                # position (default: unlimited — the fan-in
+                                # listing still shows every target bearing
+                                # more than one annotation)
+sections = 2                    # Max distinct spec sections claimed at one
+                                # position (default: unlimited)
+types = ["test+implementation"] # Which type combinations may share one
+                                # position. Default when unset: every
+                                # combination except test+implementation
+                                # together

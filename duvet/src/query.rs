@@ -154,6 +154,44 @@ This is helpful for quick on-off checking of a single test.
 "
     )]
     ExecutedCoverage,
+    #[value(
+        help = "Checks duplicate annotations on both coincidence axes: shared claims
+(same section, same quoted requirement) and shared targets (fan-in: several
+annotations resolving to one source position).
+
+The check FAILS when:
+- Two annotations with the same claim resolve to the same source position (any types)
+- A duplicate set (same-type copies of one claim) exceeds its configured cap
+- An annotation's claim is fully covered by other same-type annotations' claims
+- A free claim form (exception, implication, todo) shares a claim with any other annotation
+- A target exceeds a configured [duplicates.targets] count/sections bound (opt-in)
+- A target mixes claim forms outside the allowed combinations (by default,
+  test+implementation on one target fails)
+
+The default report summarizes fan-in in one line (targets bearing more than
+one annotation, maximum count); --verbose prints the full listing: every such
+target, count descending, with per-type breakdown and section count.
+
+Policy lives in checked-in configuration in .duvet/config.toml; the command
+line never changes a verdict. All keys, with their defaults:
+
+    [duplicates.claims]
+    test = 1            # max copies of one claim as test annotations
+    implementation = 1  # max copies as implementation annotations
+                        # (spec/todo/exception/implication: always unique)
+    types = [...]       # type combinations that may share one claim, each a
+                        # `+`-joined set, e.g. ['exception+test']. Unset:
+                        # test+implementation may mix; free forms never share
+
+    [duplicates.targets]
+    count = N           # max annotations per resolved target (unset: unlimited)
+    sections = N        # max distinct sections per target (unset: unlimited)
+    types = [...]       # type combinations that may share one target. Unset:
+                        # every combination except test+implementation
+
+Run with --verbose to print the effective policy of the current project.
+Semantics: design/duplicates/spec.md"
+    )]
     Duplicates,
 }
 

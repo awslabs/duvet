@@ -1,0 +1,27 @@
+target = "design/duplicates/spec.md#subsumption"
+
+# 2.3 Subsumption
+#
+# An annotation whose claim is fully covered
+# ([§1.3](#claim-coverage)) by the claims of same-form annotations
+# outside its own claim class MUST fail the duplicates check,
+# regardless of any configured cap.
+# 
+# Rationale, non-normative: this is the historical check's
+# union-coverage semantics, separated from the cap rule. A fragment
+# copy claims nothing its coverers do not already claim; no cap
+# admits it, because the motivating case for a raised cap (two
+# evidence artifacts for one requirement) is copies of the *same*
+# claim, not fragments of it. Together with [§2.2](#caps) at cap 1,
+# this rule reproduces the historical verdict
+# ([P-D3](#property-p-d3)).
+
+[[spec]]
+level = "MUST"
+quote = '''
+An annotation whose claim is fully covered
+([§1.3](#claim-coverage)) by the claims of same-form annotations
+outside its own claim class MUST fail the duplicates check,
+regardless of any configured cap.
+'''
+

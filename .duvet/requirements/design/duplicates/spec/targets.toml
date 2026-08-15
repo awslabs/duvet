@@ -1,0 +1,53 @@
+target = "design/duplicates/spec.md#targets"
+
+# 1.4 Resolved targets and target classes
+#
+# The **resolved target** of an annotation is the source position
+# its annotation block resolves to under the coverage model's target
+# resolution (the classified or the degraded path), identified as
+# the pair (source file, resolved line). Nothing in this
+# specification depends on *how* resolution happens, only that it is
+# a pure function of the checked-in tree.
+# 
+# A **target class** is a maximal set of annotations sharing a
+# resolved target.
+# 
+# An annotation declared in a requirement artifact (an extracted
+# requirement, or an exception or todo declared in TOML) is a
+# statement about a requirement, not a placement in source: it MUST
+# NOT participate in any target class. An annotation parsed from a
+# source comment participates normally, whatever the source file's
+# language or extension.
+# 
+# An annotation whose resolution yields no line (the forward walk
+# finds nothing below it to target) participates in no target
+# class. Claim-axis rules ([§2.2](#caps)–[§2.4](#exclusivity))
+# still apply to it. Environmental note, non-normative: code
+# formatters relocate comments, so same-target collisions can be
+# tooling artifacts; the rules over target classes are policy about
+# placement, not accusations of intent.
+# 
+# A defeated classification is an inability, not a judgment: no
+# trustworthy classification exists, so the file's annotation
+# targets are unknowable and a passing verdict over target classes
+# would be unsound. When any file bearing annotations defeats
+# classification, the duplicates check MUST fail the run, reporting
+# each located classifier issue, and render no verdict.
+
+[[spec]]
+level = "MUST"
+quote = '''
+An annotation declared in a requirement artifact (an extracted
+requirement, or an exception or todo declared in TOML) is a
+statement about a requirement, not a placement in source: it MUST
+NOT participate in any target class.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+When any file bearing annotations defeats
+classification, the duplicates check MUST fail the run, reporting
+each located classifier issue, and render no verdict.
+'''
+

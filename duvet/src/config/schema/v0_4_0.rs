@@ -28,6 +28,11 @@ pub struct Schema {
     #[serde(default, rename = "specification")]
     pub specifications: Arc<[Specification]>,
 
+    /// Policy for the duplicates check — both coincidence axes
+    /// (design/duplicates/spec.md §4).
+    #[serde(default)]
+    pub duplicates: Option<DuplicatesSchema>,
+
     #[serde(rename = "$schema")]
     _schema: Option<Arc<str>>,
 }
@@ -106,6 +111,123 @@ impl Schema {
     pub fn report(&self, _config: &Path, _root: &Path) -> config::Report {
         (&*self.report).into()
     }
+
+    /// Convert the raw `[duplicates]` section into the validated policy.
+    pub fn duplicates(&self) -> Result<config::DuplicatesPolicy> {
+        //= design/duplicates/spec.md#policy-source
+        //# Every policy value in this specification MUST be read from
+        //# checked-in configuration.
+        let Some(schema) = &self.duplicates else {
+            return Ok(config::DuplicatesPolicy::default());
+        };
+
+        let mut policy = config::DuplicatesPolicy::default();
+
+        if let Some(claims) = &schema.claims {
+            if let Some(test) = claims.test {
+                policy.claims.test = positive_cap(test, "duplicates.claims.test")?;
+            }
+            if let Some(implementation) = claims.implementation {
+                policy.claims.implementation =
+                    positive_cap(implementation, "duplicates.claims.implementation")?;
+            }
+            if let Some(types) = &claims.types {
+                policy.claims.types = Some(config::parse_form_family(types)?);
+            }
+        }
+
+        if let Some(targets) = &schema.targets {
+            if let Some(count) = targets.count {
+                policy.targets.count = Some(positive_bound(count, "duplicates.targets.count")?);
+            }
+            if let Some(sections) = targets.sections {
+                policy.targets.sections =
+                    Some(positive_bound(sections, "duplicates.targets.sections")?);
+            }
+            if let Some(types) = &targets.types {
+                policy.targets.types = Some(config::parse_form_family(types)?);
+            }
+        }
+
+        Ok(policy)
+    }
+}
+
+fn positive_cap(value: u32, key: &str) -> Result<u32> {
+    if value == 0 {
+        return Err(duvet_core::error!("{key} must be a positive integer"));
+    }
+    Ok(value)
+}
+
+fn positive_bound(value: u64, key: &str) -> Result<u64> {
+    if value == 0 {
+        return Err(duvet_core::error!("{key} must be a positive integer"));
+    }
+    Ok(value)
+}
+
+/// The `[duplicates]` configuration section (design/duplicates/spec.md §4.2).
+/// Two namespaces mirror the two coincidence axes; every setting lives in
+/// exactly one namespace.
+//
+//= design/duplicates/spec.md#schema-shared
+//# An unrecognized key under `[duplicates.claims]` or
+//# `[duplicates.targets]` MUST be a configuration error, so a typo
+//# never silently takes a default.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct DuplicatesSchema {
+    #[serde(default)]
+    pub claims: Option<DuplicatesClaims>,
+    #[serde(default)]
+    pub targets: Option<DuplicatesTargets>,
+}
+
+/// `[duplicates.claims]` — predicates over claim classes.
+//
+//= design/duplicates/spec.md#caps
+//# Caps MUST be configurable only for the priced forms.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct DuplicatesClaims {
+    /// Cap for `test` duplicate sets. Default 1.
+    //
+    //= design/duplicates/spec.md#schema-shared
+    //# Configuring a cap for a form other than `test` or
+    //# `implementation` MUST be a configuration error
+    //# ([§2.2](#caps)).
+    #[serde(default)]
+    pub test: Option<u32>,
+    /// Cap for `implementation` duplicate sets. Default 1. `citation` is
+    /// accepted as an input alias and never emitted.
+    #[serde(default, alias = "citation")]
+    pub implementation: Option<u32>,
+    /// The claim-form family: allowed coexisting form sets, `+`-joined
+    /// (e.g. `["exception+test"]`). Unset = default family (no free form
+    /// shares a claim).
+    #[serde(default)]
+    pub types: Option<Vec<String>>,
+}
+
+/// `[duplicates.targets]` — predicates over target classes. Bounds are
+/// opt-in: unlimited when unset.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct DuplicatesTargets {
+    /// Fan-in bound: maximum annotations per target.
+    #[serde(default)]
+    pub count: Option<u64>,
+    /// Maximum distinct sections per target.
+    #[serde(default)]
+    pub sections: Option<u64>,
+    /// The target-form family: allowed coexisting form sets, `+`-joined.
+    /// Unset = default family (everything except `test`+`implementation`).
+    #[serde(default)]
+    pub types: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -381,6 +503,27 @@ impl From<SpecificationFormat> for crate::specification::Format {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn duplicates_schema_rejects_unknown_and_unpriced_caps() {
+        //= design/duplicates/spec.md#schema-shared
+        //= type=test
+        //# An unrecognized key under `[duplicates.claims]` or
+        //# `[duplicates.targets]` MUST be a configuration error, so a typo
+        //# never silently takes a default.
+        assert!(serde_json::from_str::<DuplicatesSchema>(r#"{"claims":{"bogus":1}}"#).is_err());
+        assert!(serde_json::from_str::<DuplicatesSchema>(r#"{"targets":{"bogus":1}}"#).is_err());
+        //= design/duplicates/spec.md#schema-shared
+        //= type=test
+        //# Configuring a cap for a form other than `test` or
+        //# `implementation` MUST be a configuration error
+        //# ([§2.2](#caps)).
+        assert!(serde_json::from_str::<DuplicatesSchema>(r#"{"claims":{"exception":1}}"#).is_err());
+        //= design/duplicates/spec.md#caps
+        //= type=test
+        //# Caps MUST be configurable only for the priced forms.
+        assert!(serde_json::from_str::<DuplicatesSchema>(r#"{"claims":{"todo":1}}"#).is_err());
+    }
 
     #[test]
     fn schema_test() {

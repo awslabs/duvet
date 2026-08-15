@@ -1,0 +1,53 @@
+target = "design/duplicates/spec.md#caps"
+
+# 2.2 Multiplicity caps
+#
+# Each claim form has a **cap**: a positive integer, default 1
+# ([§4.3](#defaults)).
+# 
+# A duplicate set whose size exceeds its form's cap MUST fail the
+# duplicates check.
+# ([Decision 1](decisions.md#decision-1))
+# 
+# Caps MUST be configurable only for the priced forms. The caps of
+# `spec`, `todo`, `exception`, and `implication` are fixed at 1 and
+# MUST NOT be configurable.
+# ([Decision 3](decisions.md#decision-3);
+# [P-D2](#property-p-d2))
+# 
+# A duplicate set within its cap MUST pass this rule
+# ([Decision 5](decisions.md#decision-5)), and when its size exceeds
+# one it MUST be reported with its size and every member's location,
+# so multiplicity is always surfaced, never silent.
+# ([Decision 1](decisions.md#decision-1))
+
+[[spec]]
+level = "MUST"
+quote = '''
+A duplicate set whose size exceeds its form's cap MUST fail the
+duplicates check.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Caps MUST be configurable only for the priced forms.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The caps of
+`spec`, `todo`, `exception`, and `implication` are fixed at 1 and
+MUST NOT be configurable.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A duplicate set within its cap MUST pass this rule
+([Decision 5](decisions.md#decision-5)), and when its size exceeds
+one it MUST be reported with its size and every member's location,
+so multiplicity is always surfaced, never silent.
+'''
+

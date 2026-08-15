@@ -1,0 +1,37 @@
+target = "design/duplicates/spec.md#partial-overlap"
+
+# 2.5 Partial overlap
+#
+# Annotations whose quotes overlap without full coverage in either
+# direction (the `some_overlap` population) are outside this
+# specification's model. Three layers, separately stated:
+# 
+# Verdict: a partial overlap MUST NOT fail the duplicates check,
+# matching the historical check.
+# 
+# Content: the check MUST identify every partial-overlap pair in
+# its analysis.
+# 
+# Presentation, non-normative note: display of the analysis
+# population is verbosity-tiered — the default report omits it,
+# `--verbose` shows it; verbosity never changes the verdict
+# ([§4.1](#policy-source)). This is deliberately weaker than
+# [§2.2](#caps)'s unconditional surfacing: an admitted duplicate is
+# a standing liability kept in view at every verbosity
+# ([Decision 1](decisions.md#decision-1)); a partial overlap is a
+# model-boundary disclosure, not a liability the check prices.
+
+[[spec]]
+level = "MUST"
+quote = '''
+Verdict: a partial overlap MUST NOT fail the duplicates check,
+matching the historical check.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+Content: the check MUST identify every partial-overlap pair in
+its analysis.
+'''
+

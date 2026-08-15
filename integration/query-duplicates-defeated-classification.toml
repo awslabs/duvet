@@ -1,0 +1,48 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates"]
+report_output = false
+
+# A file with a selected classifier (Java) that the classifier cannot parse:
+# the syntax error defeats classification, so the file's annotation targets
+# are unknowable. The run must fail with the located classifier issue rather
+# than silently exempt the file from the target axis — a passing verdict
+# that never judged the file would be unsound.
+#
+#= design/duplicates/spec.md#targets
+#= type=test
+#% When any file bearing annotations defeats
+#% classification, the duplicates check MUST fail the run, reporting
+#% each located classifier issue, and render no verdict.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/Broken.java"
+contents = """
+class Broken {
+    //= spec.md#section-1
+    //= type=implementation
+    //# The system MUST do the thing.
+    void method( {
+    }
+}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+The system MUST do the thing.
+"""

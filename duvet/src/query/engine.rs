@@ -13,9 +13,8 @@ use super::{
     coverage::ExecutionStatus,
     requirements::RequirementMode,
     result::{
-        AnnotationCoverage, CheckResult, CoverageResult, CoveredTestAnnotation, Duplicates,
-        DuplicatesResult, ImplementationResult, NotExecutedAnnotation, QueryResult, QueryStatus,
-        TestResult,
+        CheckResult, CoverageResult, CoveredTestAnnotation, DuplicatesResult, ImplementationResult,
+        NotExecutedAnnotation, QueryResult, QueryStatus, TestResult,
     },
     CheckType,
 };
@@ -30,7 +29,7 @@ use crate::{
 use duvet_core::{diagnostic::IntoDiagnostic, progress};
 use glob::glob;
 use std::{
-    collections::{BTreeSet, HashMap, HashSet},
+    collections::{BTreeSet, HashSet},
     sync::Arc,
 };
 
@@ -121,6 +120,9 @@ pub struct ProjectData {
     >,
     pub project_sources: Arc<HashSet<SourceFile>>,
     pub annotations: AnnotationSet,
+    /// Checked-in policy for the duplicates check — both coincidence axes
+    /// (design/duplicates/spec.md §4). Defaults apply when no config exists.
+    pub duplicates_policy: crate::config::DuplicatesPolicy,
 }
 
 async fn load_project_data(verbose: bool) -> Result<ProjectData> {
@@ -128,6 +130,10 @@ async fn load_project_data(verbose: bool) -> Result<ProjectData> {
 
     let config = project.config().await?;
     let config = config.as_ref();
+
+    let duplicates_policy = config
+        .map(|config| config.duplicates.clone())
+        .unwrap_or_default();
 
     if let Some(config) = config {
         let progress = progress!("Extracting requirements");
@@ -167,6 +173,7 @@ async fn load_project_data(verbose: bool) -> Result<ProjectData> {
         specifications,
         project_sources,
         annotations,
+        duplicates_policy,
     })
 }
 
@@ -390,12 +397,12 @@ async fn execute_coverage_check(
     //# the coverage model MUST NOT score annotations against the collapsed scope tree;
     //# it MUST surface the file as a defeated classification and escalate
     //# (see [Classifier Selection and Dispatch](#dispatch)).
-    //= design/query/coverage-model-spec.md#trust-taxonomy
-    //= type=implementation
-    //# duvet MUST NOT silently substitute the coarse model or score against
-    //# the collapsed scope tree; it MUST escalate, reporting each located issue.
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=implementation
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
         let defeated = collect_defeated_issues(&execution_data_maps);
         for (path, issues) in &defeated {
             let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
@@ -649,119 +656,45 @@ async fn execute_coverage_check(
     }))
 }
 
+/// The duplicates check (design/duplicates/spec.md §2–§3): predicates over
+/// both coincidence axes — claim classes (same-target stacking, multiplicity
+/// caps, subsumption, free-form exclusivity) and target classes (fan-in
+/// listing, opt-in bounds, form combinations). Structure only: evidence billing of duplicate
+/// copies is the coverage check's own contract, enforced whether or not this
+/// check runs (decisions.md Decision 5).
 async fn execute_duplicates(
     project_data: &ProjectData,
     mode: &RequirementMode,
     verbose: bool,
 ) -> Result<CheckResult> {
-    // Unlike the coverage-fold checks, duplicates classifies each type against
-    // *itself*, so there is no requirement/coverer split and no coverage mosaic
-    // to dismantle: the worst a spec-slice filter can do here is not *show* you a
-    // duplicate that lies outside the slice — it can never flip a verdict. So the
-    // filter is applied uniformly, which is also what "only look at this slice"
-    // means for a duplicate report.
-    let annotations_by_type: HashMap<AnnotationType, Vec<Arc<Annotation>>> = project_data
-        .annotations
-        .iter()
-        .filter(|annotation| mode.in_scope(annotation))
-        .fold(
-            HashMap::new(),
-            |mut acc: HashMap<AnnotationType, Vec<Arc<Annotation>>>, annotation| {
-                acc.entry(annotation.anno)
-                    .or_default()
-                    .push(annotation.clone());
-                acc
-            },
-        );
+    // The spec-slice filter selects the input set; it does not change the
+    // rules. Claim classes never span sections, so on the claim axis the
+    // worst a slice can do is not *show* you a class that lies outside it.
+    // Target classes CAN span sections, so a slice can hide part of one —
+    // dropping a fan-in count below a configured bound, or reducing a
+    // mixed-form target to single-form — and flip that invocation's verdict.
+    // Selection is not policy (spec.md P-S0): tree-wide gates run unsliced.
+    let (analysis, errors) =
+        super::checks::duplicates::analyze_duplicates(project_data, mode).await?;
 
-    // Create futures for concurrent classification by annotation type
-    let classification_futures: Vec<_> = annotations_by_type
-        .iter()
-        .map(|(annotation_type, annotations)| {
-            let annotation_type = *annotation_type;
-            let annotations = annotations.clone();
-            async move {
-                let classified_coverage = classify_annotation_coverage(
-                    project_data,
-                    &annotations,
-                    &annotations,
-                    &Vec::new(),
-                )
-                .await?;
-                Ok::<_, crate::Error>((annotation_type, classified_coverage))
-            }
-        })
-        .collect();
+    // Any collected quote-location error fails the run, but only after all
+    // were gathered — the user sees every problem in one pass.
+    if !errors.is_empty() {
+        return Err(errors.into());
+    }
 
-    let classification_results = futures::future::try_join_all(classification_futures).await?;
-    let classified_annotations_by_type: HashMap<AnnotationType, ClassifiedCoverage> =
-        classification_results.into_iter().collect();
-
-    let mut duplicates_by_type: HashMap<AnnotationType, Duplicates> =
-        classified_annotations_by_type
-            .into_iter()
-            .map(|(annotation_type, classified)| {
-                (annotation_type, convert_to_duplicates(classified))
-            })
-            .collect();
-
-    let has_duplicates = duplicates_by_type
-        .iter()
-        .any(|(_type, by_type)| !by_type.duplicates.is_empty());
-
-    let status = if has_duplicates {
-        QueryStatus::Fail
-    } else {
+    let status = if analysis.passes() {
         QueryStatus::Pass
+    } else {
+        QueryStatus::Fail
     };
 
-    // Build categories in a stable order
-    let category_order: &[(&str, AnnotationType)] = &[
-        ("Spec", AnnotationType::Spec),
-        ("Implementation", AnnotationType::Citation),
-        ("Test", AnnotationType::Test),
-        ("Exception", AnnotationType::Exception),
-        ("Todo", AnnotationType::Todo),
-        ("Implication", AnnotationType::Implication),
-    ];
-    let categories: Vec<(&'static str, Duplicates)> = category_order
-        .iter()
-        .map(|(name, anno_type)| {
-            (
-                *name,
-                duplicates_by_type
-                    .remove(anno_type)
-                    .unwrap_or_else(empty_duplicates),
-            )
-        })
-        .collect();
-
-    Ok(CheckResult::Duplicates(DuplicatesResult {
+    Ok(CheckResult::Duplicates(Box::new(DuplicatesResult {
         status,
-        categories,
+        analysis,
+        policy: project_data.duplicates_policy.clone(),
         verbose,
-    }))
-}
-
-fn convert_to_duplicates(classified: ClassifiedCoverage) -> Duplicates {
-    // This assumes that you used classify_annotation_coverage
-    // where annotations == maybe_satisfied_covering_annotations
-    // This means that mixed_coverage == [] && pending_coverage == []
-
-    let duplicates = deduplicate_annotation_coverage(classified.complete_coverage);
-    Duplicates {
-        duplicates,
-        some_overlap: classified.incomplete_coverage,
-        unique: classified.no_coverage,
-    }
-}
-
-fn empty_duplicates() -> Duplicates {
-    Duplicates {
-        duplicates: Vec::new(),
-        some_overlap: Vec::new(),
-        unique: Vec::new(),
-    }
+    })))
 }
 
 /// Fold an annotation's execution status across the given coverage reports
@@ -820,32 +753,6 @@ fn collect_defeated_issues(
         }
     }
     defeated
-}
-
-fn deduplicate_annotation_coverage(
-    coverage_list: Vec<AnnotationCoverage>,
-) -> Vec<AnnotationCoverage> {
-    let mut seen_annotations = HashSet::new();
-    let mut result = Vec::new();
-
-    for coverage in coverage_list {
-        if !seen_annotations.contains(&coverage.target) {
-            // This target hasn't been seen yet, so keep this coverage.
-            //
-            // Only the *target* is marked seen — not its covering annotations.
-            // A covering annotation can independently be the target of another
-            // duplicate relationship (e.g. two identical annotations both cover
-            // a third with a partial quote, but are also exact duplicates of
-            // each other). Marking coverers seen dropped that second
-            // relationship, hiding real duplicate pairs from the report.
-            seen_annotations.insert(coverage.target.clone());
-
-            result.push(coverage);
-        }
-        // else: target already seen, skip this duplicate coverage
-    }
-
-    result
 }
 
 fn expand_coverage_globs(reports: &[String]) -> Result<Vec<String>> {
@@ -915,6 +822,10 @@ mod tests {
     fn defeated_classification_is_surfaced_not_scored() {
         let ann = annotation("a/broken.rs");
         let mut map = ExecutionDataMap::default();
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=test
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree;
         map.insert(
             std::path::PathBuf::from("a/broken.rs"),
             FileExecutionData::DefeatedClassification {
@@ -930,10 +841,6 @@ mod tests {
         //# the coverage model MUST NOT score annotations against the collapsed scope tree;
         //# it MUST surface the file as a defeated classification and escalate
         //# (see [Classifier Selection and Dispatch](#dispatch)).
-        //= design/query/coverage-model-spec.md#trust-taxonomy
-        //= type=test
-        //# duvet MUST NOT silently substitute the coarse model or score against
-        //# the collapsed scope tree;
         assert!(matches!(
             executed_status_for(&ann, &map),
             ExecutionStatus::Unknown { line_number: 7 }

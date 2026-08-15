@@ -1,0 +1,45 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates"]
+report_output = false
+
+# Pins spec §2.2 / P-D2 (Decision 3): free-form caps are fixed at 1 with no
+# knob. Two identical `exception` claims at distinct targets FAIL — a
+# declaration of absence has nothing a coverage check could ever
+# disambiguate, so no configuration admits the copy. (The [duplicates.claims]
+# schema has no `exception` key at all; writing one is a configuration
+# error.)
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=exception
+//# aaa bbb ccc
+pub fn first_waiver() {}
+
+//= spec.md#section-1
+//= type=exception
+//# aaa bbb ccc
+pub fn second_waiver() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""

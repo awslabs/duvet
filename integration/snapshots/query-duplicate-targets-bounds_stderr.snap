@@ -1,0 +1,226 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query --check duplicates --verbose
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 5 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 2 sections 
+    Matching references
+     Matched 5 references 
+
+Duplicates: ✗ FAIL
+
+Effective policy ([duplicates] in .duvet/config.toml; semantics: design/duplicates/spec.md §4):
+  claims.test = 1 (default)
+  claims.implementation = 1 (default)
+  claims.types = no free form shares a claim (default)
+  targets.count = 2
+  targets.sections = 1
+  targets.types = any combination except test+implementation (default)
+
+Targets bearing more than one annotation (count descending):
+  src/lib.rs:9 count=3 sections=2 forms=implementation:3
+  ☞ Annotations resolving to src/lib.rs:9
+
+Advice: 
+  ☞ Related context for:
+  │  Annotations resolving to src/lib.rs:9
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ ├─▶ //# aaa
+   · ╰──── Resolves here
+ 3 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Annotations resolving to src/lib.rs:9
+   ╭─[src/lib.rs:4:5]
+ 3 │     
+ 4 │ ╭─▶ //= spec.md#section-1
+ 5 │ ├─▶ //# bbb
+   · ╰──── Resolves here
+ 6 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Annotations resolving to src/lib.rs:9
+   ╭─[src/lib.rs:7:5]
+ 6 │     
+ 7 │ ╭─▶ //= spec.md#section-2
+ 8 │ ├─▶ //# ccc
+   · ╰──── Resolves here
+ 9 │     pub fn dumped() {}
+   ╰────
+
+  src/lib.rs:16 count=2 sections=1 forms=implementation:2
+  ☞ Annotations resolving to src/lib.rs:16
+
+Advice: 
+  ☞ Related context for:
+  │  Annotations resolving to src/lib.rs:16
+    ╭─[src/lib.rs:11:5]
+ 10 │     
+ 11 │ ╭─▶ //= spec.md#section-1
+ 12 │ ├─▶ //# ddd
+    · ╰──── Resolves here
+ 13 │     
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Annotations resolving to src/lib.rs:16
+    ╭─[src/lib.rs:14:5]
+ 13 │     
+ 14 │ ╭─▶ //= spec.md#section-1
+ 15 │ ├─▶ //# eee
+    · ╰──── Resolves here
+ 16 │     pub fn fine() {}
+    ╰────
+
+
+  × Target src/lib.rs:9 bears 3 annotations, exceeding the configured count
+  │ bound
+
+Advice: 
+  ☞ Related context for:
+  │  Target src/lib.rs:9 bears 3 annotations, exceeding the configured count
+  │ bound
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ ├─▶ //# aaa
+   · ╰──── Fan-in
+ 3 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Target src/lib.rs:9 bears 3 annotations, exceeding the configured count
+  │ bound
+   ╭─[src/lib.rs:4:5]
+ 3 │     
+ 4 │ ╭─▶ //= spec.md#section-1
+ 5 │ ├─▶ //# bbb
+   · ╰──── Fan-in
+ 6 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Target src/lib.rs:9 bears 3 annotations, exceeding the configured count
+  │ bound
+   ╭─[src/lib.rs:7:5]
+ 6 │     
+ 7 │ ╭─▶ //= spec.md#section-2
+ 8 │ ├─▶ //# ccc
+   · ╰──── Fan-in
+ 9 │     pub fn dumped() {}
+   ╰────
+
+  × Target src/lib.rs:9 bears annotations from 2 distinct sections, exceeding
+  │ the configured sections bound
+
+Advice: 
+  ☞ Related context for:
+  │  Target src/lib.rs:9 bears annotations from 2 distinct sections, exceeding
+  │ the configured sections bound
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ ├─▶ //# aaa
+   · ╰──── Fan-in
+ 3 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Target src/lib.rs:9 bears annotations from 2 distinct sections, exceeding
+  │ the configured sections bound
+   ╭─[src/lib.rs:4:5]
+ 3 │     
+ 4 │ ╭─▶ //= spec.md#section-1
+ 5 │ ├─▶ //# bbb
+   · ╰──── Fan-in
+ 6 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Target src/lib.rs:9 bears annotations from 2 distinct sections, exceeding
+  │ the configured sections bound
+   ╭─[src/lib.rs:7:5]
+ 6 │     
+ 7 │ ╭─▶ //= spec.md#section-2
+ 8 │ ├─▶ //# ccc
+   · ╰──── Fan-in
+ 9 │     pub fn dumped() {}
+   ╰────
+
+  ☞ Unique implementation annotations
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ ├─▶ //# aaa
+   · ╰──── Unique
+ 3 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+   ╭─[src/lib.rs:4:5]
+ 3 │     
+ 4 │ ╭─▶ //= spec.md#section-1
+ 5 │ ├─▶ //# bbb
+   · ╰──── Unique
+ 6 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+   ╭─[src/lib.rs:7:5]
+ 6 │     
+ 7 │ ╭─▶ //= spec.md#section-2
+ 8 │ ├─▶ //# ccc
+   · ╰──── Unique
+ 9 │     pub fn dumped() {}
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+    ╭─[src/lib.rs:11:5]
+ 10 │     
+ 11 │ ╭─▶ //= spec.md#section-1
+ 12 │ ├─▶ //# ddd
+    · ╰──── Unique
+ 13 │     
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Unique implementation annotations
+    ╭─[src/lib.rs:14:5]
+ 13 │     
+ 14 │ ╭─▶ //= spec.md#section-1
+ 15 │ ├─▶ //# eee
+    · ╰──── Unique
+ 16 │     pub fn fine() {}
+    ╰────
+
+
+Overall: ✗ FAIL

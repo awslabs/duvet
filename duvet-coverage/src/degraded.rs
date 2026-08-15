@@ -117,21 +117,12 @@ fn coverage_status_at(coverage: &CoverageReport, line: u64) -> (result: Option<C
 // Meta-requirement about this file's proofs: "MUST be proven with Verus" is
 // implemented by the D-property proofs, anchored here at the first proof site
 // (this fn's `ensures` carry D1/D2; D3/D4 are the lemmas below), checked by
-// CI's verify job.
+// CI's verify job. The D1/D2 property implications live at their enforcing
+// lines inside the fn bodies below.
 //= design/query/coverage-model-spec.md#degraded-properties
 //= type=implementation
 //# These properties MUST be proven with Verus for the degraded path,
 //# alongside the Section 5 properties for the classified path.
-//= design/query/coverage-model-spec.md#property-d1-direct-observation
-//= type=implication
-//# The implementation MUST prove that the degraded status is a direct
-//# observation of the target line's own coverage, never an inference propagated
-//# from another line.
-//= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
-//= type=implication
-//# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
-//# status resolves a target strictly below the annotation
-//# (`target > annotation.end_line`).
 pub fn degraded_execution_status(
     annotation: &AnnotationSpan,
     classifications: &[Option<LineClass>],
@@ -163,6 +154,11 @@ pub fn degraded_execution_status(
             &&& coverage@[t.unwrap()] == CoverageStatus::Miss
         },
 {
+    //= design/query/coverage-model-spec.md#property-d2-degraded-target-bounds
+    //= type=implication
+    //# The implementation MUST prove that any `Executed` or `NotExecuted` degraded
+    //# status resolves a target strictly below the annotation
+    //# (`target > annotation.end_line`).
     let target = annotation_target(annotation, classifications, file_length);
     match target {
         None => {
@@ -180,6 +176,11 @@ pub fn degraded_execution_status(
                 assert(annotation_target_spec(annotation, classifications, file_length)
                     == Some(t.line_number));
             }
+            //= design/query/coverage-model-spec.md#property-d1-direct-observation
+            //= type=implication
+            //# The implementation MUST prove that the degraded status is a direct
+            //# observation of the target line's own coverage, never an inference propagated
+            //# from another line.
             match coverage_status_at(coverage, t.line_number) {
                 Some(CoverageStatus::Hit) => ExecutionStatus::Executed,
                 Some(CoverageStatus::Miss) => ExecutionStatus::NotExecuted,

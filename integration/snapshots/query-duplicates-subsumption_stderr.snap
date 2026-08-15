@@ -1,0 +1,62 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query --check duplicates --verbose
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 2 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 2 references 
+
+Duplicates: ✗ FAIL
+
+Effective policy ([duplicates] in .duvet/config.toml; semantics: design/duplicates/spec.md §4):
+  claims.test = 2
+  claims.implementation = 1 (default)
+  claims.types = no free form shares a claim (default)
+  targets.count = unlimited (default)
+  targets.sections = unlimited (default)
+  targets.types = any combination except test+implementation (default)
+
+  × Subsumed annotation: its claim is fully covered by other annotations
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa
+   · ╰──── Subsumed
+ 4 │     pub fn fragment() {}
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Subsumed annotation: its claim is fully covered by other annotations
+   ╭─[src/lib.rs:6:5]
+ 5 │     
+ 6 │ ╭─▶ //= spec.md#section-1
+ 7 │ │   //= type=test
+ 8 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Covered by
+ 9 │     pub fn full_claim() {}
+   ╰────
+
+  ☞ Annotations with some overlap
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa
+   · ╰──── Some overlap
+ 4 │     pub fn fragment() {}
+   ╰────
+
+
+Overall: ✗ FAIL

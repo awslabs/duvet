@@ -1,0 +1,46 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates"]
+report_output = false
+
+# Pins spec §2.4's empty-family consequence: `types = []` admits no
+# multi-form set, so a `test` and an `implementation` sharing one claim —
+# admitted by the default family as the system itself — FAILS here. The
+# family is the whole rule; there is no free-form precondition carving
+# priced forms out of its range.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+
+[duplicates.claims]
+types = []
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# aaa bbb ccc
+pub fn tested_there() {}
+
+//= spec.md#section-1
+//# aaa bbb ccc
+pub fn implemented_here() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""

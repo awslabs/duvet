@@ -1,0 +1,49 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates"]
+report_output = false
+
+# The restoration path for spec §2.4's tightening (Decision 14): the same
+# input as query-duplicates-exclusivity, with the coexistence admitted by one
+# reviewed configuration line — a rule-level policy declaration, never a
+# per-instance waiver comment. PASSES.
+#= design/duplicates/spec.md#policy-source
+#= type=test
+#% Every policy value in this specification MUST be read from
+#% checked-in configuration.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+
+[duplicates.claims]
+types = ["exception+implementation"]
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=exception
+//# aaa bbb ccc
+pub fn waived_here() {}
+
+//= spec.md#section-1
+//# aaa bbb ccc
+pub fn implemented_here() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""

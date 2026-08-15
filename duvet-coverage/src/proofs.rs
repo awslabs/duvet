@@ -4,9 +4,6 @@
 //! Correctness properties for the coverage model (spec Section 5).
 
 //= design/query/coverage-model-spec.md#correctness-properties
-//# These properties MUST be proven with Verus.
-
-//= design/query/coverage-model-spec.md#correctness-properties
 //= type=implication
 //# The Verus proof files MUST carry
 //# duvet annotations linking each `proof fn` back to the corresponding property
@@ -168,11 +165,6 @@ proof fn lemma_no_cross_scope_leakage(
     }
 }
 
-//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-//= type=implication
-//# The implementation MUST prove that for any two lines A and B where A is in
-//# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-//# S2 is not a parent of S1:
 /// Property 2, composed end-to-end over the *public* `is_annotation_executed`.
 ///
 /// This is the P5 treatment applied to Property 2: it calls the real public
@@ -297,10 +289,6 @@ proof fn lemma_conservative_fallback(
     assert(path_scope_idx != scope_idx);
 }
 
-//= design/query/coverage-model-spec.md#property-3-conservative-fallback
-//= type=implication
-//# The implementation MUST prove that no backward propagation occurs WITHIN a
-//# scope that contains a `NonLinearControl` line.
 /// Property 3, composed end-to-end over the *public* `is_annotation_executed`.
 ///
 /// Stated over the value a caller receives: if an annotation is Executed and its
@@ -479,10 +467,6 @@ proof fn lemma_validly_in_exec_set_monotone(
     }
 }
 
-//= design/query/coverage-model-spec.md#property-4-monotonicity
-//= type=implication
-//# The implementation MUST prove that given two coverage reports E1 and E2 where
-//# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 /// Property 4, composed end-to-end over the *public* `is_annotation_executed`.
 ///
 /// The observable form of monotonicity: running the same annotation against a
@@ -733,9 +717,6 @@ mod tests {
         lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
     }
 
-    //= design/query/coverage-model-spec.md#correctness-properties
-    //= type=test
-    //# These properties MUST be proven with Verus.
     //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
     //= type=test
     //# The implementation MUST prove that for any two lines A and B where A is in
@@ -784,6 +765,13 @@ mod tests {
     /// 3, a Declaration) is `Executed` via backward propagation from the hit at
     /// line 4, sits inside scope [1,5], and is itself not a coverage hit. Without
     /// it the `!directly_hit` antecedent could be vacuously empty.
+    //
+    // The proof side of this quote is the Verus proof fns in this file
+    // (checked by CI's verify job); this test demonstrates the proven model
+    // on a concrete input.
+    //= design/query/coverage-model-spec.md#correctness-properties
+    //= type=test
+    //# These properties MUST be proven with Verus.
     #[test]
     fn executed_via_propagation_is_reachable() {
         use crate::annotation_execution::is_annotation_executed;

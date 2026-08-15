@@ -1,0 +1,54 @@
+target = "design/duplicates/spec.md#exclusivity"
+
+# 2.4 Claim-form family
+#
+# A claim class whose non-`spec` members bear two or more distinct
+# claim forms MUST fail the duplicates check unless the set of
+# non-`spec` claim forms is admitted by the configured claim-form
+# family ([§4.2](#schema-claims)). A claim class whose non-`spec`
+# members bear a single claim form MUST NOT fail this rule: copies
+# of one form are the caps' business ([§2.2](#caps)).
+# ([Decision 4](decisions.md#decision-4);
+# [P-D5](#property-p-d5))
+# 
+# The default claim-form family admits exactly the form sets
+# containing no free form ([§4.3](#defaults)) — any combination of
+# `test` and `implementation` members may share a claim, each billed
+# on its own; a free form never shares a claim with another form.
+# An empty family (`types = []`) admits no multi-form set: it
+# forbids all multi-form claim sharing, `test` + `implementation`
+# included. Derived verdicts under the default family, for the
+# record:
+# 
+# | Coexistence (same claim) | Verdict |
+# |---|---|
+# | `exception` + `test` | fail — contradiction |
+# | `exception` + `implementation` | fail — contradiction |
+# | `implication` + `implementation` | fail — silent unbilling |
+# | `implication` + `test` | fail — incompatible claims about R's nature |
+# | `todo` + `implementation` | fail — the todo is replaced, not joined |
+# | `test` + `implementation` (different targets) | pass — the system itself |
+# 
+# This rule is a deliberate tightening of released behavior
+# ([Decision 14](decisions.md#decision-14)): cross-form coexistence
+# on one requirement silently passes the historical check. The
+# restoration path is a configuration line ([§4.2](#schema-claims)),
+# never a comment.
+
+[[spec]]
+level = "MUST"
+quote = '''
+A claim class whose non-`spec` members bear two or more distinct
+claim forms MUST fail the duplicates check unless the set of
+non-`spec` claim forms is admitted by the configured claim-form
+family ([§4.2](#schema-claims)).
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+A claim class whose non-`spec`
+members bear a single claim form MUST NOT fail this rule: copies
+of one form are the caps' business ([§2.2](#caps)).
+'''
+

@@ -13,6 +13,12 @@
 # implementing sites; when adding citations to a new file there, add it
 # here. Once that parser issue is fixed, `duvet/**` can be scanned safely.
 # See https://github.com/awslabs/duvet/issues/226
+#
+# The duplicates-check files (duplicates.rs, config.rs, v0_4_0.rs,
+# result.rs) were each inspected for string literals whose lines begin
+# with the `//=` meta prefix (the tokenizer matches only at trimmed line
+# start — duvet/src/comment/tokenizer.rs) and carry none. Re-inspect
+# before widening any of these patterns.
 
 [[source]]
 pattern = "duvet-coverage/**/*.rs"
@@ -23,8 +29,54 @@ pattern = "duvet/src/query/engine.rs"
 [[source]]
 pattern = "duvet/src/report.rs"
 
+[[source]]
+pattern = "duvet/src/query/checks/duplicates.rs"
+
+[[source]]
+pattern = "duvet/src/config.rs"
+
+[[source]]
+pattern = "duvet/src/config/schema/v0_4_0.rs"
+
+[[source]]
+pattern = "duvet/src/query/result.rs"
+
+# The duplicates fixtures carry `#=`-style test citations against
+# design/duplicates/spec.md: each fixture is the test artifact that pins the
+# rule it cites. The `#=`/`#%` style means the Rust-style `//=` annotation
+# text embedded in fixture `contents` strings is never ingested.
+[[source]]
+pattern = "integration/*.toml"
+comment-style = { meta = "#=", content = "#%" }
+
+# The CI verify step is the artifact that enforces "These properties MUST be
+# proven with Verus" — the annotation lives on the step, not on a file header
+# (position must discriminate; design/duplicates/spec.md §3). The #=/#% style
+# keeps ordinary yaml comments from ever being ingested as quote lines.
+[[source]]
+pattern = ".github/workflows/ci.yml"
+comment-style = { meta = "#=", content = "#%" }
+
+# Duplicates policy (design/duplicates/spec.md §4). Every value here was
+# settled by running the check on this tree and challenging each collision:
+#
+# - claims caps: defaults (1). One claim, one implementation citation — on
+#   the innermost lemma. The composed end-to-end lemma over the public API
+#   is the *proof* that the core connects to the public surface; the proof
+#   carries the connection, not a second annotation. The test citation
+#   sits at the outermost surface. Innermost implementation, outermost
+#   test, proof in between.
+# - targets.count = 1: every fan-in site on this tree dissolved under more
+#   targeted placement (D1/D2 onto their enforcing lines, the Verus-proving
+#   claim onto the CI step that runs the prover). One target, one annotation.
+[duplicates.targets]
+count = 1
+
 [[specification]]
 source = "design/query/coverage-model-spec.md"
+
+[[specification]]
+source = "design/duplicates/spec.md"
 
 [report.html]
 enabled = true

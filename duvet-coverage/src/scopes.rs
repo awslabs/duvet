@@ -421,12 +421,6 @@ pub open spec fn scope_stream_balanced_spec(e: Seq<ScopeEvent>) -> bool {
 //# matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
 //# no `ScopeClose` occurs with no open to match,
 //# and no `ScopeOpen` is left unmatched at end of file.
-//= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
-//= type=implementation
-//# The implementation MUST prove that the balance detector returns balanced if and
-//# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
-//# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
-//# end of file.
 pub fn scope_imbalance_site(events: &[ScopeEvent]) -> (result: Option<u64>)
     // The `ensures` below IS the verification of Property 11 (the iff with the
     // depth-counter spec), machine-checked by CI's verify job — so the test
@@ -445,6 +439,12 @@ pub fn scope_imbalance_site(events: &[ScopeEvent]) -> (result: Option<u64>)
     let mut last_open_line: u64 = 0;
     let mut i: usize = 0;
 
+    //= design/query/coverage-model-spec.md#property-11-scope-stream-balance-detection
+    //= type=implementation
+    //# The implementation MUST prove that the balance detector returns balanced if and
+    //# only if the `ScopeOpen`/`ScopeClose` stream over the classified lines is balanced:
+    //# no `ScopeClose` occurs while the scope depth is zero, and the depth is zero at
+    //# end of file.
     while i < events.len()
         invariant
             0 <= i <= events.len(),

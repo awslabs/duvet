@@ -1,0 +1,68 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates"]
+report_output = false
+
+# Pins spec §1.4's provenance rule for the target axis, both directions:
+#
+# - A comment annotation in a scanned TOML source participates in target
+#   classes like any other source: two different-claim citations above
+#   one line collide, and the configured count = 1 bound FAILS them.
+#   Keying the exclusion on file extension instead of provenance would
+#   silently exempt exactly this case.
+# - Declarations (the extracted requirements this fixture's own spec.md
+#   produces — two MUSTs in one section, adjacent entries in one
+#   requirements TOML) participate in no target class: the only target
+#   in the failure output is the scanned source's. The exhaustive
+#   exemption is structural (the project's SourceFile::Toml entries are
+#   filtered by provenance before resolution); this fixture pins it at
+#   the observable seam.
+#
+# The inner TOML source uses the #@/#$ comment style so the repo's own
+# integration/*.toml scan (meta #=) never ingests the embedded
+# annotations — the same containment the //= fixtures get for free.
+#= design/duplicates/spec.md#targets
+#= type=test
+#% An annotation declared in a requirement artifact (an extracted
+#% requirement, or an exception or todo declared in TOML) is a
+#% statement about a requirement, not a placement in source: it MUST
+#% NOT participate in any target class.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "fixtures/*.toml"
+comment-style = { meta = "#@", content = "#$" }
+
+[[specification]]
+source = "spec.md"
+
+[duplicates.targets]
+count = 1
+"""
+
+[[file]]
+path = "fixtures/data.toml"
+contents = """
+#@ spec.md#section-1
+#@ type=implementation
+#$ The system MUST alpha beta gamma.
+
+#@ spec.md#section-1
+#@ type=implementation
+#$ The system MUST delta epsilon zeta.
+key = "value"
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+The system MUST alpha beta gamma.
+
+The system MUST delta epsilon zeta.
+"""

@@ -1,0 +1,56 @@
+source = { local = true }
+cmd = ["duvet query --check duplicates --verbose"]
+report_output = false
+
+# Pins spec §2.3: an annotation whose claim is fully covered by same-form
+# claims outside its own claim class FAILS regardless of any configured cap.
+#
+# T1 quotes a fragment ("aaa") of what T2 quotes in full ("aaa bbb ccc"), at
+# distinct targets, with `test = 2`. The raised cap admits equal copies only —
+# it must not rescue the fragment. This is the historical union-coverage
+# semantics (see query-duplicates-exact-pair) separated from the cap rule:
+# a raised cap never opens the subsumption door.
+#= design/duplicates/spec.md#subsumption
+#= type=test
+#% An annotation whose claim is fully covered
+#% ([§1.3](#claim-coverage)) by the claims of same-form annotations
+#% outside its own claim class MUST fail the duplicates check,
+#% regardless of any configured cap.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+
+[duplicates.claims]
+test = 2
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# aaa
+pub fn fragment() {}
+
+//= spec.md#section-1
+//= type=test
+//# aaa bbb ccc
+pub fn full_claim() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+aaa bbb ccc
+"""
