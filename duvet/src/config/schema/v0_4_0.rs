@@ -138,20 +138,11 @@ impl Schema {
 
         if let Some(targets) = &schema.targets {
             if let Some(count) = targets.count {
-                if count == 0 {
-                    return Err(duvet_core::error!(
-                        "duplicates.targets.count must be a positive integer"
-                    ));
-                }
-                policy.targets.count = Some(count);
+                policy.targets.count = Some(positive_bound(count, "duplicates.targets.count")?);
             }
             if let Some(sections) = targets.sections {
-                if sections == 0 {
-                    return Err(duvet_core::error!(
-                        "duplicates.targets.sections must be a positive integer"
-                    ));
-                }
-                policy.targets.sections = Some(sections);
+                policy.targets.sections =
+                    Some(positive_bound(sections, "duplicates.targets.sections")?);
             }
             if let Some(types) = &targets.types {
                 policy.targets.types = Some(config::parse_form_family(types)?);
@@ -163,6 +154,13 @@ impl Schema {
 }
 
 fn positive_cap(value: u32, key: &str) -> Result<u32> {
+    if value == 0 {
+        return Err(duvet_core::error!("{key} must be a positive integer"));
+    }
+    Ok(value)
+}
+
+fn positive_bound(value: u64, key: &str) -> Result<u64> {
     if value == 0 {
         return Err(duvet_core::error!("{key} must be a positive integer"));
     }

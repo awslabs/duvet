@@ -668,8 +668,12 @@ async fn execute_duplicates(
     verbose: bool,
 ) -> Result<CheckResult> {
     // The spec-slice filter selects the input set; it does not change the
-    // rules. Claim classes never span sections, so the worst a slice can do
-    // is not *show* you a class that lies outside it.
+    // rules. Claim classes never span sections, so on the claim axis the
+    // worst a slice can do is not *show* you a class that lies outside it.
+    // Target classes CAN span sections, so a slice can hide part of one —
+    // dropping a fan-in count below a configured bound, or reducing a
+    // mixed-form target to single-form — and flip that invocation's verdict.
+    // Selection is not policy (spec.md P-S0): tree-wide gates run unsliced.
     let (analysis, errors) =
         super::checks::duplicates::analyze_duplicates(project_data, mode).await?;
 

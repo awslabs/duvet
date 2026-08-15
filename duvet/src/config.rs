@@ -81,7 +81,7 @@ impl DuplicatesPolicy {
                 Some(sets) => {
                     let sets = sets
                         .iter()
-                        .map(|set| format!("{:?}", form_set_name_of(set)))
+                        .map(|set| format!("\"{}\"", form_set_name_of(set)))
                         .collect::<Vec<_>>()
                         .join(", ");
                     (format!("[{sets}]"), "")
