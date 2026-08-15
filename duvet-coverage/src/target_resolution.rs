@@ -77,6 +77,16 @@ pub fn annotation_target(
         // Property 10: a resolved target lies below the annotation.
         result.is_some() ==> result.unwrap().line_number > annotation.end_line,
         // Equivalence with the spec twin: same presence and same target line.
+        // This machine-checked equivalence is the test evidence for the
+        // duplicates spec's definition of a resolved target: the value the
+        // duplicates check consumes IS the value this verified contract
+        // pins (checked by CI's verify job).
+        //= design/duplicates/spec.md#targets
+        //= type=test
+        //# The **resolved target** of an annotation is the source position
+        //# its annotation block resolves to under the coverage model's target
+        //# resolution (the classified or the degraded path), identified as
+        //# the pair (source file, resolved line).
         result.is_some() <==> annotation_target_spec(annotation, classifications, file_length).is_some(),
         result.is_some() ==> result.unwrap().line_number
             == annotation_target_spec(annotation, classifications, file_length).unwrap(),

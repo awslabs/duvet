@@ -8,11 +8,25 @@ SPECIFICATION: [Duvet Duplicates: Formal Specification](design/duplicates/spec.m
     TEXT[!MUST,implementation,test]: Wherever a claim form is read as input, `citation` MUST be
     TEXT[!MUST,implementation,test]: accepted as an alias for `implementation`.
 
+  SECTION: [1.2 Claims and claim classes](#claims)
+    TEXT[implementation,test]: Two annotations **share a claim** if and only if their target
+    TEXT[implementation,test]: sections are identical and their normalized quotes are identical.
+    TEXT[implementation,test]: An annotation whose normalized quote is empty is a section-level
+    TEXT[implementation,test]: reference, not a claim: it participates in no claim class and no
+    TEXT[implementation,test]: rule in [§2](#duplicates-check) applies to it.
+
   SECTION: [1.4 Resolved targets and target classes](#targets)
+    TEXT[implementation,test]: The **resolved target** of an annotation is the source position
+    TEXT[implementation,test]: its annotation block resolves to under the coverage model's target
+    TEXT[implementation,test]: resolution (the classified or the degraded path), identified as
+    TEXT[implementation,test]: the pair (source file, resolved line).
     TEXT[!MUST,implementation,test]: An annotation declared in a requirement artifact (an extracted
     TEXT[!MUST,implementation,test]: requirement, or an exception or todo declared in TOML) is a
     TEXT[!MUST,implementation,test]: statement about a requirement, not a placement in source: it MUST
     TEXT[!MUST,implementation,test]: NOT participate in any target class.
+    TEXT[implementation,test]: An annotation whose resolution yields no line (the forward walk
+    TEXT[implementation,test]: finds nothing below it to target) participates in no target
+    TEXT[implementation,test]: class.
     TEXT[!MUST,implementation,test]: When any file bearing annotations defeats
     TEXT[!MUST,implementation,test]: classification, the duplicates check MUST fail the run, reporting
     TEXT[!MUST,implementation,test]: each located classifier issue, and render no verdict.

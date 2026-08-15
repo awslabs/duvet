@@ -33,11 +33,11 @@ use std::{
 /// A resolved target: the source position an annotation resolves to under the
 /// coverage model's target resolution, identified as (file, line).
 ///
-/// //= design/duplicates/spec.md#targets
-/// //# The **resolved target** of an annotation is the source position
-/// //# its annotation block resolves to under the coverage model's target
-/// //# resolution (the classified or the degraded path), identified as
-/// //# the pair (source file, resolved line).
+//= design/duplicates/spec.md#targets
+//# The **resolved target** of an annotation is the source position
+//# its annotation block resolves to under the coverage model's target
+//# resolution (the classified or the degraded path), identified as
+//# the pair (source file, resolved line).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResolvedTarget {
     pub file: Path,
@@ -47,9 +47,9 @@ pub struct ResolvedTarget {
 /// The claim of an annotation: its target (spec + section) plus its
 /// whitespace-normalized quote.
 ///
-/// //= design/duplicates/spec.md#claims
-/// //# Two annotations **share a claim** if and only if their target
-/// //# sections are identical and their normalized quotes are identical.
+//= design/duplicates/spec.md#claims
+//# Two annotations **share a claim** if and only if their target
+//# sections are identical and their normalized quotes are identical.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ClaimKey {
     pub target: String,
@@ -59,10 +59,10 @@ pub struct ClaimKey {
 impl ClaimKey {
     /// The claim of an annotation, or `None` for a section-level reference.
     ///
-    /// //= design/duplicates/spec.md#claims
-    /// //# An annotation whose normalized quote is empty is a section-level
-    /// //# reference, not a claim: it participates in no claim class and no
-    /// //# rule in [§2](#duplicates-check) applies to it.
+    //= design/duplicates/spec.md#claims
+    //# An annotation whose normalized quote is empty is a section-level
+    //# reference, not a claim: it participates in no claim class and no
+    //# rule in [§2](#duplicates-check) applies to it.
     pub fn of(annotation: &Annotation) -> Option<Self> {
         let quote = whitespace::normalize(&annotation.quote);
         if quote.is_empty() {
@@ -77,7 +77,7 @@ impl ClaimKey {
 
 /// A duplicate set: the members of one claim class restricted to one form,
 /// with the cap that governs it.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct DuplicateSet {
     pub form: AnnotationType,
     pub cap: u32,
@@ -85,7 +85,7 @@ pub struct DuplicateSet {
 }
 
 /// A same-claim-same-target stack (spec §2.1).
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct StackedClaim {
     pub target: ResolvedTarget,
     pub members: Vec<Arc<Annotation>>,
@@ -93,7 +93,7 @@ pub struct StackedClaim {
 
 /// A claim class whose mixed claim forms are admitted by no member of the
 /// claim-form family (spec §2.4).
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ExclusivityViolation {
     pub forms: FormSet,
     pub members: Vec<Arc<Annotation>>,
@@ -195,10 +195,10 @@ impl DuplicateTargetsAnalysis {
 /// target resolution by provenance — never by file extension, which would
 /// also exempt genuine comment annotations in scanned TOML sources.
 ///
-/// //= design/duplicates/spec.md#targets
-/// //# An annotation whose resolution yields no line (the forward walk
-/// //# finds nothing below it to target) participates in no target
-/// //# class.
+//= design/duplicates/spec.md#targets
+//# An annotation whose resolution yields no line (the forward walk
+//# finds nothing below it to target) participates in no target
+//# class.
 pub async fn resolve_targets(
     annotations: &[Arc<Annotation>],
     declaration_sources: &HashSet<&Path>,
@@ -334,91 +334,7 @@ pub async fn analyze_duplicates(
         ..Default::default()
     };
 
-    for members in classes.values() {
-        // §2.1 — same claim, same resolved target: always fails, every form
-        // pair, cap-independent.
-        //
-        //= design/duplicates/spec.md#same-claim-same-target
-        //# Two annotations that share a claim and share a resolved target
-        //# MUST fail the duplicates check, regardless of their claim forms
-        //# and regardless of any configured cap.
-        let mut by_target: BTreeMap<&ResolvedTarget, Vec<Arc<Annotation>>> = BTreeMap::new();
-        for member in members {
-            if let Some(target) = targets.get(member) {
-                by_target.entry(target).or_default().push(member.clone());
-            }
-        }
-        for (target, stack) in by_target {
-            if stack.len() > 1 {
-                // Renderer contract (result.rs): a stacked class has >= 2
-                // members — it split_first()s unconditionally.
-                debug_assert!(stack.len() >= 2);
-                analysis.stacked.push(StackedClaim {
-                    target: target.clone(),
-                    members: stack,
-                });
-            }
-        }
-
-        // §2.2 — multiplicity caps per duplicate set.
-        //
-        //= design/duplicates/spec.md#caps
-        //# A duplicate set whose size exceeds its form's cap MUST fail the
-        //# duplicates check.
-        let mut by_form: BTreeMap<AnnotationType, Vec<Arc<Annotation>>> = BTreeMap::new();
-        for member in members {
-            by_form.entry(member.anno).or_default().push(member.clone());
-        }
-        for (form, set_members) in &by_form {
-            let cap = policy.claims.cap(*form);
-            let set = DuplicateSet {
-                form: *form,
-                cap,
-                members: set_members.clone(),
-            };
-            if set_members.len() as u64 > cap as u64 {
-                // Renderer contract (result.rs): an over-cap set is
-                // non-empty (len > cap >= 1) — it split_first()s
-                // unconditionally.
-                debug_assert!(!set.members.is_empty());
-                analysis.over_cap.push(set);
-            } else if set_members.len() > 1 {
-                //= design/duplicates/spec.md#caps
-                //# A duplicate set within its cap MUST pass this rule
-                //# ([Decision 5](decisions.md#decision-5)), and when its size exceeds
-                //# one it MUST be reported with its size and every member's location,
-                //# so multiplicity is always surfaced, never silent.
-                analysis.allowed_sets.push(set);
-            }
-        }
-
-        // §2.4 — the claim-form family over the class's non-spec members.
-        //
-        //= design/duplicates/spec.md#exclusivity
-        //# A claim class whose non-`spec` members bear two or more distinct
-        //# claim forms MUST fail the duplicates check unless the set of
-        //# non-`spec` claim forms is admitted by the configured claim-form
-        //# family ([§4.2](#schema-claims)).
-        let non_spec: Vec<Arc<Annotation>> = members
-            .iter()
-            .filter(|member| member.anno != AnnotationType::Spec)
-            .cloned()
-            .collect();
-        //= design/duplicates/spec.md#exclusivity
-        //# A claim class whose non-`spec`
-        //# members bear a single claim form MUST NOT fail this rule: copies
-        //# of one form are the caps' business ([§2.2](#caps)).
-        let forms: FormSet = non_spec.iter().map(|member| member.anno).collect();
-        if forms.len() >= 2 && !policy.claims.admits(&forms) {
-            // Renderer contract (result.rs): >= 2 distinct forms implies
-            // >= 2 members — it split_first()s unconditionally.
-            debug_assert!(non_spec.len() >= 2);
-            analysis.exclusivity.push(ExclusivityViolation {
-                forms,
-                members: non_spec,
-            });
-        }
-    }
+    analyze_claim_axis(&classes, &targets, policy, &mut analysis);
 
     // §2.3 — subsumption: a claim fully covered by same-form claims outside
     // its own class. Reuses the engine's coverage relation with the coverer
@@ -512,6 +428,108 @@ pub async fn analyze_duplicates(
     Ok((analysis, errors))
 }
 
+/// The pure claim-axis rules over precomputed claim classes and target
+/// resolution: §2.1 stacking, §2.2 caps, §2.4 the claim-form family.
+/// §2.3 (subsumption) needs the engine's coverage relation and stays in
+/// `analyze_duplicates`.
+///
+/// Pure — no I/O — so its properties are machine-checked below (see the
+/// `properties` test module): section-level references never enter
+/// `classes` (`ClaimKey::of` is the gate), so every §2 population this
+/// function fills is invariant under adding or removing them.
+fn analyze_claim_axis(
+    classes: &BTreeMap<ClaimKey, Vec<Arc<Annotation>>>,
+    targets: &HashMap<Arc<Annotation>, ResolvedTarget>,
+    policy: &DuplicatesPolicy,
+    analysis: &mut DuplicatesAnalysis,
+) {
+    for members in classes.values() {
+        // §2.1 — same claim, same resolved target: always fails, every form
+        // pair, cap-independent.
+        //
+        //= design/duplicates/spec.md#same-claim-same-target
+        //# Two annotations that share a claim and share a resolved target
+        //# MUST fail the duplicates check, regardless of their claim forms
+        //# and regardless of any configured cap.
+        let mut by_target: BTreeMap<&ResolvedTarget, Vec<Arc<Annotation>>> = BTreeMap::new();
+        for member in members {
+            if let Some(target) = targets.get(member) {
+                by_target.entry(target).or_default().push(member.clone());
+            }
+        }
+        for (target, stack) in by_target {
+            if stack.len() > 1 {
+                // Renderer contract (result.rs): a stacked class has >= 2
+                // members — it split_first()s unconditionally.
+                debug_assert!(stack.len() >= 2);
+                analysis.stacked.push(StackedClaim {
+                    target: target.clone(),
+                    members: stack,
+                });
+            }
+        }
+
+        // §2.2 — multiplicity caps per duplicate set.
+        //
+        //= design/duplicates/spec.md#caps
+        //# A duplicate set whose size exceeds its form's cap MUST fail the
+        //# duplicates check.
+        let mut by_form: BTreeMap<AnnotationType, Vec<Arc<Annotation>>> = BTreeMap::new();
+        for member in members {
+            by_form.entry(member.anno).or_default().push(member.clone());
+        }
+        for (form, set_members) in &by_form {
+            let cap = policy.claims.cap(*form);
+            let set = DuplicateSet {
+                form: *form,
+                cap,
+                members: set_members.clone(),
+            };
+            if set_members.len() as u64 > cap as u64 {
+                // Renderer contract (result.rs): an over-cap set is
+                // non-empty (len > cap >= 1) — it split_first()s
+                // unconditionally.
+                debug_assert!(!set.members.is_empty());
+                analysis.over_cap.push(set);
+            } else if set_members.len() > 1 {
+                //= design/duplicates/spec.md#caps
+                //# A duplicate set within its cap MUST pass this rule
+                //# ([Decision 5](decisions.md#decision-5)), and when its size exceeds
+                //# one it MUST be reported with its size and every member's location,
+                //# so multiplicity is always surfaced, never silent.
+                analysis.allowed_sets.push(set);
+            }
+        }
+
+        // §2.4 — the claim-form family over the class's non-spec members.
+        //
+        //= design/duplicates/spec.md#exclusivity
+        //# A claim class whose non-`spec` members bear two or more distinct
+        //# claim forms MUST fail the duplicates check unless the set of
+        //# non-`spec` claim forms is admitted by the configured claim-form
+        //# family ([§4.2](#schema-claims)).
+        let non_spec: Vec<Arc<Annotation>> = members
+            .iter()
+            .filter(|member| member.anno != AnnotationType::Spec)
+            .cloned()
+            .collect();
+        //= design/duplicates/spec.md#exclusivity
+        //# A claim class whose non-`spec`
+        //# members bear a single claim form MUST NOT fail this rule: copies
+        //# of one form are the caps' business ([§2.2](#caps)).
+        let forms: FormSet = non_spec.iter().map(|member| member.anno).collect();
+        if forms.len() >= 2 && !policy.claims.admits(&forms) {
+            // Renderer contract (result.rs): >= 2 distinct forms implies
+            // >= 2 members — it split_first()s unconditionally.
+            debug_assert!(non_spec.len() >= 2);
+            analysis.exclusivity.push(ExclusivityViolation {
+                forms,
+                members: non_spec,
+            });
+        }
+    }
+}
+
 /// The target axis (spec §3) over the in-scope annotations and their
 /// precomputed resolution.
 fn analyze_target_axis(
@@ -596,4 +614,238 @@ fn analyze_target_axis(
     }
 
     analysis
+}
+
+#[cfg(test)]
+mod properties {
+    use super::*;
+    use crate::{annotation::AnnotationLevel, config::ClaimsPolicy};
+    use bolero::check;
+
+    /// A synthetic annotation with the semantic fields the claim axis reads
+    /// (form, target, quote) and a unique identity (`anno_line`).
+    fn annotation(id: usize, form: AnnotationType, target: &str, quote: &str) -> Arc<Annotation> {
+        use duvet_core::file::SourceFile as CoreSourceFile;
+        let contents = "//= spec#s\ncode();\n";
+        let source = CoreSourceFile::new("test/synthetic.rs", contents).unwrap();
+        let text = source.substr_range(0..10).unwrap();
+        let original_target = source.substr_range(4..10).unwrap();
+        let original_quote = source.substr_range(11..18).unwrap();
+        Arc::new(Annotation {
+            source: source.path().clone(),
+            anno_line: id,
+            original_target,
+            original_text: text,
+            original_quote,
+            anno: form,
+            target: target.to_string(),
+            quote: quote.to_string(),
+            comment: String::new(),
+            manifest_dir: source.path().clone(),
+            level: AnnotationLevel::Auto,
+            format: crate::specification::Format::Auto,
+            tracking_issue: String::new(),
+            feature: String::new(),
+            tags: Default::default(),
+            blob_link: None,
+        })
+    }
+
+    const FORMS: [AnnotationType; 6] = [
+        AnnotationType::Spec,
+        AnnotationType::Test,
+        AnnotationType::Citation,
+        AnnotationType::Exception,
+        AnnotationType::Todo,
+        AnnotationType::Implication,
+    ];
+    // Includes the empty and the whitespace-only quote: both normalize to
+    // empty, so both are section-level references under §1.2.
+    const QUOTES: [&str; 5] = ["", "   ", "aaa", "bbb", "aaa bbb"];
+
+    /// Section-level references are inert on the claim axis: adding or
+    /// removing annotations whose normalized quote is empty changes no
+    /// claim class and no §2.1/§2.2/§2.4 population. `ClaimKey::of` is the
+    /// gate; this checks it end-to-end through the pure claim axis, with
+    /// the references' target resolutions present in both runs — so the
+    /// axis provably-by-test never consults a non-member's resolution.
+    #[test]
+    fn section_level_references_are_inert_on_the_claim_axis() {
+        //= design/duplicates/spec.md#claims
+        //= type=test
+        //# An annotation whose normalized quote is empty is a section-level
+        //# reference, not a claim: it participates in no claim class and no
+        //# rule in [§2](#duplicates-check) applies to it.
+        check!()
+            .with_type::<(u8, Vec<(u8, u8, u8, u8, bool)>)>()
+            .for_each(|(caps, items)| {
+                let policy = DuplicatesPolicy {
+                    claims: ClaimsPolicy {
+                        test: u32::from(caps % 3) + 1,
+                        implementation: u32::from((caps >> 2) % 3) + 1,
+                        types: None,
+                    },
+                    ..Default::default()
+                };
+
+                let mut all: Vec<Arc<Annotation>> = Vec::new();
+                let mut targets: HashMap<Arc<Annotation>, ResolvedTarget> = HashMap::new();
+                for (id, (form, section, quote, line, resolved)) in items.iter().enumerate() {
+                    let ann = annotation(
+                        id,
+                        FORMS[usize::from(form % 6)],
+                        &format!("spec.md#section-{}", section % 3),
+                        QUOTES[usize::from(quote % 5)],
+                    );
+                    if *resolved {
+                        targets.insert(
+                            ann.clone(),
+                            ResolvedTarget {
+                                file: duvet_core::path::Path::from("src/lib.rs"),
+                                line: u64::from(line % 4),
+                            },
+                        );
+                    }
+                    all.push(ann);
+                }
+                // Partition by the SPEC's definition (normalized-quote
+                // emptiness), never by `ClaimKey::of` — deriving the
+                // partition from the gate under test would make the whole
+                // property circular and vacuously green.
+                let kept: Vec<Arc<Annotation>> = all
+                    .iter()
+                    .filter(|ann| !whitespace::normalize(&ann.quote).is_empty())
+                    .cloned()
+                    .collect();
+
+                // The gate: claim classes are identical with and without the
+                // section-level references.
+                let classes_all = claim_classes(&all);
+                let classes_kept = claim_classes(&kept);
+                assert_eq!(classes_all, classes_kept);
+
+                // End-to-end through the pure axis, same resolution map for
+                // both runs: identical §2 populations.
+                let mut with_refs = DuplicatesAnalysis::default();
+                let mut without_refs = DuplicatesAnalysis::default();
+                analyze_claim_axis(&classes_all, &targets, &policy, &mut with_refs);
+                analyze_claim_axis(&classes_kept, &targets, &policy, &mut without_refs);
+                assert_eq!(with_refs.stacked, without_refs.stacked);
+                assert_eq!(with_refs.over_cap, without_refs.over_cap);
+                assert_eq!(with_refs.allowed_sets, without_refs.allowed_sets);
+                assert_eq!(with_refs.exclusivity, without_refs.exclusivity);
+
+                // And no population member is a section-level reference.
+                let members = with_refs
+                    .stacked
+                    .iter()
+                    .map(|stack| &stack.members)
+                    .chain(with_refs.over_cap.iter().map(|set| &set.members))
+                    .chain(with_refs.allowed_sets.iter().map(|set| &set.members))
+                    .chain(
+                        with_refs
+                            .exclusivity
+                            .iter()
+                            .map(|violation| &violation.members),
+                    )
+                    .flatten();
+                for member in members {
+                    assert!(!whitespace::normalize(&member.quote).is_empty());
+                }
+            });
+    }
+
+    /// §1.2's definition of claim sharing, checked at its quantifier: two
+    /// annotations share a claim (equal `ClaimKey`s) exactly when their
+    /// target sections are equal and their whitespace-normalized quotes are
+    /// equal — across all forms, and independent of everything else.
+    #[test]
+    fn claim_sharing_is_equality_of_section_and_normalized_quote() {
+        //= design/duplicates/spec.md#claims
+        //= type=test
+        //# Two annotations **share a claim** if and only if their target
+        //# sections are identical and their normalized quotes are identical.
+        check!().with_type::<(u8, u8, u8, u8, u8, u8)>().for_each(
+            |(form_a, section_a, quote_a, form_b, section_b, quote_b)| {
+                let a = annotation(
+                    0,
+                    FORMS[usize::from(form_a % 6)],
+                    &format!("spec.md#section-{}", section_a % 3),
+                    QUOTES[usize::from(quote_a % 5)],
+                );
+                let b = annotation(
+                    1,
+                    FORMS[usize::from(form_b % 6)],
+                    &format!("spec.md#section-{}", section_b % 3),
+                    QUOTES[usize::from(quote_b % 5)],
+                );
+                let (key_a, key_b) = (ClaimKey::of(&a), ClaimKey::of(&b));
+                let share = match (&key_a, &key_b) {
+                    (Some(key_a), Some(key_b)) => key_a == key_b,
+                    // A section-level reference shares a claim with nothing.
+                    _ => false,
+                };
+                let definition = a.target == b.target
+                    && whitespace::normalize(&a.quote) == whitespace::normalize(&b.quote)
+                    // §1.2: an empty normalized quote is not a claim at all.
+                    && !whitespace::normalize(&a.quote).is_empty();
+                assert_eq!(share, definition);
+            },
+        );
+    }
+
+    /// §1.4: an annotation whose resolution yields no line joins no target
+    /// class — it appears in no fan-in listing entry and can violate no
+    /// target-axis rule, whatever the bounds.
+    #[test]
+    fn unresolved_annotations_join_no_target_class() {
+        //= design/duplicates/spec.md#targets
+        //= type=test
+        //# An annotation whose resolution yields no line (the forward walk
+        //# finds nothing below it to target) participates in no target
+        //# class.
+        let resolved_a = annotation(0, AnnotationType::Test, "spec.md#section-1", "aaa");
+        let resolved_b = annotation(1, AnnotationType::Citation, "spec.md#section-2", "bbb");
+        let unresolved = annotation(2, AnnotationType::Citation, "spec.md#section-1", "ccc");
+
+        let mut targets = HashMap::new();
+        let shared = ResolvedTarget {
+            file: duvet_core::path::Path::from("src/lib.rs"),
+            line: 7,
+        };
+        targets.insert(resolved_a.clone(), shared.clone());
+        targets.insert(resolved_b.clone(), shared);
+        // `unresolved` is deliberately absent: the forward walk found no line.
+
+        // The tightest possible bounds, so membership would be a violation.
+        let policy = DuplicatesPolicy {
+            targets: crate::config::TargetsPolicy {
+                count: Some(1),
+                sections: Some(1),
+                types: None,
+            },
+            ..Default::default()
+        };
+        let all = vec![resolved_a, resolved_b, unresolved.clone()];
+        let analysis = analyze_target_axis(&all, &targets, &policy);
+
+        for class in &analysis.listing {
+            assert!(!class.members.contains(&unresolved));
+        }
+        // The resolved pair still forms its class and trips the bounds —
+        // the exemption is the unresolved annotation's, not the tree's.
+        assert_eq!(analysis.listing.len(), 1);
+        assert_eq!(analysis.listing[0].count(), 2);
+        assert!(!analysis.count_violations.is_empty());
+    }
+
+    /// The §2.3 side of the same gate: a whitespace-only quote normalizes to
+    /// empty, so `ClaimKey::of` yields no claim and the subsumption loop's
+    /// target-side skip (`let Some(key) = … else continue`) applies.
+    #[test]
+    fn whitespace_only_quote_is_a_section_level_reference() {
+        let ann = annotation(0, AnnotationType::Citation, "spec.md#section-1", " \t ");
+        assert_eq!(ClaimKey::of(&ann), None);
+        assert!(whitespace::normalize(&ann.quote).is_empty());
+    }
 }
