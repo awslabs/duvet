@@ -191,9 +191,8 @@ jobs:
         run: make -C duvet/www
 
       - name: Verify proofs
-        # `--features verify` pulls in vstd for duvet-coverage, where it is
-        # optional so it stays out of the published dependency graph. `duvet`
-        # has no such feature: its vstd dependency is unconditional.
+        # `--features verify` pulls in the ghost-only Verus dependencies for
+        # both packages; normal builds leave them out of the published graph.
         run: cargo verus build -p duvet-coverage -p duvet --features verify
 
   action: # make sure the action works on a clean machine without building

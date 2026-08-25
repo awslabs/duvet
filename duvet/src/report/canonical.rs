@@ -11,6 +11,9 @@
     clippy::assign_op_pattern
 )]
 
+use verus_builtin_macros::verus;
+
+#[cfg(feature = "verify")]
 use vstd::{assert_seqs_equal, prelude::*};
 
 verus! {
