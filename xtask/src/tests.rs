@@ -338,7 +338,7 @@ impl IntegrationTest {
             let json_v2: serde_json::Value = serde_json::from_str(&json_v2_file)?;
 
             settings.bind(|| {
-                insta::assert_snapshot!(format!("{name}"), snapshot);
+                insta::assert_snapshot!(name.to_string(), snapshot);
                 insta::assert_json_snapshot!(format!("{name}_json"), json);
                 insta::assert_json_snapshot!(format!("{name}_json_v2"), json_v2);
             });

@@ -1685,7 +1685,9 @@ mod tests {
                 // keeps them disjoint, contiguous, or ordered.
                 let overlay_count = usize::from(text_seed[1]) % 12;
                 let base: Vec<_> = overlay_seed
-                    .chunks_exact(3)
+                    .as_chunks::<3>()
+                    .0
+                    .iter()
                     .take(overlay_count)
                     .map(|chunk| {
                         let first = usize::from(chunk[0]) % len;
