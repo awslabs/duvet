@@ -332,6 +332,29 @@ impl IntegrationTest {
             let json_file = sh.read_file(&json_report)?;
             let json: serde_json::Value = serde_json::from_str(&json_file)?;
 
+            // Cross-referential invariant: every annotation's `target_path`
+            // must be a key in `specifications`. When it isn't, the bundled
+            // HTML renderer throws `e.specification is undefined` and shows a
+            // blank page. Regression guard for the PWD-dependent Display bug
+            // fixed in duvet/src/report/json.rs.
+            if let (Some(specs), Some(annos)) =
+                (json.get("specifications"), json.get("annotations"))
+            {
+                if let (Some(specs_obj), Some(annos_arr)) = (specs.as_object(), annos.as_array()) {
+                    let keys: std::collections::HashSet<_> = specs_obj.keys().collect();
+                    for anno in annos_arr {
+                        if let Some(tp) = anno.get("target_path").and_then(|v| v.as_str()) {
+                            let tp = tp.to_string();
+                            assert!(
+                                keys.contains(&tp),
+                                "annotation target_path {tp:?} is not a key in specifications ({:?})",
+                                keys
+                            );
+                        }
+                    }
+                }
+            }
+
             let snapshot = sh.read_file(&snapshot_report)?;
 
             let json_v2_file = sh.read_file(&json_v2_report)?;

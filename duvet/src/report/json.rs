@@ -5,6 +5,7 @@ use super::{Reference, ReportResult, TargetReport};
 use crate::{
     annotation::{AnnotationLevel, AnnotationType},
     specification::Line,
+    target::TargetPath,
     Error, Result,
 };
 use duvet_core::{file::Slice, path::Path};
@@ -92,7 +93,15 @@ pub fn report(report: &ReportResult, file: &Path) -> Result {
 pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) -> Result {
     let mut specs = BTreeMap::new();
     for (source, report) in report.targets.iter() {
-        let id = format!("{}", source.path);
+        // The specifications key must exactly match each annotation's
+        // `target_path` (see `Annotation::resolve_target_path`). Paths there
+        // are always emitted absolute, so we bypass `duvet_core::Path`'s
+        // Display impl (which strips the current-dir prefix) and use the
+        // underlying std::path::Path's non-stripping Display.
+        let id = match &source.path {
+            TargetPath::Url(url) => url.to_string(),
+            TargetPath::Path(path) => path.as_ref().display().to_string(),
+        };
         let mut output = Cursor::new(vec![]);
         report_source(report, &mut output)?;
         let output = unsafe { String::from_utf8_unchecked(output.into_inner()) };
