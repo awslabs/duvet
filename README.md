@@ -77,11 +77,12 @@ $ cargo xtask build
 $ cargo xtask test
 ```
 
-### Verifying the coverage model
+### Verifying formal models
 
-The two-phase coverage model in `duvet-coverage` is formally verified
-with [Verus](https://verus-lang.github.io/verus/guide/). CI runs the
-verifier on every push and PR. To verify locally:
+The coverage model in `duvet-coverage` and report canonicalization in
+`duvet/src/report/canonical.rs` are formally verified with
+[Verus](https://verus-lang.github.io/verus/guide/). CI runs the verifier on
+every push and PR. To verify locally:
 
 1. **Download the pinned Verus release.** The version that matches
    `vstd` in `Cargo.lock` is in `.github/workflows/ci.yml` as
@@ -125,17 +126,23 @@ verifier on every push and PR. To verify locally:
 4. **Verify the proofs.**
 
    ```console
-   $ cargo verus build -p duvet-coverage --features verify
+   $ make -C duvet/www
+   $ cargo verus build -p duvet-coverage -p duvet --features verify
    ```
 
    Expected output: `verified N functions, 0 errors`. A non-zero error
    count indicates a regression in the proofs.
 
-   The `verify` feature is what pulls in `vstd`. It is off by default so
-   that `vstd` stays out of the published dependency graph — every `vstd`
-   path in `duvet-coverage` is ghost, so a plain `cargo build` erases all
-   of them. Omitting `--features verify` here will fail with unresolved
-   `vstd` imports.
+   The `make` step builds `duvet/www/public/script.js`, which `duvet`
+   embeds with `include_str!`; without it the `duvet` crate does not
+   compile, so the verifier never runs.
+
+   `--features verify` selects `duvet-coverage`'s `verify` feature, which
+   is what pulls in `vstd` there. It is off by default so that `vstd` stays
+   out of the published dependency graph — every `vstd` path in
+   `duvet-coverage` is ghost, so a plain `cargo build` erases all of them.
+   Omitting it here will fail with unresolved `vstd` imports. The `duvet`
+   crate has no such feature: its `vstd` dependency is unconditional.
 
 The Verus prebuilt binary (and the `z3` it bundles) are built against
 glibc 2.34+ / 2.31+, so older distributions (Amazon Linux 2, Ubuntu
@@ -151,7 +158,7 @@ check — `vargo build` accepts `--no-solver-version-check`, and the verify
 step uses the `-V` form:
 
 ```console
-$ cargo verus build -p duvet-coverage --features verify -- -V no-solver-version-check
+$ cargo verus build -p duvet-coverage -p duvet --features verify -- -V no-solver-version-check
 ```
 
 Otherwise, rely on CI for verification.

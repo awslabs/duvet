@@ -132,8 +132,8 @@ jobs:
         run: |
           cargo xtask test
 
-  verify: # verify the duvet-coverage Verus proofs
-    name: Verify duvet-coverage proofs
+  verify:
+    name: Verify Verus proofs
     runs-on: ubuntu-latest
     env:
       # Verus release pinned for reproducibility. Bump when the matching
@@ -187,10 +187,13 @@ jobs:
           echo "Installing Verus-required toolchain: $TOOLCHAIN"
           rustup toolchain install "$TOOLCHAIN"
 
-      - name: Verify duvet-coverage proofs
-        # `--features verify` pulls in vstd, which is verification-only and
-        # optional so it stays out of the published dependency graph.
-        run: cargo verus build -p duvet-coverage --features verify
+      - name: Build script.js
+        run: make -C duvet/www
+
+      - name: Verify proofs
+        # `--features verify` pulls in the ghost-only Verus dependencies for
+        # both packages; normal builds leave them out of the published graph.
+        run: cargo verus build -p duvet-coverage -p duvet --features verify
 
   action: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest

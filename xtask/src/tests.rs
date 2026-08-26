@@ -319,6 +319,16 @@ impl IntegrationTest {
         }
 
         if matches!(self.report_output, None | Some(true)) {
+            let converted_report = target_dir.join("duvet_report_converted.json");
+            {
+                let _dir = sh.push_dir(&target_dir);
+                cmd!(
+                    sh,
+                    "duvet convert --input={json_v2_report} --output={converted_report} --validate-against={json_report}"
+                )
+                .run()?;
+            }
+
             let json_file = sh.read_file(&json_report)?;
             let json: serde_json::Value = serde_json::from_str(&json_file)?;
 
@@ -328,7 +338,7 @@ impl IntegrationTest {
             let json_v2: serde_json::Value = serde_json::from_str(&json_v2_file)?;
 
             settings.bind(|| {
-                insta::assert_snapshot!(format!("{name}"), snapshot);
+                insta::assert_snapshot!(name.to_string(), snapshot);
                 insta::assert_json_snapshot!(format!("{name}_json"), json);
                 insta::assert_json_snapshot!(format!("{name}_json_v2"), json_v2);
             });

@@ -13,6 +13,11 @@ include = ["/src/**/*.rs", "/www/public"]
 default-run = "duvet"
 rust-version = "1.88"
 
+[features]
+# Verification-only. Pulls in the Verus spec library and forwards the feature
+# to duvet-coverage so a normal build excludes all ghost-only dependencies.
+verify = ["dep:vstd", "dep:verus_builtin", "duvet-coverage/verify"]
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 duvet-core = { version = "0.4", path = "../duvet-core" }
@@ -40,6 +45,15 @@ tree-sitter-java = "0.23"
 triple_accel = "0.4"
 url = "2"
 v_jsonescape = "0.7"
+# The macro erases ghost code from normal builds. The remaining Verus crates
+# are needed only when checking proofs; keep their exact versions aligned with
+# VERUS_VERSION in CI.
+verus_builtin_macros = "=0.0.0-2026-05-24-0157"
+verus_builtin = { version = "=0.0.0-2026-05-17-0151", optional = true }
+vstd = { version = "=0.0.0-2026-05-24-0157", optional = true }
+
+[package.metadata.verus]
+verify = true
 
 [dev-dependencies]
 bolero = "0.13"
