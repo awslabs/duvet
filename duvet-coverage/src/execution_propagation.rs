@@ -62,6 +62,16 @@ fn collect_hit_lines(coverage: &CoverageReport) -> (result: BTreeSet<u64>)
     s
 }
 
+// Crate-visible only. The set depends only on (classifications, scopes,
+// coverage) — never on the annotation — so a caller scoring many annotations
+// should compute it once, not per annotation. But the safe way to do that is
+// [`crate::file_execution::FileExecution`], which pairs the set with the
+// exact inputs it was computed from as a machine-checked type invariant. A
+// public raw `execution_set` would invite unverified callers to hold the
+// set/inputs pairing by discipline — the axiom `FileExecution` exists to
+// eliminate. The `ensures` here are exactly the `requires` of
+// `is_annotation_executed_with_exec_set`, so in-crate callers that pipe one
+// into the other preserve the verified contract by construction.
 pub(crate) fn execution_set(
     classifications: &[Option<LineClass>],
     scopes: &[Scope],
@@ -83,7 +93,9 @@ pub(crate) fn execution_set(
         // (`clear_path` and friends in predicates.rs).
         forall|line: u64| result@.contains(line)
             ==> validly_in_exec_set(line, classifications, scopes, coverage),
-        // Property 4 (Completeness): every line with a valid path is in the result
+        // Completeness (converse of the Property 1 clause above): every line
+        // with a valid path is in the result. Not a numbered spec property —
+        // spec Property 4 is Monotonicity, which follows from this iff.
         forall|line: u64| validly_in_exec_set(line, classifications, scopes, coverage)
             ==> result@.contains(line),
 {

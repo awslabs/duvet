@@ -358,22 +358,19 @@ async fn execute_coverage_check(
         progress!("Running test execution correlation check...");
     }
 
-    // Build execution data for each coverage report in parallel.
-    // Each report produces an ExecutionDataMap (one entry per source file with coverage).
-    let build_futures: Vec<_> = coverage_data
-        .iter()
-        .map(|cover| {
-            build_execution_data(
-                &project_data.annotations,
-                cover,
-                &project_data.project_sources,
-            )
-        })
-        .collect();
-
-    let execution_data_maps: Vec<ExecutionDataMap> =
-        futures::future::try_join_all(build_futures).await?;
-    let report_count = execution_data_maps.len();
+    // Build execution data for ALL coverage reports in one pass. The
+    // report-independent work (path matching, tree-sitter classification,
+    // scope trees, annotation stamping) is done once per file and shared;
+    // only the per-report coverage maps and their verified execution sets are
+    // built per report (in parallel). Each report still produces its own
+    // ExecutionDataMap (one entry per annotated source file with coverage).
+    let execution_data = build_execution_data(
+        &project_data.annotations,
+        coverage_data,
+        &project_data.project_sources,
+    )
+    .await?;
+    let report_count = execution_data.maps.len();
 
     // Loud, non-verbose: files whose selected classifier could not produce a
     // trustworthy classification — a parse error, or an unbalanced scope stream
@@ -394,10 +391,18 @@ async fn execute_coverage_check(
     //= type=implementation
     //# duvet MUST NOT silently substitute the coarse model or score against
     //# the collapsed scope tree; it MUST escalate, reporting each located issue.
+    //
+    // Once-per-file is carried by the shape of the data: `defeated` is a map
+    // keyed by file, derived from the once-per-file classification bases
+    // (never by re-scanning the per-report maps), and this loop is its only
+    // reporting surface.
+    //= design/query/coverage-model-spec.md#escalation
+    //= type=implementation
+    //# Each located issue MUST be reported exactly once per file, regardless of how
+    //# many coverage reports cover the file.
     {
         use crate::query::classify::{ClassifierFailure, ClassifierIssue};
-        let defeated = collect_defeated_issues(&execution_data_maps);
-        for (path, issues) in &defeated {
+        for (path, issues) in &execution_data.defeated {
             let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
                 .iter()
                 .partition(|i| matches!(i.reason, ClassifierFailure::ParseError));
@@ -428,35 +433,19 @@ async fn execute_coverage_check(
         // Tell the user which coverage path each covered file uses: the
         // language-aware two-phase model (classifier present) or the verified
         // degraded path (no classifier). Both are verified; the degraded path is
-        // lower-fidelity (forward-nearest governance). Aggregate across reports.
-        let mut classified_files: BTreeSet<&std::path::Path> = BTreeSet::new();
-        let mut degraded_files: BTreeSet<&std::path::Path> = BTreeSet::new();
-        for map in &execution_data_maps {
-            for (path, data) in map {
-                match data {
-                    crate::query::checks::coverage::FileExecutionData::Classified(_) => {
-                        classified_files.insert(path.as_path());
-                    }
-                    crate::query::checks::coverage::FileExecutionData::Degraded(_) => {
-                        degraded_files.insert(path.as_path());
-                    }
-                    crate::query::checks::coverage::FileExecutionData::DefeatedClassification {
-                        ..
-                    } => {
-                        // Reported unconditionally above (loud, not verbose-gated).
-                    }
-                }
-            }
-        }
+        // lower-fidelity (forward-nearest governance). Aggregated across reports
+        // (defeated files are reported unconditionally above, not verbose-gated).
         progress!(
             "Coverage model: {} file(s) language-aware (verified), {} file(s) degraded — no classifier (verified)",
-            classified_files.len(),
-            degraded_files.len()
+            execution_data.classified_files.len(),
+            execution_data.degraded_files.len()
         );
-        for path in &degraded_files {
+        for path in &execution_data.degraded_files {
             progress!("  degraded (no classifier, verified): {}", path.display());
         }
     }
+
+    let execution_data_maps: Vec<ExecutionDataMap> = execution_data.maps;
 
     let mut test_annotations: Vec<_> = Vec::new();
     let mut implementation_annotations: Vec<_> = Vec::new();
@@ -781,45 +770,19 @@ fn fold_execution_status<'a>(
     let mut folded = ExecutionStatus::NotExecuted;
     for exec_data in execution_data_maps {
         let status = executed_status_for(annotation, exec_data);
-        match status {
-            // Executed wins outright — no later report can override it.
-            ExecutionStatus::Executed => return ExecutionStatus::Executed,
-            // Prefer Unknown over any previously-seen non-executed status.
-            ExecutionStatus::Unknown { .. } => folded = status,
-            // Structural / NotExecuted: only take it if we have nothing better.
-            _ => {
-                if matches!(folded, ExecutionStatus::NotExecuted) {
-                    folded = status;
-                }
-            }
+        // The decision step is verified (duvet-coverage): its `ensures` prove
+        // OR/absorption on `Executed`, that the fold never invents a status
+        // neither report produced, and the full Unknown > Structural >
+        // NotExecuted preference (`fold_step_spec`). This loop only supplies
+        // iteration.
+        folded = duvet_coverage::annotation_execution::fold_execution_status_step(folded, status);
+        if matches!(folded, ExecutionStatus::Executed) {
+            // Absorbing (per the step's ensures): no later report can
+            // override it, so skip scoring the remaining reports.
+            return folded;
         }
     }
     folded
-}
-
-/// Aggregate every located issue from files whose classification was defeated,
-/// across all reports — the escalation's input. Extracted so a unit test can
-/// pin that each located issue reaches the escalation surface (none dropped,
-/// none merged away); the loud per-file report in `execute_coverage_check`
-/// iterates exactly this.
-fn collect_defeated_issues(
-    execution_data_maps: &[ExecutionDataMap],
-) -> std::collections::BTreeMap<std::path::PathBuf, Vec<crate::query::classify::ClassifierIssue>> {
-    let mut defeated: std::collections::BTreeMap<
-        std::path::PathBuf,
-        Vec<crate::query::classify::ClassifierIssue>,
-    > = std::collections::BTreeMap::new();
-    for map in execution_data_maps {
-        for (path, data) in map {
-            if let crate::query::checks::coverage::FileExecutionData::DefeatedClassification {
-                issues,
-            } = data
-            {
-                defeated.entry(path.clone()).or_default().extend(issues);
-            }
-        }
-    }
-    defeated
 }
 
 fn deduplicate_annotation_coverage(
@@ -942,51 +905,311 @@ mod tests {
 
     /// Escalation carries every located issue: the aggregation feeding the
     /// loud per-file report (the escalation surface) preserves each located
-    /// issue from every defeated file across all reports — none dropped,
-    /// none merged away. The printing itself is presentation glue; what is
-    /// pinned here is that each located issue reaches it.
-    #[test]
-    fn escalation_reports_each_located_issue() {
-        let unbalanced = |line| ClassifierIssue {
-            reason: ClassifierFailure::UnbalancedScopes,
-            line,
-        };
-        let parse = |line| ClassifierIssue {
-            reason: ClassifierFailure::ParseError,
-            line,
-        };
-        let mut map_a = ExecutionDataMap::default();
-        map_a.insert(
-            std::path::PathBuf::from("a/broken.rs"),
-            FileExecutionData::DefeatedClassification {
-                issues: vec![unbalanced(7), parse(2)],
+    /// issue from every defeated file — none dropped, and (now that the
+    /// aggregation is derived from the once-per-file classification bases
+    /// rather than by re-scanning every report's map) none duplicated when
+    /// many reports cover the same defeated file. The printing itself is
+    /// presentation glue; what is pinned here is that each located issue
+    /// reaches it exactly once per file.
+    #[tokio::test]
+    async fn escalation_reports_each_located_issue() {
+        use crate::{
+            query::{
+                checks::coverage::build_execution_data,
+                coverage::{CoverageData, FileCoverage, GenericCoverageData},
             },
-        );
-        let mut map_b = ExecutionDataMap::default();
-        map_b.insert(
-            std::path::PathBuf::from("b/also_broken.rs"),
-            FileExecutionData::DefeatedClassification {
-                issues: vec![unbalanced(11)],
-            },
-        );
-        let defeated = collect_defeated_issues(&[map_a, map_b]);
+            source::SourceFile,
+        };
+        use std::{collections::HashSet, io::Write};
+
+        // Two Java files whose scope streams cannot be trusted: a bare
+        // close-brace and a bare open-brace. Whether the classifier reports
+        // them as parse errors or the verified balance check reports the
+        // imbalance witness, both must surface as defeated classifications.
+        let dir = std::env::temp_dir().join(format!(
+            "duvet_escalation_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Remove the temp dir even when an expect/assert below panics first.
+        struct DirGuard(std::path::PathBuf);
+        impl Drop for DirGuard {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _guard = DirGuard(dir.clone());
+        let write = |name: &str, contents: &str| {
+            let path = dir.join(name);
+            std::fs::File::create(&path)
+                .unwrap()
+                .write_all(contents.as_bytes())
+                .unwrap();
+            path
+        };
+        let broken_a = write("broken_a.java", "}\n");
+        let broken_b = write("broken_b.java", "class B {\n");
+
+        let mut project_sources: HashSet<SourceFile> = HashSet::new();
+        for path in [&broken_a, &broken_b] {
+            project_sources.insert(SourceFile::Text {
+                pattern: crate::comment::Pattern::default(),
+                default_type: AnnotationType::Citation,
+                path: path.as_path().into(),
+                blob_link: None,
+            });
+        }
+
+        // Two reports covering the same two files: the defeated aggregation
+        // must not duplicate issues per report.
+        let report = || {
+            let mut generic = GenericCoverageData::new();
+            for name in ["broken_a.java", "broken_b.java"] {
+                let mut lines = std::collections::BTreeMap::new();
+                lines.insert(1u32, 1u64);
+                generic.files.insert(
+                    name.to_string(),
+                    Arc::new(FileCoverage {
+                        lines,
+                        branches: std::collections::BTreeMap::new(),
+                    }),
+                );
+            }
+            CoverageData::Generic(generic)
+        };
+        let coverage_data = vec![report(), report()];
+
+        let annotations: AnnotationSet = Arc::new(std::collections::BTreeSet::new());
+        let execution_data = build_execution_data(&annotations, &coverage_data, &project_sources)
+            .await
+            .expect("defeated files must not error the build");
+        // Single-report baseline for the no-duplication assertion below
+        // (built before the temp files are removed).
+        let single_report = vec![report()];
+        let single = build_execution_data(&annotations, &single_report, &project_sources)
+            .await
+            .expect("single-report build");
+
+        let _ = std::fs::remove_dir_all(&dir);
+
         //= design/query/coverage-model-spec.md#trust-taxonomy
         //= type=test
         //# it MUST escalate, reporting each located issue.
-        assert_eq!(defeated.len(), 2);
         assert_eq!(
-            defeated[std::path::Path::new("a/broken.rs")]
-                .iter()
-                .map(|i| i.line)
-                .collect::<Vec<_>>(),
-            [7, 2]
+            execution_data.defeated.len(),
+            2,
+            "both defeated files must reach the escalation surface: {:?}",
+            execution_data.defeated
+        );
+        for (path, issues) in &execution_data.defeated {
+            assert!(
+                !issues.is_empty(),
+                "every defeated file carries at least one located issue: {}",
+                path.display()
+            );
+        }
+
+        // Aggregated once per file: two reports covering the same defeated
+        // file must carry exactly the same located issues as one report —
+        // none duplicated (the old per-map re-scan doubled them), none lost.
+        //= design/query/coverage-model-spec.md#escalation
+        //= type=test
+        //# Each located issue MUST be reported exactly once per file, regardless of how
+        //# many coverage reports cover the file.
+        assert_eq!(execution_data.defeated, single.defeated);
+    }
+
+    /// End-to-end over the multi-report entry point with a REAL annotated
+    /// file — the path the escalation test (empty annotation set, empty maps)
+    /// deliberately does not exercise. One valid Java file carries an
+    /// annotation targeting a statement; two reports disagree about that
+    /// statement (Hit vs. Miss). Pins, in one pass through
+    /// `build_execution_data`:
+    ///
+    /// 1. the annotated-files filter — the annotation's file gets per-report
+    ///    execution data, and a covered file with no annotation gets none
+    ///    (though it still appears in the model-routing summary);
+    /// 2. report-order preservation — `maps[i]` corresponds to
+    ///    `coverage_data[i]` (load-bearing for witness semantics, and for the
+    ///    order-preserving `buffered` in the bounded fan-out);
+    /// 3. the per-report verified verdicts — Executed under the Hit report,
+    ///    NotExecuted under the Miss report, through `FileExecution`'s
+    ///    type-invariant-carried exec set;
+    /// 4. the OR-fold (design/query/design.md §5.2) — any one report proving
+    ///    execution decides the folded status, via the verified
+    ///    `fold_execution_status_step`.
+    #[tokio::test]
+    async fn multi_report_annotated_file_or_folds_across_reports() {
+        use crate::{
+            annotation::AnnotationLevel,
+            query::{
+                checks::coverage::build_execution_data,
+                coverage::{CoverageData, FileCoverage, GenericCoverageData},
+            },
+            source::SourceFile,
+        };
+        use duvet_core::file::SourceFile as CoreSourceFile;
+        use std::{collections::HashSet, io::Write};
+
+        let dir = std::env::temp_dir().join(format!(
+            "duvet_or_fold_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        struct DirGuard(std::path::PathBuf);
+        impl Drop for DirGuard {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _guard = DirGuard(dir.clone());
+        let write = |name: &str, contents: &str| {
+            let path = dir.join(name);
+            std::fs::File::create(&path)
+                .unwrap()
+                .write_all(contents.as_bytes())
+                .unwrap();
+            path
+        };
+
+        // The annotated file. Line 3 is a plain comment on disk; the
+        // authoritative annotation stamping comes from the parsed
+        // `AnnotationSet` below, so the fixture needs no `//=` literal (which
+        // this scanned file must not contain anyway — see `annotation()`).
+        // The annotation's target resolves forward from line 4: a statement.
+        let annotated = write(
+            "annotated.java",
+            "class T {\n    void run() {\n        // anno\n        work();\n    }\n}\n",
+        );
+        // Covered by both reports, carries no annotation: must be classified
+        // (for the summary) but get NO per-report execution data.
+        let plain = write("plain.java", "class U {\n}\n");
+
+        let mut project_sources: HashSet<SourceFile> = HashSet::new();
+        for path in [&annotated, &plain] {
+            project_sources.insert(SourceFile::Text {
+                pattern: crate::comment::Pattern::default(),
+                default_type: AnnotationType::Citation,
+                path: path.as_path().into(),
+                blob_link: None,
+            });
+        }
+
+        // The annotation: anno_line 3, single original_text line => spans
+        // (3, 3); target resolution walks to line 4 (`work();`). The virtual
+        // contents exist only to carve substr ranges; execution scoring reads
+        // the real file from disk and `line_range()` from `anno_line`.
+        let source = CoreSourceFile::new(
+            annotated.to_string_lossy().into_owned(),
+            "//= spec#s\ncode();\n",
+        )
+        .unwrap();
+        let ann = Arc::new(Annotation {
+            source: source.path().clone(),
+            anno_line: 3,
+            original_target: source.substr_range(4..10).unwrap(),
+            original_text: source.substr_range(0..10).unwrap(),
+            original_quote: source.substr_range(11..18).unwrap(),
+            anno: AnnotationType::Citation,
+            target: "spec#s".to_string(),
+            quote: String::new(),
+            comment: String::new(),
+            manifest_dir: source.path().clone(),
+            level: AnnotationLevel::Auto,
+            format: crate::specification::Format::Auto,
+            tracking_issue: String::new(),
+            feature: String::new(),
+            tags: Default::default(),
+            blob_link: None,
+        });
+        let annotations: AnnotationSet = Arc::new(std::collections::BTreeSet::from([ann.clone()]));
+
+        // Two reports over the same files, disagreeing on the target line:
+        // report 0 proves execution of line 4, report 1 saw it not run.
+        let report = |line4_count: u64| {
+            let mut generic = GenericCoverageData::new();
+            let mut lines = std::collections::BTreeMap::new();
+            lines.insert(4u32, line4_count);
+            generic.files.insert(
+                "annotated.java".to_string(),
+                Arc::new(FileCoverage {
+                    lines,
+                    branches: std::collections::BTreeMap::new(),
+                }),
+            );
+            let mut plain_lines = std::collections::BTreeMap::new();
+            plain_lines.insert(1u32, 1u64);
+            generic.files.insert(
+                "plain.java".to_string(),
+                Arc::new(FileCoverage {
+                    lines: plain_lines,
+                    branches: std::collections::BTreeMap::new(),
+                }),
+            );
+            CoverageData::Generic(generic)
+        };
+        let coverage_data = vec![report(1), report(0)];
+
+        let execution_data = build_execution_data(&annotations, &coverage_data, &project_sources)
+            .await
+            .expect("build must succeed");
+
+        // (2) One map per report, in input order.
+        assert_eq!(execution_data.maps.len(), 2);
+
+        // (1) The annotated-files filter: only the annotation's file gets
+        // execution data; the covered-but-unannotated file is summarized as
+        // classified yet carries no per-report entry.
+        for map in &execution_data.maps {
+            assert!(
+                map.contains_key(annotated.as_path()),
+                "annotated file must have execution data in every covering report"
+            );
+            assert!(
+                !map.contains_key(plain.as_path()),
+                "covered file with no annotation must not get execution data"
+            );
+        }
+        assert!(execution_data.classified_files.contains(&annotated));
+        assert!(
+            execution_data.classified_files.contains(&plain),
+            "the model-routing summary covers every matched file, annotated or not"
+        );
+        assert!(execution_data.degraded_files.is_empty());
+        assert!(execution_data.defeated.is_empty());
+
+        // (3) Per-report verified verdicts, in report order: Hit report says
+        // Executed, Miss report says NotExecuted.
+        assert_eq!(
+            executed_status_for(&ann, &execution_data.maps[0]),
+            ExecutionStatus::Executed,
+            "report 0 (Hit on the target line) must prove execution"
         );
         assert_eq!(
-            defeated[std::path::Path::new("b/also_broken.rs")]
-                .iter()
-                .map(|i| i.line)
-                .collect::<Vec<_>>(),
-            [11]
+            executed_status_for(&ann, &execution_data.maps[1]),
+            ExecutionStatus::NotExecuted,
+            "report 1 (Miss on the target line) must not"
+        );
+
+        // (4) The OR-fold: one proving report decides the folded status —
+        // in either order.
+        assert_eq!(
+            fold_execution_status(&ann, &execution_data.maps),
+            ExecutionStatus::Executed
+        );
+        let reversed: Vec<&ExecutionDataMap> = execution_data.maps.iter().rev().collect();
+        assert_eq!(
+            fold_execution_status(&ann, reversed),
+            ExecutionStatus::Executed,
+            "OR semantics cannot depend on report order"
         );
     }
 }

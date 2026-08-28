@@ -140,7 +140,12 @@ SPECIFICATION: [Duvet Coverage Model: Formal Specification](design/query/coverag
     TEXT[!MUST,implementation,test]: duvet MUST NOT silently substitute the coarse model or score against
     TEXT[!MUST,implementation,test]:   the collapsed scope tree;
     TEXT[!MUST,implementation,test]: it MUST escalate, reporting each located issue.
+    TEXT[implementation,test]: **Drift** — coverage refers to a line outside the classified source (a coverage
+    TEXT[implementation,test]:   key past end of file). Every model reads coverage, so no model can be trusted;
+    TEXT[implementation,test]:   duvet reports `Unknown`.
 
   SECTION: [8.3 Escalation](#escalation)
+    TEXT[!MUST,implementation,test]: Each located issue MUST be reported exactly once per file, regardless of how
+    TEXT[!MUST,implementation,test]: many coverage reports cover the file.
     TEXT[!MUST,exception]: When `report` consumes coverage, a defeated commitment MUST be a hard
     TEXT[!MUST,exception]: error there, because `report` is the authoritative artifact.

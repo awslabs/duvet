@@ -6,6 +6,7 @@
 * New `duvet-coverage` internal crate providing a Verus-verified two-phase coverage model. Algorithms for scope tree construction, target resolution, and execution-set propagation are formally proven against the correctness properties in `design/query/coverage-model-spec.md`. Used by `duvet query --check coverage` for languages with a tree-sitter classifier; other languages use a verified degraded model that reads coverage directly at the annotation's target line.
 * Java line classifier built on tree-sitter; extends the coverage check to handle method declarations, interface bodies, fields without initializers, and other constructs that bytecode-based coverage tools (e.g., JaCoCo) do not report.
 * JaCoCo XML coverage report parser.
+* The `coverage` check performs report-independent per-file work (path matching, tree-sitter classification, scope tree construction, annotation stamping) once across all coverage reports instead of once per report, reducing runtimes from minutes to seconds on corpora with many reports (e.g., per-test-method JaCoCo output).
 
 ### Bug Fixes
 
@@ -17,6 +18,7 @@
 * The `duplicates` check reports every duplicate relationship instead of hiding exact-duplicate pairs behind a partial-quote coverer.
 * The `coverage` check ORs execution status across multiple coverage reports before deciding a correlation, so a test passes when any report proves full coverage (design §5.2).
 * The `coverage` check reports tests whose cited specification has no correlated implementation annotation rather than silently passing (design §2.4).
+* The defeated-classification escalation message no longer repeats each file's located issue list once per covering coverage report; each issue is listed once per file.
 
 ## 0.4.0 (2025-01-22)
 

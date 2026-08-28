@@ -4,6 +4,7 @@
 //! Phase 3: Annotation Execution Check (spec Section 4).
 
 use crate::{execution_propagation::execution_set, target_resolution::annotation_target, types::*};
+use std::collections::BTreeSet;
 // `annotation_target_spec` and `validly_in_exec_set` are spec fns (ghost-only);
 // they exist only when Verus is processing the crate, referenced from `ensures`
 // and the `execution_status_of` spec twin.
@@ -89,6 +90,84 @@ pub fn is_annotation_executed(
             &&& classifications@[line.unwrap() as int - 1].is_some()
         },
         // Property 6, bullet (b): no unknown line lies on the propagation path.
+        // See `is_annotation_executed_with_exec_set` for the full rationale.
+        status == ExecutionStatus::Executed ==> {
+            let line = annotation_target_spec(annotation, classifications, file_length);
+            &&& line.is_some()
+            &&& validly_in_exec_set(line.unwrap(), classifications, scopes, coverage)
+        },
+{
+    // Self-contained form: compute the execution set here and delegate. The
+    // set's postconditions discharge the `_with_exec_set` preconditions, so the
+    // two entry points are verifiedly equivalent. Callers scoring MANY
+    // annotations against the SAME (classifications, scopes, coverage) should
+    // instead call `execution_set` once and use
+    // `is_annotation_executed_with_exec_set` per annotation — the set does not
+    // depend on the annotation, and recomputing it per annotation is the
+    // difference between O(file) and O(annotations × file).
+    let exec_set = execution_set(classifications, scopes, coverage);
+    is_annotation_executed_with_exec_set(
+        annotation,
+        classifications,
+        scopes,
+        coverage,
+        file_length,
+        &exec_set,
+    )
+}
+
+/// The annotation-execution verdict, given a *precomputed* execution set.
+///
+/// `exec_set` MUST be `execution_set(classifications, scopes, coverage)` —
+/// the three exec-set `requires` clauses below are, verbatim, that function's
+/// `ensures`. The pairing is the whole point: the execution set depends only on
+/// the file-level inputs, never on the annotation, so a caller scoring N
+/// annotations in one file computes the set once and pays O(target walk +
+/// set lookup) per annotation instead of O(whole-file propagation) per
+/// annotation. In-crate callers discharge the clauses from `execution_set`'s
+/// postconditions (the wrapper above) or from a type invariant
+/// ([`crate::file_execution::FileExecution`]). Crate-visible only, on
+/// purpose: a `requires` compiles away for unverified callers, so a public
+/// version would leave the set/inputs pairing as an unchecked axiom in
+/// their hands — external callers get `FileExecution`, which carries the
+/// pairing as a machine-checked type invariant and discharges these clauses
+/// itself.
+pub(crate) fn is_annotation_executed_with_exec_set(
+    annotation: &AnnotationSpan,
+    classifications: &[Option<LineClass>],
+    scopes: &[Scope],
+    coverage: &CoverageReport,
+    file_length: u64,
+    exec_set: &BTreeSet<u64>,
+) -> (status: ExecutionStatus)
+    requires
+        annotation.end_line < u64::MAX,
+        forall|line: u64| coverage@.contains_key(line) ==> (line as int - 1) >= 0 && (line as int - 1) < classifications@.len(),
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).close_line < u64::MAX,
+        forall|i: int| 0 <= i < scopes@.len() ==> (#[trigger] scopes@[i]).open_line >= 1,
+        // `exec_set` is exactly the verified execution set for these inputs:
+        // `execution_set`'s three postconditions, restated as preconditions.
+        forall|line: u64| coverage@.contains_key(line) && coverage@[line] == CoverageStatus::Hit
+            ==> exec_set@.contains(line),
+        forall|line: u64| exec_set@.contains(line)
+            ==> validly_in_exec_set(line, classifications, scopes, coverage),
+        forall|line: u64| validly_in_exec_set(line, classifications, scopes, coverage)
+            ==> exec_set@.contains(line),
+    ensures
+        // Equivalence with the status spec twin: the status is a pure function of
+        // the resolved target line and the shared inputs (basis for Property 5).
+        status == execution_status_of(
+            annotation_target_spec(annotation, classifications, file_length),
+            classifications, scopes, coverage),
+        // Property 6 (Unknown Safety), bullet (a): Executed requires a classified
+        // target. If the result is Executed, the resolved target line exists and
+        // is classified (not an unknown line).
+        status == ExecutionStatus::Executed ==> {
+            let line = annotation_target_spec(annotation, classifications, file_length);
+            &&& line.is_some()
+            &&& classifications@[line.unwrap() as int - 1].is_some()
+        },
+        // Property 6, bullet (b): no unknown line lies on the propagation path.
         // The spec (design §property-6-unknown-safety) requires that every line
         // between the directly-hit line L and the target is classified `Some(_)`.
         // Rather than leave that implicit in the four-predicate chain
@@ -121,7 +200,6 @@ pub fn is_annotation_executed(
                         assert(props@ == classifications@[target_line.line_number as int - 1].unwrap()@);
                     }
                     if props.contains(&LineProperty::NonLinearControl) { return ExecutionStatus::Unknown { line_number: target_line.line_number }; }
-                    let exec_set = execution_set(classifications, scopes, coverage);
                     if exec_set.contains(&target_line.line_number) { return ExecutionStatus::Executed; }
                     if props.contains(&LineProperty::Statement) { return ExecutionStatus::NotExecuted; }
                     if props.contains(&LineProperty::Declaration) && !props.contains(&LineProperty::Statement) {
@@ -258,6 +336,65 @@ fn scope_contains_statement(classifications: &[Option<LineClass>], lo: u64, hi: 
         line = line + 1;
     }
     found
+}
+
+// Spec twin of `fold_execution_status_step`: the exact preference order the
+// exec fn implements. `Executed` absorbs; otherwise a later `Unknown`
+// overwrites anything non-executed (it carries diagnostic line information,
+// and the latest witness wins, matching the historical fold); `Structural`
+// and `NotExecuted` are taken only over `NotExecuted` (the base case).
+pub open spec fn fold_step_spec(folded: ExecutionStatus, status: ExecutionStatus) -> ExecutionStatus {
+    if folded == ExecutionStatus::Executed {
+        folded
+    } else {
+        match status {
+            ExecutionStatus::Executed => status,
+            ExecutionStatus::Unknown { .. } => status,
+            _ => if folded == ExecutionStatus::NotExecuted { status } else { folded },
+        }
+    }
+}
+
+/// One step of folding an annotation's execution status across coverage
+/// reports (design/query/design.md §5.2): OR semantics on `Executed`, with
+/// `Unknown` preferred over `Structural` over `NotExecuted` among the rest.
+///
+/// The `ensures` carry the fold's correctness contract so the (unverified)
+/// per-report loop in duvet's query engine only supplies iteration:
+/// - **OR / absorption:** the result is `Executed` iff either input is —
+///   folding over a report set yields `Executed` iff SOME report proved
+///   execution, and once absorbed no later report can retract it.
+/// - **No invention:** the result is always one of the two inputs; the fold
+///   can never synthesize a status (and in particular never a line number)
+///   that no report produced.
+/// - **Definitional twin:** the result is exactly `fold_step_spec`, pinning
+///   the full preference order, not just the executed bit.
+///
+/// There are no `requires`, so nothing compiles away for unverified callers.
+pub fn fold_execution_status_step(
+    folded: ExecutionStatus,
+    status: ExecutionStatus,
+) -> (result: ExecutionStatus)
+    ensures
+        result == fold_step_spec(folded, status),
+        result == ExecutionStatus::Executed
+            <==> (folded == ExecutionStatus::Executed || status == ExecutionStatus::Executed),
+        result == folded || result == status,
+{
+    if matches!(folded, ExecutionStatus::Executed) {
+        return folded;
+    }
+    match status {
+        ExecutionStatus::Executed => status,
+        ExecutionStatus::Unknown { .. } => status,
+        _ => {
+            if matches!(folded, ExecutionStatus::NotExecuted) {
+                status
+            } else {
+                folded
+            }
+        }
+    }
 }
 
 } // verus!

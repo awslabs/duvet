@@ -10,6 +10,7 @@ use std::{
     collections::BTreeMap,
     io::{BufRead, Cursor},
     path::Path,
+    sync::Arc,
 };
 
 use super::super::coverage::{
@@ -58,7 +59,9 @@ pub fn parse_jacoco_xml_report<T: BufRead>(
 
                 // Merge package results into coverage data
                 for (file_path, file_coverage) in package_results {
-                    coverage_data.files.insert(file_path, file_coverage);
+                    coverage_data
+                        .files
+                        .insert(file_path, Arc::new(file_coverage));
                 }
             }
             Ok(Event::Eof) => break,
@@ -80,30 +83,28 @@ fn parse_jacoco_report_package<T: BufRead>(
 
     loop {
         match parser.read_event_into(buf) {
-            Ok(Event::Start(ref e)) => {
-                // Per-line coverage lives only in <sourcefile>; <class>/<method>
-                // carry no line data, so we skip everything else here (the loop's
-                // outer `_ => {}` steps over their events until </package>). If
-                // JaCoCo method boundaries are ever needed, reintroduce exactly
-                // the parsing that consumer requires.
-                if e.local_name().into_inner() == b"sourcefile" {
-                    let file = get_xml_attribute(parser, e, "name")?;
-                    let source_file_data = parse_jacoco_report_sourcefile(parser, buf)?;
+            // Per-line coverage lives only in <sourcefile>; <class>/<method>
+            // carry no line data, so we skip everything else here (the loop's
+            // outer `_ => {}` steps over their events until </package>). If
+            // JaCoCo method boundaries are ever needed, reintroduce exactly
+            // the parsing that consumer requires.
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"sourcefile" => {
+                let file = get_xml_attribute(parser, e, "name")?;
+                let source_file_data = parse_jacoco_report_sourcefile(parser, buf)?;
 
-                    match results_map.get_mut(&file) {
-                        Some(file_coverage) => {
-                            file_coverage.lines = source_file_data.lines;
-                            file_coverage.branches = source_file_data.branches;
-                        }
-                        None => {
-                            results_map.insert(
-                                file.clone(),
-                                FileCoverage {
-                                    lines: source_file_data.lines,
-                                    branches: source_file_data.branches,
-                                },
-                            );
-                        }
+                match results_map.get_mut(&file) {
+                    Some(file_coverage) => {
+                        file_coverage.lines = source_file_data.lines;
+                        file_coverage.branches = source_file_data.branches;
+                    }
+                    None => {
+                        results_map.insert(
+                            file.clone(),
+                            FileCoverage {
+                                lines: source_file_data.lines,
+                                branches: source_file_data.branches,
+                            },
+                        );
                     }
                 }
             }
