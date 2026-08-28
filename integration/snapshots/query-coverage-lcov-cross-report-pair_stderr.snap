@@ -1,0 +1,51 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query -c coverage -r report-a.info -r report-b.info -f lcov
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+    Scanning sources
+     Scanned 3 sources 
+     Parsing annotations
+      Parsed 3 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 3 references 
+  
+Coverage: ✗ FAIL
+
+  Coverage reports checked: 2
+  Executed tests: 1
+  Executed implementations: 1
+  Successful correlations: 0
+  Failed correlations: 1
+  Tests with no implementation: 0
+
+  × Failed correlation
+   ╭─[src/impl_test.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# This MUST do the thing
+   · ╰──── Executed test
+ 4 │     fn check_work() {}
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Failed correlation
+   ╭─[src/impl.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=implementation
+ 3 │ ├─▶ //# This MUST do the thing
+   · ╰──── Not executed implementation
+ 4 │     fn work() {}
+   ╰────
+
+
+
+Overall: ✗ FAIL

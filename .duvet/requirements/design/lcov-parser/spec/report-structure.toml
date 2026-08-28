@@ -1,0 +1,78 @@
+target = "design/lcov-parser/spec.md#report-structure"
+
+# 4. Report Structure
+#
+# An `SF:` record opens a source-file block; `end_of_record` closes it.
+# 
+# The parser MUST reject an `SF:` record that appears while
+# a source-file block is already open.
+# 
+# The parser MUST reject a `DA` record that appears outside
+# a source-file block.
+# 
+# The parser MUST reject an `end_of_record` record that
+# appears outside a source-file block.
+# 
+# The parser MUST accept end-of-input while a source-file
+# block is open, treating it as an implicit `end_of_record`.
+# 
+# The parser MUST ignore blank lines and lines consisting
+# solely of whitespace.
+# 
+# The parser MUST accept both LF and CRLF line endings.
+# 
+# The parser MUST reject input that is not valid UTF-8.
+# 
+# Rationale for the encoding rule: every known producer emits ASCII record
+# keywords and UTF-8 (in practice, almost always ASCII) paths. The parser
+# reads the tracefile as UTF-8 text, so non-UTF-8 input surfaces as an I/O
+# error at the offending line rather than being lossily decoded into a key
+# that can never match a source file.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject an `SF:` record that appears while
+a source-file block is already open.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject a `DA` record that appears outside
+a source-file block.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject an `end_of_record` record that
+appears outside a source-file block.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST accept end-of-input while a source-file
+block is open, treating it as an implicit `end_of_record`.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST ignore blank lines and lines consisting
+solely of whitespace.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST accept both LF and CRLF line endings.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject input that is not valid UTF-8.
+'''
+

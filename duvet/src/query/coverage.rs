@@ -36,8 +36,8 @@ impl GenericCoverageData {
 /// Coverage data for a single file
 #[derive(Clone, Debug)]
 pub struct FileCoverage {
-    pub lines: BTreeMap<u32, u64>,          // line_number -> hit_count
-    pub branches: BTreeMap<u32, Vec<bool>>, // line_number -> [taken, not_taken, ...]
+    pub lines: BTreeMap<u64, u64>,          // line_number -> hit_count
+    pub branches: BTreeMap<u64, Vec<bool>>, // line_number -> [taken, not_taken, ...]
 }
 
 impl FileCoverage {
@@ -71,7 +71,7 @@ impl FileCoverage {
             } else {
                 CoverageStatus::Miss
             };
-            record(line_num as u64, status);
+            record(line_num, status);
         }
         for (&line_num, branches) in &self.branches {
             let status = if branches.iter().any(|&taken| taken) {
@@ -79,7 +79,7 @@ impl FileCoverage {
             } else {
                 CoverageStatus::Miss
             };
-            record(line_num as u64, status);
+            record(line_num, status);
         }
         report
     }
@@ -96,6 +96,25 @@ pub use duvet_coverage::types::ExecutionStatus;
 /// Trait for parsing coverage reports
 pub trait CoverageParser {
     async fn parse(&self, file_path: &Path) -> Result<CoverageData>;
+}
+
+/// Shared parser glue: read the report through duvet's VFS, then run the
+/// CPU-bound parse on a blocking thread so it does not stall the async
+/// runtime. Every text-based coverage parser is this glue plus a pure
+/// `Cursor -> GenericCoverageData` body.
+pub(crate) async fn parse_report_blocking(
+    file_path: &Path,
+    parse: fn(std::io::Cursor<String>) -> std::result::Result<GenericCoverageData, CoverageError>,
+) -> Result<CoverageData> {
+    let source_file = duvet_core::vfs::read_string(file_path).await?;
+    let file_contents = source_file.to_string();
+
+    let coverage_data =
+        tokio::task::spawn_blocking(move || parse(std::io::Cursor::new(file_contents)))
+            .await
+            .map_err(|e| duvet_core::error!("Task join error: {}", e))??;
+
+    Ok(CoverageData::Generic(coverage_data))
 }
 
 /// Coverage parsing errors

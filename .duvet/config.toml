@@ -23,8 +23,18 @@ pattern = "duvet/src/query/engine.rs"
 [[source]]
 pattern = "duvet/src/report.rs"
 
+# The LCOV parser glue is scanned as a single-file pattern: it carries real
+# annotations against design/lcov-parser/spec.md, and it is safe against the
+# string-literal issue above because its inline test fixtures are LCOV record
+# text (`SF:`/`DA:` lines) that contains no `//=` sequences.
+[[source]]
+pattern = "duvet/src/query/parsers/lcov.rs"
+
 [[specification]]
 source = "design/query/coverage-model-spec.md"
+
+[[specification]]
+source = "design/lcov-parser/spec.md"
 
 [report.html]
 enabled = true

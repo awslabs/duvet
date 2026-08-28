@@ -1,0 +1,88 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r report-a.info -r report-b.info -f lcov"]
+report_output = false
+
+# LCOV instance of same-witness pair correlation (design 5.2, decisions.md
+# Decision 13) — the JaCoCo twin is query-coverage-cross-report-pair.toml.
+#
+# One implementation + one test annotate the same spec text. Report A shows
+# the test executed and the implementation MISSED; report B shows the
+# implementation executed and the test MISSED. Each side of the pair was
+# executed *somewhere*, but no single report witnessed both sides, so the
+# correlation must FAIL: nothing demonstrates that this test exercised this
+# implementation.
+#
+#   discharged(T, I) = ∃ w ∈ witnesses_for(T) : I executed in w
+#
+# Folding each annotation's execution status across all reports independently
+# — (∃r: test(r)) ∧ (∃r: impl(r)) — would pass this vacuously. This case pins
+# the LCOV path through `expand_coverage_globs` + per-report
+# `build_execution_data` to the same-witness semantics; the JaCoCo twin alone
+# does not exercise the `-f lcov` dispatch.
+#
+# Contrast with query-coverage-lcov-aggregate-discharge.toml, which merges
+# these SAME records into one tracefile and passes — the boundary between the
+# two verdicts is exactly the tracefile partition.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/impl.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST do the thing
+fn work() {}
+"""
+
+[[file]]
+path = "src/impl_test.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# This MUST do the thing
+fn check_work() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+"""
+
+# report A: test executed; implementation MISSED
+[[file]]
+path = "report-a.info"
+contents = """
+SF:src/impl_test.rs
+DA:4,1
+end_of_record
+SF:src/impl.rs
+DA:4,0
+end_of_record
+"""
+
+# report B: implementation executed; test MISSED
+[[file]]
+path = "report-b.info"
+contents = """
+SF:src/impl_test.rs
+DA:4,0
+end_of_record
+SF:src/impl.rs
+DA:4,1
+end_of_record
+"""

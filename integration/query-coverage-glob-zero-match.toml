@@ -1,0 +1,49 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r lcov.info -r missing/*.info -f lcov"]
+report_output = false
+
+# Negative end-to-end case for `--coverage-report` glob expansion: a pattern
+# that matches zero files MUST be a hard error naming the pattern verbatim.
+# This fixture pins the worse shape — one pattern matches a real report while
+# another matches nothing — where the check previously PASSed with the dead
+# pattern silently dropped, letting the user believe reports were checked
+# that never existed. Each pattern must individually match at least one
+# file; a non-empty union does not excuse a dead pattern.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST do X
+fn work() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do X
+"""
+
+[[file]]
+path = "lcov.info"
+contents = """
+SF:src/lib.rs
+DA:4,1
+end_of_record
+"""

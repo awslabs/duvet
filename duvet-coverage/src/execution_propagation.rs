@@ -700,10 +700,11 @@ mod tests {
         assert!(r.contains(&3));
         assert!(!r.contains(&1));
     }
-    //= design/query/coverage-model-spec.md#property-3-conservative-fallback
-    //= type=test
-    //# If an ancestor scope S contains `NonLinearControl` but a child
-    //# scope S' does not, propagation MAY occur through S'.
+    // Deactivated pending prover-obligation witnesses (design/witness/spec.md). Runtime witness of the MAY behavior; revives as type=test.
+    // //= design/query/coverage-model-spec.md#property-3-conservative-fallback
+    // //= type=test
+    // //# If an ancestor scope S contains `NonLinearControl` but a child
+    // //# scope S' does not, propagation MAY occur through S'.
     #[test]
     fn try_block_propagation_into_parent_scope() {
         use crate::{scopes::build_scope_tree, types::ScopeEvent};
@@ -777,9 +778,10 @@ mod tests {
     // forward direction. Its `type=implementation` citation sits on `execution_set`
     // above; this pairs it with a test citation. (The backward direction also
     // guards the no-false-positive seed of Property 1.)
-    //= design/query/coverage-model-spec.md#property-9-execution-set-containment
-    //= type=test
-    //# The execution set always contains all directly-hit lines.
+    // Deactivated pending prover-obligation witnesses (design/witness/spec.md). Runtime witness of the containment axiom; revives as type=test.
+    // //= design/query/coverage-model-spec.md#property-9-execution-set-containment
+    // //= type=test
+    // //# The execution set always contains all directly-hit lines.
     #[test]
     fn collect_hit_lines_matches_hit_oracle() {
         use std::collections::{BTreeMap, BTreeSet};

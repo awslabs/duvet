@@ -1,0 +1,36 @@
+target = "design/lcov-parser/spec.md#path-handling"
+
+# 5. Path Handling
+#
+# The `SF:` payload names the source file. Producers differ: raw
+# `llvm-cov export` and `cargo-llvm-cov` emit absolute paths; `grcov` and
+# `geninfo` configurations can emit build-relative paths, sometimes with a
+# leading `./`.
+# 
+# The parser MUST use the `SF:` payload verbatim as the
+# file key, except that a leading `./` MUST be stripped.
+# 
+# The parser MUST reject an `SF:` record whose payload is
+# empty after stripping.
+# 
+# No further normalization is performed. Matching a file key against duvet's
+# source files is the responsibility of the suffix-boundary rule in the
+# coverage check (`coverage_path_matches`), which already handles both absolute
+# and relative report paths; a leading `./` is the one producer artifact that
+# rule cannot absorb (see
+# [decisions.md, Decision 6](decisions.md#decision-6)).
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST use the `SF:` payload verbatim as the
+file key, except that a leading `./` MUST be stripped.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+The parser MUST reject an `SF:` record whose payload is
+empty after stripping.
+'''
+

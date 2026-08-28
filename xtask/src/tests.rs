@@ -38,47 +38,16 @@ impl Tests {
 
         let default_tests = self.default_tests.is_enabled(true);
 
-        self.download_rfcs(sh)?;
+        download_rfcs(sh)?;
 
         if self.unit.is_enabled(default_tests) {
-            if !sh.path_exists("duvet/src/specification/ietf/snapshots") {
-                let _dir = sh.push_dir("duvet/src/specification/ietf");
-                cmd!(sh, "tar -xf snapshots.tar.gz").run()?;
-            }
+            extract_ietf_snapshots(sh)?;
 
             cmd!(sh, "cargo test").run()?;
         }
 
         if self.integration.is_enabled(default_tests) {
             self.integration(sh, &bin)?;
-        }
-
-        Ok(())
-    }
-
-    fn download_rfcs(&self, sh: &Shell) -> Result {
-        let dir = "target/www.rfc-editor.org";
-        sh.create_dir(dir)?;
-
-        let src = "rsync.rfc-editor.org::rfcs-text-only/";
-        eprintln!("syncing RFCs from {src}");
-        cmd!(sh, "rsync -az --delete {src} {dir}").run()?;
-
-        let _dir = sh.push_dir(dir);
-        for file in sh.read_dir(".")? {
-            let name = file
-                .file_name()
-                .and_then(|v| v.to_str())
-                .unwrap_or_default();
-            // keep files matching `^rfc[0-9]+\.txt$`; drop indexes, refs, and
-            // non-numeric variants like `rfc17a.txt`
-            let stem = name
-                .strip_prefix("rfc")
-                .and_then(|n| n.strip_suffix(".txt"));
-            if stem.is_some_and(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())) {
-                continue;
-            }
-            sh.remove_path(file)?;
         }
 
         Ok(())
@@ -124,6 +93,46 @@ impl Tests {
 
         Ok(())
     }
+}
+
+/// Sync the RFC corpus the `duvet` unit tests parse. Shared by `xtask test`
+/// and `xtask witnesses`, which both run those tests.
+pub fn download_rfcs(sh: &Shell) -> Result {
+    let dir = "target/www.rfc-editor.org";
+    sh.create_dir(dir)?;
+
+    let src = "rsync.rfc-editor.org::rfcs-text-only/";
+    eprintln!("syncing RFCs from {src}");
+    cmd!(sh, "rsync -az --delete {src} {dir}").run()?;
+
+    let _dir = sh.push_dir(dir);
+    for file in sh.read_dir(".")? {
+        let name = file
+            .file_name()
+            .and_then(|v| v.to_str())
+            .unwrap_or_default();
+        // keep files matching `^rfc[0-9]+\.txt$`; drop indexes, refs, and
+        // non-numeric variants like `rfc17a.txt`
+        let stem = name
+            .strip_prefix("rfc")
+            .and_then(|n| n.strip_suffix(".txt"));
+        if stem.is_some_and(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())) {
+            continue;
+        }
+        sh.remove_path(file)?;
+    }
+
+    Ok(())
+}
+
+/// Extract the pinned IETF tokenizer snapshots the `duvet` unit tests
+/// compare against. Shared by `xtask test` and `xtask witnesses`.
+pub fn extract_ietf_snapshots(sh: &Shell) -> Result {
+    if !sh.path_exists("duvet/src/specification/ietf/snapshots") {
+        let _dir = sh.push_dir("duvet/src/specification/ietf");
+        cmd!(sh, "tar -xf snapshots.tar.gz").run()?;
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]

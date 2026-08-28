@@ -4,13 +4,8 @@
 //! Correctness properties for the coverage model (spec Section 5).
 
 //= design/query/coverage-model-spec.md#correctness-properties
-//# These properties MUST be proven with Verus.
-
-//= design/query/coverage-model-spec.md#correctness-properties
 //= type=implication
-//# The Verus proof files MUST carry
-//# duvet annotations linking each `proof fn` back to the corresponding property
-//# section in this document.
+//# These properties MUST be proven with Verus.
 
 #[cfg(verus_keep_ghost)]
 use crate::predicates::{
@@ -36,9 +31,17 @@ use verus_builtin_macros::verus;
 #[cfg(feature = "verify")]
 use vstd::prelude::*;
 
+// The requirement is discharged by the annotated `proof fn`s this container
+// holds — each carries its `//= ...#property-N` citation.
+//= design/query/coverage-model-spec.md#correctness-properties
+//= type=implication
+//# The Verus proof files MUST carry
+//# duvet annotations linking each `proof fn` back to the corresponding property
+//# section in this document.
 verus! {
 
 //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
+//= type=implication
 //# The implementation MUST prove that for any two lines A and B where A is in
 //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
 //# S2 is not a parent of S1:
@@ -168,11 +171,12 @@ proof fn lemma_no_cross_scope_leakage(
     }
 }
 
-//= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-//= type=implication
-//# The implementation MUST prove that for any two lines A and B where A is in
-//# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-//# S2 is not a parent of S1:
+// Deactivated pending prover-obligation witnesses (design/witness/spec.md). End-to-end lemma over the public API; revives as type=test.
+// //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
+// //= type=implication
+// //# The implementation MUST prove that for any two lines A and B where A is in
+// //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
+// //# S2 is not a parent of S1:
 /// Property 2, composed end-to-end over the *public* `is_annotation_executed`.
 ///
 /// This is the P5 treatment applied to Property 2: it calls the real public
@@ -255,6 +259,7 @@ fn executed_annotation_has_no_cross_scope_leakage(
 }
 
 //= design/query/coverage-model-spec.md#property-3-conservative-fallback
+//= type=implication
 //# The implementation MUST prove that no backward propagation occurs WITHIN a
 //# scope that contains a `NonLinearControl` line.
 /// Property 3: Conservative Fallback.
@@ -297,10 +302,11 @@ proof fn lemma_conservative_fallback(
     assert(path_scope_idx != scope_idx);
 }
 
-//= design/query/coverage-model-spec.md#property-3-conservative-fallback
-//= type=implication
-//# The implementation MUST prove that no backward propagation occurs WITHIN a
-//# scope that contains a `NonLinearControl` line.
+// Deactivated pending prover-obligation witnesses (design/witness/spec.md). End-to-end lemma over the public API; revives as type=test.
+// //= design/query/coverage-model-spec.md#property-3-conservative-fallback
+// //= type=implication
+// //# The implementation MUST prove that no backward propagation occurs WITHIN a
+// //# scope that contains a `NonLinearControl` line.
 /// Property 3, composed end-to-end over the *public* `is_annotation_executed`.
 ///
 /// Stated over the value a caller receives: if an annotation is Executed and its
@@ -374,6 +380,7 @@ fn executed_annotation_conservative_fallback(
 }
 
 //= design/query/coverage-model-spec.md#property-4-monotonicity
+//= type=implication
 //# The implementation MUST prove that given two coverage reports E1 and E2 where
 //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 /// Property 4: Monotonicity.
@@ -479,10 +486,11 @@ proof fn lemma_validly_in_exec_set_monotone(
     }
 }
 
-//= design/query/coverage-model-spec.md#property-4-monotonicity
-//= type=implication
-//# The implementation MUST prove that given two coverage reports E1 and E2 where
-//# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
+// Deactivated pending prover-obligation witnesses (design/witness/spec.md). End-to-end lemma over the public API; revives as type=test.
+// //= design/query/coverage-model-spec.md#property-4-monotonicity
+// //= type=implication
+// //# The implementation MUST prove that given two coverage reports E1 and E2 where
+// //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
 /// Property 4, composed end-to-end over the *public* `is_annotation_executed`.
 ///
 /// The observable form of monotonicity: running the same annotation against a
@@ -548,6 +556,7 @@ fn executed_annotation_monotonic(
 }
 
 //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
+//= type=implication
 //# The implementation MUST prove that if annotation A (lines a1..a2) is
 //# immediately above annotation B (lines b1..b2) with only whitespace,
 //# comments, or other annotations between
@@ -681,6 +690,7 @@ fn stacked_annotations_share_executed(
 }
 
 //= design/query/coverage-model-spec.md#property-6-unknown-safety
+//= type=implication
 //# The implementation MUST prove that unknown lines cannot produce false
 //# positives.
 // Property 6 (Unknown Safety) is proven inline as two postconditions of
@@ -723,6 +733,12 @@ fn stacked_annotations_share_executed(
 // regressions in the non-Verus code paths (constant folding, panics on
 // degenerate input, public API changes), and give a reviewer who is not yet
 // fluent in Verus a way to engage with the model.
+//
+// The suite as a whole is the runtime witness of the proven properties.
+// Deactivated pending prover-obligation witnesses (design/witness/spec.md). The suite is the runtime witness of the proven properties; revives as type=test.
+// //= design/query/coverage-model-spec.md#correctness-properties
+// //= type=test
+// //# These properties MUST be proven with Verus.
 mod tests {
     use super::*;
     use crate::types::*;
@@ -733,14 +749,12 @@ mod tests {
         lines.iter().map(|&l| (l, CoverageStatus::Hit)).collect()
     }
 
-    //= design/query/coverage-model-spec.md#correctness-properties
-    //= type=test
-    //# These properties MUST be proven with Verus.
-    //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
-    //= type=test
-    //# The implementation MUST prove that for any two lines A and B where A is in
-    //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
-    //# S2 is not a parent of S1:
+    // Deactivated pending prover-obligation witnesses (design/witness/spec.md). Smoke test of the Verus-proven property; revives as type=test.
+    // //= design/query/coverage-model-spec.md#property-2-no-cross-scope-leakage
+    // //= type=test
+    // //# The implementation MUST prove that for any two lines A and B where A is in
+    // //# scope S1 and B is in scope S2 and S1 ≠ S2 and S1 is not a parent of S2 and
+    // //# S2 is not a parent of S1:
     #[test]
     fn test_property_2_sibling_scopes() {
         let c = vec![
@@ -821,10 +835,11 @@ mod tests {
         let exec_set = execution_set(&c, scopes, &cov);
         assert!(exec_set.contains(&3));
     }
-    //= design/query/coverage-model-spec.md#property-3-conservative-fallback
-    //= type=test
-    //# The implementation MUST prove that no backward propagation occurs WITHIN a
-    //# scope that contains a `NonLinearControl` line.
+    // Deactivated pending prover-obligation witnesses (design/witness/spec.md). Smoke test of the Verus-proven property; revives as type=test.
+    // //= design/query/coverage-model-spec.md#property-3-conservative-fallback
+    // //= type=test
+    // //# The implementation MUST prove that no backward propagation occurs WITHIN a
+    // //# scope that contains a `NonLinearControl` line.
     #[test]
     fn test_property_3_goto_scope() {
         let c = vec![
@@ -911,10 +926,11 @@ mod tests {
         let exec_set = execution_set(&c, scopes, &cov);
         assert!(exec_set.contains(&5));
     }
-    //= design/query/coverage-model-spec.md#property-4-monotonicity
-    //= type=test
-    //# The implementation MUST prove that given two coverage reports E1 and E2 where
-    //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
+    // Deactivated pending prover-obligation witnesses (design/witness/spec.md). Smoke test of the Verus-proven property; revives as type=test.
+    // //= design/query/coverage-model-spec.md#property-4-monotonicity
+    // //= type=test
+    // //# The implementation MUST prove that given two coverage reports E1 and E2 where
+    // //# E1 ⊆ E2 (E2 reports all the same hits as E1, plus possibly more):
     #[test]
     fn test_property_4_monotonicity() {
         let c = vec![
@@ -977,13 +993,14 @@ mod tests {
         assert_eq!(status_e1, ExecutionStatus::Executed);
         assert_eq!(status_e2, ExecutionStatus::Executed);
     }
-    //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
-    //= type=test
-    //# The implementation MUST prove that if annotation A (lines a1..a2) is
-    //# immediately above annotation B (lines b1..b2) with only whitespace,
-    //# comments, or other annotations between
-    //# them, and `is_annotation_executed(B, ...) = Executed`, then
-    //# `is_annotation_executed(A, ...) = Executed`.
+    // Deactivated pending prover-obligation witnesses (design/witness/spec.md). Smoke test of the Verus-proven property; revives as type=test.
+    // //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
+    // //= type=test
+    // //# The implementation MUST prove that if annotation A (lines a1..a2) is
+    // //# immediately above annotation B (lines b1..b2) with only whitespace,
+    // //# comments, or other annotations between
+    // //# them, and `is_annotation_executed(B, ...) = Executed`, then
+    // //# `is_annotation_executed(A, ...) = Executed`.
     #[test]
     fn test_property_5_stacking() {
         use crate::annotation_execution::is_annotation_executed;
@@ -1029,10 +1046,11 @@ mod tests {
         assert_eq!(status_a, ExecutionStatus::Executed);
         assert_eq!(status_b, ExecutionStatus::Executed);
     }
-    //= design/query/coverage-model-spec.md#property-6-unknown-safety
-    //= type=test
-    //# The implementation MUST prove that unknown lines cannot produce false
-    //# positives.
+    // Deactivated pending prover-obligation witnesses (design/witness/spec.md). Smoke test of the Verus-proven property; revives as type=test.
+    // //= design/query/coverage-model-spec.md#property-6-unknown-safety
+    // //= type=test
+    // //# The implementation MUST prove that unknown lines cannot produce false
+    // //# positives.
     #[test]
     fn test_property_6_unknown_safety() {
         use crate::{

@@ -384,45 +384,7 @@ async fn execute_coverage_check(
     // (annotations are `Unknown`, the run continues); the hard-error gate belongs
     // to `report` once it consumes coverage. We report *that* and *where*, never
     // a *cause* (mislabeled vs. classifier gap is undecidable here).
-    //= design/query/coverage-model-spec.md#scopes
-    //= type=implementation
-    //# When the stream is unbalanced,
-    //# the coverage model MUST NOT score annotations against the collapsed scope tree;
-    //# it MUST surface the file as a defeated classification and escalate
-    //# (see [Classifier Selection and Dispatch](#dispatch)).
-    //= design/query/coverage-model-spec.md#trust-taxonomy
-    //= type=implementation
-    //# duvet MUST NOT silently substitute the coarse model or score against
-    //# the collapsed scope tree; it MUST escalate, reporting each located issue.
-    {
-        use crate::query::classify::{ClassifierFailure, ClassifierIssue};
-        let defeated = collect_defeated_issues(&execution_data_maps);
-        for (path, issues) in &defeated {
-            let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
-                .iter()
-                .partition(|i| matches!(i.reason, ClassifierFailure::ParseError));
-            let mut detail = Vec::new();
-            if !parse.is_empty() {
-                let lines: Vec<String> = parse.iter().map(|i| i.line.to_string()).collect();
-                detail.push(format!("parse error(s) at line(s) {}", lines.join(", ")));
-            }
-            if !unbalanced.is_empty() {
-                let lines: Vec<String> = unbalanced.iter().map(|i| i.line.to_string()).collect();
-                detail.push(format!(
-                    "unbalanced scope stream near line(s) {}",
-                    lines.join(", ")
-                ));
-            }
-            progress!(
-                "Coverage model: {} — the selected classifier could not produce a \
-                 trustworthy classification ({}). The file may not be this \
-                 language, or the classifier has a gap. Its annotations are \
-                 reported Unknown; report the file or the classifier gap.",
-                path.display(),
-                detail.join("; ")
-            );
-        }
-    }
+    escalate_defeated_classifications(&execution_data_maps);
 
     if verbose {
         // Tell the user which coverage path each covered file uses: the
@@ -802,6 +764,51 @@ fn fold_execution_status<'a>(
 /// pin that each located issue reaches the escalation surface (none dropped,
 /// none merged away); the loud per-file report in `execute_coverage_check`
 /// iterates exactly this.
+/// The escalation surface for defeated classifications (spec §1.5): report
+/// every located issue for every file whose classifier could not produce a
+/// trustworthy classification. Extracted so the tests that claim this
+/// requirement execute this exact code — the coverage correlation check
+/// demands the annotated lines run inside the claiming test's witness.
+//= design/query/coverage-model-spec.md#scopes
+//= type=implementation
+//# When the stream is unbalanced,
+//# the coverage model MUST NOT score annotations against the collapsed scope tree;
+//# it MUST surface the file as a defeated classification and escalate
+//# (see [Classifier Selection and Dispatch](#dispatch)).
+fn escalate_defeated_classifications(execution_data_maps: &[ExecutionDataMap]) {
+    use crate::query::classify::{ClassifierFailure, ClassifierIssue};
+    let defeated = collect_defeated_issues(execution_data_maps);
+    for (path, issues) in &defeated {
+        let (parse, unbalanced): (Vec<&ClassifierIssue>, Vec<&ClassifierIssue>) = issues
+            .iter()
+            .partition(|i| matches!(i.reason, ClassifierFailure::ParseError));
+        let mut detail = Vec::new();
+        if !parse.is_empty() {
+            let lines: Vec<String> = parse.iter().map(|i| i.line.to_string()).collect();
+            detail.push(format!("parse error(s) at line(s) {}", lines.join(", ")));
+        }
+        if !unbalanced.is_empty() {
+            let lines: Vec<String> = unbalanced.iter().map(|i| i.line.to_string()).collect();
+            detail.push(format!(
+                "unbalanced scope stream near line(s) {}",
+                lines.join(", ")
+            ));
+        }
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=implementation
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree; it MUST escalate, reporting each located issue.
+        progress!(
+            "Coverage model: {} — the selected classifier could not produce a \
+             trustworthy classification ({}). The file may not be this \
+             language, or the classifier has a gap. Its annotations are \
+             reported Unknown; report the file or the classifier gap.",
+            path.display(),
+            detail.join("; ")
+        );
+    }
+}
+
 fn collect_defeated_issues(
     execution_data_maps: &[ExecutionDataMap],
 ) -> std::collections::BTreeMap<std::path::PathBuf, Vec<crate::query::classify::ClassifierIssue>> {
@@ -856,9 +863,25 @@ fn expand_coverage_globs(reports: &[String]) -> Result<Vec<String>> {
         // switch from `glob` to `duvet_core::glob` once the implementation
         // is compatible with the expected behavior.
         // Using glob here so that the pattern matching is predictable and the same as the current process.
+        let mut matched = false;
         for entry in glob(pattern).into_diagnostic()? {
             let path = entry.into_diagnostic()?;
             expanded_paths.push(path.to_string_lossy().to_string());
+            matched = true;
+        }
+
+        // Each pattern must individually match at least one file. A pattern
+        // matching zero files (typo'd path, wrong working directory) would
+        // otherwise be silently dropped: with no other patterns the coverage
+        // check passes vacuously ("reports checked: 0"), and alongside
+        // matching patterns the dead pattern vanishes while the check may
+        // still pass — the user believes reports were checked that never
+        // existed. A union-level check would miss the second shape, so the
+        // error is per-pattern.
+        if !matched {
+            return Err(duvet_core::error!(
+                "coverage report pattern '{pattern}' matched no files"
+            ));
         }
     }
 
@@ -924,18 +947,24 @@ mod tests {
                 }],
             },
         );
+        let status = executed_status_for(&ann, &map);
+        //= design/query/coverage-model-spec.md#trust-taxonomy
+        //= type=test
+        //# duvet MUST NOT silently substitute the coarse model or score against
+        //# the collapsed scope tree;
+        assert!(matches!(status, ExecutionStatus::Unknown { .. }));
+        // Drive the real escalation surface with the same defeated map: the
+        // requirement claims surfacing AND escalation, so the test must
+        // execute the escalation code it cites, not a reimplementation.
         //= design/query/coverage-model-spec.md#scopes
         //= type=test
         //# When the stream is unbalanced,
         //# the coverage model MUST NOT score annotations against the collapsed scope tree;
         //# it MUST surface the file as a defeated classification and escalate
         //# (see [Classifier Selection and Dispatch](#dispatch)).
-        //= design/query/coverage-model-spec.md#trust-taxonomy
-        //= type=test
-        //# duvet MUST NOT silently substitute the coarse model or score against
-        //# the collapsed scope tree;
+        escalate_defeated_classifications(std::slice::from_ref(&map));
         assert!(matches!(
-            executed_status_for(&ann, &map),
+            status,
             ExecutionStatus::Unknown { line_number: 7 }
         ));
     }
@@ -969,7 +998,11 @@ mod tests {
                 issues: vec![unbalanced(11)],
             },
         );
-        let defeated = collect_defeated_issues(&[map_a, map_b]);
+        let maps = [map_a, map_b];
+        // Drive the actual escalation surface (the annotated progress! report),
+        // then pin the aggregation contents it was fed.
+        escalate_defeated_classifications(&maps);
+        let defeated = collect_defeated_issues(&maps);
         //= design/query/coverage-model-spec.md#trust-taxonomy
         //= type=test
         //# it MUST escalate, reporting each located issue.
@@ -988,5 +1021,65 @@ mod tests {
                 .collect::<Vec<_>>(),
             [11]
         );
+    }
+
+    /// Creates a scratch directory containing one coverage report file and
+    /// returns (dir, report_path). Std-only; no tempfile dependency.
+    fn scratch_report_dir(tag: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let dir =
+            std::env::temp_dir().join(format!("duvet-expand-globs-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let report = dir.join("lcov.info");
+        std::fs::write(&report, "SF:src/lib.rs\nDA:1,1\nend_of_record\n").unwrap();
+        (dir, report)
+    }
+
+    /// A single `--coverage-report` pattern matching zero files MUST be a
+    /// hard error naming the pattern verbatim — not a vacuous pass with
+    /// zero reports checked.
+    #[test]
+    fn zero_match_coverage_pattern_is_hard_error() {
+        let (dir, _) = scratch_report_dir("all-zero");
+        let pattern = dir.join("nonexistent/*.info").display().to_string();
+
+        let err = expand_coverage_globs(std::slice::from_ref(&pattern)).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains(&format!("'{pattern}' matched no files")),
+            "error must name the dead pattern verbatim, got: {msg}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Each pattern must individually match at least one file: a dead
+    /// pattern alongside matching ones MUST still error — a non-empty
+    /// union does not excuse it.
+    #[test]
+    fn partial_zero_match_coverage_pattern_is_hard_error() {
+        let (dir, report) = scratch_report_dir("partial-zero");
+        let live = report.display().to_string();
+        let dead = dir.join("typo/*.info").display().to_string();
+
+        let err = expand_coverage_globs(&[live, dead.clone()]).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains(&format!("'{dead}' matched no files")),
+            "error must name the dead pattern, got: {msg}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Patterns that each match at least one file expand successfully —
+    /// the guard rejects only dead patterns.
+    #[test]
+    fn matching_coverage_patterns_expand() {
+        let (dir, report) = scratch_report_dir("happy");
+        let literal = report.display().to_string();
+        let globbed = dir.join("*.info").display().to_string();
+
+        let paths = expand_coverage_globs(&[literal.clone(), globbed]).unwrap();
+        assert_eq!(paths, [literal.clone(), literal]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -217,11 +217,14 @@ pub open spec fn validly_in_exec_set(
 // Target resolution predicates (spec Section 2, Property 5)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-//= design/query/coverage-model-spec.md#property-5-stacking-transitivity
-//= type=implication
-//# if annotation A (lines a1..a2) is immediately above
-//# annotation B (lines b1..b2)
-//# with only whitespace, comments, or other annotations between them
+// Deactivated pending prover-obligation witnesses (design/witness/spec.md):
+// subsumed by the P5 core lemma's claim (proofs.rs); revives as the
+// definitional-predicate link when the claim shape is finalized.
+// //= design/query/coverage-model-spec.md#property-5-stacking-transitivity
+// //= type=implication
+// //# if annotation A (lines a1..a2) is immediately above
+// //# annotation B (lines b1..b2)
+// //# with only whitespace, comments, or other annotations between them
 /// Spec predicate: a line is "skippable" by the forward walk —
 /// it is classified as pure Whitespace, pure Comment, or contains Annotation.
 /// These are exactly the line types that `annotation_target` skips over.

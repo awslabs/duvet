@@ -1,0 +1,80 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r merged.info -f lcov"]
+report_output = false
+
+# Aggregate-vs-witness contrast for Decision 13's recorded con: an aggregate
+# report discharges everything it contains.
+#
+# This tracefile contains the SAME records as the two reports in
+# query-coverage-lcov-cross-report-pair.toml, concatenated into ONE file (the
+# shape `lcov -a` or tracefile concatenation produces). Per-block counts for
+# the same line merge by saturating summation (design/lcov-parser/spec.md §6),
+# so both the test's and the implementation's target lines are Hit in the one
+# resulting witness, and the pair is discharged: the check PASSES.
+#
+# Same evidence, opposite verdicts — the cross-report case fails, this one
+# passes. That is not an inconsistency; it is the semantics: a witness is a
+# report, and merging tracefiles destroys the per-test partition that made the
+# cross-report case's vacuity detectable (duvet-coverage Property 4,
+# Block-Structure Invariance, is the proof that the summing merge is
+# irreversible). This case documents the boundary so the discipline —
+# one tracefile per test run, never merged — is pinned from both sides.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/impl.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST do the thing
+fn work() {}
+"""
+
+[[file]]
+path = "src/impl_test.rs"
+contents = """
+//= spec.md#section-1
+//= type=test
+//# This MUST do the thing
+fn check_work() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+"""
+
+# The two cross-report tracefiles concatenated: report A's blocks (test hit,
+# impl missed) followed by report B's (test missed, impl hit). Summation
+# yields Hit on both target lines within the single witness.
+[[file]]
+path = "merged.info"
+contents = """
+SF:src/impl_test.rs
+DA:4,1
+end_of_record
+SF:src/impl.rs
+DA:4,0
+end_of_record
+SF:src/impl_test.rs
+DA:4,0
+end_of_record
+SF:src/impl.rs
+DA:4,1
+end_of_record
+"""

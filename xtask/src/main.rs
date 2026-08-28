@@ -14,6 +14,7 @@ mod checks;
 mod guide;
 mod publish;
 mod tests;
+mod witnesses;
 
 fn main() {
     let sh = Shell::new().unwrap();

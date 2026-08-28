@@ -1,0 +1,63 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r lcov.info -f lcov"]
+report_output = false
+
+# End-to-end CLI dispatch for `-f lcov` (design/lcov-parser/spec.md). The
+# tracefile exercises producer variance the parser must absorb: a `./`-prefixed
+# relative SF path, an ignored TN/FN/FNDA/BRDA/VER noise records, a checksum
+# third field on a DA record, and a Miss (count 0) line. Rust has no
+# tree-sitter classifier, so the file is scored by the verified degraded path:
+# the annotation's target resolves to `fn work() {` (Hit), so the
+# implementation annotation is Executed and the check passes.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST do X
+fn work() {}
+
+fn unused() {}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do X
+"""
+
+[[file]]
+path = "lcov.info"
+contents = """
+TN:lcov_integration
+SF:./src/lib.rs
+VER:future-record-type
+FN:4,work
+FNDA:1,work
+FNF:2
+FNH:1
+BRDA:4,0,0,1
+BRF:0
+BRH:0
+DA:4,1,c2VjcmV0
+DA:6,0
+LF:2
+LH:1
+end_of_record
+"""

@@ -6,14 +6,11 @@ use quick_xml::{
     Reader, XmlVersion,
 };
 use rustc_hash::FxHashMap;
-use std::{
-    collections::BTreeMap,
-    io::{BufRead, Cursor},
-    path::Path,
-};
+use std::{collections::BTreeMap, io::BufRead, path::Path};
 
 use super::super::coverage::{
-    CoverageData, CoverageError, CoverageParser, FileCoverage, GenericCoverageData,
+    parse_report_blocking, CoverageData, CoverageError, CoverageParser, FileCoverage,
+    GenericCoverageData,
 };
 use crate::Result;
 
@@ -22,19 +19,7 @@ pub struct JacocoParser;
 
 impl CoverageParser for JacocoParser {
     async fn parse(&self, file_path: &Path) -> Result<CoverageData> {
-        // Use duvet's VFS system for consistent async file reading
-        let source_file = duvet_core::vfs::read_string(file_path).await?;
-        let file_contents = source_file.to_string();
-
-        // Run CPU-intensive XML parsing in a thread pool to avoid blocking the async runtime
-        let coverage_data = tokio::task::spawn_blocking(move || {
-            let cursor = Cursor::new(file_contents);
-            parse_jacoco_xml_report(cursor)
-        })
-        .await
-        .map_err(|e| duvet_core::error!("Task join error: {}", e))??;
-
-        Ok(CoverageData::Generic(coverage_data))
+        parse_report_blocking(file_path, parse_jacoco_xml_report).await
     }
 }
 
@@ -80,30 +65,28 @@ fn parse_jacoco_report_package<T: BufRead>(
 
     loop {
         match parser.read_event_into(buf) {
-            Ok(Event::Start(ref e)) => {
-                // Per-line coverage lives only in <sourcefile>; <class>/<method>
-                // carry no line data, so we skip everything else here (the loop's
-                // outer `_ => {}` steps over their events until </package>). If
-                // JaCoCo method boundaries are ever needed, reintroduce exactly
-                // the parsing that consumer requires.
-                if e.local_name().into_inner() == b"sourcefile" {
-                    let file = get_xml_attribute(parser, e, "name")?;
-                    let source_file_data = parse_jacoco_report_sourcefile(parser, buf)?;
+            // Per-line coverage lives only in <sourcefile>; <class>/<method>
+            // carry no line data, so we skip everything else here (the loop's
+            // outer `_ => {}` steps over their events until </package>). If
+            // JaCoCo method boundaries are ever needed, reintroduce exactly
+            // the parsing that consumer requires.
+            Ok(Event::Start(ref e)) if e.local_name().into_inner() == b"sourcefile" => {
+                let file = get_xml_attribute(parser, e, "name")?;
+                let source_file_data = parse_jacoco_report_sourcefile(parser, buf)?;
 
-                    match results_map.get_mut(&file) {
-                        Some(file_coverage) => {
-                            file_coverage.lines = source_file_data.lines;
-                            file_coverage.branches = source_file_data.branches;
-                        }
-                        None => {
-                            results_map.insert(
-                                file.clone(),
-                                FileCoverage {
-                                    lines: source_file_data.lines,
-                                    branches: source_file_data.branches,
-                                },
-                            );
-                        }
+                match results_map.get_mut(&file) {
+                    Some(file_coverage) => {
+                        file_coverage.lines = source_file_data.lines;
+                        file_coverage.branches = source_file_data.branches;
+                    }
+                    None => {
+                        results_map.insert(
+                            file.clone(),
+                            FileCoverage {
+                                lines: source_file_data.lines,
+                                branches: source_file_data.branches,
+                            },
+                        );
                     }
                 }
             }
@@ -133,16 +116,16 @@ fn parse_jacoco_report_package<T: BufRead>(
 }
 
 struct JacocoSourceFileData {
-    lines: BTreeMap<u32, u64>,
-    branches: BTreeMap<u32, Vec<bool>>,
+    lines: BTreeMap<u64, u64>,
+    branches: BTreeMap<u64, Vec<bool>>,
 }
 
 fn parse_jacoco_report_sourcefile<T: BufRead>(
     parser: &mut Reader<T>,
     buf: &mut Vec<u8>,
 ) -> Result<JacocoSourceFileData, CoverageError> {
-    let mut lines: BTreeMap<u32, u64> = BTreeMap::new();
-    let mut branches: BTreeMap<u32, Vec<bool>> = BTreeMap::new();
+    let mut lines: BTreeMap<u64, u64> = BTreeMap::new();
+    let mut branches: BTreeMap<u64, Vec<bool>> = BTreeMap::new();
 
     loop {
         match parser.read_event_into(buf) {
@@ -172,7 +155,7 @@ fn parse_jacoco_report_sourcefile<T: BufRead>(
                             )?)
                         }
                         b"nr" => {
-                            nr = Some(String::from_utf8_lossy(&a.value).parse::<u32>().map_err(
+                            nr = Some(String::from_utf8_lossy(&a.value).parse::<u64>().map_err(
                                 |_| CoverageError::InvalidData("Invalid nr value".to_string()),
                             )?)
                         }
@@ -437,9 +420,9 @@ mod tests {
         // Construct an (artificial) overlap the parser wouldn't currently emit:
         // line 7 is a missed statement AND a taken branch.
         let mut lines = BTreeMap::new();
-        lines.insert(7u32, 0u64); // Miss
+        lines.insert(7u64, 0u64); // Miss
         let mut branches = BTreeMap::new();
-        branches.insert(7u32, vec![true]); // Hit
+        branches.insert(7u64, vec![true]); // Hit
 
         let fc = FileCoverage { lines, branches };
 
