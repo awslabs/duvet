@@ -76,12 +76,13 @@ fn the_function() -> Result<u64, Error> {
 
 ## `todo`
 
-Some requirements may not be currently implemented but are on the product's roadmap. Such requirements can be annotated with the `todo` type to indicate this. Optionally, the annotation can provide a tracking issue for more context/updates.
+Some requirements may not be currently implemented but are on the product's roadmap. Such requirements can be annotated with the `todo` type to indicate this. Optionally, the annotation can provide a tracking issue for more context/updates, and a reason.
 
 ```rust
 //= my-spec.md#section
 //= type=todo
 //= tracking-issue=1234
+//= reason=Waiting for the new storage backend.
 //# Implementations SHOULD do this thing.
 ```
 

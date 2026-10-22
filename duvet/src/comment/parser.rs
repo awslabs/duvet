@@ -113,6 +113,7 @@ impl Meta {
                     AnnotationType::Implication,
                     AnnotationType::Citation,
                     AnnotationType::Test,
+                    AnnotationType::Todo,
                 ][..],
                 self.reason.first(),
             ),

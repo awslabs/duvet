@@ -6,6 +6,7 @@
 * New `duvet-coverage` internal crate providing a Verus-verified two-phase coverage model. Algorithms for scope tree construction, target resolution, and execution-set propagation are formally proven against the correctness properties in `design/query/coverage-model-spec.md`. Used by `duvet query --check coverage` for languages with a tree-sitter classifier; other languages use a verified degraded model that reads coverage directly at the annotation's target line.
 * Java line classifier built on tree-sitter; extends the coverage check to handle method declarations, interface bodies, fields without initializers, and other constructs that bytecode-based coverage tools (e.g., JaCoCo) do not report.
 * JaCoCo XML coverage report parser.
+* `todo` annotations accept a `reason`, as in TOML files ([#279](https://github.com/awslabs/duvet/issues/279)).
 
 ### Bug Fixes
 

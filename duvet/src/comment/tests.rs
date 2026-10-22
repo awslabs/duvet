@@ -98,6 +98,16 @@ snapshot!(
 );
 
 snapshot!(
+    type_todo_with_reason,
+    r#"
+    //@= https://example.com/spec.txt
+    //@= type=todo
+    //@= reason=Only the base schema is checked for now
+    //@# Here is my citation
+    "#
+);
+
+snapshot!(
     type_exception,
     r#"
     //@= https://example.com/spec.txt
