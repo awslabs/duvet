@@ -26,7 +26,7 @@ impl Checks {
         }
 
         if cmd!(sh, "which typos").quiet().run().is_err() {
-            cmd!(sh, "cargo install --locked typos-cli").run()?;
+            cmd!(sh, "cargo install --locked typos-cli@=1.42.3").run()?;
         }
 
         cmd!(sh, "typos").run()?;
