@@ -1,6 +1,5 @@
 .DS_Store
 .idea
-Cargo.lock
 target
 .history
 *.snap.new
