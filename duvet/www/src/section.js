@@ -240,7 +240,7 @@ function Annotations({ reference: { annotations, status }, expanded }) {
         refs={refs.EXCEPTION}
         expanded={expanded}
       />
-      <AnnotationRef title="TODOs" refs={refs.TODO} />
+      <AnnotationRef title="TODOs" refs={refs.TODO} expanded={expanded} />
     </>
   );
 }
@@ -415,7 +415,7 @@ function formatTomlComment({ annotation, type }) {
   comment.push("quote = '''");
   comment.push(...annotation.comment.trim().split("\n"));
   comment.push("'''");
-  if (["exception", "implication", "citation", "test"].includes(type)) {
+  if (["exception", "implication", "citation", "test", "TODO"].includes(type)) {
     comment.push("reason = '''");
     comment.push("TODO: Add reason here");
     comment.push("'''");
