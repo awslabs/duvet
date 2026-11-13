@@ -3,21 +3,66 @@ description: 'Installs Duvet in the GitHub Actions environment'
 inputs:
   version:
     description: 'Version of Duvet to install'
-    default: 0.3.0
+    default: 0.4.3
     required: false
 runs:
   using: "composite"
   steps:
+    - name: Determine target
+      id: target
+      shell: bash
+      run: |
+        case "${{ runner.os }}-${{ runner.arch }}" in
+          Linux-X64)   echo "target=x86_64-unknown-linux-gnu" >> "$GITHUB_OUTPUT" ;;
+          Linux-ARM64) echo "target=aarch64-unknown-linux-gnu" >> "$GITHUB_OUTPUT" ;;
+          macOS-X64)   echo "target=x86_64-apple-darwin" >> "$GITHUB_OUTPUT" ;;
+          macOS-ARM64) echo "target=aarch64-apple-darwin" >> "$GITHUB_OUTPUT" ;;
+          Windows-X64) echo "target=x86_64-pc-windows-msvc" >> "$GITHUB_OUTPUT" ;;
+          *)           echo "target=" >> "$GITHUB_OUTPUT" ;;
+        esac
+
+    - name: Download prebuilt binary
+      id: download
+      if: steps.target.outputs.target != ''
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        TARGET: ${{ steps.target.outputs.target }}
+      run: |
+        if [[ "$TARGET" == *windows* ]]; then
+          EXT="zip"
+        else
+          EXT="tar.gz"
+        fi
+        URL="https://github.com/awslabs/duvet/releases/download/v${VERSION}/duvet-v${VERSION}-${TARGET}.${EXT}"
+        echo "Attempting to download from ${URL}"
+        cd "$RUNNER_TEMP"
+        BIN_DIR="duvet-v${VERSION}-${TARGET}"
+        extract() {
+          if [[ "$EXT" == "zip" ]]; then
+            unzip -oq "duvet-archive.${EXT}"
+          else
+            tar xzf "duvet-archive.${EXT}"
+          fi
+        }
+        if curl -fsSL -o "duvet-archive.${EXT}" "$URL" && extract && "./${BIN_DIR}/duvet" --version; then
+          # RUNNER_TEMP is a native path, also on Windows.
+          echo "${RUNNER_TEMP}/${BIN_DIR}" >> "$GITHUB_PATH"
+          echo "success=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "success=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Install rust toolchain
-      id: toolchain
+      if: steps.download.outputs.success != 'true'
       shell: bash
       run: |
         rustup toolchain install stable
         rustup override set stable
 
-    - name: Install Duvet
+    - name: Install Duvet (from source)
+      if: steps.download.outputs.success != 'true'
       uses: camshaft/install@v1
       with:
         crate: duvet
         version: ${{ inputs.version }}
-

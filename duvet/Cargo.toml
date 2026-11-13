@@ -9,7 +9,7 @@ authors = [
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/awslabs/duvet"
-include = ["/src/**/*.rs", "/www/public"]
+include = ["/build.rs", "/src/**/*.rs", "/www/public"]
 default-run = "duvet"
 rust-version = "1.88"
 
@@ -54,6 +54,14 @@ vstd = { version = "=0.0.0-2026-05-24-0157", optional = true }
 
 [package.metadata.verus]
 verify = true
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/duvet-v{ version }-{ target }{ archive-suffix }"
+bin-dir = "duvet-v{ version }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
 
 [dev-dependencies]
 bolero = "0.13"

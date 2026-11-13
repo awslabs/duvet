@@ -6,12 +6,26 @@ Duvet is a tool that establishes a bidirectional link between implementation and
 
 ## Quick Start
 
-Before getting started, Duvet requires a [rust toolchain](https://www.rust-lang.org/tools/install).
-
 1. Install command
+
+   With a [rust toolchain](https://www.rust-lang.org/tools/install):
 
    ```console
    $ cargo install duvet --locked
+   ```
+
+   Prebuilt binaries are also attached to the [GitHub releases](https://github.com/awslabs/duvet/releases).
+   They work with `cargo binstall duvet`.
+   For Python projects, the `duvet-cli` package on PyPI installs the same binary:
+
+   ```console
+   $ pip install duvet-cli
+   ```
+
+   To run it without installing it, use `uvx` with the package name:
+
+   ```console
+   $ uvx --from duvet-cli duvet --help
    ```
 
 2. Initialize repository
