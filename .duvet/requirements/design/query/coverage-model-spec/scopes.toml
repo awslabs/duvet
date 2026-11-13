@@ -1,0 +1,72 @@
+target = "design/query/coverage-model-spec.md#scopes"
+
+# 1.5 Scopes
+#
+# A scope is a contiguous range of lines
+# delimited by `ScopeOpen` and `ScopeClose` properties.
+# Scopes nest.
+# 
+# ```
+# Scope = {
+#     open_line:  u64,
+#     close_line: u64,
+#     parent:     Option<ScopeId>,
+#     children:   Vec<ScopeId>,
+# }
+# ```
+# 
+# The scope tree is derived from the classification data
+# by matching `ScopeOpen` and `ScopeClose` lines
+# (balanced parentheses).
+# For indentation-based languages (Python),
+# the AST parser identifies scope boundaries from block nodes,
+# and the classification function assigns
+# `ScopeOpen`/`ScopeClose` to the first and last lines of each block.
+# 
+# Lines not contained in any scope are in the "file scope"
+# (implicit top-level scope spanning the entire file).
+# 
+# Unknown lines (`None`) do not contribute to scope construction.
+# If a line is unknown,
+# it cannot be a `ScopeOpen` or `ScopeClose`,
+# so it does not affect the scope tree.
+# 
+# **Scope Balance Contract:** {#scope-balance-contract}
+# A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
+# matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
+# no `ScopeClose` occurs with no open to match,
+# and no `ScopeOpen` is left unmatched at end of file.
+# An unbalanced stream is a contract violation.
+# `build_scope_tree` recovers no pairs from an unbalanced stream and falls back to
+# a single whole-file scope, which is well-formed but *wrong* —
+# every annotation in the file then resolves against one giant scope,
+# turning a genuine `Structural` or `Executed` result into `NotExecuted`.
+# When the stream is unbalanced,
+# the coverage model MUST NOT score annotations against the collapsed scope tree;
+# it MUST surface the file as a defeated classification and escalate
+# (see [Classifier Selection and Dispatch](#dispatch)).
+# This is the twin of the mutual-exclusivity and `NonLinearControl` contracts:
+# it is the classifier's responsibility,
+# detected downstream rather than proven about the classifier,
+# and surfaced rather than silently degraded.
+# Balance detection is [Property 11](#property-11-scope-stream-balance-detection).
+
+[[spec]]
+level = "MUST"
+quote = '''
+**Scope Balance Contract:** {#scope-balance-contract}
+A classifier MUST emit a balanced `ScopeOpen`/`ScopeClose` stream:
+matching each `ScopeClose` against the most recent unmatched `ScopeOpen`,
+no `ScopeClose` occurs with no open to match,
+and no `ScopeOpen` is left unmatched at end of file.
+'''
+
+[[spec]]
+level = "MUST"
+quote = '''
+When the stream is unbalanced,
+the coverage model MUST NOT score annotations against the collapsed scope tree;
+it MUST surface the file as a defeated classification and escalate
+(see [Classifier Selection and Dispatch](#dispatch)).
+'''
+

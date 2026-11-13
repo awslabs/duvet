@@ -1,0 +1,24 @@
+target = "design/query/coverage-model-spec.md#escalation"
+
+# 8.3 Escalation
+#
+# On a defeated commitment, duvet reports *what* and *where* — the located issues —
+# but never *why*, because mislabeled-file versus classifier-gap is undecidable.
+# In `query`, the inner-loop tool run against in-progress code, escalation is
+# non-blocking: the file's annotations resolve to a located `Unknown` and the run
+# continues. When `report` consumes coverage, a defeated commitment MUST be a hard
+# error there, because `report` is the authoritative artifact.
+# 
+# > Note: the dispatch and escalation policy is implemented in the (currently
+# > unscanned) `duvet` crate, so §8 is tracked as a requirement here but its
+# > implementing citations land once `duvet/**` is scannable (see the `.duvet`
+# > config note / issue #226). Balance *detection* (Property 11) lives in the
+# > verified `duvet-coverage` crate and is cited from `scope_imbalance_site`.
+
+[[spec]]
+level = "MUST"
+quote = '''
+When `report` consumes coverage, a defeated commitment MUST be a hard
+error there, because `report` is the authoritative artifact.
+'''
+

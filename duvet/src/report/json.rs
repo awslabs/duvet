@@ -92,7 +92,7 @@ pub fn report(report: &ReportResult, file: &Path) -> Result {
 pub fn report_writer<Output: Write>(report: &ReportResult, output: &mut Output) -> Result {
     let mut specs = BTreeMap::new();
     for (source, report) in report.targets.iter() {
-        let id = format!("{}", &source.path);
+        let id = format!("{}", source.path);
         let mut output = Cursor::new(vec![]);
         report_source(report, &mut output)?;
         let output = unsafe { String::from_utf8_unchecked(output.into_inner()) };

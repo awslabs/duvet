@@ -1,0 +1,20 @@
+target = "design/query/coverage-model-spec.md#property-d1-direct-observation"
+
+# Property D1: Direct Observation
+#
+# The implementation MUST prove that the degraded status is a direct observation
+# of the target line's own coverage, never an inference propagated from another
+# line. Specifically, if the degraded status is `Executed` then the target line is
+# directly `Hit`; if it is `NotExecuted` then the target line is directly `Miss`;
+# and if coverage has no opinion on the target line, the status is `Unknown`.
+# Because the degraded path never propagates, non-linear control flow cannot make
+# it unsound: it reports only what coverage directly says about the resolved line.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that the degraded status is a direct observation
+of the target line's own coverage, never an inference propagated from another
+line.
+'''
+

@@ -1,0 +1,33 @@
+target = "design/query/coverage-model-spec.md#property-6-unknown-safety"
+
+# Property 6: Unknown Safety
+#
+# The implementation MUST prove that
+# unknown lines cannot produce false positives.
+# Specifically:
+# 
+# If `is_annotation_executed(annotation, ...) = Executed`, then:
+# 
+# - The annotation's target (from Phase 1)
+#   has `properties: Some(props)` —
+#   i.e., the target is not an unknown line.
+# - Every line between the directly-hit line L
+#   and the annotation's target (exclusive)
+#   has classification `Some(_)` —
+#   i.e., no unknown line exists on the propagation path.
+# 
+# In other words:
+# an `Executed` result is never based on crossing or landing on
+# an unclassified line.
+# Unknown lines block both target resolution (Phase 1)
+# and execution propagation (Phase 2),
+# so they can only produce `Unknown` or `NotExecuted` results,
+# never `Executed`.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that
+unknown lines cannot produce false positives.
+'''
+

@@ -1,0 +1,114 @@
+---
+source: xtask/src/tests.rs
+assertion_line: 300
+expression: stderr
+---
+$ duvet query --check implementation --verbose
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 6 sources 
+     Parsing annotations
+      Parsed 11 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 5 sections 
+    Matching references
+     Matched 11 references 
+     Running implementation annotation coverage check...
+
+Implementation: ✗ FAIL
+
+  Total requirements: 5
+  Fully implemented: 0
+  Incomplete implementation: 1
+  Mixed implementation: 2
+  TODO: 1
+  Not implemented: 1
+
+  × Missing annotation
+  help: 
+        //= spec.md#section-1
+        //= type=implementation
+        //# This MUST be missing and will fail
+        
+
+
+  × Incomplete annotation:
+  │  This MUST be incomplete and will fail
+   ╭─[src/lib.rs:4:5]
+ 3 │     
+ 4 │ ╭─▶ //= spec.md#section-2
+ 5 │ │   //= type=implementation
+ 6 │ ├─▶ //# This MUST be incomplete
+   · ╰──── Incomplete
+ 7 │     
+   ╰────
+
+
+  × Mixed implementation and TODO:
+  │  This MUST be duplicated as a todo and implementation and will fail
+    ╭─[src/lib.rs:12:5]
+ 11 │     
+ 12 │ ╭─▶ //= spec.md#section-4
+ 13 │ │   //= type=implementation
+ 14 │ ├─▶ //# This MUST be duplicated as a todo and implementation and will fail
+    · ╰──── Implemented
+ 15 │     
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Mixed implementation and TODO:
+  │  This MUST be duplicated as a todo and implementation and will fail
+    ╭─[src/lib.rs:16:5]
+ 15 │     
+ 16 │ ╭─▶ //= spec.md#section-4
+ 17 │ │   //= type=todo
+ 18 │ ├─▶ //# This MUST be duplicated as a todo and implementation and will fail
+    · ╰──── Duplicate todo?
+ 19 │     
+    ╰────
+
+  × Mixed implementation and TODO:
+  │  This MUST be duplicated as a todo and incomplete implementation and will
+  │ fail
+    ╭─[src/lib.rs:20:5]
+ 19 │     
+ 20 │ ╭─▶ //= spec.md#section-5
+ 21 │ │   //= type=implementation
+ 22 │ ├─▶ //# This MUST be duplicated as a todo and incomplete
+    · ╰──── Incomplete
+ 23 │     
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Mixed implementation and TODO:
+  │  This MUST be duplicated as a todo and incomplete implementation and will
+  │ fail
+    ╭─[src/lib.rs:24:5]
+ 23 │     
+ 24 │ ╭─▶ //= spec.md#section-5
+ 25 │ │   //= type=todo
+ 26 │ ├─▶ //# This MUST be duplicated as a todo and incomplete implementation and will fail
+    · ╰──── Implement this
+ 27 │     
+    ╰────
+
+
+  × Todo annotations
+    ╭─[src/lib.rs:8:5]
+  7 │     
+  8 │ ╭─▶ //= spec.md#section-3
+  9 │ │   //= type=todo
+ 10 │ ├─▶ //# This MUST be todo and will fail
+    · ╰──── Implement this
+ 11 │     
+    ╰────
+
+
+Overall: ✗ FAIL

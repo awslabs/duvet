@@ -1,0 +1,120 @@
+---
+source: xtask/src/tests.rs
+expression: stderr
+---
+$ duvet query --check duplicates --verbose
+EXIT: Some(1)
+    Starting duvet in query mode...
+  Extracting requirements
+   Extracted requirements from 1 specifications 
+    Scanning sources
+     Scanned 1 sources 
+     Parsing annotations
+      Parsed 3 annotations 
+     Loading specifications
+      Loaded 1 specifications 
+     Mapping sections
+      Mapped 1 sections 
+    Matching references
+     Matched 3 references 
+
+Duplicates: ✗ FAIL
+
+  × Duplicate test annotations
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa
+   · ╰──── Duplicate
+ 4 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Duplicate test annotations
+   ╭─[src/lib.rs:5:5]
+ 4 │     
+ 5 │ ╭─▶ //= spec.md#section-1
+ 6 │ │   //= type=test
+ 7 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Duplicate
+ 8 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Duplicate test annotations
+    ╭─[src/lib.rs:9:5]
+  8 │     
+  9 │ ╭─▶ //= spec.md#section-1
+ 10 │ │   //= type=test
+ 11 │ ├─▶ //# aaa bbb ccc
+    · ╰──── Duplicate
+    ╰────
+
+  × Duplicate test annotations
+   ╭─[src/lib.rs:5:5]
+ 4 │     
+ 5 │ ╭─▶ //= spec.md#section-1
+ 6 │ │   //= type=test
+ 7 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Duplicate
+ 8 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Duplicate test annotations
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa
+   · ╰──── Duplicate
+ 4 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Duplicate test annotations
+    ╭─[src/lib.rs:9:5]
+  8 │     
+  9 │ ╭─▶ //= spec.md#section-1
+ 10 │ │   //= type=test
+ 11 │ ├─▶ //# aaa bbb ccc
+    · ╰──── Duplicate
+    ╰────
+
+  × Duplicate test annotations
+    ╭─[src/lib.rs:9:5]
+  8 │     
+  9 │ ╭─▶ //= spec.md#section-1
+ 10 │ │   //= type=test
+ 11 │ ├─▶ //# aaa bbb ccc
+    · ╰──── Duplicate
+    ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Duplicate test annotations
+   ╭─[src/lib.rs:1:5]
+ 1 │ ╭─▶ //= spec.md#section-1
+ 2 │ │   //= type=test
+ 3 │ ├─▶ //# aaa
+   · ╰──── Duplicate
+ 4 │     
+   ╰────
+
+Advice: 
+  ☞ Related context for:
+  │  Duplicate test annotations
+   ╭─[src/lib.rs:5:5]
+ 4 │     
+ 5 │ ╭─▶ //= spec.md#section-1
+ 6 │ │   //= type=test
+ 7 │ ├─▶ //# aaa bbb ccc
+   · ╰──── Duplicate
+ 8 │     
+   ╰────
+
+
+Overall: ✗ FAIL

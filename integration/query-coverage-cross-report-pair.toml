@@ -1,0 +1,111 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r report-b.xml -r report-a.xml -f jacoco-xml"]
+report_output = false
+
+# Regression test for same-witness pair correlation (design 5.2).
+#
+# One implementation + one test annotate the same spec text. Report B shows
+# the test executed and the implementation MISSED; report A shows the
+# implementation executed and the test MISSED. No single report witnessed
+# both sides of the pair, so the correlation must FAIL: nothing demonstrates
+# that this test exercised this implementation.
+#
+# This is the discriminating case for per-test coverage discipline (one
+# report per test run). Folding each annotation's execution status across
+# all reports independently — the old behavior — passed this vacuously:
+# "test executed somewhere" AND "impl executed somewhere" with no common
+# witness. Discharge requires a single report r where both the test and the
+# implementation are executed:
+#
+#   discharged(T, I) = ∃ w ∈ witnesses_for(T) : I executed in w
+#
+# Contrast with query-coverage-multi-report-or.toml, which pins the benign
+# direction: there report A witnesses BOTH sides, so the pair is discharged
+# and the extra report B must not cause a false failure.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/main/java/com/example/Impl.java"
+contents = """
+package com.example;
+
+public class Impl {
+    public void doThing() {
+        //= spec.md#section-1
+        //= type=implementation
+        //# This MUST do the thing
+        run();
+    }
+}
+"""
+
+[[file]]
+path = "src/test/java/com/example/ImplTest.java"
+contents = """
+package com.example;
+
+public class ImplTest {
+    public void testThing() {
+        //= spec.md#section-1
+        //= type=test
+        //# This MUST do the thing
+        new Impl().doThing();
+    }
+}
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST do the thing
+"""
+
+# report B: test line (ImplTest.java:8) executed; implementation line MISSED
+[[file]]
+path = "report-b.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="B">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="3" ci="0" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""
+
+# report A: implementation line executed; test line MISSED
+[[file]]
+path = "report-a.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="A">
+    <package name="com/example">
+        <sourcefile name="Impl.java">
+            <line nr="8" mi="0" ci="3" mb="0" cb="0"/>
+        </sourcefile>
+        <sourcefile name="ImplTest.java">
+            <line nr="8" mi="3" ci="0" mb="0" cb="0"/>
+        </sourcefile>
+    </package>
+</report>
+"""

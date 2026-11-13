@@ -84,7 +84,16 @@ pub async fn build_references(
     let mut references = vec![];
 
     let Some(section_id) = section_id else {
-        // TODO return a warning that referring to a spec without a section doesn't make sense
+        // A reference that names a spec but no `#section` cannot be scored:
+        // coverage is computed per section, so there is nothing to match the
+        // annotation's quote against. Treat it as an error and enumerate every
+        // offending annotation (same collect-and-list contract as the
+        // missing-section case below) so the user can fix them all in one pass.
+        for annotation in annotations.iter() {
+            let mut error = error!("reference to {} is missing a section", target.path);
+            error = error.with_source_slice(annotation.original_target.clone(), "referenced here");
+            errors.push(error);
+        }
         return (references.into(), errors.into());
     };
 
@@ -102,8 +111,18 @@ pub async fn build_references(
 
     for annotation in annotations.iter() {
         if annotation.quote.is_empty() {
-            // empty quotes don't count towards coverage but are still
-            // references
+            // A section reference with no quote (`//= spec#section` and no `//#`)
+            // is an intentional *navigational* reference — present by design
+            // since v0.1.0. It anchors at the section title so the section shows
+            // a backlink to this code, but overlaps no requirement text, so it
+            // scores nothing: empty quotes don't count towards coverage but are
+            // still references.
+            //
+            // This is the coverer-side counterpart to the requirement-side
+            // empty-quote footgun documented in
+            // `query::checks::is_annotation_covered`. For a `Spec` annotation an
+            // empty quote is meaningless: it renders here as a title-anchored
+            // *gap*, never a pass — see the known divergence noted there.
             let text = section.full_title.clone();
             references.push(Reference {
                 target: target.clone(),

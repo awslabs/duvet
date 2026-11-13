@@ -5,6 +5,7 @@
 - [Specifications](./specifications.md)
 - [Annotations](./annotations.md)
 - [Reports](./reports.md)
+- [Query](./query.md)
 - [Commands]()
   - [init](./command/init.md)
   - [extract](./command/extract.md)

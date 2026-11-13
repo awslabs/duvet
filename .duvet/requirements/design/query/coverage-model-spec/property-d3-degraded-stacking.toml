@@ -1,0 +1,16 @@
+target = "design/query/coverage-model-spec.md#property-d3-degraded-stacking"
+
+# Property D3: Degraded Stacking Transitivity
+#
+# The implementation MUST prove that the degraded status depends on the annotation
+# only through its resolved target: two annotations that resolve to the same
+# target receive the same status.
+
+[[spec]]
+level = "MUST"
+quote = '''
+The implementation MUST prove that the degraded status depends on the annotation
+only through its resolved target: two annotations that resolve to the same
+target receive the same status.
+'''
+

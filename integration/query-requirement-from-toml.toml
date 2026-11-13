@@ -1,0 +1,47 @@
+source = { local = true }
+# When you cannot edit the spec markdown to carry RFC-2119 language, you can
+# hand-author the requirement in a TOML file under .duvet/requirements/. That
+# requirement enters the same annotation set as a `Spec` (identical to an
+# auto-extracted one), so a source citation covers it normally and `-q` selects
+# it by its quoted text. No `[[specification]]` block here: extraction is off,
+# the requirement is declared by hand.
+cmd = ["duvet query --check implementation -q token"]
+report_output = false
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+"""
+
+[[file]]
+path = ".duvet/requirements/hand-authored.toml"
+contents = """
+target = "spec.md#section-1"
+
+[[spec]]
+level = "MUST"
+quote = "validate the session token"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# validate the session token
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+The server behavior for tokens is described here: validate the session token
+before use.
+"""

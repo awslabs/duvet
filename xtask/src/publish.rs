@@ -14,7 +14,7 @@ impl Publish {
 
         cmd!(sh, "git diff --exit-code").run()?;
 
-        for pkg in ["duvet-macros", "duvet-core", "duvet"] {
+        for pkg in ["duvet-macros", "duvet-core", "duvet-coverage", "duvet"] {
             let _dir = sh.push_dir(pkg);
             cmd!(sh, "cargo publish --allow-dirty").run()?;
         }

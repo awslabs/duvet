@@ -1,0 +1,77 @@
+source = { local = true }
+cmd = ["duvet query --check implementation --verbose"]
+report_output = false
+
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.rs"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "src/lib.rs"
+contents = """
+//= spec.md#section-1
+//= type=implementation
+//# This MUST be an implementation
+
+//= spec.md#section-2
+//= type=implication
+//# This MUST be an implication
+
+//= spec.md#section-3
+//= type=exception
+//# This MUST be an exception
+
+//= spec.md#section-4
+//= type=implementation
+//# This shows you can implement a non RFC requirement
+
+//= spec.md#section-5
+//= type=implementation
+//# This MUST be a complicated multiline requirement
+//# that is implemented in parts because of the codes structure
+
+//= spec.md#section-5
+//= type=implementation
+//# (start ≤ middle 
+
+//= spec.md#section-5
+//= type=implementation
+//# middle ≤ end).
+
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Test Specification
+
+## Section 1
+
+This MUST be an implementation
+
+## Section 2  
+
+This MUST be an implication
+
+## Section 3
+
+This MUST be an exception
+
+## Section 4
+
+This shows you can implement a non RFC requirement
+
+## Section 5
+
+This MUST be a complicated multiline requirement
+that is implemented in parts because of the codes structure
+(start ≤ middle ≤ end).
+"""

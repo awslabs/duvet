@@ -72,7 +72,7 @@ pub struct HtmlReport {
 
 impl HtmlReport {
     pub fn path(&self) -> Option<&Path> {
-        Some(&self.path).filter(|_| self.enabled)
+        self.enabled.then_some(&self.path)
     }
 }
 
@@ -84,7 +84,7 @@ pub struct JsonReport {
 
 impl JsonReport {
     pub fn path(&self) -> Option<&Path> {
-        Some(&self.path).filter(|_| self.enabled)
+        self.enabled.then_some(&self.path)
     }
 }
 
@@ -96,7 +96,7 @@ pub struct SnapshotReport {
 
 impl SnapshotReport {
     pub fn path(&self) -> Option<&Path> {
-        Some(&self.path).filter(|_| self.enabled)
+        self.enabled.then_some(&self.path)
     }
 }
 

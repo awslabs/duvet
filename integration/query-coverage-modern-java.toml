@@ -1,0 +1,133 @@
+source = { local = true }
+cmd = ["duvet query -c coverage -r jacoco.xml -f jacoco-xml"]
+report_output = false
+
+# End-to-end coverage over MODERN Java constructs, pinned against a REAL JaCoCo
+# report. Both the source and the `jacoco.xml` below were produced empirically:
+# the source was compiled (javac --release 21) and run under the JaCoCo agent,
+# and the XML is that run's verbatim output. This guards the classifier's
+# handling of records, record methods, and switch arrow arms against genuine
+# bytecode coverage rather than a hand-authored approximation.
+#
+# The annotations sit directly on the modern constructs, and the JaCoCo verdict
+# lines up with the classifier's model:
+#   - #circle-area   → impl in a RECORD method (line 14 HIT) + test → correlated ✓
+#   - #classify-zero → impl in a SWITCH ARROW ARM block (line 33 HIT) + test → ✓
+#   - #square-area   → impl in a record method (line 23 MISS) + a test that
+#                      itself runs but never calls Square.area → FAILED correlation
+# The failed #square-area correlation is what makes the run exit non-zero. The
+# captured stderr shows the classifier resolving annotations that sit inside a
+# record method and a switch arrow arm, with the verified model attributing the
+# real bytecode hit/miss to each.
+[[file]]
+path = ".duvet/config.toml"
+contents = """
+'$schema' = "https://awslabs.github.io/duvet/config/v0.4.0.json"
+
+[[source]]
+pattern = "src/**/*.java"
+
+[[specification]]
+source = "spec.md"
+"""
+
+[[file]]
+path = "spec.md"
+contents = """
+# Shapes Specification
+
+## Circle area {#circle-area}
+
+The area of a circle MUST be pi times the radius squared.
+
+## Square area {#square-area}
+
+The area of a square MUST be the side length squared.
+
+## Classify zero {#classify-zero}
+
+A value of zero MUST classify as "zero".
+"""
+
+[[file]]
+path = "src/com/example/Shapes.java"
+contents = """
+package com.example;
+
+public class Shapes {
+
+    sealed interface Shape permits Circle, Square {
+        double area();
+    }
+
+    record Circle(double r) implements Shape {
+        public double area() {
+            //= spec.md#circle-area
+            //= type=implementation
+            //# The area of a circle MUST be pi times the radius squared.
+            return 3.14 * r * r;
+        }
+    }
+
+    record Square(double s) implements Shape {
+        public double area() {
+            //= spec.md#square-area
+            //= type=implementation
+            //# The area of a square MUST be the side length squared.
+            return s * s;
+        }
+    }
+
+    static String classify(int n) {
+        return switch (n) {
+            case 0 -> {
+                //= spec.md#classify-zero
+                //= type=implementation
+                //# A value of zero MUST classify as "zero".
+                yield "zero";
+            }
+            default -> "many";
+        };
+    }
+
+    public static double totalArea(Shape a) {
+        return a.area();
+    }
+}
+"""
+
+[[file]]
+path = "src/com/example/ShapesTest.java"
+contents = """
+package com.example;
+
+public class ShapesTest {
+
+    public static void main(String[] args) {
+        //= spec.md#circle-area
+        //= type=test
+        //# The area of a circle MUST be pi times the radius squared.
+        Shapes.Shape circle = new Shapes.Circle(2.0);
+        System.out.println(Shapes.totalArea(circle));
+
+        //= spec.md#classify-zero
+        //= type=test
+        //# A value of zero MUST classify as "zero".
+        System.out.println(Shapes.classify(0));
+
+        //= spec.md#square-area
+        //= type=test
+        //# The area of a square MUST be the side length squared.
+        // This test is itself executed (it runs in main), but it never calls
+        // Square.area — so the correlated implementation is NOT executed, and
+        // the coverage check must report a failed correlation.
+        System.out.println("square-area test ran but did not exercise the impl");
+    }
+}
+"""
+
+[[file]]
+path = "jacoco.xml"
+contents = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?><!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd"><report name="JaCoCo Coverage Report"><sessioninfo id="as-x0p2xf85-6c854b87" start="1784151669857" dump="1784151669971"/><package name="com/example"><class name="com/example/Shapes" sourcefilename="Shapes.java"><method name="&lt;init&gt;" desc="()V" line="3"><counter type="INSTRUCTION" missed="3" covered="0"/><counter type="LINE" missed="1" covered="0"/><counter type="COMPLEXITY" missed="1" covered="0"/><counter type="METHOD" missed="1" covered="0"/></method><method name="classify" desc="(I)Ljava/lang/String;" line="28"><counter type="INSTRUCTION" missed="1" covered="5"/><counter type="BRANCH" missed="1" covered="1"/><counter type="LINE" missed="1" covered="2"/><counter type="COMPLEXITY" missed="1" covered="1"/><counter type="METHOD" missed="0" covered="1"/></method><method name="totalArea" desc="(Lcom/example/Shapes$Shape;)D" line="40"><counter type="INSTRUCTION" missed="0" covered="3"/><counter type="LINE" missed="0" covered="1"/><counter type="COMPLEXITY" missed="0" covered="1"/><counter type="METHOD" missed="0" covered="1"/></method><counter type="INSTRUCTION" missed="4" covered="8"/><counter type="BRANCH" missed="1" covered="1"/><counter type="LINE" missed="2" covered="3"/><counter type="COMPLEXITY" missed="2" covered="2"/><counter type="METHOD" missed="1" covered="2"/><counter type="CLASS" missed="0" covered="1"/></class><class name="com/example/Shapes$Circle" sourcefilename="Shapes.java"><method name="&lt;init&gt;" desc="(D)V" line="9"><counter type="INSTRUCTION" missed="0" covered="6"/><counter type="LINE" missed="0" covered="1"/><counter type="COMPLEXITY" missed="0" covered="1"/><counter type="METHOD" missed="0" covered="1"/></method><method name="area" desc="()D" line="14"><counter type="INSTRUCTION" missed="0" covered="8"/><counter type="LINE" missed="0" covered="1"/><counter type="COMPLEXITY" missed="0" covered="1"/><counter type="METHOD" missed="0" covered="1"/></method><counter type="INSTRUCTION" missed="0" covered="14"/><counter type="LINE" missed="0" covered="2"/><counter type="COMPLEXITY" missed="0" covered="2"/><counter type="METHOD" missed="0" covered="2"/><counter type="CLASS" missed="0" covered="1"/></class><class name="com/example/ShapesTest" sourcefilename="ShapesTest.java"><method name="&lt;init&gt;" desc="()V" line="3"><counter type="INSTRUCTION" missed="3" covered="0"/><counter type="LINE" missed="1" covered="0"/><counter type="COMPLEXITY" missed="1" covered="0"/><counter type="METHOD" missed="1" covered="0"/></method><method name="main" desc="([Ljava/lang/String;)V" line="9"><counter type="INSTRUCTION" missed="0" covered="17"/><counter type="LINE" missed="0" covered="5"/><counter type="COMPLEXITY" missed="0" covered="1"/><counter type="METHOD" missed="0" covered="1"/></method><counter type="INSTRUCTION" missed="3" covered="17"/><counter type="LINE" missed="1" covered="5"/><counter type="COMPLEXITY" missed="1" covered="1"/><counter type="METHOD" missed="1" covered="1"/><counter type="CLASS" missed="0" covered="1"/></class><class name="com/example/Shapes$Square" sourcefilename="Shapes.java"><method name="&lt;init&gt;" desc="(D)V" line="18"><counter type="INSTRUCTION" missed="6" covered="0"/><counter type="LINE" missed="1" covered="0"/><counter type="COMPLEXITY" missed="1" covered="0"/><counter type="METHOD" missed="1" covered="0"/></method><method name="area" desc="()D" line="23"><counter type="INSTRUCTION" missed="6" covered="0"/><counter type="LINE" missed="1" covered="0"/><counter type="COMPLEXITY" missed="1" covered="0"/><counter type="METHOD" missed="1" covered="0"/></method><counter type="INSTRUCTION" missed="12" covered="0"/><counter type="LINE" missed="2" covered="0"/><counter type="COMPLEXITY" missed="2" covered="0"/><counter type="METHOD" missed="2" covered="0"/><counter type="CLASS" missed="1" covered="0"/></class><class name="com/example/Shapes$Shape" sourcefilename="Shapes.java"/><sourcefile name="Shapes.java"><line nr="3" mi="3" ci="0" mb="0" cb="0"/><line nr="9" mi="0" ci="6" mb="0" cb="0"/><line nr="14" mi="0" ci="8" mb="0" cb="0"/><line nr="18" mi="6" ci="0" mb="0" cb="0"/><line nr="23" mi="6" ci="0" mb="0" cb="0"/><line nr="28" mi="0" ci="3" mb="1" cb="1"/><line nr="33" mi="0" ci="2" mb="0" cb="0"/><line nr="35" mi="1" ci="0" mb="0" cb="0"/><line nr="40" mi="0" ci="3" mb="0" cb="0"/><counter type="INSTRUCTION" missed="16" covered="22"/><counter type="BRANCH" missed="1" covered="1"/><counter type="LINE" missed="4" covered="5"/><counter type="COMPLEXITY" missed="4" covered="4"/><counter type="METHOD" missed="3" covered="4"/><counter type="CLASS" missed="1" covered="2"/></sourcefile><sourcefile name="ShapesTest.java"><line nr="3" mi="3" ci="0" mb="0" cb="0"/><line nr="9" mi="0" ci="5" mb="0" cb="0"/><line nr="10" mi="0" ci="4" mb="0" cb="0"/><line nr="15" mi="0" ci="4" mb="0" cb="0"/><line nr="23" mi="0" ci="3" mb="0" cb="0"/><line nr="24" mi="0" ci="1" mb="0" cb="0"/><counter type="INSTRUCTION" missed="3" covered="17"/><counter type="LINE" missed="1" covered="5"/><counter type="COMPLEXITY" missed="1" covered="1"/><counter type="METHOD" missed="1" covered="1"/><counter type="CLASS" missed="0" covered="1"/></sourcefile><counter type="INSTRUCTION" missed="19" covered="39"/><counter type="BRANCH" missed="1" covered="1"/><counter type="LINE" missed="5" covered="10"/><counter type="COMPLEXITY" missed="5" covered="5"/><counter type="METHOD" missed="4" covered="5"/><counter type="CLASS" missed="1" covered="3"/></package><counter type="INSTRUCTION" missed="19" covered="39"/><counter type="BRANCH" missed="1" covered="1"/><counter type="LINE" missed="5" covered="10"/><counter type="COMPLEXITY" missed="5" covered="5"/><counter type="METHOD" missed="4" covered="5"/><counter type="CLASS" missed="1" covered="3"/></report>
+"""
