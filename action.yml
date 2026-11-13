@@ -3,7 +3,7 @@ description: 'Installs Duvet in the GitHub Actions environment'
 inputs:
   version:
     description: 'Version of Duvet to install'
-    default: 0.4.1
+    default: 0.4.3
     required: false
 runs:
   using: "composite"
@@ -25,9 +25,10 @@ runs:
       id: download
       if: steps.target.outputs.target != ''
       shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        TARGET: ${{ steps.target.outputs.target }}
       run: |
-        VERSION="${{ inputs.version }}"
-        TARGET="${{ steps.target.outputs.target }}"
         if [[ "$TARGET" == *windows* ]]; then
           EXT="zip"
         else
@@ -35,20 +36,19 @@ runs:
         fi
         URL="https://github.com/awslabs/duvet/releases/download/v${VERSION}/duvet-v${VERSION}-${TARGET}.${EXT}"
         echo "Attempting to download from ${URL}"
-        if curl -fsSL -o "duvet-archive.${EXT}" "$URL"; then
+        cd "$RUNNER_TEMP"
+        BIN_DIR="duvet-v${VERSION}-${TARGET}"
+        extract() {
           if [[ "$EXT" == "zip" ]]; then
-            unzip -o "duvet-archive.${EXT}"
+            unzip -oq "duvet-archive.${EXT}"
           else
             tar xzf "duvet-archive.${EXT}"
           fi
-          BIN_DIR="duvet-v${VERSION}-${TARGET}"
-          if [[ -d "$BIN_DIR" ]]; then
-            chmod +x "${BIN_DIR}/duvet"* 2>/dev/null || true
-            echo "${PWD}/${BIN_DIR}" >> "$GITHUB_PATH"
-            echo "success=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "success=false" >> "$GITHUB_OUTPUT"
-          fi
+        }
+        if curl -fsSL -o "duvet-archive.${EXT}" "$URL" && extract && "./${BIN_DIR}/duvet" --version; then
+          # RUNNER_TEMP is a native path, also on Windows.
+          echo "${RUNNER_TEMP}/${BIN_DIR}" >> "$GITHUB_PATH"
+          echo "success=true" >> "$GITHUB_OUTPUT"
         else
           echo "success=false" >> "$GITHUB_OUTPUT"
         fi

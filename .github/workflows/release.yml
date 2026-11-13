@@ -1,19 +1,56 @@
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build again, for instance v0.4.4'
+        required: true
+        type: string
 
 name: release
+
+permissions:
+  contents: read
 
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   RUSTUP_MAX_RETRIES: 10
   RUST_BACKTRACE: 1
+  TAG: ${{ inputs.tag || github.event.release.tag_name }}
+  MATURIN_VERSION: v1.16.0
 
 jobs:
+  www:
+    name: Build the report assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - name: Check that the tag matches the crate version
+        run: |
+          VERSION=$(grep -m1 '^version' duvet/Cargo.toml | sed -E 's/^version *= *"(.+)"/\1/')
+          if [ "v$VERSION" != "$TAG" ]; then
+            echo "::error::The tag $TAG does not match the duvet version $VERSION"
+            exit 1
+          fi
+
+      - name: Build script.js
+        run: make -C duvet/www
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: www
+          path: duvet/www/public/script.js
+          if-no-files-found: error
+
   build:
     name: Build ${{ matrix.target }}
+    needs: www
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -21,99 +58,164 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            cross: false
+            manylinux: auto
+            run: true
+          # The manylinux2014 cross-compiler is too old for mimalloc.
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            manylinux: auto
+            run: true
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-            cross: true
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            cross: true
+            manylinux: musllinux_1_2
+            run: true
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
-            cross: true
+            manylinux: musllinux_1_2
+            run: false
           - target: x86_64-apple-darwin
             os: macos-latest
-            cross: false
+            run: false
           - target: aarch64-apple-darwin
             os: macos-latest
-            cross: false
+            run: true
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            cross: false
+            run: true
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: true
+          ref: ${{ env.TAG }}
+          persist-credentials: false
 
-      - name: Install Rust toolchain
-        run: |
-          rustup toolchain install stable --profile minimal --target ${{ matrix.target }}
-          rustup override set stable
-
-      - name: Install cross
-        if: matrix.cross
-        run: cargo install cross --locked
-
-      - name: Cache node_modules
-        uses: actions/cache@v5.0.3
-        continue-on-error: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          path: duvet/www/node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('duvet/www/package-lock.json') }}
+          name: www
+          path: duvet/www/public
 
-      - name: Build www assets
-        run: cargo xtask build
+      # So that `duvet --version` prints the same plain version on every platform.
+      - name: Remove the git metadata
+        shell: bash
+        run: rm -rf .git
 
-      - name: Build (cross)
-        if: matrix.cross
-        run: cross build --release -p duvet --target ${{ matrix.target }}
+      - name: Build the wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: ${{ env.MATURIN_VERSION }}
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --out target/wheels
 
-      - name: Build (native)
-        if: ${{ !matrix.cross }}
-        run: cargo build --release -p duvet --target ${{ matrix.target }}
+      - name: Run the binary
+        if: matrix.run
+        shell: bash
+        run: target/${{ matrix.target }}/release/duvet --version
 
+      # target/ belongs to root after the Linux container builds.
       - name: Package (unix)
-        if: matrix.os != 'windows-latest'
+        if: runner.os != 'Windows'
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
           DIR="duvet-${TAG}-${{ matrix.target }}"
-          mkdir "$DIR"
-          cp "target/${{ matrix.target }}/release/duvet" "$DIR/"
-          tar czf "${DIR}.tar.gz" "$DIR"
+          mkdir -p "archives/$DIR"
+          cp "target/${{ matrix.target }}/release/duvet" "archives/$DIR/"
+          tar czf "archives/${DIR}.tar.gz" -C archives "$DIR"
 
       - name: Package (windows)
-        if: matrix.os == 'windows-latest'
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $tag = $env:GITHUB_REF -replace '^refs/tags/', ''
-          $dir = "duvet-${tag}-${{ matrix.target }}"
-          New-Item -ItemType Directory -Path $dir
-          Copy-Item "target/${{ matrix.target }}/release/duvet.exe" "$dir/"
-          Compress-Archive -Path "$dir" -DestinationPath "${dir}.zip"
+          $dir = "duvet-$env:TAG-${{ matrix.target }}"
+          New-Item -ItemType Directory -Path "archives/$dir"
+          Copy-Item "target/${{ matrix.target }}/release/duvet.exe" "archives/$dir/"
+          Compress-Archive -Path "archives/$dir" -DestinationPath "archives/$dir.zip"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: duvet-${{ matrix.target }}
-          path: duvet-*-${{ matrix.target }}.*
+          name: wheel-${{ matrix.target }}
+          path: target/wheels/*.whl
+          if-no-files-found: error
 
-  release:
-    name: Create release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: archive-${{ matrix.target }}
+          path: |
+            archives/*.tar.gz
+            archives/*.zip
+          if-no-files-found: error
+
+  sdist:
+    name: Build the source distribution
+    needs: www
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: www
+          path: duvet/www/public
+
+      - name: Build the sdist
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: ${{ env.MATURIN_VERSION }}
+          command: sdist
+          args: --out target/wheels
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sdist
+          path: target/wheels/*.tar.gz
+          if-no-files-found: error
+
+  github:
+    name: Attach the binaries to the GitHub release
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          path: artifacts
+          pattern: archive-*
+          path: archives
           merge-multiple: true
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload the archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" archives/* --clobber
+          else
+            gh release create "$TAG" archives/* --verify-tag --generate-notes
+          fi
+
+  pypi:
+    name: Publish to PyPI
+    needs: [build, sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/duvet-cli/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          generate_release_notes: true
-          files: artifacts/*
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sdist
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          skip-existing: true

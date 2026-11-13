@@ -6,6 +6,7 @@
 * New `duvet-coverage` internal crate providing a Verus-verified two-phase coverage model. Algorithms for scope tree construction, target resolution, and execution-set propagation are formally proven against the correctness properties in `design/query/coverage-model-spec.md`. Used by `duvet query --check coverage` for languages with a tree-sitter classifier; other languages use a verified degraded model that reads coverage directly at the annotation's target line.
 * Java line classifier built on tree-sitter; extends the coverage check to handle method declarations, interface bodies, fields without initializers, and other constructs that bytecode-based coverage tools (e.g., JaCoCo) do not report.
 * JaCoCo XML coverage report parser.
+* Duvet can be installed without compiling it. Prebuilt binaries for Linux, macOS and Windows are attached to the GitHub releases, and work with `cargo binstall duvet`. `pip install duvet-cli` installs the same binary from PyPI. The GitHub action uses them when they exist.
 * Duvet no longer needs OpenSSL on Linux. The system certificates are still used, and `SSL_CERT_FILE` and `SSL_CERT_DIR` still work.
 
 ### Bug Fixes

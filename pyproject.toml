@@ -1,0 +1,32 @@
+[build-system]
+requires = ["maturin>=1.16,<2"]
+build-backend = "maturin"
+
+[project]
+name = "duvet-cli"
+description = "A requirements traceability tool"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+    { name = "Cameron Bytheway", email = "bythewc@amazon.com" },
+    { name = "Ryan Emery", email = "ryanemer@amazon.com" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Rust",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dynamic = ["version"]
+
+[project.urls]
+Documentation = "https://awslabs.github.io/duvet/"
+Repository = "https://github.com/awslabs/duvet"
+Changelog = "https://github.com/awslabs/duvet/blob/main/CHANGELOG.md"
+
+[tool.maturin]
+bindings = "bin"
+manifest-path = "duvet/Cargo.toml"
+strip = true
