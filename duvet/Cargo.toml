@@ -9,7 +9,7 @@ authors = [
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/awslabs/duvet"
-include = ["/src/**/*.rs", "/www/public"]
+include = ["/build.rs", "/src/**/*.rs", "/www/public"]
 default-run = "duvet"
 rust-version = "1.88"
 
